@@ -1,0 +1,57 @@
+name: Quality
+
+on:
+  pull_request:
+  push:
+    branches:
+      - main
+      - dev
+
+jobs:
+  dart:
+    name: Analyze and test
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Flutter
+        uses: subosito/flutter-action@v2
+        with:
+          channel: stable
+          cache: true
+
+      - name: Install package dependencies
+        run: flutter pub get
+
+      - name: Install example dependencies
+        working-directory: example
+        run: flutter pub get
+
+      - name: Check formatting
+        run: dart format --set-exit-if-changed .
+
+      - name: Validate test matrix
+        run: dart run tool/validate_test_matrix.dart
+
+      - name: Verify native artifact checksums
+        run: ./tool/verify_native_artifacts.sh --ios-only
+
+      - name: Check generated Pigeon drift
+        run: |
+          ./tool/generate_pigeon.sh
+          dart format lib/src/pigeon/rln_api.g.dart
+          git diff --exit-code -- \
+            lib/src/pigeon/rln_api.g.dart \
+            android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnApi.g.kt \
+            ios/Classes/RlnApi.g.swift
+
+      - name: Analyze package
+        run: flutter analyze
+
+      - name: Test package
+        run: flutter test
+
+      - name: Test example widget tests
+        working-directory: example
+        run: flutter test test

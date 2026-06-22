@@ -1,0 +1,42 @@
+name: rgb_sdk_flutter
+description: Flutter SDK bridge for Bitcoin RGB Protocol and RGB Lightning Node.
+version: 0.1.0
+publish_to: 'none'
+homepage: https://github.com/zeusbuilds/rgb-sdk-flutter
+repository: https://github.com/zeusbuilds/rgb-sdk-flutter
+issue_tracker: https://github.com/zeusbuilds/rgb-sdk-flutter/issues
+topics:
+  - bitcoin
+  - rgb
+  - lightning
+  - wallet
+
+environment:
+  sdk: ^3.11.5
+  flutter: '>=3.3.0'
+
+dependencies:
+  bip32: ^2.0.0
+  bip39: ^1.0.6
+  crypto: ^3.0.7
+  flutter:
+    sdk: flutter
+  http: ^1.6.0
+  meta: ^1.17.0
+  plugin_platform_interface: ^2.0.2
+  pointycastle: ^3.9.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  pigeon: ^26.3.4
+
+flutter:
+  plugin:
+    platforms:
+      android:
+        package: com.utexo.rgb_sdk_flutter
+        pluginClass: RgbSdkFlutterPlugin
+      ios:
+        pluginClass: RgbSdkFlutterPlugin

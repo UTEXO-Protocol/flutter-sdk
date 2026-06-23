@@ -51,6 +51,9 @@ this package until one of these is true:
   `bdk-rn` removal.
 - App-level secure storage requirements are documented in
   `doc/SECURITY_MODEL.md`.
+- Secure storage decision is explicit: the SDK does not persist secrets; the
+  consuming app must provide reviewed iOS Keychain / Android Keystore-backed
+  storage before beta or mainnet custody release.
 - Local release gates and stop-ship conditions are documented in
   `doc/RELEASE_POLICY.md`.
 - Native artifact checksums and mirror policy are documented in

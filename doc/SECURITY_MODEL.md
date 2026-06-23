@@ -38,6 +38,30 @@ The Dart layer provides these guardrails:
 
 These guardrails do not replace app-level secure storage.
 
+## Secure Storage Decision
+
+Decision: secure storage is owned by the consuming wallet app, not by this SDK.
+The SDK must not persist mnemonic, seed, password, signer material, or backup
+artifacts. It may accept those values at runtime for parity with RN flows, pass
+them to the native bridge, and clear retained Dart references as soon as the
+wallet lifecycle allows.
+
+The app that embeds this package must provide a reviewed platform storage
+adapter before any beta or mainnet release:
+
+- iOS: Keychain-backed encrypted storage with non-synchronizing accessibility
+  for seed material by default.
+- Android: Android Keystore-backed wrapping keys with encrypted app-private
+  storage for seed material by default.
+- Both platforms: no seed/password material in logs, analytics, crash reports,
+  support bundles, notifications, plain preferences, or cloud backups unless a
+  separate recovery design explicitly approves it.
+
+This decision keeps the package narrow and portable while making security
+ownership explicit. The tradeoff is that app integration is a release blocker:
+an app cannot claim production custody readiness simply because the SDK API is
+present.
+
 ## iOS Secure Storage Policy
 
 For a production app, store seed material only as encrypted or wrapped data in

@@ -24,6 +24,23 @@ wait_for_bitcoind() {
   done
 }
 
+wait_for_host_bitcoind_rpc() {
+  local start
+  local rpc_port="${BITCOIND_RPC_PORT:-18444}"
+  start="$(date +%s)"
+  until curl --fail --silent \
+    --user user:password \
+    --data-binary '{"jsonrpc":"1.0","id":"regtest","method":"getblockchaininfo","params":[]}' \
+    -H 'content-type: text/plain;' \
+    "http://127.0.0.1:${rpc_port}/" >/dev/null 2>&1; do
+    if (( "$(date +%s)" - start > TIMEOUT_SECONDS )); then
+      "${COMPOSE[@]}" logs bitcoind >&2
+      die "timed out waiting for host bitcoind RPC on 127.0.0.1:${rpc_port}"
+    fi
+    sleep 1
+  done
+}
+
 wait_for_electrs() {
   local start
   local electrs_port="${ELECTRS_PORT:-50002}"
@@ -61,6 +78,7 @@ start() {
   wait_for_bitcoind
   ensure_miner_wallet
   ensure_initial_blocks
+  wait_for_host_bitcoind_rpc
   "${COMPOSE[@]}" up -d proxy electrs
   wait_for_electrs
   info

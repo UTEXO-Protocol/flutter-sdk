@@ -187,3 +187,7 @@ Repository: https://github.com/zeusbuilds/rgb-sdk-flutter
   emitted by the simulator test and covers two-wallet RGB issuance/send/receive
   behavior, peer connection, RGB channel open, RGB Lightning invoice creation,
   RGB Lightning payment send, and receiver invoice final-state assertion.
+- On 2026-06-23, the full local native/platform proof passed on both iOS and
+  Android: native bridge tests, unfunded regtest smokes, and funded
+  RGB/RGB-Lightning smokes. The local regtest bitcoind RPC config was fixed so
+  host-published RPC is verified before simulator/emulator tests start.

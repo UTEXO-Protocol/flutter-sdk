@@ -101,6 +101,8 @@ Current CI policy:
   tests, and iOS vendored artifact checksum verification.
 - Native builds and regtest smokes are intentionally not in CI by current
   project decision. They are local or release-run gates.
+- The local release-run gate must publish/report iOS XCTest, Android JVM bridge
+  tests, and iOS/Android funded plus unfunded regtest smoke results.
 
 Future option:
 
@@ -578,6 +580,9 @@ Useful commands:
 Rules:
 
 - `start` preserves existing stack data.
+- `start` must prove authenticated host bitcoind RPC access before returning;
+  native platform smokes depend on the host-published RPC endpoint, not only
+  in-container `bitcoin-cli`.
 - `reset` is required before reproducibility-sensitive release runs.
 - Every funded release run must capture stack info before tests.
 - Every failure must dump regtest stack logs and simulator/emulator logs.

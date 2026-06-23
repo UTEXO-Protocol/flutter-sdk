@@ -89,7 +89,7 @@ below are resolved.
 | REL-015 | P1 | Docs / release claims | Resolved by Phase 7: README, readiness, release policy, testing strategy, test report template, matrix README, and progress tracker now describe the RN beta.19/RLN beta.2 baseline and the non-backup release boundary. | Flutter: `README.md`, `doc/PARITY_MATRIX.md`, `doc/PRODUCTION_READINESS.md`, `doc/PROGRESS_TRACKER.md`, `doc/RELEASE_POLICY.md`, `doc/TESTING_STRATEGY.md`, `doc/TEST_REPORT_TEMPLATE.md`. | Done: docs describe release-candidate hardening for implemented non-backup surfaces, keep backup/recovery as a mainnet product gate, and include the RN-source parity validator. |
 | REL-016 | P2 | Backup / recovery product gate | `rlnBackup` remains native-blocked upstream and Flutter gates it. This is not fake parity because RN is also blocked, but a production wallet still needs a formal recovery story before mainnet release. | RN and Flutter native backup paths throw/are unavailable; Flutter tracker marks backup gated. | Keep backup out of parity scope only if product release notes explicitly say recovery is provided by another approved mechanism. Otherwise create a separate mainnet release blocker for VSS/backup/restore. |
 | REL-017 | P2 | Intentional behavior divergences | Resolved by Phase 5 as documented safer Flutter behavior: RGB send `skipSync=true` fails fast, `getXpub()` returns available data, `getPayment()` keeps the RN-facing lookup shape over the native bridge, and LSP waits throw explicit timeout exceptions. | Flutter: `RlnClient.sendRgb`, `UtexoWallet.getXpub`, `RlnClient.getPayment`, `UtexoLsp.waitForOutboundLiquidity`, `doc/BEHAVIORAL_CONTRACT.md`, `test/utexo_wallet_test.dart`, `test/rln_client_contract_test.dart`. | Done: each divergence is documented and covered by existing or added tests, so it is no longer hidden drift. |
-| REL-018 | P2 | Native platform proof | Resolved as a repeatable local release gate: native Android JVM bridge tests, iOS XCTest bridge tests when `IOS_DEVICE` is set, optional iOS/Android regtest smokes, and native artifact verification are all captured by the release-candidate script/report. | Flutter: `tool/test_release_candidate.sh`, `tool/test_native_android.sh`, `tool/test_native_ios.sh`, `tool/test_platform_unfunded.sh`, `tool/test_platform_funded.sh`, `test/`, `android/src/test`, `example/ios/RunnerTests`. RN: `android/src/androidTest`. | Done: the package now has an auditable release report flow. Full simulator/emulator smokes remain local opt-in by current project decision and must be rerun per release candidate with explicit devices. |
+| REL-018 | P2 | Native platform proof | Resolved as a repeatable local release gate: native Android JVM bridge tests, iOS XCTest bridge tests when `IOS_DEVICE` is set, optional iOS/Android regtest smokes, and native artifact verification are all captured by the release-candidate script/report. | Flutter: `tool/test_release_candidate.sh`, `tool/test_native_android.sh`, `tool/test_native_ios.sh`, `tool/test_platform_unfunded.sh`, `tool/test_platform_funded.sh`, `test/`, `android/src/test`, `example/ios/RunnerTests`. RN: `android/src/androidTest`. | Done: the package now has an auditable release report flow. Full simulator/emulator smokes remain local opt-in by current project decision and were run locally on 2026-06-23 for iOS and Android, funded and unfunded. |
 
 ### Important Non-Blocker Findings
 
@@ -383,6 +383,50 @@ New issues found during Phase 7:
   method declarations instead.
 - `wallet_methods.json` was missing `isDisposed`, `getNetwork`, and
   `getLspConfig`. Those rows are now tracked.
+
+#### Local Platform Proof Rerun
+
+Date: 2026-06-23
+
+Result: passed after fixing the local regtest bitcoind RPC exposure.
+
+Decisions confirmed:
+
+- Backup/recovery remains native-blocked and product-release gated.
+- `sendRgb(skipSync: true)` remains fail-fast until upstream native artifacts
+  expose a matching field.
+- Native builds and regtest smokes remain local-only, not CI jobs.
+- Pigeon Swift/Kotlin bridges remain the implementation path for now; no Dart
+  FFI migration in this release slice.
+- Upstream native artifacts remain acceptable for development/internal beta,
+  with checksum verification.
+- Secure storage remains app-owned: the SDK does not persist mnemonic, seed,
+  password, signer material, or backup artifacts.
+
+Fixes made:
+
+- The regtest stack's host-published bitcoind RPC returned HTTP 403 even though
+  in-container `bitcoin-cli` worked. The local compose config now widens
+  bitcoind `rpcallowip` for this isolated regtest stack.
+- `regtest.sh start` now proves host RPC readiness with authenticated `curl`
+  before launching simulator/emulator smokes, preventing false native
+  `FailedBitcoindConnection` failures.
+- The funded smoke now prints explicit `RGB_SDK_FLUTTER_STEP` breadcrumbs at
+  every expensive RGB/RGB-Lightning boundary.
+
+Commands/checks:
+
+- `DEVICE='iPhone Air' ./tool/test_native_ios.sh`
+- `./tool/test_native_android.sh`
+- `DEVICE='46B8C95D-F0CD-4E50-9C98-61A8F84176AB' ./tool/test_platform_unfunded.sh`
+- `DEVICE='emulator-5554' ./tool/test_platform_unfunded.sh`
+- `DEVICE='46B8C95D-F0CD-4E50-9C98-61A8F84176AB' ./tool/test_platform_funded.sh`
+- `DEVICE='emulator-5554' ./tool/test_platform_funded.sh`
+
+Reports are generated under:
+
+- `build/test-reports/native/`
+- `build/test-reports/platform/`
 
 ## Issue Writing Standard
 

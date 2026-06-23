@@ -230,16 +230,24 @@ void main() {
       await _startWallet(walletA);
       await _startWallet(walletB);
 
+      _step('fund wallet A');
       _requestFunding(await walletA.getAddress(), '0.03');
+      _step('fund wallet B');
       _requestFunding(await walletB.getAddress(), '0.02');
+      _step('wait wallet A spendable');
       await _waitForSpendable(walletA, 1, label: 'wallet A');
+      _step('wait wallet B spendable');
       await _waitForSpendable(walletB, 1, label: 'wallet B');
 
+      _step('create wallet A utxos');
       await walletA.createUtxos(num: 10, size: 100000, feeRate: 1);
+      _step('create wallet B utxos');
       await walletB.createUtxos(num: 10, size: 100000, feeRate: 1);
+      _step('confirm created utxos');
       await _mineAndWait(walletA, blocks: 1);
       await walletB.syncWallet();
 
+      _step('issue NIA asset');
       final issued = await walletA.issueAssetNia(
         ticker: 'TST',
         name: 'Test Asset',
@@ -248,7 +256,9 @@ void main() {
       );
       expect(issued.assetId, isNotEmpty);
 
+      _step('blind receive asset');
       final invoice = await walletB.blindReceive(const RgbInvoiceRequest());
+      _step('send RGB asset');
       final send = await walletA.send(
         RgbSendRequest(
           invoice: invoice.invoice,
@@ -260,7 +270,9 @@ void main() {
       );
       expect(send.txid, isNotEmpty);
 
+      _step('confirm RGB transfer');
       await _mineAndWait(walletA, blocks: 1);
+      _step('wait wallet B asset spendable');
       await _waitForAssetSpendable(
         walletB,
         issued.assetId,
@@ -284,18 +296,23 @@ void main() {
         label: 'wallet A',
       );
 
+      _step('read wallet A asset balance');
       final walletABalance = await walletA.getAssetBalance(issued.assetId);
       expect(walletABalance.spendable, lessThanOrEqualTo(900));
 
+      _step('read node info');
       final walletAInfo = await walletA.nodeInfo();
       final walletBInfo = await walletB.nodeInfo();
       final walletAPeer = '${walletAInfo.pubkey}@127.0.0.1:34033';
       final walletBPeer = '${walletBInfo.pubkey}@127.0.0.1:34034';
+      _step('connect wallet A to wallet B');
       await walletA.connectPeer(walletBPeer);
       await _waitForPeer(walletA, walletBInfo.pubkey);
+      _step('connect wallet B to wallet A');
       await walletB.connectPeer(walletAPeer);
       await _waitForPeer(walletB, walletAInfo.pubkey);
 
+      _step('open RGB channel');
       final opened = await walletA.openChannel(
         peerPubkeyAndOptAddr: walletBPeer,
         capacitySat: 500000,
@@ -307,9 +324,12 @@ void main() {
       );
       expect(opened.temporaryChannelId, isNotEmpty);
 
+      _step('confirm RGB channel');
       await _mineAndWait(walletA, blocks: 6);
+      _step('wait usable RGB channel');
       await _waitForUsableChannelPair(walletA, walletB, issued.assetId);
 
+      _step('create RGB lightning invoice');
       final lnInvoice = await walletB.createLightningInvoice(
         amtMsat: 3000000,
         assetId: issued.assetId,
@@ -317,11 +337,13 @@ void main() {
       );
       expect(lnInvoice.invoice, isNotEmpty);
 
+      _step('pay RGB lightning invoice');
       final payment = await walletA.payLightningInvoice(
         invoice: lnInvoice.invoice,
       );
       expect(payment.status, isNotEmpty);
 
+      _step('wait RGB lightning invoice final');
       await _waitForInvoiceFinal(walletB, lnInvoice.invoice);
     } finally {
       await walletA.destroy().catchError((_) {});
@@ -369,6 +391,10 @@ void _requestFunding(String address, String amountBtc) {
   debugPrintSynchronously(
     'RGB_SDK_FLUTTER_HOST FUND address=$address amount=$amountBtc',
   );
+}
+
+void _step(String label) {
+  debugPrintSynchronously('RGB_SDK_FLUTTER_STEP $label');
 }
 
 void _requestMine(int blocks) {

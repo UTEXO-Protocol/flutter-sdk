@@ -59,6 +59,9 @@ this package until one of these is true:
 - Native artifact checksums and mirror policy are documented in
   `doc/SUPPLY_CHAIN.md`, with local verification in
   `tool/verify_native_artifacts.sh`.
+- Full local platform proof was run on 2026-06-23: iOS XCTest, Android JVM
+  bridge tests, iOS/Android unfunded regtest smokes, and iOS/Android funded
+  RGB/RGB-Lightning regtest smokes all passed locally.
 
 ## Release Gate
 

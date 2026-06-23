@@ -4,7 +4,7 @@ services:
   bitcoind:
     image: registry.gitlab.com/hashbeam/docker/bitcoind:30.0
     platform: linux/amd64
-    command: "-fallbackfee=0.0002"
+    command: "-fallbackfee=0.0002 -rpcallowip=0.0.0.0/0"
     environment:
       MYUID: "${MYUID:-1000}"
       MYGID: "${MYGID:-1000}"

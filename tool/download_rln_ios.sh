@@ -1,71 +1,126 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-RLN_VERSION="${RLN_VERSION:-0.6.0-beta.2}"
-BASE_URL="https://github.com/UTEXO-Protocol/rgb-lightning-node/releases/download/v${RLN_VERSION}"
-
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+# shellcheck source=tool/release_baseline.sh
+source "${SCRIPT_DIR}/release_baseline.sh"
+
 IOS_DIR="${ROOT_DIR}/ios"
-ZIP_PATH="${IOS_DIR}/rgb-lightning-node-swift.zip"
-TMP_DIR="${IOS_DIR}/.tmp-rln-swift"
-FRAMEWORK_DIR="${IOS_DIR}/RGBLightningNode.xcframework"
+RLN_VERSION="$(release_baseline_value rln.version)"
+ARCHIVE_URL="$(release_baseline_value rln.ios.archiveUrl)"
+ARCHIVE_SHA256="$(release_baseline_value rln.ios.archiveSha256)"
+ARCHIVE_SIZE="$(release_baseline_value rln.ios.archiveSizeBytes)"
+
+require_tool() {
+  command -v "$1" >/dev/null 2>&1 || {
+    echo "[rln] $1 is required." >&2
+    exit 1
+  }
+}
+
+sha256_file() {
+  shasum -a 256 "$1" | awk '{print $1}'
+}
+
+verify_file() {
+  local expected_sha="$1"
+  local file="$2"
+  [[ -f "${file}" ]] || {
+    echo "[rln] Missing artifact file: ${file}" >&2
+    return 1
+  }
+  local actual_sha
+  actual_sha="$(sha256_file "${file}")"
+  [[ "${actual_sha}" == "${expected_sha}" ]] || {
+    echo "[rln] Checksum mismatch for ${file}" >&2
+    echo "[rln] Expected: ${expected_sha}" >&2
+    echo "[rln] Actual:   ${actual_sha}" >&2
+    return 1
+  }
+}
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
-  echo "[rln] Skipping iOS framework download: host is not macOS."
+  echo "[rln] Skipping iOS artifact installation: host is not macOS."
   exit 0
 fi
 
-if [[ "${FORCE_RLN_DOWNLOAD:-0}" != "1" && -d "${FRAMEWORK_DIR}" && -f "${IOS_DIR}/RGBLightningNode.swift" ]]; then
-  echo "[rln] iOS RLN artifact ${RLN_VERSION} already exists."
+require_tool awk
+require_tool curl
+require_tool shasum
+require_tool unzip
+
+if [[ "${FORCE_RLN_DOWNLOAD:-0}" != "1" ]] &&
+  "${SCRIPT_DIR}/verify_native_artifacts.sh" --ios-only >/dev/null 2>&1; then
+  echo "[rln] Verified iOS RLN artifact ${RLN_VERSION} already installed."
   exit 0
 fi
-
-command -v curl >/dev/null 2>&1 || {
-  echo "[rln] curl is required to download the iOS RLN artifact." >&2
-  exit 1
-}
-
-command -v unzip >/dev/null 2>&1 || {
-  echo "[rln] unzip is required to extract the iOS RLN artifact." >&2
-  exit 1
-}
 
 mkdir -p "${IOS_DIR}"
-rm -rf "${TMP_DIR}"
-mkdir -p "${TMP_DIR}"
-
-URL="${BASE_URL}/rgb-lightning-node-swift-${RLN_VERSION}.zip"
-echo "[rln] Downloading ${URL}"
-curl --fail --location --progress-bar "${URL}" --output "${ZIP_PATH}"
-
-echo "[rln] Extracting iOS RLN artifact"
-unzip -q -o "${ZIP_PATH}" -d "${TMP_DIR}"
-rm -f "${ZIP_PATH}"
-
-SWIFT_DIR="${TMP_DIR}/swift"
-if [[ ! -d "${SWIFT_DIR}/RGBLightningNode.xcframework" ]]; then
-  echo "[rln] RGBLightningNode.xcframework was not found inside the release zip." >&2
-  rm -rf "${TMP_DIR}"
+LOCK_DIR="${IOS_DIR}/.rln-install.lock"
+if ! mkdir "${LOCK_DIR}" 2>/dev/null; then
+  echo "[rln] Another artifact installation is active: ${LOCK_DIR}" >&2
   exit 1
 fi
 
-rm -rf "${FRAMEWORK_DIR}"
-cp -R "${SWIFT_DIR}/RGBLightningNode.xcframework" "${FRAMEWORK_DIR}"
+TMP_DIR="$(mktemp -d "${IOS_DIR}/.rln-install.XXXXXX")"
+ARCHIVE_PATH="${TMP_DIR}/rln-ios.zip"
+cleanup() {
+  rm -rf "${TMP_DIR}"
+  rmdir "${LOCK_DIR}" 2>/dev/null || true
+}
+trap cleanup EXIT
 
-for file in RGBLightningNode.swift RGBLightningNodeFFI.h RGBLightningNodeFFI.modulemap; do
-  if [[ -f "${SWIFT_DIR}/${file}" ]]; then
-    cp "${SWIFT_DIR}/${file}" "${IOS_DIR}/${file}"
-  else
-    echo "[rln] ${file} was not found inside the release zip." >&2
-    rm -rf "${TMP_DIR}"
+if [[ -n "${RLN_ARCHIVE_PATH:-}" ]]; then
+  [[ -f "${RLN_ARCHIVE_PATH}" ]] || {
+    echo "[rln] RLN_ARCHIVE_PATH does not exist: ${RLN_ARCHIVE_PATH}" >&2
     exit 1
-  fi
+  }
+  cp "${RLN_ARCHIVE_PATH}" "${ARCHIVE_PATH}"
+else
+  echo "[rln] Downloading ${ARCHIVE_URL}"
+  curl \
+    --fail \
+    --location \
+    --show-error \
+    --retry 3 \
+    --connect-timeout 15 \
+    --max-time 600 \
+    "${ARCHIVE_URL}" \
+    --output "${ARCHIVE_PATH}"
+fi
+
+ACTUAL_SIZE="$(wc -c <"${ARCHIVE_PATH}" | tr -d '[:space:]')"
+if [[ "${ACTUAL_SIZE}" != "${ARCHIVE_SIZE}" ]]; then
+  echo "[rln] Archive size mismatch." >&2
+  echo "[rln] Expected: ${ARCHIVE_SIZE}" >&2
+  echo "[rln] Actual:   ${ACTUAL_SIZE}" >&2
+  exit 1
+fi
+verify_file "${ARCHIVE_SHA256}" "${ARCHIVE_PATH}"
+
+EXTRACT_DIR="${TMP_DIR}/extracted"
+mkdir -p "${EXTRACT_DIR}"
+unzip -q "${ARCHIVE_PATH}" -d "${EXTRACT_DIR}"
+SWIFT_DIR="${EXTRACT_DIR}/swift"
+[[ -d "${SWIFT_DIR}" ]] || {
+  echo "[rln] Archive does not contain swift/." >&2
+  exit 1
+}
+
+while IFS=$'\t' read -r expected_sha installed_path; do
+  relative_path="${installed_path#ios/}"
+  verify_file "${expected_sha}" "${SWIFT_DIR}/${relative_path}"
+done < <(release_baseline_ios_files)
+
+for entry in \
+  RGBLightningNode.xcframework \
+  RGBLightningNode.swift \
+  RGBLightningNodeFFI.h \
+  RGBLightningNodeFFI.modulemap; do
+  rm -rf "${IOS_DIR:?}/${entry}"
+  cp -R "${SWIFT_DIR}/${entry}" "${IOS_DIR}/${entry}"
 done
 
-rm -rf "${TMP_DIR}"
-echo "[rln] iOS RLN artifact ${RLN_VERSION} is ready."
-
-if [[ "${SKIP_RLN_VERIFY:-0}" != "1" && -x "${ROOT_DIR}/tool/verify_native_artifacts.sh" ]]; then
-  "${ROOT_DIR}/tool/verify_native_artifacts.sh" --ios-only
-fi
+"${SCRIPT_DIR}/verify_native_artifacts.sh" --ios-only
+echo "[rln] Installed and verified iOS RLN artifact ${RLN_VERSION}."

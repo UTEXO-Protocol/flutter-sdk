@@ -264,9 +264,9 @@ class RlnApiPigeonCodec: FlutterStandardMessageCodec, @unchecked Sendable {
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol RlnHostApi {
   func getNativeArtifactInfo() throws -> RlnNativeArtifactInfo
-  func rlnCreateNode(storageDirPath: String, daemonListeningPort: Int64, ldkPeerListeningPort: Int64, network: String, maxMediaUploadSizeMb: Int64, enableVirtualChannelsV0: Bool?, virtualPeerPubkeys: [String]?, vssUrl: String?, vssAllowHttp: Bool, vssAllowEmptyRestore: Bool, lspBaseUrl: String?, lspBearerToken: String?) throws -> Int64
+  func rlnCreateNode(storageDirPath: String, daemonListeningPort: Int64, ldkPeerListeningPort: Int64, network: String, maxMediaUploadSizeMb: Int64, enableVirtualChannelsV0: Bool?, virtualPeerPubkeys: [String]?, vssUrl: String?, vssAllowHttp: Bool, vssAllowEmptyRestore: Bool, lspBaseUrl: String?, lspBearerToken: String?, reuseAddresses: Bool) throws -> Int64
   func rlnInitNode(nodeId: Int64, password: String, mnemonic: String?) throws -> String
-  func rlnCreateNativeExternalSigner(seedHex: String, network: String, permissivePolicy: Bool) throws -> Int64
+  func rlnCreateNativeExternalSigner(seedHex: String, network: String, permissivePolicy: Bool, storageDirPath: String?) throws -> Int64
   func rlnInitNodeWithNativeExternalSigner(nodeId: Int64, signerId: Int64) throws
   func rlnAttachNativeExternalSigner(nodeId: Int64, signerId: Int64) throws
   func rlnUnlockNodeWithNativeExternalSigner(nodeId: Int64, signerId: Int64, bitcoindRpcUsername: String?, bitcoindRpcPassword: String?, bitcoindRpcHost: String?, bitcoindRpcPort: Int64?, indexerUrl: String?, proxyEndpoint: String?, announceAddresses: [String], announceAlias: String?, gossipRgsServerUrl: String?) throws
@@ -284,6 +284,9 @@ protocol RlnHostApi {
   func rlnCloseChannel(nodeId: Int64, channelId: String, peerPubkey: String, force: Bool) throws
   func rlnListPayments(nodeId: Int64) throws -> [[AnyHashable?: Any?]]
   func rlnAddress(nodeId: Int64) throws -> [AnyHashable?: Any?]
+  func rlnRotateAddress(nodeId: Int64) throws -> [AnyHashable?: Any?]
+  func rlnSignMessage(nodeId: Int64, message: String) throws -> [AnyHashable?: Any?]
+  func rlnVerifyMessage(nodeId: Int64, message: String, signature: String) throws -> [AnyHashable?: Any?]
   func rlnAssetBalance(nodeId: Int64, assetId: String) throws -> [AnyHashable?: Any?]
   func rlnBackup(nodeId: Int64, backupPath: String, password: String) throws
   func rlnBtcBalance(nodeId: Int64, skipSync: Bool) throws -> [AnyHashable?: Any?]
@@ -300,15 +303,17 @@ protocol RlnHostApi {
   func rlnKeysend(nodeId: Int64, destPubkey: String, amtMsat: Int64, assetId: String?, assetAmount: Int64?) throws -> [AnyHashable?: Any?]
   func rlnListAssets(nodeId: Int64, filterAssetSchemas: [String]) throws -> [AnyHashable?: Any?]
   func rlnListTransactions(nodeId: Int64, skipSync: Bool) throws -> [[AnyHashable?: Any?]]
+  func rlnListTransactionsByTxid(nodeId: Int64, txid: String, skipSync: Bool) throws -> [[AnyHashable?: Any?]]
   func rlnListTransfers(nodeId: Int64, assetId: String) throws -> [[AnyHashable?: Any?]]
+  func rlnListTransfersByTxid(nodeId: Int64, txid: String) throws -> [[AnyHashable?: Any?]]
   func rlnListUnspents(nodeId: Int64, skipSync: Bool) throws -> [[AnyHashable?: Any?]]
-  func rlnLnInvoice(nodeId: Int64, amtMsat: Int64?, expirySec: Int64, assetId: String?, assetAmount: Int64?, paymentHash: String?, minFinalCltvExpiryDelta: Int64?) throws -> [AnyHashable?: Any?]
+  func rlnLnInvoice(nodeId: Int64, amtMsat: Int64?, expirySec: Int64, assetId: String?, assetAmount: Int64?, paymentHash: String?, minFinalCltvExpiryDelta: Int64?, descriptionHash: String?) throws -> [AnyHashable?: Any?]
   func rlnClaimHodlInvoice(nodeId: Int64, paymentHash: String, paymentPreimage: String) throws -> [AnyHashable?: Any?]
   func rlnCancelHodlInvoice(nodeId: Int64, paymentHash: String) throws
   func rlnApayNew(nodeId: Int64, hostNodeId: String) throws -> [AnyHashable?: Any?]
   func rlnApayNewWithAddress(nodeId: Int64, hostNodeId: String, username: String, domain: String) throws -> [AnyHashable?: Any?]
   func rlnRefreshTransfers(nodeId: Int64, skipSync: Bool) throws
-  func rlnRgbInvoice(nodeId: Int64, assetId: String?, assignmentAmount: Int64?, durationSeconds: Int64?, minConfirmations: Int64, witness: Bool) throws -> [AnyHashable?: Any?]
+  func rlnRgbInvoice(nodeId: Int64, assetId: String?, assignmentAmount: Int64?, durationSeconds: Int64?, minConfirmations: Int64, witness: Bool, assignmentKind: String?) throws -> [AnyHashable?: Any?]
   func rlnSendBtc(nodeId: Int64, amount: Int64, address: String, feeRate: Double, skipSync: Bool) throws -> [AnyHashable?: Any?]
   func rlnSendPayment(nodeId: Int64, invoice: String, amtMsat: Int64?, assetId: String?, assetAmount: Int64?) throws -> [AnyHashable?: Any?]
   func rlnSendRgb(nodeId: Int64, donation: Bool, feeRate: Double, minConfirmations: Int64, skipSync: Bool, assetId: String, recipientId: String, amount: Int64, transportEndpoints: [String], witnessAmountSat: Int64?, witnessBlinding: Int64?) throws -> [AnyHashable?: Any?]
@@ -317,7 +322,9 @@ protocol RlnHostApi {
   func rlnIssueAssetNia(nodeId: Int64, ticker: String, name: String, precision: Int64, amounts: [Int64]) throws -> Any?
   func rlnIssueAssetCfa(nodeId: Int64, name: String, details: String?, precision: Int64, amounts: [Int64], fileDigest: String?) throws -> Any?
   func rlnIssueAssetIfa(nodeId: Int64, ticker: String, name: String, precision: Int64, amounts: [Int64], inflationAmounts: [Int64], rejectListUrl: String?) throws -> Any?
+  func rlnInflate(nodeId: Int64, assetId: String, inflationAmounts: [Int64], feeRate: Double, minConfirmations: Int64) throws -> [AnyHashable?: Any?]
   func rlnIssueAssetUda(nodeId: Int64, ticker: String, name: String, details: String?, precision: Int64, mediaFileDigest: String?, attachmentsFileDigests: [String]) throws -> Any?
+  func rlnVssBackup(nodeId: Int64) throws -> Int64
   func rlnVssClearFence(nodeId: Int64, password: String) throws
 }
 
@@ -356,8 +363,9 @@ class RlnHostApiSetup {
         let vssAllowEmptyRestoreArg = args[9] as! Bool
         let lspBaseUrlArg: String? = nilOrValue(args[10])
         let lspBearerTokenArg: String? = nilOrValue(args[11])
+        let reuseAddressesArg = args[12] as! Bool
         do {
-          let result = try api.rlnCreateNode(storageDirPath: storageDirPathArg, daemonListeningPort: daemonListeningPortArg, ldkPeerListeningPort: ldkPeerListeningPortArg, network: networkArg, maxMediaUploadSizeMb: maxMediaUploadSizeMbArg, enableVirtualChannelsV0: enableVirtualChannelsV0Arg, virtualPeerPubkeys: virtualPeerPubkeysArg, vssUrl: vssUrlArg, vssAllowHttp: vssAllowHttpArg, vssAllowEmptyRestore: vssAllowEmptyRestoreArg, lspBaseUrl: lspBaseUrlArg, lspBearerToken: lspBearerTokenArg)
+          let result = try api.rlnCreateNode(storageDirPath: storageDirPathArg, daemonListeningPort: daemonListeningPortArg, ldkPeerListeningPort: ldkPeerListeningPortArg, network: networkArg, maxMediaUploadSizeMb: maxMediaUploadSizeMbArg, enableVirtualChannelsV0: enableVirtualChannelsV0Arg, virtualPeerPubkeys: virtualPeerPubkeysArg, vssUrl: vssUrlArg, vssAllowHttp: vssAllowHttpArg, vssAllowEmptyRestore: vssAllowEmptyRestoreArg, lspBaseUrl: lspBaseUrlArg, lspBearerToken: lspBearerTokenArg, reuseAddresses: reuseAddressesArg)
           reply(wrapResult(result))
         } catch {
           reply(wrapError(error))
@@ -390,8 +398,9 @@ class RlnHostApiSetup {
         let seedHexArg = args[0] as! String
         let networkArg = args[1] as! String
         let permissivePolicyArg = args[2] as! Bool
+        let storageDirPathArg: String? = nilOrValue(args[3])
         do {
-          let result = try api.rlnCreateNativeExternalSigner(seedHex: seedHexArg, network: networkArg, permissivePolicy: permissivePolicyArg)
+          let result = try api.rlnCreateNativeExternalSigner(seedHex: seedHexArg, network: networkArg, permissivePolicy: permissivePolicyArg, storageDirPath: storageDirPathArg)
           reply(wrapResult(result))
         } catch {
           reply(wrapError(error))
@@ -700,6 +709,54 @@ class RlnHostApiSetup {
     } else {
       rlnAddressChannel.setMessageHandler(nil)
     }
+    let rlnRotateAddressChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnRotateAddress\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      rlnRotateAddressChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let nodeIdArg = args[0] as! Int64
+        do {
+          let result = try api.rlnRotateAddress(nodeId: nodeIdArg)
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      rlnRotateAddressChannel.setMessageHandler(nil)
+    }
+    let rlnSignMessageChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSignMessage\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      rlnSignMessageChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let nodeIdArg = args[0] as! Int64
+        let messageArg = args[1] as! String
+        do {
+          let result = try api.rlnSignMessage(nodeId: nodeIdArg, message: messageArg)
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      rlnSignMessageChannel.setMessageHandler(nil)
+    }
+    let rlnVerifyMessageChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVerifyMessage\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      rlnVerifyMessageChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let nodeIdArg = args[0] as! Int64
+        let messageArg = args[1] as! String
+        let signatureArg = args[2] as! String
+        do {
+          let result = try api.rlnVerifyMessage(nodeId: nodeIdArg, message: messageArg, signature: signatureArg)
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      rlnVerifyMessageChannel.setMessageHandler(nil)
+    }
     let rlnAssetBalanceChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnAssetBalance\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       rlnAssetBalanceChannel.setMessageHandler { message, reply in
@@ -966,6 +1023,23 @@ class RlnHostApiSetup {
     } else {
       rlnListTransactionsChannel.setMessageHandler(nil)
     }
+    let rlnListTransactionsByTxidChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransactionsByTxid\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      rlnListTransactionsByTxidChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let nodeIdArg = args[0] as! Int64
+        let txidArg = args[1] as! String
+        let skipSyncArg = args[2] as! Bool
+        do {
+          let result = try api.rlnListTransactionsByTxid(nodeId: nodeIdArg, txid: txidArg, skipSync: skipSyncArg)
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      rlnListTransactionsByTxidChannel.setMessageHandler(nil)
+    }
     let rlnListTransfersChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransfers\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       rlnListTransfersChannel.setMessageHandler { message, reply in
@@ -981,6 +1055,22 @@ class RlnHostApiSetup {
       }
     } else {
       rlnListTransfersChannel.setMessageHandler(nil)
+    }
+    let rlnListTransfersByTxidChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransfersByTxid\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      rlnListTransfersByTxidChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let nodeIdArg = args[0] as! Int64
+        let txidArg = args[1] as! String
+        do {
+          let result = try api.rlnListTransfersByTxid(nodeId: nodeIdArg, txid: txidArg)
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      rlnListTransfersByTxidChannel.setMessageHandler(nil)
     }
     let rlnListUnspentsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListUnspents\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
@@ -1009,8 +1099,9 @@ class RlnHostApiSetup {
         let assetAmountArg: Int64? = nilOrValue(args[4])
         let paymentHashArg: String? = nilOrValue(args[5])
         let minFinalCltvExpiryDeltaArg: Int64? = nilOrValue(args[6])
+        let descriptionHashArg: String? = nilOrValue(args[7])
         do {
-          let result = try api.rlnLnInvoice(nodeId: nodeIdArg, amtMsat: amtMsatArg, expirySec: expirySecArg, assetId: assetIdArg, assetAmount: assetAmountArg, paymentHash: paymentHashArg, minFinalCltvExpiryDelta: minFinalCltvExpiryDeltaArg)
+          let result = try api.rlnLnInvoice(nodeId: nodeIdArg, amtMsat: amtMsatArg, expirySec: expirySecArg, assetId: assetIdArg, assetAmount: assetAmountArg, paymentHash: paymentHashArg, minFinalCltvExpiryDelta: minFinalCltvExpiryDeltaArg, descriptionHash: descriptionHashArg)
           reply(wrapResult(result))
         } catch {
           reply(wrapError(error))
@@ -1112,8 +1203,9 @@ class RlnHostApiSetup {
         let durationSecondsArg: Int64? = nilOrValue(args[3])
         let minConfirmationsArg = args[4] as! Int64
         let witnessArg = args[5] as! Bool
+        let assignmentKindArg: String? = nilOrValue(args[6])
         do {
-          let result = try api.rlnRgbInvoice(nodeId: nodeIdArg, assetId: assetIdArg, assignmentAmount: assignmentAmountArg, durationSeconds: durationSecondsArg, minConfirmations: minConfirmationsArg, witness: witnessArg)
+          let result = try api.rlnRgbInvoice(nodeId: nodeIdArg, assetId: assetIdArg, assignmentAmount: assignmentAmountArg, durationSeconds: durationSecondsArg, minConfirmations: minConfirmationsArg, witness: witnessArg, assignmentKind: assignmentKindArg)
           reply(wrapResult(result))
         } catch {
           reply(wrapError(error))
@@ -1275,6 +1367,25 @@ class RlnHostApiSetup {
     } else {
       rlnIssueAssetIfaChannel.setMessageHandler(nil)
     }
+    let rlnInflateChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInflate\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      rlnInflateChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let nodeIdArg = args[0] as! Int64
+        let assetIdArg = args[1] as! String
+        let inflationAmountsArg = args[2] as! [Int64]
+        let feeRateArg = args[3] as! Double
+        let minConfirmationsArg = args[4] as! Int64
+        do {
+          let result = try api.rlnInflate(nodeId: nodeIdArg, assetId: assetIdArg, inflationAmounts: inflationAmountsArg, feeRate: feeRateArg, minConfirmations: minConfirmationsArg)
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      rlnInflateChannel.setMessageHandler(nil)
+    }
     let rlnIssueAssetUdaChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetUda\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {
       rlnIssueAssetUdaChannel.setMessageHandler { message, reply in
@@ -1295,6 +1406,21 @@ class RlnHostApiSetup {
       }
     } else {
       rlnIssueAssetUdaChannel.setMessageHandler(nil)
+    }
+    let rlnVssBackupChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVssBackup\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    if let api = api {
+      rlnVssBackupChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let nodeIdArg = args[0] as! Int64
+        do {
+          let result = try api.rlnVssBackup(nodeId: nodeIdArg)
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      rlnVssBackupChannel.setMessageHandler(nil)
     }
     let rlnVssClearFenceChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVssClearFence\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
     if let api = api {

@@ -25,6 +25,7 @@ class UtexoWalletConfig {
     this.vssAllowEmptyRestore = false,
     this.lspBaseUrl,
     this.lspBearerToken,
+    this.reuseAddresses = false,
     this.xpubVan,
     this.xpubCol,
     this.masterFingerprint,
@@ -42,6 +43,7 @@ class UtexoWalletConfig {
   final bool vssAllowEmptyRestore;
   final String? lspBaseUrl;
   final String? lspBearerToken;
+  final bool reuseAddresses;
   final String? xpubVan;
   final String? xpubCol;
   final String? masterFingerprint;
@@ -113,6 +115,21 @@ class RgbSendRequest {
   final bool skipSync;
   final int? witnessAmountSat;
   final int? witnessBlinding;
+}
+
+/// Request for atomic inflation of an IFA RGB asset.
+class InflateAssetIfaRequest {
+  const InflateAssetIfaRequest({
+    required this.assetId,
+    required this.inflationAmounts,
+    this.feeRate = 1.5,
+    this.minConfirmations = 1,
+  });
+
+  final String assetId;
+  final List<int> inflationAmounts;
+  final double feeRate;
+  final int minConfirmations;
 }
 
 /// RN-core transfer status returned by UTEXO status helpers.
@@ -235,6 +252,7 @@ class UtexoWallet {
   bool _nodeCreated = false;
   bool _initialized = false;
   bool _unlocked = false;
+  bool _shutdown = false;
   bool _disposed = false;
   bool? _resolvedEnableVirtualChannelsV0;
   List<String>? _resolvedVirtualPeerPubkeys;
@@ -256,8 +274,13 @@ class UtexoWallet {
     _validateConfig();
     _nodeId ??= await _createNode();
     _nodeCreated = true;
+    _shutdown = false;
     final signer = _ensureSigner(password: password, mnemonic: mnemonic);
-    await signer.initNode(client: _client, nodeId: _nodeId!);
+    await signer.initNode(
+      client: _client,
+      nodeId: _nodeId!,
+      storageDirPath: _config.storageDirPath,
+    );
     _initialized = true;
   }
 
@@ -276,6 +299,7 @@ class UtexoWallet {
       client: _client,
       nodeId: _nodeId!,
       config: resolvedConfig,
+      storageDirPath: _config.storageDirPath,
     );
     _unlocked = true;
   }
@@ -285,19 +309,20 @@ class UtexoWallet {
     String? mnemonic,
     UtexoUnlockConfig? unlockConfig,
   }) async {
-    _ensureInitialized();
+    _ensureNotDisposed();
+    _validateConfig();
     final existingNodeId = _nodeId;
-    if (existingNodeId != null) {
-      try {
-        await _client.shutdown(existingNodeId);
-      } catch (_) {
-        // Reinit should still ask native for a fresh handle after shutdown fails.
-      }
+    if (existingNodeId != null && !_shutdown) {
+      await _client.shutdown(existingNodeId);
+      _shutdown = true;
+      _unlocked = false;
     }
-    _nodeId = await _createNode();
+    final restartedNodeId = await _createNode();
+    _nodeId = restartedNodeId;
     _nodeCreated = true;
     _initialized = true;
     _unlocked = false;
+    _shutdown = false;
     _disposed = false;
     if (unlockConfig != null) {
       final signer = _ensureSigner(password: password, mnemonic: mnemonic);
@@ -306,6 +331,7 @@ class UtexoWallet {
         client: _client,
         nodeId: _nodeId!,
         config: resolvedConfig,
+        storageDirPath: _config.storageDirPath,
       );
       _unlocked = true;
     }
@@ -313,9 +339,10 @@ class UtexoWallet {
 
   Future<void> shutdown() async {
     final id = _nodeId;
-    if (id == null || _disposed) return;
+    if (id == null || _disposed || _shutdown) return;
     await _client.shutdown(id);
     _unlocked = false;
+    _shutdown = true;
   }
 
   Future<void> destroy() async {
@@ -338,6 +365,7 @@ class UtexoWallet {
     _nodeId = null;
     _initialized = false;
     _unlocked = false;
+    _shutdown = false;
     _disposed = true;
   }
 
@@ -448,8 +476,9 @@ class UtexoWallet {
     return (await getAssetBalance(assetId)).toCore();
   }
 
-  Future<String> rotateVanillaAddress() {
-    _unsupported('rotateVanillaAddress');
+  Future<String> rotateVanillaAddress() async {
+    final response = await _client.rotateAddress(_requireNode());
+    return RlnAddress.fromMap(response).address;
   }
 
   Future<String> rotateColoredAddress() {
@@ -650,8 +679,31 @@ class UtexoWallet {
     _unsupported('inflateEnd');
   }
 
-  Future<RlnMap> inflate(Object params, {String? mnemonic}) {
-    _unsupported('inflate');
+  Future<RlnInflateResult> inflate(InflateAssetIfaRequest request) async {
+    _requireNonEmpty(request.assetId, 'assetId');
+    if (request.inflationAmounts.isEmpty) {
+      throw const WalletValidationException(
+        'inflationAmounts must not be empty.',
+        field: 'inflationAmounts',
+      );
+    }
+    for (var index = 0; index < request.inflationAmounts.length; index++) {
+      _requireNonNegative(
+        request.inflationAmounts[index],
+        'inflationAmounts[$index]',
+      );
+    }
+    _requireFeeRate(request.feeRate, 'feeRate');
+    _requireUInt8(request.minConfirmations, 'minConfirmations');
+    return RlnInflateResult.fromMap(
+      await _client.inflate(
+        nodeId: _requireNode(),
+        assetId: request.assetId,
+        inflationAmounts: request.inflationAmounts,
+        feeRate: request.feeRate,
+        minConfirmations: request.minConfirmations,
+      ),
+    );
   }
 
   Future<String> sendBtc({
@@ -689,6 +741,19 @@ class UtexoWallet {
     )).map((transaction) => transaction.toCore()).toList(growable: false);
   }
 
+  Future<List<RlnTransaction>> listTransactionsByTxid(
+    String txid, {
+    bool skipSync = false,
+  }) async {
+    _requireNonEmpty(txid, 'txid');
+    final transactions = await _client.listTransactionsByTxid(
+      nodeId: _requireNode(),
+      txid: txid,
+      skipSync: skipSync,
+    );
+    return transactions.map(RlnTransaction.fromMap).toList(growable: false);
+  }
+
   Future<List<RlnTransfer>> listTransfers({String? assetId}) async {
     if (assetId != null) {
       final transfers = await _client.listTransfers(
@@ -714,6 +779,15 @@ class UtexoWallet {
     return (await listTransfers(
       assetId: assetId,
     )).map((transfer) => transfer.toCore()).toList(growable: false);
+  }
+
+  Future<List<RlnTransfer>> listTransfersByTxid(String txid) async {
+    _requireNonEmpty(txid, 'txid');
+    final transfers = await _client.listTransfersByTxid(
+      nodeId: _requireNode(),
+      txid: txid,
+    );
+    return transfers.map(RlnTransfer.fromMap).toList(growable: false);
   }
 
   Future<bool> failTransfers({
@@ -798,6 +872,7 @@ class UtexoWallet {
     int? assetAmount,
     String? paymentHash,
     int? minFinalCltvExpiryDelta,
+    String? descriptionHash,
   }) async {
     _requireNonNegativeOptional(amountSats, 'amountSats');
     final resolvedAmtMsat = amountSats == null ? amtMsat : amountSats * 1000;
@@ -813,6 +888,7 @@ class UtexoWallet {
       assetAmount: resolvedAssetAmount,
       paymentHash: paymentHash,
       minFinalCltvExpiryDelta: minFinalCltvExpiryDelta,
+      descriptionHash: descriptionHash,
     );
     return LightningReceiveRequest(lnInvoice: invoice.invoice);
   }
@@ -824,6 +900,7 @@ class UtexoWallet {
     int? assetAmount,
     String? paymentHash,
     int? minFinalCltvExpiryDelta,
+    String? descriptionHash,
   }) async {
     _requireNonNegativeOptional(amtMsat, 'amtMsat');
     _requireUInt32(expirySec, 'expirySec');
@@ -838,6 +915,7 @@ class UtexoWallet {
         assetAmount: assetAmount,
         paymentHash: paymentHash,
         minFinalCltvExpiryDelta: minFinalCltvExpiryDelta,
+        descriptionHash: descriptionHash,
       ),
     );
   }
@@ -858,6 +936,7 @@ class UtexoWallet {
       assetAmount: params.assetAmount,
       paymentHash: params.paymentHash,
       minFinalCltvExpiryDelta: params.minFinalCltvExpiryDelta,
+      descriptionHash: params.descriptionHash,
     );
     return HodlInvoice(
       bolt11: invoice.invoice,
@@ -1245,12 +1324,24 @@ class UtexoWallet {
     _unsupported('signPsbt');
   }
 
-  Future<String> signMessage(String message) {
-    _unsupported('signMessage');
+  Future<String> signMessage(String message) async {
+    _requireNonEmpty(message, 'message');
+    final response = await _client.signMessage(
+      nodeId: _requireNode(),
+      message: message,
+    );
+    return RlnSignMessageResult.fromMap(response).signedMessage;
   }
 
-  Future<bool> verifyMessage(String message, String signature) {
-    _unsupported('verifyMessage');
+  Future<bool> verifyMessage(String message, String signature) async {
+    _requireNonEmpty(message, 'message');
+    _requireNonEmpty(signature, 'signature');
+    final response = await _client.verifyMessage(
+      nodeId: _requireNode(),
+      message: message,
+      signature: signature,
+    );
+    return RlnVerifyMessageResult.fromMap(response).valid;
   }
 
   Future<void> configureVssBackup(Object config) {
@@ -1263,6 +1354,10 @@ class UtexoWallet {
 
   Future<int> vssBackup(Object config) {
     _unsupported('vssBackup');
+  }
+
+  Future<int> backupNow() {
+    return _client.vssBackup(_requireNode());
   }
 
   Future<RlnMap> vssBackupInfo(Object config) {
@@ -1309,6 +1404,7 @@ class UtexoWallet {
       vssAllowEmptyRestore: _config.vssAllowEmptyRestore,
       lspBaseUrl: _resolvedNodeLspBaseUrl(),
       lspBearerToken: _config.lspBearerToken,
+      reuseAddresses: _config.reuseAddresses,
     );
   }
 
@@ -1417,6 +1513,9 @@ class UtexoWallet {
         durationSeconds: request.durationSeconds,
         minConfirmations: request.minConfirmations,
         witness: witness,
+        assignmentKind: request.amount == null
+            ? null
+            : RlnAssignmentKind.fungible.wireValue,
       ),
     );
   }

@@ -1,6 +1,7 @@
 import 'rgb_sdk_flutter_platform_interface.dart';
 import 'src/client/rln_client.dart';
 import 'src/native_artifact_info.dart';
+import 'src/release_baseline.g.dart';
 import 'src/wallet/rln_manager.dart';
 import 'src/wallet/utexo_wallet.dart';
 
@@ -42,10 +43,10 @@ class RgbSdkFlutter {
   static const reactNativePackageName = '@utexo/rgb-sdk-rn';
 
   /// React Native package version this bridge targets.
-  static const reactNativeParityVersion = '1.0.0-beta.19';
+  static const reactNativeParityVersion = ReleaseBaseline.reactNativeVersion;
 
   /// RGB Lightning Node artifact version pinned by this package.
-  static const rlnVersion = '0.6.0-beta.2';
+  static const rlnVersion = ReleaseBaseline.rlnVersion;
 
   /// Returns native artifact metadata for diagnostics and support reports.
   Future<NativeArtifactInfo> nativeArtifactInfo() {

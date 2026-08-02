@@ -13,6 +13,7 @@ final class RlnNodeStore {
 
   private var nodes: [Int64: SdkNode] = [:]
   private var states: [Int64: NodeLifecycleState] = [:]
+  private var preUnlockStates: [Int64: NodeLifecycleState] = [:]
   private var storageDirByNodeId: [Int64: String] = [:]
   private var nextId: Int64 = 1
   private var signers: [Int64: NativeExternalSigner] = [:]
@@ -86,15 +87,14 @@ final class RlnNodeStore {
       }
 
       switch state {
-      case .initialized, .shutdown:
+      case .created, .initialized, .shutdown:
+        preUnlockStates[id] = state
         states[id] = .unlocking
         return .unlocking
       case .unlocked:
         return .unlocked
       case .unlocking:
         throw RlnStoreError.invalidState("RLN unlock is already in progress")
-      case .created:
-        throw RlnStoreError.invalidState("RLN node must be initialized before unlock")
       }
     }
   }
@@ -103,6 +103,7 @@ final class RlnNodeStore {
     queue.sync {
       if states[id] != nil {
         states[id] = .unlocked
+        preUnlockStates.removeValue(forKey: id)
       }
     }
   }
@@ -118,7 +119,7 @@ final class RlnNodeStore {
   func rollbackUnlock(id: Int64) {
     queue.sync {
       if states[id] == .unlocking {
-        states[id] = .initialized
+        states[id] = preUnlockStates.removeValue(forKey: id) ?? .initialized
       }
     }
   }
@@ -129,6 +130,7 @@ final class RlnNodeStore {
         node.shutdown()
       }
       states.removeValue(forKey: id)
+      preUnlockStates.removeValue(forKey: id)
       storageDirByNodeId.removeValue(forKey: id)
     }
   }

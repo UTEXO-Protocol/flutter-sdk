@@ -1,15 +1,22 @@
 # RGB SDK Flutter Example
 
-Small example app used to compile and exercise the plugin host bindings.
+This app compiles and exercises the current plugin bindings for local
+development. It is not evidence that the SDK is production ready.
 
-## Local Smoke Tests
-
-From this directory:
+Run widget tests from this directory:
 
 ```sh
 flutter test test
 ```
 
-The real RLN bridge smoke tests live in `integration_test/` and are gated by
-`--dart-define` flags because they require the local regtest stack. See
-`../doc/TESTING_STRATEGY.md` for the exact commands.
+The integration tests in `integration_test/` require the repository's local
+regtest stack and explicit `--dart-define` configuration. Existing integration
+coverage includes the current low-level beta.25 contract but does not yet prove
+external-signer process restart, recovery, or the complete failure matrix.
+
+Android release networking also requires the host application's `INTERNET`
+permission until the packaging issue is resolved.
+
+See the
+[Release Readiness Tracker](../doc/RELEASE_READINESS_TRACKER.md) for the
+current verdict, missing test evidence, and exact release gates.

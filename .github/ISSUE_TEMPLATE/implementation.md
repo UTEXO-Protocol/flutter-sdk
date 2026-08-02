@@ -8,28 +8,34 @@ assignees: ""
 
 ## Scope
 
-Describe the exact API, bridge, or workflow to implement.
+Tracker issue ID:
 
-## RN Reference
+Describe the exact API, bridge, model, lifecycle rule, or workflow to
+implement. Preserve the issue's exit criteria.
 
-- Repository:
-- Files:
-- Methods:
+## Reference Contract
+
+- RN commit and package version:
+- Core package version:
+- Native artifact version:
+- Source files and symbols:
 
 ## Flutter Target
 
 - Dart API:
+- Pigeon contract:
 - iOS bridge:
 - Android bridge:
+- Domain mapping:
 
 ## Acceptance Criteria
 
-- [ ] Dart API added.
-- [ ] iOS implementation added.
-- [ ] Android implementation added.
-- [ ] Error behavior documented.
-- [ ] Tests added or explicitly deferred.
-- [ ] Parity matrix updated.
+- [ ] Public and wire contracts are typed and reviewed.
+- [ ] Dart, iOS, and Android behavior is implemented where applicable.
+- [ ] Defaults, units, errors, lifecycle, and secret handling are documented.
+- [ ] Contract and failure tests cover the implementation.
+- [ ] Required local platform evidence is attached to the exact commit.
+- [ ] Release Readiness Tracker status and evidence are updated.
 
 ## Notes
 

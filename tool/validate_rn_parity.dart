@@ -9,7 +9,11 @@ void main() {
     File('${root.path}/tool/rn_parity_manifest.json'),
     errors,
   );
-  final rnPath = _resolveRnPath(manifest);
+  final baseline = _readJsonObject(
+    File('${root.path}/tool/release_baseline.json'),
+    errors,
+  );
+  final rnPath = _resolveRnPath();
   final rnRoot = Directory(rnPath);
   if (!rnRoot.existsSync()) {
     errors.add(
@@ -19,7 +23,7 @@ void main() {
     _finish(errors);
   }
 
-  _validateRnCommit(rnRoot, manifest, errors);
+  _validateRnBaseline(rnRoot, baseline, errors);
   _validateLowLevelNativeMethods(root, rnRoot, errors);
   _validateWalletMethods(root, rnRoot, errors);
   _validateRuntimeExports(root, rnRoot, manifest, errors);
@@ -28,18 +32,14 @@ void main() {
   _finish(errors);
 
   stdout.writeln(
-    'RN parity valid against ${_shortCommit(manifest['rnReferenceCommit'])}: '
+    'RN parity valid against ${_shortCommit(_nestedString(baseline, <String>['reactNative', 'commit']))}: '
     'NativeRgb methods, UTEXOWallet methods, and runtime package exports.',
   );
 }
 
-String _resolveRnPath(Map<String, Object?> manifest) {
+String _resolveRnPath() {
   final envPath = Platform.environment['RGB_SDK_RN_PATH'];
   if (envPath != null && envPath.trim().isNotEmpty) return envPath.trim();
-  final manifestPath = manifest['rnDefaultPath'];
-  if (manifestPath is String && manifestPath.trim().isNotEmpty) {
-    return manifestPath.trim();
-  }
   return '../rgb-sdk-rn';
 }
 
@@ -58,14 +58,42 @@ Map<String, Object?> _readJsonObject(File file, List<String> errors) {
   return <String, Object?>{};
 }
 
-void _validateRnCommit(
+void _validateRnBaseline(
   Directory rnRoot,
-  Map<String, Object?> manifest,
+  Map<String, Object?> baseline,
   List<String> errors,
 ) {
-  final expected = manifest['rnReferenceCommit'];
-  if (expected is! String || expected.isEmpty) {
-    errors.add('rn_parity_manifest.json must define rnReferenceCommit.');
+  final expectedCommit = _nestedString(baseline, <String>[
+    'reactNative',
+    'commit',
+  ]);
+  final expectedPackage = _nestedString(baseline, <String>[
+    'reactNative',
+    'package',
+  ]);
+  final expectedVersion = _nestedString(baseline, <String>[
+    'reactNative',
+    'version',
+  ]);
+  final expectedCoreVersion = _nestedString(baseline, <String>[
+    'core',
+    'version',
+  ]);
+  final expectedRlnVersion = _nestedString(baseline, <String>[
+    'rln',
+    'version',
+  ]);
+  if (<String?>[
+    expectedCommit,
+    expectedPackage,
+    expectedVersion,
+    expectedCoreVersion,
+    expectedRlnVersion,
+  ].any((value) => value == null || value.isEmpty)) {
+    errors.add(
+      'release_baseline.json must define the RN commit/package/version, '
+      'core version, and RLN version.',
+    );
     return;
   }
 
@@ -81,13 +109,73 @@ void _validateRnCommit(
   }
 
   final actual = result.stdout.toString().trim();
-  if (actual != expected) {
+  if (actual != expectedCommit) {
     errors.add(
-      'RN reference commit mismatch. Expected $expected, found $actual at '
+      'RN reference commit mismatch. Expected $expectedCommit, found $actual at '
       '${rnRoot.path}. Update the RN checkout or deliberately update the '
-      'manifest after a new parity audit.',
+      'release baseline after a new parity audit.',
     );
   }
+
+  final packageJson = _readJsonObject(
+    File('${rnRoot.path}/package.json'),
+    errors,
+  );
+  if (packageJson['name'] != expectedPackage) {
+    errors.add(
+      'RN package mismatch. Expected $expectedPackage, found '
+      '${packageJson['name']}.',
+    );
+  }
+  if (packageJson['version'] != expectedVersion) {
+    errors.add(
+      'RN version mismatch. Expected $expectedVersion, found '
+      '${packageJson['version']}.',
+    );
+  }
+  final dependencies = packageJson['dependencies'];
+  final actualCoreVersion = dependencies is Map<String, Object?>
+      ? dependencies['@utexo/rgb-sdk-core']
+      : null;
+  if (actualCoreVersion != expectedCoreVersion) {
+    errors.add(
+      'RN core dependency mismatch. Expected $expectedCoreVersion, found '
+      '$actualCoreVersion.',
+    );
+  }
+
+  final androidBuild = File('${rnRoot.path}/android/build.gradle');
+  final androidSource = androidBuild.existsSync()
+      ? androidBuild.readAsStringSync()
+      : '';
+  final expectedCoordinate =
+      'com.utexo:rgb-lightning-node-android:$expectedRlnVersion';
+  if (!androidSource.contains(expectedCoordinate)) {
+    errors.add(
+      'RN Android bridge does not pin baseline artifact $expectedCoordinate.',
+    );
+  }
+
+  final downloadScript = File(
+    '${rnRoot.path}/scripts/download-rln-bindings.js',
+  );
+  final downloadSource = downloadScript.existsSync()
+      ? downloadScript.readAsStringSync()
+      : '';
+  if (!downloadSource.contains("const VERSION = '$expectedRlnVersion';")) {
+    errors.add(
+      'RN iOS artifact downloader does not pin RLN $expectedRlnVersion.',
+    );
+  }
+}
+
+String? _nestedString(Map<String, Object?> source, List<String> path) {
+  Object? value = source;
+  for (final segment in path) {
+    if (value is! Map<String, Object?>) return null;
+    value = value[segment];
+  }
+  return value is String ? value : null;
 }
 
 void _validateLowLevelNativeMethods(

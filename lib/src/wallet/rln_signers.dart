@@ -79,12 +79,17 @@ class RlnSeedHexKeyMaterial extends RlnKeyMaterial {
 abstract class RlnSigner {
   const RlnSigner();
 
-  Future<void> initNode({required RlnClient client, required int nodeId});
+  Future<void> initNode({
+    required RlnClient client,
+    required int nodeId,
+    required String storageDirPath,
+  });
 
   Future<void> unlockNode({
     required RlnClient client,
     required int nodeId,
     required UtexoUnlockConfig config,
+    required String storageDirPath,
   });
 
   Future<void> dispose({
@@ -106,6 +111,7 @@ class PasswordRlnSigner extends RlnSigner {
   Future<void> initNode({
     required RlnClient client,
     required int nodeId,
+    required String storageDirPath,
   }) async {
     await client.initNode(
       nodeId: nodeId,
@@ -120,6 +126,7 @@ class PasswordRlnSigner extends RlnSigner {
     required RlnClient client,
     required int nodeId,
     required UtexoUnlockConfig config,
+    required String storageDirPath,
   }) {
     return client.unlockNode(
       nodeId: nodeId,
@@ -150,6 +157,8 @@ class NativeExternalRlnSigner extends RlnSigner {
   final String network;
   final bool permissivePolicy;
   int? _signerId;
+  int? _orphanedSignerId;
+  String? _storageDirPath;
 
   int? get signerId => _signerId;
 
@@ -157,16 +166,29 @@ class NativeExternalRlnSigner extends RlnSigner {
   Future<void> initNode({
     required RlnClient client,
     required int nodeId,
+    required String storageDirPath,
   }) async {
-    _signerId = await client.createNativeExternalSigner(
-      seedHex: _seedHex,
-      network: network,
-      permissivePolicy: permissivePolicy,
-    );
-    await client.initNodeWithNativeExternalSigner(
-      nodeId: nodeId,
-      signerId: _signerId!,
-    );
+    _ensureNoOrphanedSigner();
+    if (_signerId != null) {
+      throw const WalletException(
+        'Native external signer is already initialized.',
+      );
+    }
+    final signerId = await _createSigner(client, storageDirPath);
+    try {
+      await client.initNodeWithNativeExternalSigner(
+        nodeId: nodeId,
+        signerId: signerId,
+      );
+    } catch (error, stackTrace) {
+      await _cleanupFailedSigner(
+        client: client,
+        signerId: signerId,
+        operationError: error,
+        operationStackTrace: stackTrace,
+      );
+    }
+    _signerId = signerId;
   }
 
   @override
@@ -174,17 +196,26 @@ class NativeExternalRlnSigner extends RlnSigner {
     required RlnClient client,
     required int nodeId,
     required UtexoUnlockConfig config,
+    required String storageDirPath,
   }) async {
+    _ensureNoOrphanedSigner();
+    _bindStorageDirPath(storageDirPath);
     if (_signerId == null) {
-      _signerId = await client.createNativeExternalSigner(
-        seedHex: _seedHex,
-        network: network,
-        permissivePolicy: permissivePolicy,
-      );
-      await client.attachNativeExternalSigner(
-        nodeId: nodeId,
-        signerId: _signerId!,
-      );
+      final signerId = await _createSigner(client, storageDirPath);
+      try {
+        await client.attachNativeExternalSigner(
+          nodeId: nodeId,
+          signerId: signerId,
+        );
+      } catch (error, stackTrace) {
+        await _cleanupFailedSigner(
+          client: client,
+          signerId: signerId,
+          operationError: error,
+          operationStackTrace: stackTrace,
+        );
+      }
+      _signerId = signerId;
     }
     await client.unlockNodeWithNativeExternalSigner(
       nodeId: nodeId,
@@ -203,9 +234,76 @@ class NativeExternalRlnSigner extends RlnSigner {
 
   @override
   Future<void> dispose({required RlnClient client, required int nodeId}) async {
-    final signerId = _signerId;
-    if (signerId == null) return;
+    final signerId = _signerId ?? _orphanedSignerId;
+    if (signerId == null) {
+      _storageDirPath = null;
+      return;
+    }
     await client.destroyNativeExternalSigner(signerId);
-    _signerId = null;
+    if (_signerId == signerId) {
+      _signerId = null;
+    }
+    if (_orphanedSignerId == signerId) {
+      _orphanedSignerId = null;
+    }
+    _storageDirPath = null;
+  }
+
+  Future<int> _createSigner(RlnClient client, String storageDirPath) async {
+    _ensureNoOrphanedSigner();
+    _bindStorageDirPath(storageDirPath);
+    return client.createNativeExternalSigner(
+      seedHex: _seedHex,
+      network: network,
+      permissivePolicy: permissivePolicy,
+      storageDirPath: storageDirPath,
+    );
+  }
+
+  void _bindStorageDirPath(String storageDirPath) {
+    if (storageDirPath.trim().isEmpty) {
+      throw const WalletValidationException(
+        'storageDirPath is required for a durable native external signer.',
+        field: 'storageDirPath',
+      );
+    }
+    final boundPath = _storageDirPath;
+    if (boundPath != null && boundPath != storageDirPath) {
+      throw const WalletException(
+        'Native external signer cannot change storageDirPath.',
+      );
+    }
+    _storageDirPath = storageDirPath;
+  }
+
+  void _ensureNoOrphanedSigner() {
+    if (_orphanedSignerId != null) {
+      throw const WalletException(
+        'Native external signer cleanup previously failed. '
+        'Call dispose() before retrying.',
+      );
+    }
+  }
+
+  Future<Never> _cleanupFailedSigner({
+    required RlnClient client,
+    required int signerId,
+    required Object operationError,
+    required StackTrace operationStackTrace,
+  }) async {
+    try {
+      await client.destroyNativeExternalSigner(signerId);
+    } catch (cleanupError) {
+      _orphanedSignerId = signerId;
+      Error.throwWithStackTrace(
+        WalletException(
+          'Native external signer operation and cleanup both failed. '
+          'Call dispose() before retrying.',
+          cause: <Object>[operationError, cleanupError],
+        ),
+        operationStackTrace,
+      );
+    }
+    Error.throwWithStackTrace(operationError, operationStackTrace);
   }
 }

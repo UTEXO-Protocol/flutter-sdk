@@ -1,6 +1,19 @@
 /// Raw platform map returned by the low-level RLN bridge.
 typedef RlnMap = Map<Object?, Object?>;
 
+/// Native RGB assignment type accepted by RLN invoices.
+enum RlnAssignmentKind {
+  fungible('Fungible'),
+  nonFungible('NonFungible'),
+  inflationRight('InflationRight'),
+  replaceRight('ReplaceRight'),
+  any('Any');
+
+  const RlnAssignmentKind(this.wireValue);
+
+  final String wireValue;
+}
+
 int? _intOrNull(Object? value) {
   if (value == null) return null;
   if (value is int) return value;
@@ -65,6 +78,52 @@ class RlnXpubs {
 
   final String? vanilla;
   final String? colored;
+}
+
+/// On-chain address returned by RLN.
+class RlnAddress {
+  const RlnAddress({required this.address});
+
+  factory RlnAddress.fromMap(RlnMap map) {
+    return RlnAddress(address: _stringOrNull(map['address']) ?? '');
+  }
+
+  final String address;
+}
+
+/// Node-key signature returned by RLN.
+class RlnSignMessageResult {
+  const RlnSignMessageResult({required this.signedMessage});
+
+  factory RlnSignMessageResult.fromMap(RlnMap map) {
+    return RlnSignMessageResult(
+      signedMessage: _stringOrNull(map['signedMessage']) ?? '',
+    );
+  }
+
+  final String signedMessage;
+}
+
+/// Node-key signature verification result returned by RLN.
+class RlnVerifyMessageResult {
+  const RlnVerifyMessageResult({required this.valid});
+
+  factory RlnVerifyMessageResult.fromMap(RlnMap map) {
+    return RlnVerifyMessageResult(valid: _boolValue(map['valid']));
+  }
+
+  final bool valid;
+}
+
+/// Atomic IFA inflation result returned by RLN.
+class RlnInflateResult {
+  const RlnInflateResult({required this.txid});
+
+  factory RlnInflateResult.fromMap(RlnMap map) {
+    return RlnInflateResult(txid: _stringOrNull(map['txid']) ?? '');
+  }
+
+  final String txid;
 }
 
 /// Node metadata returned by RLN.

@@ -1,8 +1,31 @@
+import groovy.json.JsonSlurper
+
+val releaseBaselineFile = file("../tool/release_baseline.json")
+require(releaseBaselineFile.isFile) {
+    "Missing release baseline: ${releaseBaselineFile.absolutePath}"
+}
+val releaseBaseline = JsonSlurper().parse(releaseBaselineFile) as Map<*, *>
+val rlnBaseline = releaseBaseline["rln"] as Map<*, *>
+val rlnAndroidBaseline = rlnBaseline["android"] as Map<*, *>
+val rlnAndroidCoordinate = rlnAndroidBaseline["mavenCoordinate"] as String
+val buildRequirements = releaseBaseline["buildRequirements"] as Map<*, *>
+val androidBuildRequirements = buildRequirements["android"] as Map<*, *>
+val baselineCompileSdk =
+    (androidBuildRequirements["compileSdk"] as Number).toInt()
+val baselineMinSdk =
+    (androidBuildRequirements["minSdk"] as Number).toInt()
+val baselineJavaVersion =
+    (androidBuildRequirements["javaLanguageVersion"] as Number).toInt()
+
 group = "com.utexo.rgb_sdk_flutter"
 version = "1.0-SNAPSHOT"
 
 buildscript {
-    val kotlinVersion = "2.2.20"
+    val baseline =
+        groovy.json.JsonSlurper().parse(file("../tool/release_baseline.json")) as Map<*, *>
+    val requirements = baseline["buildRequirements"] as Map<*, *>
+    val androidRequirements = requirements["android"] as Map<*, *>
+    val kotlinVersion = androidRequirements["kotlinVersion"] as String
     repositories {
         google()
         mavenCentral()
@@ -29,15 +52,15 @@ plugins {
 android {
     namespace = "com.utexo.rgb_sdk_flutter"
 
-    compileSdk = 36
+    compileSdk = baselineCompileSdk
 
     compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
+        sourceCompatibility = JavaVersion.toVersion(baselineJavaVersion)
+        targetCompatibility = JavaVersion.toVersion(baselineJavaVersion)
     }
 
     kotlinOptions {
-        jvmTarget = JavaVersion.VERSION_17.toString()
+        jvmTarget = JavaVersion.toVersion(baselineJavaVersion).toString()
     }
 
     sourceSets {
@@ -50,7 +73,7 @@ android {
     }
 
     defaultConfig {
-        minSdk = 24
+        minSdk = baselineMinSdk
     }
 
     testOptions {
@@ -71,7 +94,7 @@ android {
 }
 
 dependencies {
-    implementation("com.utexo:rgb-lightning-node-android:0.6.0-beta.2")
+    implementation(rlnAndroidCoordinate)
     implementation("net.java.dev.jna:jna:5.17.0@aar")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.3")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")

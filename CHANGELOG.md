@@ -1,5 +1,17 @@
 ## Unreleased
 
+### Release-candidate audit
+
+* Audited the package against `@utexo/rgb-sdk-rn` `1.0.0-beta.25`,
+  `@utexo/rgb-sdk-core` `1.0.0-beta.5`, and RLN `0.9.0-beta.3`.
+* Marked the current beta.19/RLN `0.6.0-beta.2` implementation as not
+  production ready. No API, native, lifecycle, or recovery parity claim should
+  be inferred from the existing test suite.
+* Replaced overlapping historical status documents with the single
+  `doc/RELEASE_READINESS_TRACKER.md` issue ledger.
+
+### Earlier development work
+
 * Updated the RN parity target to `@utexo/rgb-sdk-rn` `1.0.0-beta.19` and
   pinned RLN native artifacts to `0.6.0-beta.2`.
 * Added low-level `rlnApayNewWithAddress` bridge parity through Pigeon, Dart,

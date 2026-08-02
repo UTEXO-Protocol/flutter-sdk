@@ -44,11 +44,19 @@ wait_for_host_bitcoind_rpc() {
 wait_for_electrs() {
   local start
   local electrs_port="${ELECTRS_PORT:-50002}"
+  local response
   start="$(date +%s)"
-  until nc -z 127.0.0.1 "${electrs_port}" >/dev/null 2>&1; do
+  until response="$(
+    printf '%s\n' \
+      '{"id":1,"method":"server.version","params":["rgb-sdk-flutter","1.4"]}' |
+      nc -w 2 127.0.0.1 "${electrs_port}" 2>/dev/null
+  )" &&
+    jq -e \
+      '.id == 1 and (.result | type == "array") and (.result | length >= 2)' \
+      >/dev/null 2>&1 <<<"${response}"; do
     if (( "$(date +%s)" - start > TIMEOUT_SECONDS )); then
       "${COMPOSE[@]}" logs electrs >&2 || true
-      die "timed out waiting for electrs"
+      die "timed out waiting for an Electrum protocol response"
     fi
     sleep 1
   done
@@ -72,12 +80,33 @@ ensure_initial_blocks() {
   fi
 }
 
+ensure_chain_not_in_initial_block_download() {
+  local start
+  local blockchain_info
+  start="$(date +%s)"
+  blockchain_info="$("${BITCOIN_CLI[@]}" getblockchaininfo)"
+
+  if [[ "$(jq -r '.initialblockdownload' <<<"${blockchain_info}")" == "true" ]]; then
+    "${BITCOIN_CLI[@]}" -rpcwallet=miner -generate 1 >/dev/null
+  fi
+
+  until blockchain_info="$("${BITCOIN_CLI[@]}" getblockchaininfo)" &&
+    [[ "$(jq -r '.initialblockdownload' <<<"${blockchain_info}")" == "false" ]]; do
+    if (( "$(date +%s)" - start > TIMEOUT_SECONDS )); then
+      "${COMPOSE[@]}" logs bitcoind >&2 || true
+      die "timed out waiting for bitcoind to leave initial block download"
+    fi
+    sleep 1
+  done
+}
+
 start() {
   mkdir -p "${SCRIPT_DIR}/data/bitcoind" "${SCRIPT_DIR}/data/electrs"
   "${COMPOSE[@]}" up -d bitcoind
   wait_for_bitcoind
   ensure_miner_wallet
   ensure_initial_blocks
+  ensure_chain_not_in_initial_block_download
   wait_for_host_bitcoind_rpc
   "${COMPOSE[@]}" up -d proxy electrs
   wait_for_electrs

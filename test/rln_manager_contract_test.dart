@@ -32,6 +32,7 @@ class _BindingHostApi extends RlnHostApi {
     bool vssAllowEmptyRestore,
     String? lspBaseUrl,
     String? lspBearerToken,
+    bool reuseAddresses,
   ) async {
     _record('rlnCreateNode', <Object?>[
       storageDirPath,
@@ -46,6 +47,7 @@ class _BindingHostApi extends RlnHostApi {
       vssAllowEmptyRestore,
       lspBaseUrl,
       lspBearerToken,
+      reuseAddresses,
     ]);
     return 42;
   }
@@ -124,11 +126,13 @@ class _BindingHostApi extends RlnHostApi {
     String seedHex,
     String network,
     bool permissivePolicy,
+    String? storageDirPath,
   ) async {
     _record('rlnCreateNativeExternalSigner', <Object?>[
       seedHex,
       network,
       permissivePolicy,
+      storageDirPath,
     ]);
     return 7;
   }
@@ -221,6 +225,7 @@ void main() {
     final signerId = await manager.rlnCreateNativeExternalSigner(
       '00' * 32,
       'regtest',
+      storageDirPath: '/tmp/rgb-node',
     );
     await manager.rlnShutdown();
     await manager.rlnDestroyNode();
@@ -232,7 +237,7 @@ void main() {
           .where((call) => call.method == 'rlnCreateNativeExternalSigner')
           .single
           .args,
-      <Object?>['00' * 32, 'regtest', true],
+      <Object?>['00' * 32, 'regtest', true, '/tmp/rgb-node'],
     );
     expect(hostApi.calls.map((call) => call.method), contains('rlnShutdown'));
     expect(

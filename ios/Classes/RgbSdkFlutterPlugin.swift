@@ -2,9 +2,6 @@ import Flutter
 import UIKit
 
 public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
-  private static let rlnVersion = "0.6.0-beta.2"
-  private static let reactNativeParityVersion = "1.0.0-beta.19"
-
   public static func register(with registrar: FlutterPluginRegistrar) {
     let instance = RgbSdkFlutterPlugin()
     RlnHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: instance)
@@ -13,10 +10,10 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
   func getNativeArtifactInfo() throws -> RlnNativeArtifactInfo {
     RlnNativeArtifactInfo(
       platform: "ios",
-      rlnVersion: Self.rlnVersion,
-      reactNativeParityVersion: Self.reactNativeParityVersion,
+      rlnVersion: ReleaseBaseline.rlnVersion,
+      reactNativeParityVersion: ReleaseBaseline.reactNativeVersion,
       bridge: "pigeon-bootstrap",
-      nativeArtifact: "rgb-lightning-node-swift-\(Self.rlnVersion).zip"
+      nativeArtifact: "rgb-lightning-node-swift-\(ReleaseBaseline.rlnVersion).zip"
     )
   }
 
@@ -63,6 +60,18 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
       message: message,
       details: ["operation": operation, "field": field]
     )
+  }
+
+  private func prepareStorageDirectory(_ path: String, operation: String) throws {
+    do {
+      try RlnStorageDirectoryPolicy.prepare(path)
+    } catch let error as RlnStorageDirectoryPolicyError {
+      throw invalidArgument(
+        operation,
+        field: "storageDirPath",
+        message: error.localizedDescription
+      )
+    }
   }
 
   private func requireUInt64(_ value: Int64, field: String, operation: String) throws -> UInt64 {
@@ -512,7 +521,8 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     vssAllowHttp: Bool,
     vssAllowEmptyRestore: Bool,
     lspBaseUrl: String?,
-    lspBearerToken: String?
+    lspBearerToken: String?,
+    reuseAddresses: Bool
   ) throws -> Int64 {
     try runRln("rlnCreateNode") {
       let initRequest = SdkInitRequest(
@@ -527,8 +537,10 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
         lspBearerToken: lspBearerToken,
         vssUrl: vssUrl,
         vssAllowHttp: vssAllowHttp,
-        vssAllowEmptyRestore: vssAllowEmptyRestore
+        vssAllowEmptyRestore: vssAllowEmptyRestore,
+        reuseAddresses: reuseAddresses
       )
+      try prepareStorageDirectory(storageDirPath, operation: "rlnCreateNode")
       let node = try SdkNode.create(request: initRequest)
       return try RlnNodeStore.shared.create(node: node, storageDirPath: storageDirPath)
     }
@@ -558,13 +570,32 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     }
   }
 
-  func rlnCreateNativeExternalSigner(seedHex: String, network: String, permissivePolicy: Bool) throws -> Int64 {
+  func rlnCreateNativeExternalSigner(
+    seedHex: String,
+    network: String,
+    permissivePolicy: Bool,
+    storageDirPath: String?
+  ) throws -> Int64 {
     try runRln("rlnCreateNativeExternalSigner") {
-      let signer = try NativeExternalSigner(
-        seedHex: seedHex,
-        network: network,
-        permissivePolicy: permissivePolicy
-      )
+      let signer: NativeExternalSigner
+      if let storageDirPath {
+        try prepareStorageDirectory(
+          storageDirPath,
+          operation: "rlnCreateNativeExternalSigner"
+        )
+        signer = try NativeExternalSigner.newWithStorage(
+          seedHex: seedHex,
+          network: network,
+          permissivePolicy: permissivePolicy,
+          storageDirPath: storageDirPath
+        )
+      } else {
+        signer = try NativeExternalSigner(
+          seedHex: seedHex,
+          network: network,
+          permissivePolicy: permissivePolicy
+        )
+      }
       return RlnNodeStore.shared.createSigner(signer)
     }
   }
@@ -831,6 +862,28 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     }
   }
 
+  func rlnRotateAddress(nodeId: Int64) throws -> [AnyHashable?: Any?] {
+    try runRln("rlnRotateAddress") {
+      ["address": try RlnNodeStore.shared.get(id: nodeId).rotateAddress().address]
+    }
+  }
+
+  func rlnSignMessage(nodeId: Int64, message: String) throws -> [AnyHashable?: Any?] {
+    try runRln("rlnSignMessage") {
+      ["signedMessage": try RlnNodeStore.shared.get(id: nodeId).signMessage(message: message).signedMessage]
+    }
+  }
+
+  func rlnVerifyMessage(nodeId: Int64, message: String, signature: String) throws -> [AnyHashable?: Any?] {
+    try runRln("rlnVerifyMessage") {
+      [
+        "valid": try RlnNodeStore.shared.get(id: nodeId)
+          .verifyMessage(message: message, signature: signature)
+          .valid,
+      ]
+    }
+  }
+
   func rlnAssetBalance(nodeId: Int64, assetId: String) throws -> [AnyHashable?: Any?] {
     try runRln("rlnAssetBalance") {
       assetBalanceMap(try RlnNodeStore.shared.get(id: nodeId).assetBalance(assetId: assetId))
@@ -964,10 +1017,26 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     }
   }
 
+  func rlnListTransactionsByTxid(nodeId: Int64, txid: String, skipSync: Bool) throws -> [[AnyHashable?: Any?]] {
+    try runRln("rlnListTransactionsByTxid") {
+      try RlnNodeStore.shared.get(id: nodeId)
+        .listTransactionsByTxid(txid: txid, skipSync: skipSync)
+        .map(transactionMap)
+    }
+  }
+
   func rlnListTransfers(nodeId: Int64, assetId: String) throws -> [[AnyHashable?: Any?]] {
     try runRln("rlnListTransfers") {
       try RlnNodeStore.shared.get(id: nodeId)
         .listTransfers(assetId: assetId)
+        .map(transferMap)
+    }
+  }
+
+  func rlnListTransfersByTxid(nodeId: Int64, txid: String) throws -> [[AnyHashable?: Any?]] {
+    try runRln("rlnListTransfersByTxid") {
+      try RlnNodeStore.shared.get(id: nodeId)
+        .listTransfersByTxid(txid: txid)
         .map(transferMap)
     }
   }
@@ -987,7 +1056,8 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     assetId: String?,
     assetAmount: Int64?,
     paymentHash: String?,
-    minFinalCltvExpiryDelta: Int64?
+    minFinalCltvExpiryDelta: Int64?,
+    descriptionHash: String?
   ) throws -> [AnyHashable?: Any?] {
     try runRln("rlnLnInvoice") {
       let response = try RlnNodeStore.shared.get(id: nodeId).lnInvoice(request: LnInvoiceRequest(
@@ -996,7 +1066,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
         assetId: assetId,
         assetAmount: try optionalUInt64(assetAmount, field: "assetAmount", operation: "rlnLnInvoice"),
         paymentHash: paymentHash,
-        descriptionHash: nil,
+        descriptionHash: descriptionHash,
         minFinalCltvExpiryDelta: try optionalUInt16(minFinalCltvExpiryDelta, field: "minFinalCltvExpiryDelta", operation: "rlnLnInvoice")
       ))
       return ["invoice": response.invoice]
@@ -1081,11 +1151,43 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     }
   }
 
-  func rlnRgbInvoice(nodeId: Int64, assetId: String?, assignmentAmount: Int64?, durationSeconds: Int64?, minConfirmations: Int64, witness: Bool) throws -> [AnyHashable?: Any?] {
+  private func parseAssignmentKind(_ rawValue: String?) throws -> AssignmentKind? {
+    guard let rawValue else {
+      return nil
+    }
+    switch rawValue {
+    case "Fungible":
+      return .fungible
+    case "NonFungible":
+      return .nonFungible
+    case "InflationRight":
+      return .inflationRight
+    case "ReplaceRight":
+      return .replaceRight
+    case "Any":
+      return .any
+    default:
+      throw invalidArgument(
+        "rlnRgbInvoice",
+        field: "assignmentKind",
+        message: "Unknown assignmentKind: \(rawValue)"
+      )
+    }
+  }
+
+  func rlnRgbInvoice(
+    nodeId: Int64,
+    assetId: String?,
+    assignmentAmount: Int64?,
+    durationSeconds: Int64?,
+    minConfirmations: Int64,
+    witness: Bool,
+    assignmentKind: String?
+  ) throws -> [AnyHashable?: Any?] {
     try runRln("rlnRgbInvoice") {
       let request = SdkRgbInvoiceRequest(
         assetId: assetId,
-        assignmentKind: assetId == nil ? nil : .fungible,
+        assignmentKind: try parseAssignmentKind(assignmentKind),
         assignmentAmount: try optionalUInt64(assignmentAmount, field: "assignmentAmount", operation: "rlnRgbInvoice"),
         durationSeconds: try optionalUInt32(durationSeconds, field: "durationSeconds", operation: "rlnRgbInvoice"),
         minConfirmations: try requireUInt8(minConfirmations, field: "minConfirmations", operation: "rlnRgbInvoice"),
@@ -1215,6 +1317,32 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     }
   }
 
+  func rlnInflate(
+    nodeId: Int64,
+    assetId: String,
+    inflationAmounts: [Int64],
+    feeRate: Double,
+    minConfirmations: Int64
+  ) throws -> [AnyHashable?: Any?] {
+    try runRln("rlnInflate") {
+      let response = try RlnNodeStore.shared.get(id: nodeId).inflate(request: InflateRequest(
+        assetId: assetId,
+        inflationAmounts: try requireUInt64List(
+          inflationAmounts,
+          field: "inflationAmounts",
+          operation: "rlnInflate"
+        ),
+        feeRate: try requireFeeRate(feeRate, field: "feeRate", operation: "rlnInflate"),
+        minConfirmations: try requireUInt8(
+          minConfirmations,
+          field: "minConfirmations",
+          operation: "rlnInflate"
+        )
+      ))
+      return ["txid": response.txid]
+    }
+  }
+
   func rlnIssueAssetUda(nodeId: Int64, ticker: String, name: String, details: String?, precision: Int64, mediaFileDigest: String?, attachmentsFileDigests: [String]) throws -> Any? {
     try runRln("rlnIssueAssetUda") {
       let asset = try RlnNodeStore.shared.get(id: nodeId).issueassetuda(request: SdkIssueAssetUdaRequest(
@@ -1226,6 +1354,20 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
         attachmentsFileDigests: attachmentsFileDigests
       ))
       return assetUdaMap(asset)
+    }
+  }
+
+  func rlnVssBackup(nodeId: Int64) throws -> Int64 {
+    try runRln("rlnVssBackup") {
+      let version = try RlnNodeStore.shared.get(id: nodeId).vssBackup()
+      guard let value = Int64(exactly: version) else {
+        throw PigeonError(
+          code: "integerOverflow",
+          message: "VSS backup version exceeds the Dart Int64 bridge range.",
+          details: ["operation": "rlnVssBackup"]
+        )
+      }
+      return value
     }
   }
 

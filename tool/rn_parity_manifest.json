@@ -1,7 +1,5 @@
 {
   "schemaVersion": 1,
-  "rnReferenceCommit": "3d0cc8c8e170e493e1090a88216759043a37e03c",
-  "rnDefaultPath": "/private/tmp/rgb-sdk-rn-dev-current",
   "runtimeExportAliases": {
     "createWallet": "createWallet",
     "RLNManager": "RLNManager",
@@ -12,17 +10,14 @@
     "PasswordRLNSigner": "PasswordRlnSigner",
     "NativeExternalRLNSigner": "NativeExternalRlnSigner",
     "RLNBinding": "RLNBinding",
-    "RNSigner": "RNSigner",
     "UtexoLSPClient": "UtexoLspClient",
     "LspError": "LspError",
     "normalizeReceiveStatus": "normalizeReceiveStatus",
     "peerUri": "peerUri",
     "UtexoLsp": "UtexoLsp",
     "LspChannelTimeoutError": "LspChannelTimeoutException",
+    "LspLiquidityTimeoutError": "LspLiquidityTimeoutException",
     "LspSettlementError": "LspSettlementException",
-    "signPsbt": "signPsbt",
-    "signPsbtFromSeed": "signPsbtFromSeed",
-    "estimatePsbt": "estimatePsbt",
     "generateKeys": "generateKeys",
     "deriveKeysFromMnemonic": "deriveKeysFromMnemonic",
     "deriveKeysFromSeed": "deriveKeysFromSeed",
@@ -56,22 +51,10 @@
     "isNetwork": "isNetwork",
     "toUnitsNumber": "toUnitsNumber",
     "fromUnitsNumber": "fromUnitsNumber",
-    "utexoNetworkMap": "utexoNetworkMap",
-    "utexoNetworkIdMap": "utexoNetworkIdMap",
-    "getDestinationAsset": "getDestinationAsset",
     "DEFAULT_TRANSPORT_ENDPOINTS": "DEFAULT_TRANSPORT_ENDPOINTS",
-    "DEFAULT_INDEXER_URLS": "DEFAULT_INDEXER_URLS",
-    "getBridgeAPI": "getBridgeAPI",
-    "encodeTransferStatus": "encodeTransferStatus",
-    "TransferStatuses": "TransferStatuses"
+    "DEFAULT_INDEXER_URLS": "DEFAULT_INDEXER_URLS"
   },
-  "scopedOutRuntimeExports": {
-    "UTEXOProtocol": "TypeScript-oriented core protocol/base export. Dart exposes the concrete UtexoWallet facade and typed DTOs instead of duplicating the TS runtime inheritance layer.",
-    "LightningProtocol": "TypeScript-oriented core protocol/base export. Dart exposes Lightning wallet methods and typed DTOs instead of duplicating the TS runtime inheritance layer.",
-    "OnchainProtocol": "TypeScript-oriented core protocol/base export. Dart exposes on-chain wallet methods and typed DTOs instead of duplicating the TS runtime inheritance layer.",
-    "UTEXOWalletCore": "TypeScript-oriented core base export. Dart exposes UtexoWallet plus Core* DTO mappers rather than a separate runtime base class.",
-    "BaseWalletManager": "TypeScript-oriented core base export. Dart lifecycle ownership lives in UtexoWallet/RLNBinding/RLNManager."
-  },
+  "scopedOutRuntimeExports": {},
   "scopedOutTypeStars": {
     "./binding/rln-types": "RN re-exports TypeScript-only response interfaces. Dart exposes equivalent concrete model classes from lib/src/models/rln_models.dart and validates the runtime NativeRgb method surface separately."
   }

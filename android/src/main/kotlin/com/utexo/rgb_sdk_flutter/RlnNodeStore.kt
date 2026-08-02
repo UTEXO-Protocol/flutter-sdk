@@ -6,6 +6,7 @@ import org.utexo.rgblightningnode.SdkNode
 internal object RlnNodeStore {
     private val nodes = mutableMapOf<Long, SdkNode>()
     private val states = mutableMapOf<Long, NodeLifecycleState>()
+    private val preUnlockStates = mutableMapOf<Long, NodeLifecycleState>()
     private val storageDirByNodeId = mutableMapOf<Long, String>()
     private var nextId = 1L
     private val signers = mutableMapOf<Long, NativeExternalSigner>()
@@ -69,14 +70,15 @@ internal object RlnNodeStore {
     @Synchronized
     fun beginUnlock(id: Long): NodeLifecycleState {
         return when (val state = getState(id)) {
+            NodeLifecycleState.CREATED,
             NodeLifecycleState.INITIALIZED,
             NodeLifecycleState.SHUTDOWN -> {
+                preUnlockStates[id] = state
                 states[id] = NodeLifecycleState.UNLOCKING
                 NodeLifecycleState.UNLOCKING
             }
             NodeLifecycleState.UNLOCKED -> NodeLifecycleState.UNLOCKED
             NodeLifecycleState.UNLOCKING -> throw IllegalStateException("RLN unlock is already in progress")
-            NodeLifecycleState.CREATED -> throw IllegalStateException("RLN node must be initialized before unlock")
         }
     }
 
@@ -84,6 +86,7 @@ internal object RlnNodeStore {
     fun markUnlocked(id: Long) {
         if (states.containsKey(id)) {
             states[id] = NodeLifecycleState.UNLOCKED
+            preUnlockStates.remove(id)
         }
     }
 
@@ -97,7 +100,7 @@ internal object RlnNodeStore {
     @Synchronized
     fun rollbackUnlock(id: Long) {
         if (states[id] == NodeLifecycleState.UNLOCKING) {
-            states[id] = NodeLifecycleState.INITIALIZED
+            states[id] = preUnlockStates.remove(id) ?: NodeLifecycleState.INITIALIZED
         }
     }
 
@@ -105,6 +108,7 @@ internal object RlnNodeStore {
     fun remove(id: Long) {
         nodes.remove(id)?.close()
         states.remove(id)
+        preUnlockStates.remove(id)
         storageDirByNodeId.remove(id)
     }
 
@@ -122,6 +126,6 @@ internal object RlnNodeStore {
 
     @Synchronized
     fun removeSigner(id: Long) {
-        signers.remove(id)
+        signers.remove(id)?.close()
     }
 }

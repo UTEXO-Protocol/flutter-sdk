@@ -9,9 +9,14 @@ class FakeRlnHostApi extends RlnHostApi {
   int? createdNodeId;
   int createNodeCount = 0;
   int? createdSignerId;
+  int createSignerCount = 0;
+  final List<int> createdSignerIds = <int>[];
+  final List<int> destroyedNativeSignerIds = <int>[];
   String? createdNodeNetwork;
   String? createdSignerNetwork;
   bool? createdSignerPermissivePolicy;
+  String? createdSignerStorageDirPath;
+  bool? createdReuseAddresses;
   bool? createdEnableVirtualChannelsV0;
   List<String>? createdVirtualPeerPubkeys;
   String? createdLspBaseUrl;
@@ -22,6 +27,9 @@ class FakeRlnHostApi extends RlnHostApi {
   int? attachedNativeSignerId;
   int? unlockedNativeSignerId;
   int? destroyedNativeSignerId;
+  bool throwOnNativeSignerInit = false;
+  bool throwOnNativeSignerAttach = false;
+  bool throwOnNativeSignerDestroy = false;
   int shutdownCount = 0;
   int destroyNodeCount = 0;
   String? lastTransferAssetId;
@@ -34,6 +42,7 @@ class FakeRlnHostApi extends RlnHostApi {
   String? unlockedProxyEndpoint;
   bool? lastRgbInvoiceWitness;
   int? lastRgbInvoiceMinConfirmations;
+  String? lastRgbInvoiceAssignmentKind;
   Map<Object?, Object?>? lastSendRgb;
   Map<Object?, Object?>? lastSendBtc;
   Map<Object?, Object?>? lastLnInvoice;
@@ -45,6 +54,10 @@ class FakeRlnHostApi extends RlnHostApi {
   int apayNewCalls = 0;
   int apayNewWithAddressCalls = 0;
   String? lastVssClearFencePassword;
+  int vssBackupVersion = 42;
+  String? lastTransactionTxid;
+  String? lastTransferTxid;
+  Map<Object?, Object?>? lastInflate;
   Map<Object?, Object?>? lastSendPayment;
   Map<Object?, Object?>? lastBackup;
   Map<Object?, Object?>? lastIssueAssetNia;
@@ -166,6 +179,7 @@ class FakeRlnHostApi extends RlnHostApi {
     bool vssAllowEmptyRestore,
     String? lspBaseUrl,
     String? lspBearerToken,
+    bool reuseAddresses,
   ) async {
     createNodeCount += 1;
     createdNodeId = 6 + createNodeCount;
@@ -174,6 +188,7 @@ class FakeRlnHostApi extends RlnHostApi {
     createdVirtualPeerPubkeys = virtualPeerPubkeys;
     createdLspBaseUrl = lspBaseUrl;
     createdLspBearerToken = lspBearerToken;
+    createdReuseAddresses = reuseAddresses;
     return createdNodeId!;
   }
 
@@ -193,11 +208,15 @@ class FakeRlnHostApi extends RlnHostApi {
     String seedHex,
     String network,
     bool permissivePolicy,
+    String? storageDirPath,
   ) async {
     expect(seedHex.length, 64);
+    createSignerCount += 1;
     createdSignerNetwork = network;
     createdSignerPermissivePolicy = permissivePolicy;
-    createdSignerId = 99;
+    createdSignerStorageDirPath = storageDirPath;
+    createdSignerId = 98 + createSignerCount;
+    createdSignerIds.add(createdSignerId!);
     return createdSignerId!;
   }
 
@@ -207,11 +226,17 @@ class FakeRlnHostApi extends RlnHostApi {
     int signerId,
   ) async {
     initializedNativeSignerId = signerId;
+    if (throwOnNativeSignerInit) {
+      throw StateError('native signer init failed');
+    }
   }
 
   @override
   Future<void> rlnAttachNativeExternalSigner(int nodeId, int signerId) async {
     attachedNativeSignerId = signerId;
+    if (throwOnNativeSignerAttach) {
+      throw StateError('native signer attach failed');
+    }
   }
 
   @override
@@ -237,6 +262,10 @@ class FakeRlnHostApi extends RlnHostApi {
   @override
   Future<void> rlnDestroyNativeExternalSigner(int signerId) async {
     destroyedNativeSignerId = signerId;
+    destroyedNativeSignerIds.add(signerId);
+    if (throwOnNativeSignerDestroy) {
+      throw StateError('native signer destroy failed');
+    }
   }
 
   @override
@@ -261,6 +290,28 @@ class FakeRlnHostApi extends RlnHostApi {
   @override
   Future<Map<Object?, Object?>> rlnAddress(int nodeId) async {
     return <Object?, Object?>{'address': 'bcrt1address'};
+  }
+
+  @override
+  Future<Map<Object?, Object?>> rlnRotateAddress(int nodeId) async {
+    return <Object?, Object?>{'address': 'bcrt1rotated'};
+  }
+
+  @override
+  Future<Map<Object?, Object?>> rlnSignMessage(
+    int nodeId,
+    String message,
+  ) async {
+    return <Object?, Object?>{'signedMessage': 'signed:$message'};
+  }
+
+  @override
+  Future<Map<Object?, Object?>> rlnVerifyMessage(
+    int nodeId,
+    String message,
+    String signature,
+  ) async {
+    return <Object?, Object?>{'valid': signature == 'signed:$message'};
   }
 
   @override
@@ -316,9 +367,11 @@ class FakeRlnHostApi extends RlnHostApi {
     int? durationSeconds,
     int minConfirmations,
     bool witness,
+    String? assignmentKind,
   ) async {
     lastRgbInvoiceWitness = witness;
     lastRgbInvoiceMinConfirmations = minConfirmations;
+    lastRgbInvoiceAssignmentKind = assignmentKind;
     return <Object?, Object?>{
       'invoice': 'rgb:invoice',
       'recipientId': 'recipient',
@@ -433,6 +486,23 @@ class FakeRlnHostApi extends RlnHostApi {
       'rejectListUrl': rejectListUrl,
     };
     return _ifaAsset();
+  }
+
+  @override
+  Future<Map<Object?, Object?>> rlnInflate(
+    int nodeId,
+    String assetId,
+    List<int> inflationAmounts,
+    double feeRate,
+    int minConfirmations,
+  ) async {
+    lastInflate = <Object?, Object?>{
+      'assetId': assetId,
+      'inflationAmounts': inflationAmounts,
+      'feeRate': feeRate,
+      'minConfirmations': minConfirmations,
+    };
+    return <Object?, Object?>{'txid': 'inflate-txid'};
   }
 
   @override
@@ -554,6 +624,16 @@ class FakeRlnHostApi extends RlnHostApi {
   }
 
   @override
+  Future<List<Map<Object?, Object?>>> rlnListTransactionsByTxid(
+    int nodeId,
+    String txid,
+    bool skipSync,
+  ) async {
+    lastTransactionTxid = txid;
+    return rlnListTransactions(nodeId, skipSync);
+  }
+
+  @override
   Future<Map<Object?, Object?>> rlnEstimateFee(int nodeId, int blocks) async {
     lastEstimateFeeBlocks = blocks;
     return <Object?, Object?>{'feeRate': 2.25};
@@ -576,6 +656,7 @@ class FakeRlnHostApi extends RlnHostApi {
     int? assetAmount,
     String? paymentHash,
     int? minFinalCltvExpiryDelta,
+    String? descriptionHash,
   ) async {
     lastLnInvoice = <Object?, Object?>{
       'amtMsat': amtMsat,
@@ -584,6 +665,7 @@ class FakeRlnHostApi extends RlnHostApi {
       'assetAmount': assetAmount,
       'paymentHash': paymentHash,
       'minFinalCltvExpiryDelta': minFinalCltvExpiryDelta,
+      'descriptionHash': descriptionHash,
     };
     return <Object?, Object?>{'invoice': 'lnbc-invoice'};
   }
@@ -870,6 +952,15 @@ class FakeRlnHostApi extends RlnHostApi {
   }
 
   @override
+  Future<List<Map<Object?, Object?>>> rlnListTransfersByTxid(
+    int nodeId,
+    String txid,
+  ) async {
+    lastTransferTxid = txid;
+    return rlnListTransfers(nodeId, 'asset');
+  }
+
+  @override
   Future<void> rlnShutdown(int nodeId) async {
     shutdownCount += 1;
   }
@@ -886,6 +977,9 @@ class FakeRlnHostApi extends RlnHostApi {
   Future<void> rlnVssClearFence(int nodeId, String password) async {
     lastVssClearFencePassword = password;
   }
+
+  @override
+  Future<int> rlnVssBackup(int nodeId) async => vssBackupVersion;
 }
 
 class FakeLspClient extends IUtexoLspClient {
@@ -1056,6 +1150,7 @@ void main() {
     expect(hostApi.unlockedNativeSignerId, 99);
     expect(hostApi.destroyedNativeSignerId, 99);
     expect(hostApi.createdSignerPermissivePolicy, true);
+    expect(hostApi.createdSignerStorageDirPath, '/tmp/rgb-wallet-test');
   });
 
   test(
@@ -1229,14 +1324,199 @@ void main() {
     expect(hostApi.createNodeCount, 2);
     expect(hostApi.initNodeCount, 1);
     expect(hostApi.destroyNodeCount, 0);
+    expect(hostApi.shutdownCount, 1);
     expect(wallet.isInitialized, true);
     expect(wallet.isUnlocked, true);
   });
 
-  test('reinit before init is rejected', () async {
-    final wallet = walletWith(FakeRlnHostApi());
+  test('reinit supports a cold-process persisted wallet session', () async {
+    final hostApi = FakeRlnHostApi();
+    final wallet = walletWith(hostApi);
 
-    expect(() => wallet.reinit(), throwsA(isA<WalletException>()));
+    await wallet.reinit(
+      password: 'password',
+      unlockConfig: const UtexoUnlockConfig(
+        bitcoindRpcHost: '127.0.0.1',
+        bitcoindRpcPort: 18444,
+      ),
+    );
+
+    expect(hostApi.createNodeCount, 1);
+    expect(hostApi.initNodeCount, 0);
+    expect(wallet.isInitialized, true);
+    expect(wallet.isUnlocked, true);
+  });
+
+  test(
+    'cold-process external signer reinit attaches before unlocking',
+    () async {
+      final hostApi = FakeRlnHostApi();
+      final wallet = UtexoWallet(
+        config: const UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
+        client: RlnClient(hostApi: hostApi),
+        signer: NativeExternalRlnSigner(
+          keys: RlnKeyMaterial.seedHex(
+            '0101010101010101010101010101010101010101010101010101010101010101',
+          ),
+          network: 'regtest',
+        ),
+      );
+
+      await wallet.reinit(unlockConfig: const UtexoUnlockConfig());
+
+      expect(hostApi.createNodeCount, 1);
+      expect(hostApi.createdSignerIds, <int>[99]);
+      expect(hostApi.attachedNativeSignerId, 99);
+      expect(hostApi.unlockedNativeSignerId, 99);
+      expect(wallet.isUnlocked, true);
+    },
+  );
+
+  test(
+    'failed native signer init destroys the temporary handle and retries cleanly',
+    () async {
+      final hostApi = FakeRlnHostApi()..throwOnNativeSignerInit = true;
+      final signer = NativeExternalRlnSigner(
+        keys: RlnKeyMaterial.seedHex(
+          '0101010101010101010101010101010101010101010101010101010101010101',
+        ),
+        network: 'regtest',
+      );
+      final wallet = UtexoWallet(
+        config: const UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
+        client: RlnClient(hostApi: hostApi),
+        signer: signer,
+      );
+
+      await expectLater(wallet.init(), throwsStateError);
+      expect(signer.signerId, isNull);
+      expect(hostApi.createdSignerIds, <int>[99]);
+      expect(hostApi.destroyedNativeSignerIds, <int>[99]);
+
+      hostApi.throwOnNativeSignerInit = false;
+      await wallet.init();
+
+      expect(signer.signerId, 100);
+      expect(hostApi.createdSignerIds, <int>[99, 100]);
+    },
+  );
+
+  test(
+    'failed cold attach destroys the temporary handle and retries cleanly',
+    () async {
+      final hostApi = FakeRlnHostApi()..throwOnNativeSignerAttach = true;
+      final signer = NativeExternalRlnSigner(
+        keys: RlnKeyMaterial.seedHex(
+          '0101010101010101010101010101010101010101010101010101010101010101',
+        ),
+        network: 'regtest',
+      );
+      final wallet = UtexoWallet(
+        config: const UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
+        client: RlnClient(hostApi: hostApi),
+        signer: signer,
+      );
+
+      await expectLater(
+        wallet.reinit(unlockConfig: const UtexoUnlockConfig()),
+        throwsStateError,
+      );
+      expect(signer.signerId, isNull);
+      expect(hostApi.createdSignerIds, <int>[99]);
+      expect(hostApi.destroyedNativeSignerIds, <int>[99]);
+
+      hostApi.throwOnNativeSignerAttach = false;
+      await wallet.unlock(config: const UtexoUnlockConfig());
+
+      expect(signer.signerId, 100);
+      expect(hostApi.attachedNativeSignerId, 100);
+      expect(hostApi.unlockedNativeSignerId, 100);
+    },
+  );
+
+  test(
+    'failed signer cleanup blocks reuse until explicit disposal succeeds',
+    () async {
+      final hostApi = FakeRlnHostApi()
+        ..throwOnNativeSignerInit = true
+        ..throwOnNativeSignerDestroy = true;
+      final client = RlnClient(hostApi: hostApi);
+      final signer = NativeExternalRlnSigner(
+        keys: RlnKeyMaterial.seedHex(
+          '0101010101010101010101010101010101010101010101010101010101010101',
+        ),
+        network: 'regtest',
+      );
+      final wallet = UtexoWallet(
+        config: const UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
+        client: client,
+        signer: signer,
+      );
+
+      await expectLater(
+        wallet.init(),
+        throwsA(
+          isA<WalletException>().having(
+            (error) => error.cause,
+            'operation and cleanup causes',
+            isA<List<Object>>().having((causes) => causes.length, 'length', 2),
+          ),
+        ),
+      );
+      expect(hostApi.createdSignerIds, <int>[99]);
+      expect(hostApi.destroyedNativeSignerIds, <int>[99]);
+
+      await expectLater(wallet.init(), throwsA(isA<WalletException>()));
+      expect(hostApi.createdSignerIds, <int>[99]);
+
+      hostApi.throwOnNativeSignerDestroy = false;
+      await signer.dispose(client: client, nodeId: wallet.nodeId);
+      hostApi.throwOnNativeSignerInit = false;
+      await wallet.init();
+
+      expect(signer.signerId, 100);
+      expect(hostApi.createdSignerIds, <int>[99, 100]);
+    },
+  );
+
+  test('durable native signer requires one stable storage path', () async {
+    final hostApi = FakeRlnHostApi();
+    final client = RlnClient(hostApi: hostApi);
+    final signer = NativeExternalRlnSigner(
+      keys: RlnKeyMaterial.seedHex(
+        '0101010101010101010101010101010101010101010101010101010101010101',
+      ),
+      network: 'regtest',
+    );
+
+    await expectLater(
+      signer.initNode(client: client, nodeId: 7, storageDirPath: ''),
+      throwsA(
+        isA<WalletValidationException>().having(
+          (error) => error.field,
+          'field',
+          'storageDirPath',
+        ),
+      ),
+    );
+
+    await signer.initNode(
+      client: client,
+      nodeId: 7,
+      storageDirPath: '/tmp/rgb-wallet-one',
+    );
+    await expectLater(
+      signer.unlockNode(
+        client: client,
+        nodeId: 7,
+        config: const UtexoUnlockConfig(),
+        storageDirPath: '/tmp/rgb-wallet-two',
+      ),
+      throwsA(isA<WalletException>()),
+    );
+
+    expect(hostApi.createdSignerIds, <int>[99]);
+    expect(hostApi.unlockedNativeSignerId, isNull);
   });
 
   test('exposes RN-compatible high-level diagnostics', () async {
@@ -2032,6 +2312,36 @@ void main() {
     expect(transfers.single.idx, 1);
   });
 
+  test(
+    'exposes current RLN address, inflation, lookup, signing, and VSS APIs',
+    () async {
+      final hostApi = FakeRlnHostApi();
+      final wallet = walletWith(hostApi);
+      await wallet.init(password: 'password');
+
+      expect(await wallet.rotateVanillaAddress(), 'bcrt1rotated');
+      final inflation = await wallet.inflate(
+        const InflateAssetIfaRequest(
+          assetId: 'ifa',
+          inflationAmounts: <int>[25, 75],
+        ),
+      );
+      expect(inflation.txid, 'inflate-txid');
+      expect(hostApi.lastInflate?['assetId'], 'ifa');
+      expect(
+        (await wallet.listTransactionsByTxid('btc-txid')).single.txid,
+        'btc-txid',
+      );
+      expect(hostApi.lastTransactionTxid, 'btc-txid');
+      expect((await wallet.listTransfersByTxid('btc-txid')).single.idx, 1);
+      expect(hostApi.lastTransferTxid, 'btc-txid');
+      final signature = await wallet.signMessage('message');
+      expect(signature, 'signed:message');
+      expect(await wallet.verifyMessage('message', signature), true);
+      expect(await wallet.backupNow(), 42);
+    },
+  );
+
   test('marks RN service and bridge-only wallet methods unsupported', () async {
     final wallet = walletWith(FakeRlnHostApi());
     await wallet.init(password: 'password');
@@ -2040,11 +2350,9 @@ void main() {
       expect(action, throwsA(isA<UnsupportedWalletFeatureException>()));
     }
 
-    expectUnsupported(wallet.rotateVanillaAddress);
     expectUnsupported(wallet.rotateColoredAddress);
     expectUnsupported(() => wallet.inflateBegin(<String, Object?>{}));
     expectUnsupported(() => wallet.inflateEnd(<String, Object?>{}));
-    expectUnsupported(() => wallet.inflate(<String, Object?>{}));
     expectUnsupported(() => wallet.estimateFee('psbt'));
     expectUnsupported(
       () => wallet.payLightningInvoiceBegin(<String, Object?>{}),
@@ -2063,8 +2371,6 @@ void main() {
     expectUnsupported(() => wallet.sendEnd(<String, Object?>{}));
     expectUnsupported(() => wallet.sendBtcBegin(<String, Object?>{}));
     expectUnsupported(() => wallet.sendBtcEnd(<String, Object?>{}));
-    expectUnsupported(() => wallet.signMessage('message'));
-    expectUnsupported(() => wallet.verifyMessage('message', 'signature'));
     expectUnsupported(() => wallet.configureVssBackup(<String, Object?>{}));
     expectUnsupported(wallet.disableVssAutoBackup);
     expectUnsupported(() => wallet.vssBackup(<String, Object?>{}));

@@ -16,6 +16,7 @@ class IRLNNodeCreateParams {
     this.vssAllowEmptyRestore = false,
     this.lspBaseUrl,
     this.lspBearerToken,
+    this.reuseAddresses = false,
   });
 
   final String storageDirPath;
@@ -30,6 +31,7 @@ class IRLNNodeCreateParams {
   final bool vssAllowEmptyRestore;
   final String? lspBaseUrl;
   final String? lspBearerToken;
+  final bool reuseAddresses;
 }
 
 class IRLNUnlockParams {
@@ -189,6 +191,7 @@ class RLNBinding {
         vssAllowEmptyRestore: params.vssAllowEmptyRestore,
         lspBaseUrl: params.lspBaseUrl,
         lspBearerToken: params.lspBearerToken,
+        reuseAddresses: params.reuseAddresses,
       );
       _rlnNodeId = nodeId;
       _lifecycleState = _RlnLifecycleState.active;
@@ -277,12 +280,14 @@ class RLNBinding {
     String seedHex,
     String network, {
     bool permissivePolicy = true,
+    String? storageDirPath,
   }) {
     return _withNodeQueue(
       () => _client.createNativeExternalSigner(
         seedHex: seedHex,
         network: network,
         permissivePolicy: permissivePolicy,
+        storageDirPath: storageDirPath,
       ),
     );
   }
@@ -468,6 +473,7 @@ class RLNBinding {
     int? assetAmount, {
     String? paymentHash,
     int? minFinalCltvExpiryDelta,
+    String? descriptionHash,
   }) async {
     return RlnLnInvoice.fromMap(
       await _withNodeOperation(
@@ -479,6 +485,7 @@ class RLNBinding {
           assetAmount: assetAmount,
           paymentHash: paymentHash,
           minFinalCltvExpiryDelta: minFinalCltvExpiryDelta,
+          descriptionHash: descriptionHash,
         ),
       ),
     );
@@ -579,8 +586,35 @@ class RLNBinding {
     );
   }
 
-  Future<RlnMap> rlnAddress() {
-    return _withNodeOperation(_client.address);
+  Future<RlnAddress> rlnAddress() async {
+    return RlnAddress.fromMap(await _withNodeOperation(_client.address));
+  }
+
+  Future<RlnAddress> rlnRotateAddress() async {
+    return RlnAddress.fromMap(await _withNodeOperation(_client.rotateAddress));
+  }
+
+  Future<RlnSignMessageResult> rlnSignMessage(String message) async {
+    return RlnSignMessageResult.fromMap(
+      await _withNodeOperation(
+        (nodeId) => _client.signMessage(nodeId: nodeId, message: message),
+      ),
+    );
+  }
+
+  Future<RlnVerifyMessageResult> rlnVerifyMessage(
+    String message,
+    String signature,
+  ) async {
+    return RlnVerifyMessageResult.fromMap(
+      await _withNodeOperation(
+        (nodeId) => _client.verifyMessage(
+          nodeId: nodeId,
+          message: message,
+          signature: signature,
+        ),
+      ),
+    );
   }
 
   Future<RlnBtcBalance> rlnBtcBalance([bool skipSync = false]) async {
@@ -710,8 +744,12 @@ class RLNBinding {
     int? assignmentAmount,
     int? durationSeconds,
     int minConfirmations,
-    bool witness,
-  ) async {
+    bool witness, {
+    RlnAssignmentKind? assignmentKind,
+  }) async {
+    final resolvedAssignmentKind =
+        assignmentKind ??
+        (assignmentAmount == null ? null : RlnAssignmentKind.fungible);
     return RlnInvoice.fromMap(
       await _withNodeOperation(
         (nodeId) => _client.rgbInvoice(
@@ -721,6 +759,7 @@ class RLNBinding {
           durationSeconds: durationSeconds,
           minConfirmations: minConfirmations,
           witness: witness,
+          assignmentKind: resolvedAssignmentKind?.wireValue,
         ),
       ),
     );
@@ -756,6 +795,25 @@ class RLNBinding {
     );
   }
 
+  Future<RlnInflateResult> rlnInflate(
+    String assetId,
+    List<int> inflationAmounts,
+    double feeRate,
+    int minConfirmations,
+  ) async {
+    return RlnInflateResult.fromMap(
+      await _withNodeOperation(
+        (nodeId) => _client.inflate(
+          nodeId: nodeId,
+          assetId: assetId,
+          inflationAmounts: inflationAmounts,
+          feeRate: feeRate,
+          minConfirmations: minConfirmations,
+        ),
+      ),
+    );
+  }
+
   Future<List<RlnTransaction>> rlnListTransactions(bool skipSync) async {
     final transactions = await _withNodeOperation(
       (nodeId) => _client.listTransactions(nodeId: nodeId, skipSync: skipSync),
@@ -763,9 +821,30 @@ class RLNBinding {
     return transactions.map(RlnTransaction.fromMap).toList(growable: false);
   }
 
+  Future<List<RlnTransaction>> rlnListTransactionsByTxid(
+    String txid,
+    bool skipSync,
+  ) async {
+    final transactions = await _withNodeOperation(
+      (nodeId) => _client.listTransactionsByTxid(
+        nodeId: nodeId,
+        txid: txid,
+        skipSync: skipSync,
+      ),
+    );
+    return transactions.map(RlnTransaction.fromMap).toList(growable: false);
+  }
+
   Future<List<RlnTransfer>> rlnListTransfers(String assetId) async {
     final transfers = await _withNodeOperation(
       (nodeId) => _client.listTransfers(nodeId: nodeId, assetId: assetId),
+    );
+    return transfers.map(RlnTransfer.fromMap).toList(growable: false);
+  }
+
+  Future<List<RlnTransfer>> rlnListTransfersByTxid(String txid) async {
+    final transfers = await _withNodeOperation(
+      (nodeId) => _client.listTransfersByTxid(nodeId: nodeId, txid: txid),
     );
     return transfers.map(RlnTransfer.fromMap).toList(growable: false);
   }
@@ -861,5 +940,9 @@ class RLNBinding {
     return _withNodeOperation(
       (nodeId) => _client.vssClearFence(nodeId: nodeId, password: password),
     );
+  }
+
+  Future<int> rlnVssBackup() {
+    return _withNodeOperation(_client.vssBackup);
   }
 }

@@ -9,10 +9,13 @@ final class RunnerTests: XCTestCase {
     let info = try plugin.getNativeArtifactInfo()
 
     XCTAssertEqual(info.platform, "ios")
-    XCTAssertEqual(info.rlnVersion, "0.6.0-beta.2")
-    XCTAssertEqual(info.reactNativeParityVersion, "1.0.0-beta.19")
+    XCTAssertEqual(info.rlnVersion, ReleaseBaseline.rlnVersion)
+    XCTAssertEqual(info.reactNativeParityVersion, ReleaseBaseline.reactNativeVersion)
     XCTAssertEqual(info.bridge, "pigeon-bootstrap")
-    XCTAssertEqual(info.nativeArtifact, "rgb-lightning-node-swift-0.6.0-beta.2.zip")
+    XCTAssertEqual(
+      info.nativeArtifact,
+      "rgb-lightning-node-swift-\(ReleaseBaseline.rlnVersion).zip"
+    )
   }
 
   func testBackupFailsAsNativeBlockedWithoutLeakingArguments() {
@@ -77,7 +80,8 @@ final class RunnerTests: XCTestCase {
         vssAllowHttp: false,
         vssAllowEmptyRestore: false,
         lspBaseUrl: nil,
-        lspBearerToken: nil
+        lspBearerToken: nil,
+        reuseAddresses: false
       )
     ) { error in
       assertInvalidArgument(error, field: "daemonListeningPort")
@@ -96,10 +100,153 @@ final class RunnerTests: XCTestCase {
         vssAllowHttp: false,
         vssAllowEmptyRestore: false,
         lspBaseUrl: nil,
-        lspBearerToken: nil
+        lspBearerToken: nil,
+        reuseAddresses: false
       )
     ) { error in
       assertInvalidArgument(error, field: "maxMediaUploadSizeMb")
+    }
+  }
+
+  func testCreatesDiskBackedNativeExternalSigner() throws {
+    let storageDirPath = uniquePath("native-signer")
+    defer {
+      try? FileManager.default.removeItem(atPath: storageDirPath)
+    }
+
+    let signerId: Int64
+    do {
+      signerId = try plugin.rlnCreateNativeExternalSigner(
+        seedHex: String(repeating: "01", count: 32),
+        network: "regtest",
+        permissivePolicy: true,
+        storageDirPath: storageDirPath
+      )
+    } catch {
+      if let pigeon = error as? PigeonError {
+        XCTFail(
+          "Failed to create disk-backed native signer: "
+            + "code=\(pigeon.code), message=\(pigeon.message ?? "<nil>"), "
+            + "details=\(String(describing: pigeon.details))"
+        )
+      } else {
+        XCTFail(
+          "Failed to create disk-backed native signer: "
+            + "\(type(of: error)): \(error)"
+        )
+      }
+      return
+    }
+    defer {
+      try? plugin.rlnDestroyNativeExternalSigner(signerId: signerId)
+    }
+
+    XCTAssertGreaterThan(signerId, 0)
+    let attributes = try FileManager.default.attributesOfItem(atPath: storageDirPath)
+    let permissions = try XCTUnwrap(
+      attributes[.posixPermissions] as? NSNumber
+    ).intValue
+    XCTAssertEqual(permissions & 0o777, 0o700)
+  }
+
+  func testStoragePolicyCreatesOwnerOnlyDirectory() throws {
+    let rootPath = uniquePath("storage-policy-create")
+    let storageDirPath = "\(rootPath)/nested/node"
+    defer {
+      try? FileManager.default.removeItem(atPath: rootPath)
+    }
+
+    try RlnStorageDirectoryPolicy.prepare(storageDirPath)
+
+    let attributes = try FileManager.default.attributesOfItem(atPath: storageDirPath)
+    XCTAssertEqual(attributes[.type] as? FileAttributeType, .typeDirectory)
+    let permissions = try XCTUnwrap(
+      attributes[.posixPermissions] as? NSNumber
+    ).intValue
+    XCTAssertEqual(permissions & 0o777, 0o700)
+  }
+
+  func testStoragePolicyRejectsBroadExistingDirectoryWithoutChangingIt() throws {
+    let storageDirPath = uniquePath("storage-policy-broad")
+    try FileManager.default.createDirectory(
+      atPath: storageDirPath,
+      withIntermediateDirectories: true,
+      attributes: [.posixPermissions: NSNumber(value: 0o755)]
+    )
+    defer {
+      try? FileManager.default.removeItem(atPath: storageDirPath)
+    }
+
+    XCTAssertThrowsError(try RlnStorageDirectoryPolicy.prepare(storageDirPath)) { error in
+      guard let policyError = error as? RlnStorageDirectoryPolicyError else {
+        XCTFail("Expected RlnStorageDirectoryPolicyError, got \(type(of: error)): \(error)")
+        return
+      }
+      XCTAssertTrue(policyError.message.contains("mode 0700"))
+    }
+
+    let attributes = try FileManager.default.attributesOfItem(atPath: storageDirPath)
+    let permissions = try XCTUnwrap(
+      attributes[.posixPermissions] as? NSNumber
+    ).intValue
+    XCTAssertEqual(permissions & 0o777, 0o755)
+  }
+
+  func testStoragePolicyRejectsOwnerOnlyButUnusableDirectory() throws {
+    let storageDirPath = uniquePath("storage-policy-unusable")
+    try FileManager.default.createDirectory(
+      atPath: storageDirPath,
+      withIntermediateDirectories: true,
+      attributes: [.posixPermissions: NSNumber(value: 0o600)]
+    )
+    defer {
+      try? FileManager.default.removeItem(atPath: storageDirPath)
+    }
+
+    XCTAssertThrowsError(try RlnStorageDirectoryPolicy.prepare(storageDirPath)) { error in
+      guard let policyError = error as? RlnStorageDirectoryPolicyError else {
+        XCTFail("Expected RlnStorageDirectoryPolicyError, got \(type(of: error)): \(error)")
+        return
+      }
+      XCTAssertTrue(policyError.message.contains("mode 0700"))
+    }
+  }
+
+  func testCreateNodeMapsUnsafeStorageToStableInvalidArgument() throws {
+    let storageDirPath = uniquePath("storage-policy-plugin")
+    try FileManager.default.createDirectory(
+      atPath: storageDirPath,
+      withIntermediateDirectories: true,
+      attributes: [.posixPermissions: NSNumber(value: 0o755)]
+    )
+    defer {
+      try? FileManager.default.removeItem(atPath: storageDirPath)
+    }
+
+    XCTAssertThrowsError(
+      try plugin.rlnCreateNode(
+        storageDirPath: storageDirPath,
+        daemonListeningPort: 3000,
+        ldkPeerListeningPort: 9735,
+        network: "regtest",
+        maxMediaUploadSizeMb: 5,
+        enableVirtualChannelsV0: nil,
+        virtualPeerPubkeys: nil,
+        vssUrl: nil,
+        vssAllowHttp: false,
+        vssAllowEmptyRestore: false,
+        lspBaseUrl: nil,
+        lspBearerToken: nil,
+        reuseAddresses: false
+      )
+    ) { error in
+      let pigeon = expectPigeonError(error)
+      XCTAssertEqual(pigeon.code, "invalidArgument")
+      XCTAssertTrue((pigeon.message ?? "").contains("mode 0700"))
+
+      let details = expectDetails(pigeon)
+      XCTAssertEqual(details["operation"] as? String, "rlnCreateNode")
+      XCTAssertEqual(details["field"] as? String, "storageDirPath")
     }
   }
 

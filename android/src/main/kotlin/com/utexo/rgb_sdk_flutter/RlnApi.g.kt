@@ -266,9 +266,9 @@ private open class RlnApiPigeonCodec : StandardMessageCodec() {
 /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface RlnHostApi {
   fun getNativeArtifactInfo(): RlnNativeArtifactInfo
-  fun rlnCreateNode(storageDirPath: String, daemonListeningPort: Long, ldkPeerListeningPort: Long, network: String, maxMediaUploadSizeMb: Long, enableVirtualChannelsV0: Boolean?, virtualPeerPubkeys: List<String>?, vssUrl: String?, vssAllowHttp: Boolean, vssAllowEmptyRestore: Boolean, lspBaseUrl: String?, lspBearerToken: String?): Long
+  fun rlnCreateNode(storageDirPath: String, daemonListeningPort: Long, ldkPeerListeningPort: Long, network: String, maxMediaUploadSizeMb: Long, enableVirtualChannelsV0: Boolean?, virtualPeerPubkeys: List<String>?, vssUrl: String?, vssAllowHttp: Boolean, vssAllowEmptyRestore: Boolean, lspBaseUrl: String?, lspBearerToken: String?, reuseAddresses: Boolean): Long
   fun rlnInitNode(nodeId: Long, password: String, mnemonic: String?): String
-  fun rlnCreateNativeExternalSigner(seedHex: String, network: String, permissivePolicy: Boolean): Long
+  fun rlnCreateNativeExternalSigner(seedHex: String, network: String, permissivePolicy: Boolean, storageDirPath: String?): Long
   fun rlnInitNodeWithNativeExternalSigner(nodeId: Long, signerId: Long)
   fun rlnAttachNativeExternalSigner(nodeId: Long, signerId: Long)
   fun rlnUnlockNodeWithNativeExternalSigner(nodeId: Long, signerId: Long, bitcoindRpcUsername: String?, bitcoindRpcPassword: String?, bitcoindRpcHost: String?, bitcoindRpcPort: Long?, indexerUrl: String?, proxyEndpoint: String?, announceAddresses: List<String>, announceAlias: String?, gossipRgsServerUrl: String?)
@@ -286,6 +286,9 @@ interface RlnHostApi {
   fun rlnCloseChannel(nodeId: Long, channelId: String, peerPubkey: String, force: Boolean)
   fun rlnListPayments(nodeId: Long): List<Map<Any?, Any?>>
   fun rlnAddress(nodeId: Long): Map<Any?, Any?>
+  fun rlnRotateAddress(nodeId: Long): Map<Any?, Any?>
+  fun rlnSignMessage(nodeId: Long, message: String): Map<Any?, Any?>
+  fun rlnVerifyMessage(nodeId: Long, message: String, signature: String): Map<Any?, Any?>
   fun rlnAssetBalance(nodeId: Long, assetId: String): Map<Any?, Any?>
   fun rlnBackup(nodeId: Long, backupPath: String, password: String)
   fun rlnBtcBalance(nodeId: Long, skipSync: Boolean): Map<Any?, Any?>
@@ -302,15 +305,17 @@ interface RlnHostApi {
   fun rlnKeysend(nodeId: Long, destPubkey: String, amtMsat: Long, assetId: String?, assetAmount: Long?): Map<Any?, Any?>
   fun rlnListAssets(nodeId: Long, filterAssetSchemas: List<String>): Map<Any?, Any?>
   fun rlnListTransactions(nodeId: Long, skipSync: Boolean): List<Map<Any?, Any?>>
+  fun rlnListTransactionsByTxid(nodeId: Long, txid: String, skipSync: Boolean): List<Map<Any?, Any?>>
   fun rlnListTransfers(nodeId: Long, assetId: String): List<Map<Any?, Any?>>
+  fun rlnListTransfersByTxid(nodeId: Long, txid: String): List<Map<Any?, Any?>>
   fun rlnListUnspents(nodeId: Long, skipSync: Boolean): List<Map<Any?, Any?>>
-  fun rlnLnInvoice(nodeId: Long, amtMsat: Long?, expirySec: Long, assetId: String?, assetAmount: Long?, paymentHash: String?, minFinalCltvExpiryDelta: Long?): Map<Any?, Any?>
+  fun rlnLnInvoice(nodeId: Long, amtMsat: Long?, expirySec: Long, assetId: String?, assetAmount: Long?, paymentHash: String?, minFinalCltvExpiryDelta: Long?, descriptionHash: String?): Map<Any?, Any?>
   fun rlnClaimHodlInvoice(nodeId: Long, paymentHash: String, paymentPreimage: String): Map<Any?, Any?>
   fun rlnCancelHodlInvoice(nodeId: Long, paymentHash: String)
   fun rlnApayNew(nodeId: Long, hostNodeId: String): Map<Any?, Any?>
   fun rlnApayNewWithAddress(nodeId: Long, hostNodeId: String, username: String, domain: String): Map<Any?, Any?>
   fun rlnRefreshTransfers(nodeId: Long, skipSync: Boolean)
-  fun rlnRgbInvoice(nodeId: Long, assetId: String?, assignmentAmount: Long?, durationSeconds: Long?, minConfirmations: Long, witness: Boolean): Map<Any?, Any?>
+  fun rlnRgbInvoice(nodeId: Long, assetId: String?, assignmentAmount: Long?, durationSeconds: Long?, minConfirmations: Long, witness: Boolean, assignmentKind: String?): Map<Any?, Any?>
   fun rlnSendBtc(nodeId: Long, amount: Long, address: String, feeRate: Double, skipSync: Boolean): Map<Any?, Any?>
   fun rlnSendPayment(nodeId: Long, invoice: String, amtMsat: Long?, assetId: String?, assetAmount: Long?): Map<Any?, Any?>
   fun rlnSendRgb(nodeId: Long, donation: Boolean, feeRate: Double, minConfirmations: Long, skipSync: Boolean, assetId: String, recipientId: String, amount: Long, transportEndpoints: List<String>, witnessAmountSat: Long?, witnessBlinding: Long?): Map<Any?, Any?>
@@ -319,7 +324,9 @@ interface RlnHostApi {
   fun rlnIssueAssetNia(nodeId: Long, ticker: String, name: String, precision: Long, amounts: List<Long>): Any?
   fun rlnIssueAssetCfa(nodeId: Long, name: String, details: String?, precision: Long, amounts: List<Long>, fileDigest: String?): Any?
   fun rlnIssueAssetIfa(nodeId: Long, ticker: String, name: String, precision: Long, amounts: List<Long>, inflationAmounts: List<Long>, rejectListUrl: String?): Any?
+  fun rlnInflate(nodeId: Long, assetId: String, inflationAmounts: List<Long>, feeRate: Double, minConfirmations: Long): Map<Any?, Any?>
   fun rlnIssueAssetUda(nodeId: Long, ticker: String, name: String, details: String?, precision: Long, mediaFileDigest: String?, attachmentsFileDigests: List<String>): Any?
+  fun rlnVssBackup(nodeId: Long): Long
   fun rlnVssClearFence(nodeId: Long, password: String)
 
   companion object {
@@ -363,8 +370,9 @@ interface RlnHostApi {
             val vssAllowEmptyRestoreArg = args[9] as Boolean
             val lspBaseUrlArg = args[10] as String?
             val lspBearerTokenArg = args[11] as String?
+            val reuseAddressesArg = args[12] as Boolean
             val wrapped: List<Any?> = try {
-              listOf(api.rlnCreateNode(storageDirPathArg, daemonListeningPortArg, ldkPeerListeningPortArg, networkArg, maxMediaUploadSizeMbArg, enableVirtualChannelsV0Arg, virtualPeerPubkeysArg, vssUrlArg, vssAllowHttpArg, vssAllowEmptyRestoreArg, lspBaseUrlArg, lspBearerTokenArg))
+              listOf(api.rlnCreateNode(storageDirPathArg, daemonListeningPortArg, ldkPeerListeningPortArg, networkArg, maxMediaUploadSizeMbArg, enableVirtualChannelsV0Arg, virtualPeerPubkeysArg, vssUrlArg, vssAllowHttpArg, vssAllowEmptyRestoreArg, lspBaseUrlArg, lspBearerTokenArg, reuseAddressesArg))
             } catch (exception: Throwable) {
               RlnApiPigeonUtils.wrapError(exception)
             }
@@ -401,8 +409,9 @@ interface RlnHostApi {
             val seedHexArg = args[0] as String
             val networkArg = args[1] as String
             val permissivePolicyArg = args[2] as Boolean
+            val storageDirPathArg = args[3] as String?
             val wrapped: List<Any?> = try {
-              listOf(api.rlnCreateNativeExternalSigner(seedHexArg, networkArg, permissivePolicyArg))
+              listOf(api.rlnCreateNativeExternalSigner(seedHexArg, networkArg, permissivePolicyArg, storageDirPathArg))
             } catch (exception: Throwable) {
               RlnApiPigeonUtils.wrapError(exception)
             }
@@ -757,6 +766,60 @@ interface RlnHostApi {
         }
       }
       run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnRotateAddress$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val nodeIdArg = args[0] as Long
+            val wrapped: List<Any?> = try {
+              listOf(api.rlnRotateAddress(nodeIdArg))
+            } catch (exception: Throwable) {
+              RlnApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSignMessage$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val nodeIdArg = args[0] as Long
+            val messageArg = args[1] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.rlnSignMessage(nodeIdArg, messageArg))
+            } catch (exception: Throwable) {
+              RlnApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVerifyMessage$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val nodeIdArg = args[0] as Long
+            val messageArg = args[1] as String
+            val signatureArg = args[2] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.rlnVerifyMessage(nodeIdArg, messageArg, signatureArg))
+            } catch (exception: Throwable) {
+              RlnApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnAssetBalance$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
@@ -1058,6 +1121,25 @@ interface RlnHostApi {
         }
       }
       run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransactionsByTxid$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val nodeIdArg = args[0] as Long
+            val txidArg = args[1] as String
+            val skipSyncArg = args[2] as Boolean
+            val wrapped: List<Any?> = try {
+              listOf(api.rlnListTransactionsByTxid(nodeIdArg, txidArg, skipSyncArg))
+            } catch (exception: Throwable) {
+              RlnApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransfers$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
@@ -1066,6 +1148,24 @@ interface RlnHostApi {
             val assetIdArg = args[1] as String
             val wrapped: List<Any?> = try {
               listOf(api.rlnListTransfers(nodeIdArg, assetIdArg))
+            } catch (exception: Throwable) {
+              RlnApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransfersByTxid$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val nodeIdArg = args[0] as Long
+            val txidArg = args[1] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.rlnListTransfersByTxid(nodeIdArg, txidArg))
             } catch (exception: Throwable) {
               RlnApiPigeonUtils.wrapError(exception)
             }
@@ -1105,8 +1205,9 @@ interface RlnHostApi {
             val assetAmountArg = args[4] as Long?
             val paymentHashArg = args[5] as String?
             val minFinalCltvExpiryDeltaArg = args[6] as Long?
+            val descriptionHashArg = args[7] as String?
             val wrapped: List<Any?> = try {
-              listOf(api.rlnLnInvoice(nodeIdArg, amtMsatArg, expirySecArg, assetIdArg, assetAmountArg, paymentHashArg, minFinalCltvExpiryDeltaArg))
+              listOf(api.rlnLnInvoice(nodeIdArg, amtMsatArg, expirySecArg, assetIdArg, assetAmountArg, paymentHashArg, minFinalCltvExpiryDeltaArg, descriptionHashArg))
             } catch (exception: Throwable) {
               RlnApiPigeonUtils.wrapError(exception)
             }
@@ -1222,8 +1323,9 @@ interface RlnHostApi {
             val durationSecondsArg = args[3] as Long?
             val minConfirmationsArg = args[4] as Long
             val witnessArg = args[5] as Boolean
+            val assignmentKindArg = args[6] as String?
             val wrapped: List<Any?> = try {
-              listOf(api.rlnRgbInvoice(nodeIdArg, assetIdArg, assignmentAmountArg, durationSecondsArg, minConfirmationsArg, witnessArg))
+              listOf(api.rlnRgbInvoice(nodeIdArg, assetIdArg, assignmentAmountArg, durationSecondsArg, minConfirmationsArg, witnessArg, assignmentKindArg))
             } catch (exception: Throwable) {
               RlnApiPigeonUtils.wrapError(exception)
             }
@@ -1405,6 +1507,27 @@ interface RlnHostApi {
         }
       }
       run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInflate$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val nodeIdArg = args[0] as Long
+            val assetIdArg = args[1] as String
+            val inflationAmountsArg = args[2] as List<Long>
+            val feeRateArg = args[3] as Double
+            val minConfirmationsArg = args[4] as Long
+            val wrapped: List<Any?> = try {
+              listOf(api.rlnInflate(nodeIdArg, assetIdArg, inflationAmountsArg, feeRateArg, minConfirmationsArg))
+            } catch (exception: Throwable) {
+              RlnApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetUda$separatedMessageChannelSuffix", codec)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
@@ -1418,6 +1541,23 @@ interface RlnHostApi {
             val attachmentsFileDigestsArg = args[6] as List<String>
             val wrapped: List<Any?> = try {
               listOf(api.rlnIssueAssetUda(nodeIdArg, tickerArg, nameArg, detailsArg, precisionArg, mediaFileDigestArg, attachmentsFileDigestsArg))
+            } catch (exception: Throwable) {
+              RlnApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVssBackup$separatedMessageChannelSuffix", codec)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val nodeIdArg = args[0] as Long
+            val wrapped: List<Any?> = try {
+              listOf(api.rlnVssBackup(nodeIdArg))
             } catch (exception: Throwable) {
               RlnApiPigeonUtils.wrapError(exception)
             }

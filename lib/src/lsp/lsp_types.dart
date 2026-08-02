@@ -381,6 +381,7 @@ class CreateHodlInvoiceParams {
     this.assetId,
     this.assetAmount,
     this.minFinalCltvExpiryDelta,
+    this.descriptionHash,
   });
 
   final String paymentHash;
@@ -389,6 +390,7 @@ class CreateHodlInvoiceParams {
   final String? assetId;
   final int? assetAmount;
   final int? minFinalCltvExpiryDelta;
+  final String? descriptionHash;
 }
 
 class HodlInvoice {

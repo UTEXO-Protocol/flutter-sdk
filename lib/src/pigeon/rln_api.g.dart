@@ -237,6 +237,7 @@ class RlnHostApi {
     bool vssAllowEmptyRestore,
     String? lspBaseUrl,
     String? lspBearerToken,
+    bool reuseAddresses,
   ) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCreateNode$pigeonVar_messageChannelSuffix';
@@ -259,6 +260,7 @@ class RlnHostApi {
           vssAllowEmptyRestore,
           lspBaseUrl,
           lspBearerToken,
+          reuseAddresses,
         ]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
@@ -299,6 +301,7 @@ class RlnHostApi {
     String seedHex,
     String network,
     bool permissivePolicy,
+    String? storageDirPath,
   ) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCreateNativeExternalSigner$pigeonVar_messageChannelSuffix';
@@ -308,7 +311,7 @@ class RlnHostApi {
       binaryMessenger: pigeonVar_binaryMessenger,
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[seedHex, network, permissivePolicy],
+      <Object?>[seedHex, network, permissivePolicy, storageDirPath],
     );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
@@ -766,6 +769,76 @@ class RlnHostApi {
     return pigeonVar_replyValue! as Map<Object?, Object?>;
   }
 
+  Future<Map<Object?, Object?>> rlnRotateAddress(int nodeId) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnRotateAddress$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[nodeId],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as Map<Object?, Object?>;
+  }
+
+  Future<Map<Object?, Object?>> rlnSignMessage(
+    int nodeId,
+    String message,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSignMessage$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[nodeId, message],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as Map<Object?, Object?>;
+  }
+
+  Future<Map<Object?, Object?>> rlnVerifyMessage(
+    int nodeId,
+    String message,
+    String signature,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVerifyMessage$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[nodeId, message, signature],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as Map<Object?, Object?>;
+  }
+
   Future<Map<Object?, Object?>> rlnAssetBalance(
     int nodeId,
     String assetId,
@@ -1142,6 +1215,32 @@ class RlnHostApi {
         .cast<Map<Object?, Object?>>();
   }
 
+  Future<List<Map<Object?, Object?>>> rlnListTransactionsByTxid(
+    int nodeId,
+    String txid,
+    bool skipSync,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransactionsByTxid$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[nodeId, txid, skipSync],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return (pigeonVar_replyValue! as List<Object?>)
+        .cast<Map<Object?, Object?>>();
+  }
+
   Future<List<Map<Object?, Object?>>> rlnListTransfers(
     int nodeId,
     String assetId,
@@ -1155,6 +1254,31 @@ class RlnHostApi {
     );
     final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
       <Object?>[nodeId, assetId],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return (pigeonVar_replyValue! as List<Object?>)
+        .cast<Map<Object?, Object?>>();
+  }
+
+  Future<List<Map<Object?, Object?>>> rlnListTransfersByTxid(
+    int nodeId,
+    String txid,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransfersByTxid$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[nodeId, txid],
     );
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
@@ -1200,6 +1324,7 @@ class RlnHostApi {
     int? assetAmount,
     String? paymentHash,
     int? minFinalCltvExpiryDelta,
+    String? descriptionHash,
   ) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnLnInvoice$pigeonVar_messageChannelSuffix';
@@ -1217,6 +1342,7 @@ class RlnHostApi {
           assetAmount,
           paymentHash,
           minFinalCltvExpiryDelta,
+          descriptionHash,
         ]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
@@ -1350,6 +1476,7 @@ class RlnHostApi {
     int? durationSeconds,
     int minConfirmations,
     bool witness,
+    String? assignmentKind,
   ) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnRgbInvoice$pigeonVar_messageChannelSuffix';
@@ -1358,16 +1485,16 @@ class RlnHostApi {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[
-        nodeId,
-        assetId,
-        assignmentAmount,
-        durationSeconds,
-        minConfirmations,
-        witness,
-      ],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel
+        .send(<Object?>[
+          nodeId,
+          assetId,
+          assignmentAmount,
+          durationSeconds,
+          minConfirmations,
+          witness,
+          assignmentKind,
+        ]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
@@ -1608,6 +1735,33 @@ class RlnHostApi {
     return pigeonVar_replyValue;
   }
 
+  Future<Map<Object?, Object?>> rlnInflate(
+    int nodeId,
+    String assetId,
+    List<int> inflationAmounts,
+    double feeRate,
+    int minConfirmations,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInflate$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[nodeId, assetId, inflationAmounts, feeRate, minConfirmations],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as Map<Object?, Object?>;
+  }
+
   Future<Object?> rlnIssueAssetUda(
     int nodeId,
     String ticker,
@@ -1643,6 +1797,27 @@ class RlnHostApi {
       isNullValid: true,
     );
     return pigeonVar_replyValue;
+  }
+
+  Future<int> rlnVssBackup(int nodeId) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVssBackup$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[nodeId],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as int;
   }
 
   Future<void> rlnVssClearFence(int nodeId, String password) async {

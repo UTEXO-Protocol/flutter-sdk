@@ -1,30 +1,39 @@
 # Test Matrix
 
-This directory is the machine-readable testing contract for the package.
+This directory contains the machine-readable implementation inventory:
 
-- `rln_methods.json`: every public `RlnClient` method and the expected platform
-  proof level.
-- `wallet_methods.json`: every public `UtexoWallet` method, including
-  supported methods, aliases, unsupported parity stubs, and native-blocked
-  backup.
-- `core_exports.json`: package-level RN core-style exports.
-- `../rn_parity_manifest.json`: the exact RN `dev` runtime export aliases and
-  explicitly scoped-out TypeScript-only runtime/type-star boundaries.
-- Rows may include `limitations` for parameter-level native artifact gaps that
-  do not block the whole method.
+- `rln_methods.json`: declared `RlnClient` method coverage.
+- `wallet_methods.json`: declared `UtexoWallet` method coverage.
+- `core_exports.json`: declared package-level core-style exports.
+- `../rn_parity_manifest.json`: deliberate runtime export aliases and scoped
+  exclusions.
+- `../release_baseline.json`: the single immutable RN/core/RLN source and
+  artifact baseline.
 
-Validate the matrix with:
+## Important Limitation
+
+These files are an inventory, not proof of release readiness. The current
+validator checks names and row fields but does not prove signatures, defaults,
+request/response fields, native implementations, errors, lifecycle behavior,
+platform agreement, or real test execution. A row can declare a fixture and
+contract without being linked to an executable behavioral test.
+
+The inventory is aligned to the beta.25 low-level method set. The current
+parity validator still compares names rather than full typed signatures and
+does not inspect type exports comprehensively.
 
 ```sh
 dart run tool/validate_test_matrix.dart
-dart run tool/validate_rn_parity.dart
+RGB_SDK_RN_PATH=<current-rn-checkout> \
+  dart run tool/validate_rn_parity.dart
 ```
 
-The validator fails when a public low-level or wallet method exists without a
-matrix row, when matrix rows are stale, when required fields are missing, or
-when a row still uses a non-release-ready contract status such as `planned`.
+`validate_test_matrix.dart` currently passes. The parity command remains a
+required truth-telling check and fails while current RN wallet methods are
+missing from Flutter.
 
-`validate_rn_parity.dart` reads the RN `dev` checkout directly and fails when
-RN `NativeRgb.ts`, `UTEXOWallet`, or `src/index.ts` runtime exports drift from
-the Flutter method matrices and public Dart package barrel. Set
-`RGB_SDK_RN_PATH` if the RN checkout is not at the manifest default path.
+See the
+[Release Readiness Tracker](../../doc/RELEASE_READINESS_TRACKER.md) for the
+authoritative gaps and replacement requirements. The matrices must eventually
+be generated from typed contracts and link each row to executable test IDs and
+native implementations.

@@ -16,10 +16,7 @@ import org.utexo.rgblightningnode.SdkVssClearFenceRequest
 class RgbSdkFlutterPlugin :
     FlutterPlugin,
     RlnHostApi {
-    private companion object {
-        const val RLN_VERSION = "0.6.0-beta.2"
-        const val REACT_NATIVE_PARITY_VERSION = "1.0.0-beta.19"
-    }
+    private val storageDirectoryPolicy = RlnStorageDirectoryPolicy()
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         RlnHostApi.setUp(flutterPluginBinding.binaryMessenger, this)
@@ -28,10 +25,10 @@ class RgbSdkFlutterPlugin :
     override fun getNativeArtifactInfo(): RlnNativeArtifactInfo {
         return RlnNativeArtifactInfo(
             platform = "android",
-            rlnVersion = RLN_VERSION,
-            reactNativeParityVersion = REACT_NATIVE_PARITY_VERSION,
+            rlnVersion = ReleaseBaseline.RLN_VERSION,
+            reactNativeParityVersion = ReleaseBaseline.REACT_NATIVE_VERSION,
             bridge = "pigeon-bootstrap",
-            nativeArtifact = "com.utexo:rgb-lightning-node-android:$RLN_VERSION"
+            nativeArtifact = ReleaseBaseline.ANDROID_MAVEN_COORDINATE
         )
     }
 
@@ -60,6 +57,18 @@ class RgbSdkFlutterPlugin :
             message = message,
             details = mapOf("operation" to operation, "field" to field)
         )
+    }
+
+    private fun prepareStorageDirectory(path: String, operation: String) {
+        try {
+            storageDirectoryPolicy.prepare(path)
+        } catch (error: RlnStorageDirectoryPolicyException) {
+            invalidArgument(
+                operation = operation,
+                field = "storageDirPath",
+                message = error.message ?: "storageDirPath does not satisfy the storage policy."
+            )
+        }
     }
 
     private fun requireULong(value: Long, field: String, operation: String): ULong {
@@ -475,7 +484,8 @@ class RgbSdkFlutterPlugin :
         vssAllowHttp: Boolean,
         vssAllowEmptyRestore: Boolean,
         lspBaseUrl: String?,
-        lspBearerToken: String?
+        lspBearerToken: String?,
+        reuseAddresses: Boolean
     ): Long {
         return runRln("rlnCreateNode") {
             val initRequest = SdkInitRequest(
@@ -490,8 +500,10 @@ class RgbSdkFlutterPlugin :
                 lspBearerToken = lspBearerToken,
                 vssUrl = vssUrl,
                 vssAllowHttp = vssAllowHttp,
-                vssAllowEmptyRestore = vssAllowEmptyRestore
+                vssAllowEmptyRestore = vssAllowEmptyRestore,
+                reuseAddresses = reuseAddresses
             )
+            prepareStorageDirectory(storageDirPath, "rlnCreateNode")
             val node = SdkNode.create(initRequest)
             RlnNodeStore.create(node, storageDirPath)
         }
@@ -517,9 +529,24 @@ class RgbSdkFlutterPlugin :
         }
     }
 
-    override fun rlnCreateNativeExternalSigner(seedHex: String, network: String, permissivePolicy: Boolean): Long {
+    override fun rlnCreateNativeExternalSigner(
+        seedHex: String,
+        network: String,
+        permissivePolicy: Boolean,
+        storageDirPath: String?
+    ): Long {
         return runRln("rlnCreateNativeExternalSigner") {
-            val signer = NativeExternalSigner(seedHex, network, permissivePolicy)
+            val signer = if (storageDirPath == null) {
+                NativeExternalSigner(seedHex, network, permissivePolicy)
+            } else {
+                prepareStorageDirectory(storageDirPath, "rlnCreateNativeExternalSigner")
+                NativeExternalSigner.newWithStorage(
+                    seedHex,
+                    network,
+                    permissivePolicy,
+                    storageDirPath
+                )
+            }
             RlnNodeStore.createSigner(signer)
         }
     }
@@ -784,6 +811,24 @@ class RgbSdkFlutterPlugin :
         }
     }
 
+    override fun rlnRotateAddress(nodeId: Long): Map<Any?, Any?> {
+        return runRln("rlnRotateAddress") {
+            mapOf("address" to RlnNodeStore.get(nodeId).rotateAddress().address)
+        }
+    }
+
+    override fun rlnSignMessage(nodeId: Long, message: String): Map<Any?, Any?> {
+        return runRln("rlnSignMessage") {
+            mapOf("signedMessage" to RlnNodeStore.get(nodeId).signMessage(message).signedMessage)
+        }
+    }
+
+    override fun rlnVerifyMessage(nodeId: Long, message: String, signature: String): Map<Any?, Any?> {
+        return runRln("rlnVerifyMessage") {
+            mapOf("valid" to RlnNodeStore.get(nodeId).verifyMessage(message, signature).valid)
+        }
+    }
+
     override fun rlnAssetBalance(nodeId: Long, assetId: String): Map<Any?, Any?> {
         return runRln("rlnAssetBalance") {
             assetBalanceMap(RlnNodeStore.get(nodeId).assetBalance(assetId))
@@ -926,9 +971,25 @@ class RgbSdkFlutterPlugin :
         }
     }
 
+    override fun rlnListTransactionsByTxid(
+        nodeId: Long,
+        txid: String,
+        skipSync: Boolean
+    ): List<Map<Any?, Any?>> {
+        return runRln("rlnListTransactionsByTxid") {
+            RlnNodeStore.get(nodeId).listTransactionsByTxid(txid, skipSync).map(::transactionMap)
+        }
+    }
+
     override fun rlnListTransfers(nodeId: Long, assetId: String): List<Map<Any?, Any?>> {
         return runRln("rlnListTransfers") {
             RlnNodeStore.get(nodeId).listTransfers(assetId).map(::transferMap)
+        }
+    }
+
+    override fun rlnListTransfersByTxid(nodeId: Long, txid: String): List<Map<Any?, Any?>> {
+        return runRln("rlnListTransfersByTxid") {
+            RlnNodeStore.get(nodeId).listTransfersByTxid(txid).map(::transferMap)
         }
     }
 
@@ -945,7 +1006,8 @@ class RgbSdkFlutterPlugin :
         assetId: String?,
         assetAmount: Long?,
         paymentHash: String?,
-        minFinalCltvExpiryDelta: Long?
+        minFinalCltvExpiryDelta: Long?,
+        descriptionHash: String?
     ): Map<Any?, Any?> {
         return runRln("rlnLnInvoice") {
             val response = RlnNodeStore.get(nodeId).lnInvoice(
@@ -955,7 +1017,7 @@ class RgbSdkFlutterPlugin :
                     assetId = assetId,
                     assetAmount = assetAmount?.let { requireULong(it, "assetAmount", "rlnLnInvoice") },
                     paymentHash = paymentHash,
-                    descriptionHash = null,
+                    descriptionHash = descriptionHash,
                     minFinalCltvExpiryDelta = minFinalCltvExpiryDelta?.let { requireUShort(it, "minFinalCltvExpiryDelta", "rlnLnInvoice") }
                 )
             )
@@ -1031,11 +1093,35 @@ class RgbSdkFlutterPlugin :
         }
     }
 
-    override fun rlnRgbInvoice(nodeId: Long, assetId: String?, assignmentAmount: Long?, durationSeconds: Long?, minConfirmations: Long, witness: Boolean): Map<Any?, Any?> {
+    private fun parseAssignmentKind(rawValue: String?): org.utexo.rgblightningnode.AssignmentKind? {
+        return when (rawValue) {
+            null -> null
+            "Fungible" -> org.utexo.rgblightningnode.AssignmentKind.FUNGIBLE
+            "NonFungible" -> org.utexo.rgblightningnode.AssignmentKind.NON_FUNGIBLE
+            "InflationRight" -> org.utexo.rgblightningnode.AssignmentKind.INFLATION_RIGHT
+            "ReplaceRight" -> org.utexo.rgblightningnode.AssignmentKind.REPLACE_RIGHT
+            "Any" -> org.utexo.rgblightningnode.AssignmentKind.ANY
+            else -> invalidArgument(
+                "rlnRgbInvoice",
+                "assignmentKind",
+                "Unknown assignmentKind: $rawValue"
+            )
+        }
+    }
+
+    override fun rlnRgbInvoice(
+        nodeId: Long,
+        assetId: String?,
+        assignmentAmount: Long?,
+        durationSeconds: Long?,
+        minConfirmations: Long,
+        witness: Boolean,
+        assignmentKind: String?
+    ): Map<Any?, Any?> {
         return runRln("rlnRgbInvoice") {
             val request = org.utexo.rgblightningnode.SdkRgbInvoiceRequest(
                 assetId = assetId,
-                assignmentKind = if (assetId == null) null else org.utexo.rgblightningnode.AssignmentKind.FUNGIBLE,
+                assignmentKind = parseAssignmentKind(assignmentKind),
                 assignmentAmount = assignmentAmount?.let { requireULong(it, "assignmentAmount", "rlnRgbInvoice") },
                 durationSeconds = durationSeconds?.let { requireUInt(it, "durationSeconds", "rlnRgbInvoice") },
                 minConfirmations = requireUByte(minConfirmations, "minConfirmations", "rlnRgbInvoice"),
@@ -1176,6 +1262,34 @@ class RgbSdkFlutterPlugin :
         }
     }
 
+    override fun rlnInflate(
+        nodeId: Long,
+        assetId: String,
+        inflationAmounts: List<Long>,
+        feeRate: Double,
+        minConfirmations: Long
+    ): Map<Any?, Any?> {
+        return runRln("rlnInflate") {
+            val response = RlnNodeStore.get(nodeId).inflate(
+                org.utexo.rgblightningnode.InflateRequest(
+                    assetId = assetId,
+                    inflationAmounts = requireULongList(
+                        inflationAmounts,
+                        "inflationAmounts",
+                        "rlnInflate"
+                    ),
+                    feeRate = requireFeeRate(feeRate, "feeRate", "rlnInflate"),
+                    minConfirmations = requireUByte(
+                        minConfirmations,
+                        "minConfirmations",
+                        "rlnInflate"
+                    )
+                )
+            )
+            mapOf("txid" to response.txid)
+        }
+    }
+
     override fun rlnIssueAssetUda(nodeId: Long, ticker: String, name: String, details: String?, precision: Long, mediaFileDigest: String?, attachmentsFileDigests: List<String>): Any? {
         return runRln("rlnIssueAssetUda") {
             val asset = RlnNodeStore.get(nodeId).issueassetuda(
@@ -1189,6 +1303,12 @@ class RgbSdkFlutterPlugin :
                 )
             )
             assetUdaMap(asset)
+        }
+    }
+
+    override fun rlnVssBackup(nodeId: Long): Long {
+        return runRln("rlnVssBackup") {
+            RlnNodeStore.get(nodeId).vssBackup()
         }
     }
 

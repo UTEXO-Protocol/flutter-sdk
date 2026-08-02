@@ -4,6 +4,7 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 FLUTTER_BIN="${FLUTTER_BIN:-flutter}"
+POD_BIN="${POD_BIN:-pod}"
 DEVICE="${DEVICE:-${IOS_DEVICE:-}}"
 REPORT_DIR="${REPORT_DIR:-${REPO_DIR}/build/test-reports/native}"
 
@@ -16,7 +17,13 @@ json_escape() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
 
-[[ -n "${DEVICE}" ]] || die "set DEVICE or IOS_DEVICE to an iOS simulator name, for example DEVICE='iPhone 17 Pro'"
+[[ -n "${DEVICE}" ]] || die "set DEVICE or IOS_DEVICE to an iOS simulator name or UUID"
+
+if [[ "${DEVICE}" =~ ^[0-9A-Fa-f]{8}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{4}-[0-9A-Fa-f]{12}$ ]]; then
+  DESTINATION="platform=iOS Simulator,id=${DEVICE}"
+else
+  DESTINATION="platform=iOS Simulator,name=${DEVICE}"
+fi
 
 mkdir -p "${REPORT_DIR}"
 
@@ -31,10 +38,11 @@ set +e
   "${FLUTTER_BIN}" build ios --simulator --config-only
 
   cd ios
+  "${POD_BIN}" install
   xcodebuild test \
     -workspace Runner.xcworkspace \
     -scheme Runner \
-    -destination "platform=iOS Simulator,name=${DEVICE}"
+    -destination "${DESTINATION}"
 ) 2>&1 | tee "${LOG_FILE}"
 EXIT_CODE="${PIPESTATUS[0]}"
 set -e
@@ -55,7 +63,7 @@ cat >"${REPORT_FILE}" <<JSON
   "device": "$(json_escape "${DEVICE}")",
   "startedAt": "${STARTED_AT}",
   "finishedAt": "${FINISHED_AT}",
-  "command": "$(json_escape "cd example && flutter build ios --simulator --config-only && cd ios && xcodebuild test -workspace Runner.xcworkspace -scheme Runner -destination platform=iOS Simulator,name=${DEVICE}")",
+  "command": "$(json_escape "cd example && flutter build ios --simulator --config-only && cd ios && pod install && xcodebuild test -workspace Runner.xcworkspace -scheme Runner -destination ${DESTINATION}")",
   "logPath": "$(json_escape "${LOG_FILE}")"
 }
 JSON

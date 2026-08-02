@@ -8,7 +8,9 @@ assignees: ""
 
 ## Question
 
-What needs to be decided?
+Tracker issue ID:
+
+State the decision and the release gate it affects.
 
 ## Context
 
@@ -20,7 +22,10 @@ Relevant source, upstream docs, or constraints.
 - Safety:
 - Parity impact:
 - Testability:
+- Artifact and platform impact:
+- Reversal criteria:
 
 ## Outcome
 
-Document the decision and link follow-up tasks.
+Record the decision, owner, date, accepted tradeoffs, follow-up issue IDs, and
+the corresponding Release Readiness Tracker update.

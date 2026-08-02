@@ -24,6 +24,7 @@ class RlnClient {
     bool vssAllowEmptyRestore = false,
     String? lspBaseUrl,
     String? lspBearerToken,
+    bool reuseAddresses = false,
   }) {
     return _hostApi.rlnCreateNode(
       storageDirPath,
@@ -38,6 +39,7 @@ class RlnClient {
       vssAllowEmptyRestore,
       lspBaseUrl,
       lspBearerToken,
+      reuseAddresses,
     );
   }
 
@@ -53,11 +55,13 @@ class RlnClient {
     required String seedHex,
     required String network,
     required bool permissivePolicy,
+    String? storageDirPath,
   }) {
     return _hostApi.rlnCreateNativeExternalSigner(
       seedHex,
       network,
       permissivePolicy,
+      storageDirPath,
     );
   }
 
@@ -238,6 +242,25 @@ class RlnClient {
     return _hostApi.rlnAddress(nodeId);
   }
 
+  Future<Map<Object?, Object?>> rotateAddress(int nodeId) {
+    return _hostApi.rlnRotateAddress(nodeId);
+  }
+
+  Future<Map<Object?, Object?>> signMessage({
+    required int nodeId,
+    required String message,
+  }) {
+    return _hostApi.rlnSignMessage(nodeId, message);
+  }
+
+  Future<Map<Object?, Object?>> verifyMessage({
+    required int nodeId,
+    required String message,
+    required String signature,
+  }) {
+    return _hostApi.rlnVerifyMessage(nodeId, message, signature);
+  }
+
   Future<Map<Object?, Object?>> assetBalance({
     required int nodeId,
     required String assetId,
@@ -371,11 +394,26 @@ class RlnClient {
     return _hostApi.rlnListTransactions(nodeId, skipSync);
   }
 
+  Future<List<Map<Object?, Object?>>> listTransactionsByTxid({
+    required int nodeId,
+    required String txid,
+    required bool skipSync,
+  }) {
+    return _hostApi.rlnListTransactionsByTxid(nodeId, txid, skipSync);
+  }
+
   Future<List<Map<Object?, Object?>>> listTransfers({
     required int nodeId,
     required String assetId,
   }) {
     return _hostApi.rlnListTransfers(nodeId, assetId);
+  }
+
+  Future<List<Map<Object?, Object?>>> listTransfersByTxid({
+    required int nodeId,
+    required String txid,
+  }) {
+    return _hostApi.rlnListTransfersByTxid(nodeId, txid);
   }
 
   Future<List<Map<Object?, Object?>>> listUnspents({
@@ -393,6 +431,7 @@ class RlnClient {
     int? assetAmount,
     String? paymentHash,
     int? minFinalCltvExpiryDelta,
+    String? descriptionHash,
   }) {
     return _hostApi.rlnLnInvoice(
       nodeId,
@@ -402,6 +441,7 @@ class RlnClient {
       assetAmount,
       paymentHash,
       minFinalCltvExpiryDelta,
+      descriptionHash,
     );
   }
 
@@ -447,6 +487,7 @@ class RlnClient {
     int? durationSeconds,
     required int minConfirmations,
     required bool witness,
+    String? assignmentKind,
   }) {
     return _hostApi.rlnRgbInvoice(
       nodeId,
@@ -455,6 +496,7 @@ class RlnClient {
       durationSeconds,
       minConfirmations,
       witness,
+      assignmentKind,
     );
   }
 
@@ -574,6 +616,22 @@ class RlnClient {
     );
   }
 
+  Future<Map<Object?, Object?>> inflate({
+    required int nodeId,
+    required String assetId,
+    required List<int> inflationAmounts,
+    required double feeRate,
+    required int minConfirmations,
+  }) {
+    return _hostApi.rlnInflate(
+      nodeId,
+      assetId,
+      inflationAmounts,
+      feeRate,
+      minConfirmations,
+    );
+  }
+
   Future<Object?> issueAssetUda({
     required int nodeId,
     required String ticker,
@@ -596,5 +654,9 @@ class RlnClient {
 
   Future<void> vssClearFence({required int nodeId, required String password}) {
     return _hostApi.rlnVssClearFence(nodeId, password);
+  }
+
+  Future<int> vssBackup(int nodeId) {
+    return _hostApi.rlnVssBackup(nodeId);
   }
 }

@@ -33,11 +33,13 @@ class RLNManager {
     String seedHex,
     String network, {
     bool permissivePolicy = true,
+    String? storageDirPath,
   }) {
     return rlnBinding.rlnCreateNativeExternalSigner(
       seedHex,
       network,
       permissivePolicy: permissivePolicy,
+      storageDirPath: storageDirPath,
     );
   }
 
@@ -110,6 +112,7 @@ class RLNManager {
     int? assetAmount, {
     String? paymentHash,
     int? minFinalCltvExpiryDelta,
+    String? descriptionHash,
   }) {
     return rlnBinding.rlnLnInvoice(
       amtMsat,
@@ -118,6 +121,7 @@ class RLNManager {
       assetAmount,
       paymentHash: paymentHash,
       minFinalCltvExpiryDelta: minFinalCltvExpiryDelta,
+      descriptionHash: descriptionHash,
     );
   }
 
@@ -170,7 +174,19 @@ class RLNManager {
     return rlnBinding.rlnKeysend(destPubkey, amtMsat, assetId, assetAmount);
   }
 
-  Future<RlnMap> rlnAddress() => rlnBinding.rlnAddress();
+  Future<RlnAddress> rlnAddress() => rlnBinding.rlnAddress();
+  Future<RlnAddress> rlnRotateAddress() => rlnBinding.rlnRotateAddress();
+  Future<RlnSignMessageResult> rlnSignMessage(String message) {
+    return rlnBinding.rlnSignMessage(message);
+  }
+
+  Future<RlnVerifyMessageResult> rlnVerifyMessage(
+    String message,
+    String signature,
+  ) {
+    return rlnBinding.rlnVerifyMessage(message, signature);
+  }
+
   Future<RlnBtcBalance> rlnBtcBalance([bool skipSync = false]) {
     return rlnBinding.rlnBtcBalance(skipSync);
   }
@@ -258,14 +274,16 @@ class RLNManager {
     int? assignmentAmount,
     int? durationSeconds,
     int minConfirmations,
-    bool witness,
-  ) {
+    bool witness, {
+    RlnAssignmentKind? assignmentKind,
+  }) {
     return rlnBinding.rlnRgbInvoice(
       assetId,
       assignmentAmount,
       durationSeconds,
       minConfirmations,
       witness,
+      assignmentKind: assignmentKind,
     );
   }
 
@@ -293,12 +311,37 @@ class RLNManager {
     );
   }
 
+  Future<RlnInflateResult> rlnInflate(
+    String assetId,
+    List<int> inflationAmounts,
+    double feeRate,
+    int minConfirmations,
+  ) {
+    return rlnBinding.rlnInflate(
+      assetId,
+      inflationAmounts,
+      feeRate,
+      minConfirmations,
+    );
+  }
+
   Future<List<RlnTransaction>> rlnListTransactions(bool skipSync) {
     return rlnBinding.rlnListTransactions(skipSync);
   }
 
+  Future<List<RlnTransaction>> rlnListTransactionsByTxid(
+    String txid,
+    bool skipSync,
+  ) {
+    return rlnBinding.rlnListTransactionsByTxid(txid, skipSync);
+  }
+
   Future<List<RlnTransfer>> rlnListTransfers(String assetId) {
     return rlnBinding.rlnListTransfers(assetId);
+  }
+
+  Future<List<RlnTransfer>> rlnListTransfersByTxid(String txid) {
+    return rlnBinding.rlnListTransfersByTxid(txid);
   }
 
   Future<List<RlnUnspent>> rlnListUnspents(bool skipSync) {
@@ -348,6 +391,8 @@ class RLNManager {
   Future<void> rlnVssClearFence(String password) {
     return rlnBinding.rlnVssClearFence(password);
   }
+
+  Future<int> rlnVssBackup() => rlnBinding.rlnVssBackup();
 }
 
 RLNManager createRLNManager() => RLNManager();

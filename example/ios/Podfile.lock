@@ -21,7 +21,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
-  rgb_sdk_flutter: e4f6535346bd96dcc0596c156cb1f1d1192c1acd
+  rgb_sdk_flutter: 0b2cb7cc8a255fc1d3b9166e3a96fe48842bcd54
 
 PODFILE CHECKSUM: 3c63482e143d1b91d2d2560aee9fb04ecc74ac7e
 

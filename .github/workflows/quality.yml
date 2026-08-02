@@ -34,8 +34,8 @@ jobs:
       - name: Validate test matrix
         run: dart run tool/validate_test_matrix.dart
 
-      - name: Verify native artifact checksums
-        run: ./tool/verify_native_artifacts.sh --ios-only
+      - name: Check generated release baseline
+        run: dart run tool/generate_release_baseline.dart --check
 
       - name: Check generated Pigeon drift
         run: |

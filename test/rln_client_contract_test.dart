@@ -66,6 +66,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
     bool vssAllowEmptyRestore,
     String? lspBaseUrl,
     String? lspBearerToken,
+    bool reuseAddresses,
   ) async {
     _record('rlnCreateNode', <Object?>[
       storageDirPath,
@@ -80,6 +81,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
       vssAllowEmptyRestore,
       lspBaseUrl,
       lspBearerToken,
+      reuseAddresses,
     ]);
     return 101;
   }
@@ -99,11 +101,13 @@ class _RecordingRlnHostApi extends RlnHostApi {
     String seedHex,
     String network,
     bool permissivePolicy,
+    String? storageDirPath,
   ) async {
     _record('rlnCreateNativeExternalSigner', <Object?>[
       seedHex,
       network,
       permissivePolicy,
+      storageDirPath,
     ]);
     return 202;
   }
@@ -301,6 +305,31 @@ class _RecordingRlnHostApi extends RlnHostApi {
   }
 
   @override
+  Future<Map<Object?, Object?>> rlnRotateAddress(int nodeId) async {
+    _record('rlnRotateAddress', <Object?>[nodeId]);
+    return _map('rlnRotateAddress');
+  }
+
+  @override
+  Future<Map<Object?, Object?>> rlnSignMessage(
+    int nodeId,
+    String message,
+  ) async {
+    _record('rlnSignMessage', <Object?>[nodeId, message]);
+    return _map('rlnSignMessage');
+  }
+
+  @override
+  Future<Map<Object?, Object?>> rlnVerifyMessage(
+    int nodeId,
+    String message,
+    String signature,
+  ) async {
+    _record('rlnVerifyMessage', <Object?>[nodeId, message, signature]);
+    return _map('rlnVerifyMessage');
+  }
+
+  @override
   Future<Map<Object?, Object?>> rlnAssetBalance(
     int nodeId,
     String assetId,
@@ -454,12 +483,31 @@ class _RecordingRlnHostApi extends RlnHostApi {
   }
 
   @override
+  Future<List<Map<Object?, Object?>>> rlnListTransactionsByTxid(
+    int nodeId,
+    String txid,
+    bool skipSync,
+  ) async {
+    _record('rlnListTransactionsByTxid', <Object?>[nodeId, txid, skipSync]);
+    return _list('rlnListTransactionsByTxid');
+  }
+
+  @override
   Future<List<Map<Object?, Object?>>> rlnListTransfers(
     int nodeId,
     String assetId,
   ) async {
     _record('rlnListTransfers', <Object?>[nodeId, assetId]);
     return _list('rlnListTransfers');
+  }
+
+  @override
+  Future<List<Map<Object?, Object?>>> rlnListTransfersByTxid(
+    int nodeId,
+    String txid,
+  ) async {
+    _record('rlnListTransfersByTxid', <Object?>[nodeId, txid]);
+    return _list('rlnListTransfersByTxid');
   }
 
   @override
@@ -480,6 +528,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
     int? assetAmount,
     String? paymentHash,
     int? minFinalCltvExpiryDelta,
+    String? descriptionHash,
   ) async {
     _record('rlnLnInvoice', <Object?>[
       nodeId,
@@ -489,6 +538,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
       assetAmount,
       paymentHash,
       minFinalCltvExpiryDelta,
+      descriptionHash,
     ]);
     return _map('rlnLnInvoice');
   }
@@ -550,6 +600,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
     int? durationSeconds,
     int minConfirmations,
     bool witness,
+    String? assignmentKind,
   ) async {
     _record('rlnRgbInvoice', <Object?>[
       nodeId,
@@ -558,6 +609,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
       durationSeconds,
       minConfirmations,
       witness,
+      assignmentKind,
     ]);
     return _map('rlnRgbInvoice');
   }
@@ -699,6 +751,24 @@ class _RecordingRlnHostApi extends RlnHostApi {
   }
 
   @override
+  Future<Map<Object?, Object?>> rlnInflate(
+    int nodeId,
+    String assetId,
+    List<int> inflationAmounts,
+    double feeRate,
+    int minConfirmations,
+  ) async {
+    _record('rlnInflate', <Object?>[
+      nodeId,
+      assetId,
+      inflationAmounts,
+      feeRate,
+      minConfirmations,
+    ]);
+    return _map('rlnInflate');
+  }
+
+  @override
   Future<Object?> rlnIssueAssetUda(
     int nodeId,
     String ticker,
@@ -723,6 +793,12 @@ class _RecordingRlnHostApi extends RlnHostApi {
   @override
   Future<void> rlnVssClearFence(int nodeId, String password) async {
     _record('rlnVssClearFence', <Object?>[nodeId, password]);
+  }
+
+  @override
+  Future<int> rlnVssBackup(int nodeId) async {
+    _record('rlnVssBackup', <Object?>[nodeId]);
+    return 1;
   }
 }
 
@@ -754,6 +830,7 @@ void main() {
         vssAllowEmptyRestore: true,
         lspBaseUrl: 'http://127.0.0.1:3000',
         lspBearerToken: 'token',
+        reuseAddresses: true,
       ),
       method: 'rlnCreateNode',
       args: const <Object?>[
@@ -769,6 +846,7 @@ void main() {
         true,
         'http://127.0.0.1:3000',
         'token',
+        true,
       ],
     ),
     _ContractCase(
@@ -787,9 +865,10 @@ void main() {
         seedHex: seedHex,
         network: 'regtest',
         permissivePolicy: true,
+        storageDirPath: '/tmp/rln',
       ),
       method: 'rlnCreateNativeExternalSigner',
-      args: const <Object?>[seedHex, 'regtest', true],
+      args: const <Object?>[seedHex, 'regtest', true, '/tmp/rln'],
     ),
     _ContractCase(
       name: 'initNodeWithNativeExternalSigner',
@@ -1030,6 +1109,29 @@ void main() {
       args: const <Object?>[nodeId],
     ),
     _ContractCase(
+      name: 'rotateAddress',
+      invoke: (client) => client.rotateAddress(nodeId),
+      method: 'rlnRotateAddress',
+      args: const <Object?>[nodeId],
+    ),
+    _ContractCase(
+      name: 'signMessage',
+      invoke: (client) =>
+          client.signMessage(nodeId: nodeId, message: 'message'),
+      method: 'rlnSignMessage',
+      args: const <Object?>[nodeId, 'message'],
+    ),
+    _ContractCase(
+      name: 'verifyMessage',
+      invoke: (client) => client.verifyMessage(
+        nodeId: nodeId,
+        message: 'message',
+        signature: 'signature',
+      ),
+      method: 'rlnVerifyMessage',
+      args: const <Object?>[nodeId, 'message', 'signature'],
+    ),
+    _ContractCase(
       name: 'assetBalance',
       invoke: (client) => client.assetBalance(nodeId: nodeId, assetId: 'asset'),
       method: 'rlnAssetBalance',
@@ -1170,11 +1272,28 @@ void main() {
       args: const <Object?>[nodeId, true],
     ),
     _ContractCase(
+      name: 'listTransactionsByTxid',
+      invoke: (client) => client.listTransactionsByTxid(
+        nodeId: nodeId,
+        txid: 'txid',
+        skipSync: true,
+      ),
+      method: 'rlnListTransactionsByTxid',
+      args: const <Object?>[nodeId, 'txid', true],
+    ),
+    _ContractCase(
       name: 'listTransfers',
       invoke: (client) =>
           client.listTransfers(nodeId: nodeId, assetId: 'asset'),
       method: 'rlnListTransfers',
       args: const <Object?>[nodeId, 'asset'],
+    ),
+    _ContractCase(
+      name: 'listTransfersByTxid',
+      invoke: (client) =>
+          client.listTransfersByTxid(nodeId: nodeId, txid: 'txid'),
+      method: 'rlnListTransfersByTxid',
+      args: const <Object?>[nodeId, 'txid'],
     ),
     _ContractCase(
       name: 'listUnspents',
@@ -1192,6 +1311,7 @@ void main() {
         assetAmount: 50,
         paymentHash: 'payment-hash',
         minFinalCltvExpiryDelta: 144,
+        descriptionHash: 'description-hash',
       ),
       method: 'rlnLnInvoice',
       args: const <Object?>[
@@ -1202,6 +1322,7 @@ void main() {
         50,
         'payment-hash',
         144,
+        'description-hash',
       ],
     ),
     _ContractCase(
@@ -1262,9 +1383,18 @@ void main() {
         durationSeconds: 3600,
         minConfirmations: 1,
         witness: true,
+        assignmentKind: 'InflationRight',
       ),
       method: 'rlnRgbInvoice',
-      args: const <Object?>[nodeId, 'asset', 100, 3600, 1, true],
+      args: const <Object?>[
+        nodeId,
+        'asset',
+        100,
+        3600,
+        1,
+        true,
+        'InflationRight',
+      ],
     ),
     _ContractCase(
       name: 'sendBtc',
@@ -1393,6 +1523,18 @@ void main() {
       ],
     ),
     _ContractCase(
+      name: 'inflate',
+      invoke: (client) => client.inflate(
+        nodeId: nodeId,
+        assetId: 'asset',
+        inflationAmounts: inflationAmounts,
+        feeRate: 1.5,
+        minConfirmations: 1,
+      ),
+      method: 'rlnInflate',
+      args: const <Object?>[nodeId, 'asset', inflationAmounts, 1.5, 1],
+    ),
+    _ContractCase(
       name: 'issueAssetUda',
       invoke: (client) => client.issueAssetUda(
         nodeId: nodeId,
@@ -1415,6 +1557,12 @@ void main() {
       ],
     ),
     _ContractCase(
+      name: 'vssBackup',
+      invoke: (client) => client.vssBackup(nodeId),
+      method: 'rlnVssBackup',
+      args: const <Object?>[nodeId],
+    ),
+    _ContractCase(
       name: 'vssClearFence',
       invoke: (client) async {
         await client.vssClearFence(nodeId: nodeId, password: 'password');
@@ -1427,7 +1575,7 @@ void main() {
 
   group('RlnClient bridge contract', () {
     test('matrix covers every low-level bridge method', () {
-      expect(cases.map((testCase) => testCase.name).toSet(), hasLength(55));
+      expect(cases.map((testCase) => testCase.name).toSet(), hasLength(62));
     });
 
     test('sendRgb rejects skipSync true before native call', () {

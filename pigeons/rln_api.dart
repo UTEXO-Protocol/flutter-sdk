@@ -44,6 +44,7 @@ abstract class RlnHostApi {
     bool vssAllowEmptyRestore,
     String? lspBaseUrl,
     String? lspBearerToken,
+    bool reuseAddresses,
   );
 
   String rlnInitNode(int nodeId, String password, String? mnemonic);
@@ -52,6 +53,7 @@ abstract class RlnHostApi {
     String seedHex,
     String network,
     bool permissivePolicy,
+    String? storageDirPath,
   );
 
   void rlnInitNodeWithNativeExternalSigner(int nodeId, int signerId);
@@ -139,6 +141,16 @@ abstract class RlnHostApi {
 
   Map<Object?, Object?> rlnAddress(int nodeId);
 
+  Map<Object?, Object?> rlnRotateAddress(int nodeId);
+
+  Map<Object?, Object?> rlnSignMessage(int nodeId, String message);
+
+  Map<Object?, Object?> rlnVerifyMessage(
+    int nodeId,
+    String message,
+    String signature,
+  );
+
   Map<Object?, Object?> rlnAssetBalance(int nodeId, String assetId);
 
   void rlnBackup(int nodeId, String backupPath, String password);
@@ -192,7 +204,15 @@ abstract class RlnHostApi {
 
   List<Map<Object?, Object?>> rlnListTransactions(int nodeId, bool skipSync);
 
+  List<Map<Object?, Object?>> rlnListTransactionsByTxid(
+    int nodeId,
+    String txid,
+    bool skipSync,
+  );
+
   List<Map<Object?, Object?>> rlnListTransfers(int nodeId, String assetId);
+
+  List<Map<Object?, Object?>> rlnListTransfersByTxid(int nodeId, String txid);
 
   List<Map<Object?, Object?>> rlnListUnspents(int nodeId, bool skipSync);
 
@@ -204,6 +224,7 @@ abstract class RlnHostApi {
     int? assetAmount,
     String? paymentHash,
     int? minFinalCltvExpiryDelta,
+    String? descriptionHash,
   );
 
   Map<Object?, Object?> rlnClaimHodlInvoice(
@@ -232,6 +253,7 @@ abstract class RlnHostApi {
     int? durationSeconds,
     int minConfirmations,
     bool witness,
+    String? assignmentKind,
   );
 
   Map<Object?, Object?> rlnSendBtc(
@@ -295,6 +317,14 @@ abstract class RlnHostApi {
     String? rejectListUrl,
   );
 
+  Map<Object?, Object?> rlnInflate(
+    int nodeId,
+    String assetId,
+    List<int> inflationAmounts,
+    double feeRate,
+    int minConfirmations,
+  );
+
   Object? rlnIssueAssetUda(
     int nodeId,
     String ticker,
@@ -304,6 +334,8 @@ abstract class RlnHostApi {
     String? mediaFileDigest,
     List<String> attachmentsFileDigests,
   );
+
+  int rlnVssBackup(int nodeId);
 
   void rlnVssClearFence(int nodeId, String password);
 }

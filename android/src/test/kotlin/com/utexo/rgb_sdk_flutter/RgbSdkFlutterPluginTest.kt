@@ -1,12 +1,14 @@
 package com.utexo.rgb_sdk_flutter
 
 import org.utexo.rgblightningnode.NoPointer
+import org.utexo.rgblightningnode.NativeExternalSigner
 import org.utexo.rgblightningnode.SdkNode
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertSame
+import kotlin.test.assertTrue
 
 internal class RgbSdkFlutterPluginTest {
     private val plugin = RgbSdkFlutterPlugin()
@@ -16,10 +18,10 @@ internal class RgbSdkFlutterPluginTest {
         val info = plugin.getNativeArtifactInfo()
 
         assertEquals("android", info.platform)
-        assertEquals("0.6.0-beta.2", info.rlnVersion)
-        assertEquals("1.0.0-beta.19", info.reactNativeParityVersion)
+        assertEquals(ReleaseBaseline.RLN_VERSION, info.rlnVersion)
+        assertEquals(ReleaseBaseline.REACT_NATIVE_VERSION, info.reactNativeParityVersion)
         assertEquals("pigeon-bootstrap", info.bridge)
-        assertEquals("com.utexo:rgb-lightning-node-android:0.6.0-beta.2", info.nativeArtifact)
+        assertEquals(ReleaseBaseline.ANDROID_MAVEN_COORDINATE, info.nativeArtifact)
     }
 
     @Test
@@ -85,7 +87,8 @@ internal class RgbSdkFlutterPluginTest {
                 vssAllowHttp = false,
                 vssAllowEmptyRestore = false,
                 lspBaseUrl = null,
-                lspBearerToken = null
+                lspBearerToken = null,
+                reuseAddresses = false
             )
         }
         assertInvalidArgument(negativePort, field = "daemonListeningPort")
@@ -103,10 +106,112 @@ internal class RgbSdkFlutterPluginTest {
                 vssAllowHttp = false,
                 vssAllowEmptyRestore = false,
                 lspBaseUrl = null,
-                lspBearerToken = null
+                lspBearerToken = null,
+                reuseAddresses = false
             )
         }
         assertInvalidArgument(oversizedMediaLimit, field = "maxMediaUploadSizeMb")
+    }
+
+    @Test
+    fun createNodeRejectsRelativeStorageBeforeNativeCreate() {
+        val error = assertFailsWith<FlutterError> {
+            plugin.rlnCreateNode(
+                storageDirPath = "relative/storage",
+                daemonListeningPort = 3000,
+                ldkPeerListeningPort = 9735,
+                network = "regtest",
+                maxMediaUploadSizeMb = 5,
+                enableVirtualChannelsV0 = null,
+                virtualPeerPubkeys = null,
+                vssUrl = null,
+                vssAllowHttp = false,
+                vssAllowEmptyRestore = false,
+                lspBaseUrl = null,
+                lspBearerToken = null,
+                reuseAddresses = false
+            )
+        }
+
+        assertInvalidArgument(error, field = "storageDirPath")
+        assertTrue(error.message.orEmpty().contains("absolute path"))
+    }
+
+    @Test
+    fun storagePolicyAcceptsOwnerOnlyDirectory() {
+        val access = FakeStorageDirectoryAccess(
+            metadata = RlnStorageDirectoryMetadata(
+                isDirectory = true,
+                ownerId = 1000,
+                permissions = 0x1C0
+            )
+        )
+
+        RlnStorageDirectoryPolicy(access).prepare("/data/user/0/app/node")
+
+        assertEquals(listOf("/data/user/0/app/node"), access.createdPaths)
+    }
+
+    @Test
+    fun storagePolicyRejectsBroadExistingDirectoryWithoutMutatingIt() {
+        val metadata = RlnStorageDirectoryMetadata(
+            isDirectory = true,
+            ownerId = 1000,
+            permissions = 0x1ED
+        )
+        val access = FakeStorageDirectoryAccess(metadata = metadata)
+
+        val error = assertFailsWith<RlnStorageDirectoryPolicyException> {
+            RlnStorageDirectoryPolicy(access).prepare("/data/user/0/app/node")
+        }
+
+        assertTrue(error.message.orEmpty().contains("mode 0700"))
+        assertSame(metadata, access.metadata)
+        assertEquals(listOf("/data/user/0/app/node"), access.createdPaths)
+    }
+
+    @Test
+    fun storagePolicyRejectsOwnerOnlyButUnusableDirectory() {
+        val access = FakeStorageDirectoryAccess(
+            metadata = RlnStorageDirectoryMetadata(
+                isDirectory = true,
+                ownerId = 1000,
+                permissions = 0x180
+            )
+        )
+
+        val error = assertFailsWith<RlnStorageDirectoryPolicyException> {
+            RlnStorageDirectoryPolicy(access).prepare("/data/user/0/app/node")
+        }
+
+        assertTrue(error.message.orEmpty().contains("mode 0700"))
+    }
+
+    @Test
+    fun storagePolicyRejectsWrongOwnerAndNonDirectory() {
+        val wrongOwner = FakeStorageDirectoryAccess(
+            metadata = RlnStorageDirectoryMetadata(
+                isDirectory = true,
+                ownerId = 2000,
+                permissions = 0x1C0
+            )
+        )
+        val wrongOwnerError = assertFailsWith<RlnStorageDirectoryPolicyException> {
+            RlnStorageDirectoryPolicy(wrongOwner).prepare("/data/user/0/app/node")
+        }
+        assertTrue(wrongOwnerError.message.orEmpty().contains("current process user"))
+
+        val nonDirectory = FakeStorageDirectoryAccess(
+            metadata = RlnStorageDirectoryMetadata(
+                isDirectory = false,
+                ownerId = 1000,
+                permissions = 0x180
+            )
+        )
+        val nonDirectoryError = assertFailsWith<RlnStorageDirectoryPolicyException> {
+            RlnStorageDirectoryPolicy(nonDirectory).prepare("/data/user/0/app/node")
+        }
+        assertTrue(nonDirectoryError.message.orEmpty().contains("must identify a directory"))
     }
 
     @Test
@@ -148,9 +253,9 @@ internal class RgbSdkFlutterPluginTest {
         val node = CloseTrackingSdkNode()
         val nodeId = RlnNodeStore.create(node, uniquePath("lifecycle"))
 
-        assertFailsWith<IllegalStateException> {
-            RlnNodeStore.beginUnlock(nodeId)
-        }
+        assertEquals(RlnNodeStore.NodeLifecycleState.UNLOCKING, RlnNodeStore.beginUnlock(nodeId))
+        RlnNodeStore.rollbackUnlock(nodeId)
+        assertEquals(RlnNodeStore.NodeLifecycleState.CREATED, RlnNodeStore.getState(nodeId))
 
         RlnNodeStore.markInitialized(nodeId)
         assertEquals(RlnNodeStore.NodeLifecycleState.INITIALIZED, RlnNodeStore.getState(nodeId))
@@ -179,6 +284,20 @@ internal class RgbSdkFlutterPluginTest {
         }
     }
 
+    @Test
+    fun nodeStoreClosesNativeSignerWhenRemoved() {
+        val signer = CloseTrackingNativeSigner()
+        val signerId = RlnNodeStore.createSigner(signer)
+
+        assertSame(signer, RlnNodeStore.getSigner(signerId))
+        RlnNodeStore.removeSigner(signerId)
+
+        assertEquals(1, signer.closeCount)
+        assertFailsWith<IllegalStateException> {
+            RlnNodeStore.getSigner(signerId)
+        }
+    }
+
     private fun assertInvalidArgument(error: FlutterError, field: String) {
         assertEquals("invalidArgument", error.code)
         val details = error.details as Map<*, *>
@@ -196,6 +315,30 @@ internal class RgbSdkFlutterPluginTest {
 
         override fun close() {
             closeCount += 1
+        }
+    }
+
+    private class CloseTrackingNativeSigner : NativeExternalSigner(NoPointer) {
+        var closeCount = 0
+            private set
+
+        override fun close() {
+            closeCount += 1
+        }
+    }
+
+    private class FakeStorageDirectoryAccess(
+        val metadata: RlnStorageDirectoryMetadata,
+        override val effectiveUserId: Int = 1000
+    ) : RlnStorageDirectoryAccess {
+        val createdPaths = mutableListOf<String>()
+
+        override fun createOwnerOnlyDirectories(path: String) {
+            createdPaths += path
+        }
+
+        override fun metadata(path: String): RlnStorageDirectoryMetadata {
+            return metadata
         }
     }
 }

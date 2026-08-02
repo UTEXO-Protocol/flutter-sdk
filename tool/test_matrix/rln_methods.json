@@ -23,6 +23,9 @@
     {"id": "closeChannel", "hostApi": "rlnCloseChannel", "group": "channel", "support": "supported", "fixture": "funded_channels", "contract": "implemented", "ios": "required", "android": "required"},
     {"id": "listPayments", "hostApi": "rlnListPayments", "group": "lightning", "support": "supported", "fixture": "unfunded_read", "contract": "implemented", "ios": "required", "android": "required"},
     {"id": "address", "hostApi": "rlnAddress", "group": "bitcoin", "support": "supported", "fixture": "unfunded_read", "contract": "implemented", "ios": "required", "android": "required"},
+    {"id": "rotateAddress", "hostApi": "rlnRotateAddress", "group": "bitcoin", "support": "supported", "fixture": "unfunded_read", "contract": "implemented", "ios": "required", "android": "required"},
+    {"id": "signMessage", "hostApi": "rlnSignMessage", "group": "signing", "support": "supported", "fixture": "unit_contract", "contract": "implemented", "ios": "required", "android": "required"},
+    {"id": "verifyMessage", "hostApi": "rlnVerifyMessage", "group": "signing", "support": "supported", "fixture": "unit_contract", "contract": "implemented", "ios": "required", "android": "required"},
     {"id": "assetBalance", "hostApi": "rlnAssetBalance", "group": "rgb", "support": "supported", "fixture": "funded_rgb", "contract": "implemented", "ios": "required", "android": "required"},
     {"id": "backup", "hostApi": "rlnBackup", "group": "backup", "support": "native-blocked", "fixture": "native_blocked", "contract": "implemented", "ios": "expected_failure", "android": "expected_failure"},
     {"id": "btcBalance", "hostApi": "rlnBtcBalance", "group": "bitcoin", "support": "supported", "fixture": "unfunded_read", "contract": "implemented", "ios": "required", "android": "required"},
@@ -39,7 +42,9 @@
     {"id": "keysend", "hostApi": "rlnKeysend", "group": "lightning", "support": "supported", "fixture": "funded_lightning", "contract": "implemented", "ios": "required", "android": "required"},
     {"id": "listAssets", "hostApi": "rlnListAssets", "group": "rgb", "support": "supported", "fixture": "unfunded_read", "contract": "implemented", "ios": "required", "android": "required"},
     {"id": "listTransactions", "hostApi": "rlnListTransactions", "group": "bitcoin", "support": "supported", "fixture": "funded_btc", "contract": "implemented", "ios": "required", "android": "required"},
+    {"id": "listTransactionsByTxid", "hostApi": "rlnListTransactionsByTxid", "group": "bitcoin", "support": "supported", "fixture": "funded_btc", "contract": "implemented", "ios": "required", "android": "required"},
     {"id": "listTransfers", "hostApi": "rlnListTransfers", "group": "rgb", "support": "supported", "fixture": "funded_rgb", "contract": "implemented", "ios": "required", "android": "required"},
+    {"id": "listTransfersByTxid", "hostApi": "rlnListTransfersByTxid", "group": "rgb", "support": "supported", "fixture": "funded_rgb", "contract": "implemented", "ios": "required", "android": "required"},
     {"id": "listUnspents", "hostApi": "rlnListUnspents", "group": "bitcoin", "support": "supported", "fixture": "funded_btc", "contract": "implemented", "ios": "required", "android": "required"},
     {"id": "lnInvoice", "hostApi": "rlnLnInvoice", "group": "lightning", "support": "supported", "fixture": "funded_lightning", "contract": "implemented", "ios": "required", "android": "required"},
     {"id": "claimHodlInvoice", "hostApi": "rlnClaimHodlInvoice", "group": "lightning", "support": "supported", "fixture": "funded_lightning_hodl", "contract": "implemented", "ios": "required", "android": "required"},
@@ -50,13 +55,15 @@
     {"id": "rgbInvoice", "hostApi": "rlnRgbInvoice", "group": "rgb", "support": "supported", "fixture": "funded_rgb", "contract": "implemented", "ios": "required", "android": "required"},
     {"id": "sendBtc", "hostApi": "rlnSendBtc", "group": "bitcoin", "support": "supported", "fixture": "funded_btc", "contract": "implemented", "ios": "required", "android": "required"},
     {"id": "sendPayment", "hostApi": "rlnSendPayment", "group": "lightning", "support": "supported", "fixture": "funded_lightning", "contract": "implemented", "ios": "required", "android": "required"},
-    {"id": "sendRgb", "hostApi": "rlnSendRgb", "group": "rgb", "support": "supported", "fixture": "funded_rgb", "contract": "implemented", "ios": "required", "android": "required", "limitations": ["skipSync=true is rejected before native execution because the pinned 0.6.0-beta.2 RLN SendRgbRequest has no skipSync field."]},
+    {"id": "sendRgb", "hostApi": "rlnSendRgb", "group": "rgb", "support": "supported", "fixture": "funded_rgb", "contract": "implemented", "ios": "required", "android": "required", "limitations": ["skipSync=true is rejected before native execution because the pinned 0.9.0-beta.3 RLN SendRgbRequest has no skipSync field."]},
     {"id": "shutdown", "hostApi": "rlnShutdown", "group": "lifecycle", "support": "supported", "fixture": "unfunded_lifecycle", "contract": "implemented", "ios": "required", "android": "required"},
     {"id": "sync", "hostApi": "rlnSync", "group": "lifecycle", "support": "supported", "fixture": "unfunded_lifecycle", "contract": "implemented", "ios": "required", "android": "required"},
     {"id": "issueAssetNia", "hostApi": "rlnIssueAssetNia", "group": "rgb", "support": "supported", "fixture": "funded_rgb", "contract": "implemented", "ios": "required", "android": "required"},
     {"id": "issueAssetCfa", "hostApi": "rlnIssueAssetCfa", "group": "rgb", "support": "supported", "fixture": "funded_rgb_asset_types", "contract": "implemented", "ios": "required", "android": "required"},
     {"id": "issueAssetIfa", "hostApi": "rlnIssueAssetIfa", "group": "rgb", "support": "supported", "fixture": "funded_rgb_asset_types", "contract": "implemented", "ios": "required", "android": "required"},
     {"id": "issueAssetUda", "hostApi": "rlnIssueAssetUda", "group": "rgb", "support": "supported", "fixture": "funded_rgb_asset_types", "contract": "implemented", "ios": "required", "android": "required"},
-    {"id": "vssClearFence", "hostApi": "rlnVssClearFence", "group": "vss", "support": "supported", "fixture": "vss_recovery", "contract": "implemented", "ios": "required", "android": "required"}
+    {"id": "inflate", "hostApi": "rlnInflate", "group": "rgb", "support": "supported", "fixture": "funded_rgb_asset_types", "contract": "implemented", "ios": "required", "android": "required"},
+    {"id": "vssClearFence", "hostApi": "rlnVssClearFence", "group": "vss", "support": "supported", "fixture": "vss_recovery", "contract": "implemented", "ios": "required", "android": "required"},
+    {"id": "vssBackup", "hostApi": "rlnVssBackup", "group": "vss", "support": "supported", "fixture": "vss_recovery", "contract": "implemented", "ios": "required", "android": "required"}
   ]
 }

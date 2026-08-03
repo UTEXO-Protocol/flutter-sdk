@@ -9,30 +9,34 @@ were removed because they overlapped and had drifted from the implementation.
 
 | Field | Value |
 | --- | --- |
-| Audit date | 2026-07-28 |
+| Audit date | 2026-08-02 |
 | P0 remediation started | 2026-07-28 |
 | Release verdict | **NO-GO** |
-| Flutter baseline commit | `b310f15e0b902f715dcac23393efb6b7661ae2d0` |
-| Candidate state | Baseline commit plus uncommitted P0 remediation; current evidence is not release-commit evidence |
-| React Native reference | `UTEXO-Protocol/rgb-sdk-rn` `dev` at `cb4fe938b171ac3771093e46b494f5eca190e804` |
-| React Native package | `@utexo/rgb-sdk-rn` `1.0.0-beta.25` |
-| Canonical core contract | `@utexo/rgb-sdk-core` `1.0.0-beta.5` |
+| Flutter baseline commit | `07d86996069d86fd355618a03e356cc2c7647d21` |
+| Candidate state | Clean P0 checkpoint; beta.26 baseline refresh is in progress and no post-refresh release evidence exists yet |
+| React Native reference | `UTEXO-Protocol/rgb-sdk-rn` `dev` at `d5916c142077b501ffb86d028c457a9c21b60d59` |
+| React Native package | `@utexo/rgb-sdk-rn` `1.0.0-beta.26` |
+| Canonical core contract | `@utexo/rgb-sdk-core` `1.0.0-beta.6` |
 | Flutter code currently targets | RN `1.0.0-beta.25`; core `1.0.0-beta.5`; RLN `0.9.0-beta.3` |
-| Current RN native artifacts | RLN `0.9.0-beta.3` |
-| Audit confidence | P0 source, generated-code, native-artifact, native-test, and process-restart claims are locally verified; remaining gates retain their explicit status |
+| Current RN native artifacts | RLN `0.10.0-beta.3` |
+| Audit confidence | P0 claims remain tied to the beta.25 checkpoint; beta.26/core beta.6/RLN 0.10.0-beta.3 parity and runtime evidence are not yet verified |
 
 ## Verdict
 
-All four P0 findings are implemented and locally verified in the current
-worktree. The package now targets the exact RN beta.25/core beta.5/RLN beta.3
+All four original P0 findings are implemented and locally verified at clean
+commit `07d86996069d86fd355618a03e356cc2c7647d21`. That checkpoint targets the
+exact RN beta.25/core beta.5/RLN beta.3
 baseline, uses a generated artifact manifest, persists external-signer VLS
 state in a validated owner-only directory, and passes a funded one-install,
 two-process channel recovery/payment proof on iOS and Android.
 
 The package is still not a release candidate and must not be used for
-production or mainnet funds. There are 127 open P1/P2 findings, the current
-worktree is uncommitted, the live RN validator still identifies two missing
-high-level Lightning status APIs, and the complete API/model/lifecycle,
+production or mainnet funds. Upstream `dev` advanced to beta.26/core beta.6/RLN
+0.10.0-beta.3 after the prior audit, so G-01 and G-02 are reopened until the
+new artifacts, error categories, and core exports are pinned and verified.
+There are 127 open P1/P2 findings, one new baseline item is in progress, the
+live RN validator still identifies two missing high-level Lightning status
+APIs, and the complete API/model/lifecycle,
 threading, packaging, security, and exact-commit release matrices have not
 passed. P0 completion removes the known catastrophic blockers; it does not
 convert the broader release verdict to GO.
@@ -119,12 +123,12 @@ toolchain matrix, and exact immutable release commit remain failed gates.
 
 | Measure | Count |
 | --- | ---: |
-| Total tracked findings | 149 |
+| Total tracked findings | 150 |
 | P0 | 4 |
-| P1 | 97 |
+| P1 | 98 |
 | P2 | 48 |
 | Open | 127 |
-| In progress | 0 |
+| In progress | 1 |
 | Needs decision | 2 |
 | Accepted constraint | 3 |
 | Verified | 17 |
@@ -136,6 +140,7 @@ change whenever an issue is added or its priority/status changes.
 
 | Date | Scope | State | Evidence |
 | --- | --- | --- | --- |
+| 2026-08-02 | Upstream beta.26 refresh | In progress | Fresh `origin/dev` is `d5916c142077b501ffb86d028c457a9c21b60d59`, package `1.0.0-beta.26`, core `1.0.0-beta.6`, and RLN `0.10.0-beta.3`. The upstream delta adds richer native RLN error messages, category-correct iOS errors, `FailedVssInit`, and additional core UMA exports. BASE-008 owns the refresh and all prior beta.25 runtime evidence remains historical until rerun. |
 | 2026-07-28 | Baseline refresh | Verified | Refetched RN `origin/dev`; it remains `cb4fe938b171ac3771093e46b494f5eca190e804`, package `1.0.0-beta.25`, core `1.0.0-beta.5`, RLN `0.9.0-beta.3`. One manifest now feeds generated constants and direct build/script readers; exact commit/source, checksums, installed iOS files/slices, and Android AAR/ABIs verify. |
 | 2026-07-28 | Durable external signer | Verified | Both plugins use RLN `newWithStorage(storageDirPath)` before attachment, Dart owns signer handles transactionally, native storage is owner-only, and funded process-restart/channel-payment proofs pass on iOS and Android. |
 | 2026-07-28 | Restart proof | Verified | One run-scoped binary/APK is installed once per platform, settles both directions, orderly-shuts down RLN, crosses an OS-enforced process boundary, relaunches without reinstalling, proves unchanged storage plus stable node/channel identities, and settles both directions again. This is not an abrupt-crash/power-loss proof; TEST-007 retains that work. |
@@ -151,8 +156,8 @@ change whenever an issue is added or its priority/status changes.
 
 | Gate | Status | Exit condition |
 | --- | --- | --- |
-| G-01 Baseline and artifact pin | Passed locally | One authoritative manifest pins RN/core/RLN versions, immutable sources, checksums, ABI/slices, installed files, and platform requirements |
-| G-02 Low-level bridge parity | Passed structurally | Every current RN `NativeRgb` method and parameter exists on Dart, iOS, and Android; Pigeon regeneration is idempotent |
+| G-01 Baseline and artifact pin | Failed: stale | One authoritative manifest pins RN/core/RLN versions, immutable sources, checksums, ABI/slices, installed files, and platform requirements |
+| G-02 Low-level bridge parity | Failed: revalidation required | Every current RN `NativeRgb` method and parameter exists on Dart, iOS, and Android; Pigeon regeneration is idempotent |
 | G-03 Public wallet contract | Failed | Canonical methods, capabilities, defaults, errors, and return models match the approved core/RN contract |
 | G-04 Durable lifecycle | Failed | Init/unlock/restart/shutdown/dispose are idempotent, retryable, race-safe, and restart-tested |
 | G-05 Threading and responsiveness | Failed | Blocking RLN work never runs on a platform/UI message thread |

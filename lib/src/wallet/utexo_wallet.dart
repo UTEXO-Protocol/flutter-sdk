@@ -49,6 +49,7 @@ class UtexoWallet {
   bool? _resolvedEnableVirtualChannelsV0;
   List<String>? _resolvedVirtualPeerPubkeys;
   String? _resolvedLspBaseUrl;
+  bool _passwordSignerPasswordConsumed = false;
   PsbtWalletCarrier? get psbt => null;
   BeginEndWalletCarrier? get beginEnd => null;
 
@@ -148,6 +149,8 @@ class UtexoWallet {
           } catch (_) {
             _lifecycleState = _WalletLifecycleState.initialized;
             rethrow;
+          } finally {
+            _markPasswordSignerConsumed(signer);
           }
           _lifecycleState = _WalletLifecycleState.unlocked;
         }).whenComplete(() {
@@ -192,6 +195,8 @@ class UtexoWallet {
         } catch (_) {
           _lifecycleState = _WalletLifecycleState.initialized;
           rethrow;
+        } finally {
+          _markPasswordSignerConsumed(signer);
         }
         _lifecycleState = _WalletLifecycleState.unlocked;
       }
@@ -1177,6 +1182,7 @@ class UtexoWallet {
           password != null &&
           password.isNotEmpty) {
         signer.provideSecrets(password: password, mnemonic: mnemonic);
+        _passwordSignerPasswordConsumed = false;
       }
       return signer;
     }
@@ -1186,12 +1192,12 @@ class UtexoWallet {
         field: 'password',
       );
     }
+    _passwordSignerPasswordConsumed = false;
     return _signer = PasswordRlnSigner(password: password, mnemonic: mnemonic);
   }
 
   void _validateSignerCanUnlock({String? password}) {
-    final signer = _signer;
-    if (signer == null) {
+    if (_signer == null) {
       if (password == null || password.isEmpty) {
         throw const WalletValidationException(
           'password is required when no RlnSigner is configured.',
@@ -1200,13 +1206,19 @@ class UtexoWallet {
       }
       return;
     }
-    if (signer is PasswordRlnSigner &&
+    if (_signer is PasswordRlnSigner &&
         (password == null || password.isEmpty) &&
-        !signer.hasPendingPassword) {
+        _passwordSignerPasswordConsumed) {
       throw const WalletValidationException(
         'password is required because the previous password was consumed.',
         field: 'password',
       );
+    }
+  }
+
+  void _markPasswordSignerConsumed(RlnSigner signer) {
+    if (signer is PasswordRlnSigner) {
+      _passwordSignerPasswordConsumed = true;
     }
   }
 

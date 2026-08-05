@@ -106,6 +106,64 @@ ensure_ios_simulator_visible() {
   return 1
 }
 
+ensure_android_device_visible() {
+  local requested_device="$1"
+  local android_home="${ANDROID_HOME:-${HOME}/Library/Android/sdk}"
+  local adb_bin="${ADB_BIN:-${android_home}/platform-tools/adb}"
+  local emulator_bin="${ANDROID_EMULATOR_BIN:-${android_home}/emulator/emulator}"
+  local serial=""
+  local booted=""
+  local device_list=""
+
+  if [[ -n "${requested_device}" ]] &&
+    "${adb_bin}" devices 2>/dev/null |
+      grep -E "^${requested_device}[[:space:]]+device" >/dev/null; then
+    ANDROID_DEVICE="${requested_device}"
+    return 0
+  fi
+
+  if [[ -z "${ANDROID_EMULATOR:-}" ]]; then
+    "${FLUTTER_BIN}" devices || true
+    "${adb_bin}" devices -l || true
+    return 1
+  fi
+
+  "${adb_bin}" start-server >/dev/null
+  nohup "${emulator_bin}" \
+    -avd "${ANDROID_EMULATOR}" \
+    -no-window \
+    -no-snapshot-load \
+    -gpu swiftshader_indirect \
+    -no-audio \
+    -no-boot-anim \
+    -netdelay none \
+    -netspeed full \
+    >"${REPORT_DIR}/android-emulator-${RUN_ID}-${SHORT_COMMIT}.log" 2>&1 &
+
+  for _ in $(seq 1 180); do
+    device_list="$("${adb_bin}" devices -l 2>/dev/null || true)"
+    if [[ -n "${requested_device}" ]] &&
+      grep -E "^${requested_device}[[:space:]]+device" <<<"${device_list}" >/dev/null; then
+      serial="${requested_device}"
+    else
+      serial="$(awk '/^emulator-[0-9]+[[:space:]]+device/{print $1; exit}' <<<"${device_list}")"
+    fi
+    if [[ -n "${serial}" ]]; then
+      booted="$("${adb_bin}" -s "${serial}" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
+      if [[ "${booted}" == "1" ]]; then
+        ANDROID_DEVICE="${serial}"
+        "${adb_bin}" -s "${serial}" shell true >/dev/null
+        return 0
+      fi
+    fi
+    sleep 2
+  done
+
+  "${FLUTTER_BIN}" devices || true
+  "${adb_bin}" devices -l || true
+  return 1
+}
+
 write_report() {
   local finished_at
   local status
@@ -204,7 +262,8 @@ main() {
       mark_required_skip "iOS external-signer process restart" "RUN_PLATFORM=1 but IOS_DEVICE is unset"
     fi
 
-    if [[ -n "${ANDROID_DEVICE:-}" ]]; then
+    if [[ -n "${ANDROID_DEVICE:-}" || -n "${ANDROID_EMULATOR:-}" ]]; then
+      run_step "prepare Android device for Flutter platform smokes" ensure_android_device_visible "${ANDROID_DEVICE:-}"
       run_step "Android unfunded regtest smoke" bash -lc "DEVICE='${ANDROID_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_platform_unfunded.sh'"
       run_step "Android funded regtest smoke" bash -lc "DEVICE='${ANDROID_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_platform_funded.sh'"
       run_step "Android external-signer process restart" bash -lc "DEVICE='${ANDROID_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_external_signer_restart.sh'"

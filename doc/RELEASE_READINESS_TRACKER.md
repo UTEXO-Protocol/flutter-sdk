@@ -148,15 +148,15 @@ gates.
 
 | Measure | Count |
 | --- | ---: |
-| Total tracked findings | 152 |
+| Total tracked findings | 153 |
 | P0 | 4 |
-| P1 | 100 |
+| P1 | 101 |
 | P2 | 48 |
 | Open | 28 |
 | In progress | 0 |
 | Needs decision | 0 |
 | Accepted constraint | 5 |
-| Verified | 119 |
+| Verified | 120 |
 
 This rollup is a snapshot of the master ledger below. Update it in the same
 change whenever an issue is added or its priority/status changes.
@@ -478,6 +478,7 @@ non-recovery-ready until upstream supplies a real implementation.
 | TEST-023 | P1 | Verified | The iOS restart controller treated a listed simulator as runnable even when XCTest had left it shut down, so app installation failed before the test with CoreSimulator state error 405. | The controller now boots the selected simulator when needed, blocks on `simctl bootstatus`, and the subsequent full iOS restart proof passed. |
 | TEST-024 | P1 | Verified | The combined release-candidate script did not run the external-signer process-restart proof even though Group 6 and the release definition require it, and child native/platform/restart reports hard-coded `releaseEligible: false` instead of computing eligibility for clean successful runs. | `tool/test_release_candidate.sh` now requires iOS and Android external-signer process restart when `RUN_PLATFORM=1`, `tool/validate_release_package.dart` gates that wiring, and native/platform/restart child reports compute `releaseEligible` from pass plus clean-worktree state. |
 | TEST-025 | P1 | Verified | The exact release-candidate iOS unfunded smoke exposed that `UtexoWallet.reinit(unlockConfig: ...)` could create a replacement node and only then fail because a `PasswordRlnSigner` had consumed its password during the earlier unlock. | `reinit()` now preflights password-signer unlock readiness before shutdown/node recreation, the iOS unfunded and external-signer restart smokes pass a fresh password for password-signer cold restarts, and `test/utexo_wallet_test.dart` proves the missing-password path fails without creating another node. |
+| TEST-026 | P1 | Verified | The combined release-candidate runner assumed Android was already attached and stable before the run, but local AVDs can exit while earlier iOS/package gates are still running. | `tool/test_release_candidate.sh` now supports `ANDROID_EMULATOR=<avd-name>`, boots that AVD headlessly immediately before Android platform smokes, waits for `sys.boot_completed`, resolves the live emulator serial, and records the emulator log under the release report directory. |
 
 ### Code Quality, Modularity, and Documentation
 

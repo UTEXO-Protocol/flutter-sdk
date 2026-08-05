@@ -9,17 +9,17 @@ were removed because they overlapped and had drifted from the implementation.
 
 | Field | Value |
 | --- | --- |
-| Audit date | 2026-08-02 |
+| Audit date | 2026-08-04 |
 | P0 remediation started | 2026-07-28 |
 | Release verdict | **NO-GO** |
-| Flutter baseline commit | `07d86996069d86fd355618a03e356cc2c7647d21` |
-| Candidate state | Clean P0 checkpoint; beta.26 baseline refresh is in progress and no post-refresh release evidence exists yet |
+| Flutter baseline commit | `c131f503894d5f080a45ea2dcec04615f5d72a4f` |
+| Candidate state | Phase 0-7 source/static parity, Dart model/lifecycle hardening, LSP/network/security policy, package metadata hardening, P1 source-hardening, background Pigeon queues, native readiness cleanup, typed bridge-error mapping, typed Pigeon wire-envelope responses, native detach cleanup, clean consumer install/archive matrix, internal-beta supply-chain inventory/license/vulnerability/ABI gates, BIP340 official vector plus tamper/boundary coverage, secret-lifetime minimization, and the current local funded/unfunded iOS/Android runtime evidence are implemented in the dirty worktree; exact beta.26 baseline, artifacts, Android JVM bridge suite, iOS XCTest suite, component release gates, and prior all-up local release-candidate evidence verify locally, but the all-up script was changed in this pass and needs a fresh exact-candidate rerun; exhaustive per-family native behavior vectors, deeper lifecycle/fault stress, upstream production provenance/signatures/reproducibility, audited constant-time Schnorr assurance, and clean-commit release evidence remain pending |
 | React Native reference | `UTEXO-Protocol/rgb-sdk-rn` `dev` at `d5916c142077b501ffb86d028c457a9c21b60d59` |
 | React Native package | `@utexo/rgb-sdk-rn` `1.0.0-beta.26` |
 | Canonical core contract | `@utexo/rgb-sdk-core` `1.0.0-beta.6` |
-| Flutter code currently targets | RN `1.0.0-beta.25`; core `1.0.0-beta.5`; RLN `0.9.0-beta.3` |
+| Flutter code currently targets | RN `1.0.0-beta.26`; core `1.0.0-beta.6`; RLN `0.10.0-beta.3` |
 | Current RN native artifacts | RLN `0.10.0-beta.3` |
-| Audit confidence | P0 claims remain tied to the beta.25 checkpoint; beta.26/core beta.6/RLN 0.10.0-beta.3 parity and runtime evidence are not yet verified |
+| Audit confidence | Static RN/source parity, artifact pinning, Dart LSP/network behavior, support-safe LSP diagnostics, package metadata checks, typed Pigeon wire-envelope transport, internal-beta supply-chain/license/vulnerability/ABI inventory, clean consumer install/archive builds, Android JVM bridge tests, iOS XCTest bridge tests, and funded/unfunded platform smokes are verified against beta.26/core beta.6/RLN 0.10.0-beta.3; the combined release-candidate script must be rerun because this pass added new required gates; release verdict remains NO-GO until exhaustive native behavior vectors, broader lifecycle/threading/fault stress, upstream production provenance/signatures/reproducibility, audited constant-time Schnorr assurance, and exact clean-commit release evidence are complete |
 
 ## Verdict
 
@@ -31,20 +31,33 @@ state in a validated owner-only directory, and passes a funded one-install,
 two-process channel recovery/payment proof on iOS and Android.
 
 The package is still not a release candidate and must not be used for
-production or mainnet funds. Upstream `dev` advanced to beta.26/core beta.6/RLN
-0.10.0-beta.3 after the prior audit, so G-01 and G-02 are reopened until the
-new artifacts, error categories, and core exports are pinned and verified.
-There are 127 open P1/P2 findings, one new baseline item is in progress, the
-live RN validator still identifies two missing high-level Lightning status
-APIs, and the complete API/model/lifecycle,
-threading, packaging, security, and exact-commit release matrices have not
-passed. P0 completion removes the known catastrophic blockers; it does not
-convert the broader release verdict to GO.
+production or mainnet funds. The source baseline is now refreshed to
+beta.26/core beta.6/RLN 0.10.0-beta.3, the static RN parity validator passes,
+and the native artifact manifest verifies against the installed iOS files plus
+downloaded iOS/Android release archives. This closes the stale-baseline and
+missing-status/static-export failures, and phase 4-5 closes a meaningful slice
+of Dart model/lifecycle defects, and phase 6-7 closes the Dart LSP/network plus
+package metadata slice, and the P1 passes close repo-local toolchain pinning,
+channel-domain mapping, integer fee-rate enforcement, Android artifact gating,
+background Pigeon queues, native readiness cleanup, full on-chain receive
+metadata, typed fee-rate response, typed optional carriers, bridge error
+mapping, typed Pigeon wire-envelope responses, native detach cleanup, and
+current funded/unfunded local platform smokes, clean consumer path/Git install
+archives, internal-beta supply-chain/ABI inventory gates, BIP340 official
+vectors, best-effort secret-lifetime minimization, release truth/divergence
+policy, API/bridge snapshot gates, evidence cataloging, and sanitized unique
+local report wrappers, and Group 3 LSP/service negative coverage plus
+reproducible license/vulnerability audit gates, but there are still 40 open
+findings and no unresolved decisions. Exhaustive native behavior vectors,
+deeper lifecycle/threading/fault stress, upstream production provenance,
+constant-time crypto assurance, and exact-clean-commit release
+evidence remain release blockers. P0 completion removes the known catastrophic
+blockers; it does not convert the broader release verdict to GO.
 
 Passing analysis, unit tests, native bridge tests, and the targeted restart
 proof support only the claims they exercise. Name-based matrix validation is
-not behavioral parity evidence, and June platform reports are not evidence for
-the current worktree.
+not behavioral parity evidence, and the current platform smoke reports prove
+only the covered funded/unfunded flows, not every API family or failure mode.
 
 ## Tracker Rules
 
@@ -78,29 +91,34 @@ not sufficient evidence.
 | --- | --- | --- |
 | Direct toolchain | Flutter `3.41.9`, Dart `3.11.5` | Commands below used the asserted direct executables, not the broken local FVM wrapper |
 | `flutter analyze --no-fatal-warnings --no-fatal-infos` | Pass | Current analyzer configuration reports no issues |
-| `flutter test` | Pass, 123 tests | Dart unit/contract tests pass; most still do not execute native RLN behavior |
+| `flutter test` | Pass, 142 tests | Dart unit/contract tests pass; most still do not execute native RLN behavior |
 | `flutter test` in `example/` | Pass, 1 test | Example widget smoke passes |
 | `flutter test --coverage` | Not rerun after P0; last pre-P0 result was 57.4% (`1816/3164`) | No threshold; native code is outside this metric |
-| `dart format --output=none --set-exit-if-changed .` | Pass, 41 files, 0 changed | Current Dart files are formatter-canonical |
+| `dart format --set-exit-if-changed lib test tool pigeons` | Pass, 44 files, 0 changed | Current source Dart files are formatter-canonical; generated release evidence under `build/` is analyzer/format excluded |
 | `dart doc` | Pass, 0 warnings and 0 errors | Syntax/link health only; public documentation remains incomplete |
 | `dart run tool/generate_release_baseline.dart --check` | Pass | Generated Dart/Swift/Kotlin constants are current; Gradle, podspec, and shell tooling read the same manifest directly |
-| Pigeon regenerate/checksum comparison | Pass | Regenerating the Dart/Swift/Kotlin bridge changes no generated file |
-| `dart run tool/validate_test_matrix.dart` | Pass: 62 `RlnClient`, 109 `UtexoWallet`, 35 core exports | Validator proves local declaration coverage, not behavior |
-| `RGB_SDK_RN_PATH=<exact-dev> dart run tool/validate_rn_parity.dart` | Fail only for `getLightningReceiveStatus` and `getLightningSendStatus` | Exact RN commit/package/native method checks pass; public-wallet parity remains incomplete under API-005 |
-| `dart pub publish --dry-run` | Exit 65, two warnings | Current dirty state and tracked-but-worktree-deleted, gitignored historical docs prevent clean package validation; no `.pubignore` defines intentional contents |
-| `./tool/verify_native_artifacts.sh` | Pass | Installed iOS files and exact Android AAR checksum/ABI set match the generated baseline |
+| Pigeon regenerate/checksum comparison | Pass | Regenerating Pigeon followed by Dart formatting is idempotent against the candidate diff |
+| `dart run tool/validate_test_matrix.dart` | Pass: 62 `RlnClient`, 89 `UtexoWallet`, 40 core exports | Validator proves local declaration coverage and implementation/evidence metadata, not full behavior |
+| `dart run tool/validate_release_governance.dart` | Pass | Tracker rollup, remaining-open group coverage, policy docs, evidence catalog, and stale README claims are mechanically checked |
+| `dart run tool/validate_api_snapshot.dart` | Pass | Exported Dart API surface, Pigeon schema, generated bridge surface, and native bridge/store source markers match `tool/api_snapshot.json` |
+| `RGB_SDK_RN_PATH=<exact-dev> dart run tool/validate_rn_parity.dart` | Pass against RN `d5916c142077` | Static method names, low-level parameter/return categories, public wallet inventory, and runtime exports match the current RN source with documented scoped-out type-star exports |
+| `dart run tool/validate_release_package.dart` | Pass | Package metadata, repo-local Flutter pin, CI Flutter pin usage, Android release permission, iOS privacy bundling, `.pubignore`, version alignment, internal-beta artifact boundary, governance artifact presence, and secret-pattern scan pass |
+| `dart run tool/validate_supply_chain.dart` | Pass with explicit internal-beta warnings | Generates an SBOM-style Dart dependency inventory, fail-closed license classification, hosted Pub OSV vulnerability audit, iOS/Android ABI-symbol marker checks, pinned provenance status, and fails production mode until upstream signatures/reproducible attestations exist; Group 3 report `build/test-reports/group-3/supply-chain-c131f50.json` |
+| `dart pub publish --dry-run` | Exit 65, two warnings | Package contents are intentional and no longer include vendored native binaries; remaining warnings are the dirty worktree and deleted tracked `android/settings.gradle` until commit |
+| `./tool/verify_native_artifacts.sh --require-android` | Pass | Installed iOS files plus the exact resolved Android AAR checksum, size, and ABI set match the generated beta.26 baseline |
+| `RUN_CONSUMER_ARCHIVES=1 REPORT_DIR=build/test-reports/current-candidate tool/test_clean_consumer_matrix.sh` | Pass | Clean candidate snapshot passes tarball dry-run, path install, local Git install, Android release APK, iOS release `--no-codesign`, RLN artifact presence, and CocoaPods deployment/no-repo-update reinstall for both consumers; report `build/test-reports/current-candidate/clean-consumer-matrix-20260804T162339Z-c131f50.json` |
 | CocoaPods lint | Not rerun after P0; last run passed with material warnings | Metadata warnings and iOS deployment-target mismatch remain open |
-| iOS XCTest bridge suite | Pass, 9 cases | Current source graph, exact storage policy, and UUID destination path passed on simulator `8B3E2FF7-3A8C-4834-94E9-CC6AD707F2E5` |
-| Android JVM bridge suite | Pass, 12 cases | Current plugin/storage-policy cases passed |
+| iOS XCTest bridge suite | Pass, 10 cases | Current source graph, exact storage policy, typed Pigeon wire envelope, detach cleanup, background Pigeon queue generation, and UUID destination path passed on simulator `46B8C95D-F0CD-4E50-9C98-61A8F84176AB`; report `build/test-reports/current-candidate/native-ios-46B8C95D-F0CD-4E50-9C98-61A8F84176AB-c131f50.json` |
+| Android JVM bridge suite | Pass, 14 cases | Current plugin/storage-policy, typed Pigeon wire envelope, detach cleanup, and fractional fee-rate rejection cases passed against RLN `0.10.0-beta.3`; report `build/test-reports/current-candidate/native-android-c131f50.json` |
 | iOS external-signer process restart | Pass | Run `20260727T204201Z-81121`; one installed binary, PIDs `81897` then `81978`, stable node/channel, bidirectional pre/post-restart payments |
 | Android external-signer process restart | Pass | Run `20260727T204304Z-82076`; one installed APK on ARM64 Android 17/API 37, same data directory, stable node/channel, bidirectional pre/post-restart payments |
-| Current general funded/unfunded platform smokes | Not rerun after P0 | Existing four reports are from 2026-06-23 and do not prove the current worktree |
-| Combined release-candidate script | Not rerun as release evidence | The current worktree is uncommitted; its known public parity gate fails API-005, and the prior `b310f15` report predates P0 remediation |
+| Current general funded/unfunded platform smokes | Pass | iOS unfunded, iOS funded, Android unfunded, and Android funded smokes all passed on this dirty candidate using the current regtest stack; reports are under `build/test-reports/current-candidate/` |
+| Combined release-candidate script | Stale after this pass | The previous `RUN_PLATFORM=1 ... ./tool/test_release_candidate.sh` run passed before supply-chain and clean-consumer gates were added. Component gates pass separately; rerun the full script on the exact candidate before using it as release evidence. |
 
-The repository has no `.fvmrc`. In this environment, `fvm flutter ...` and
-`fvm dart ...` returned success without running Flutter or Dart. Historical
-evidence based only on those commands is invalid until a pinned FVM toolchain
-is added and the executable path is asserted.
+The repository now pins Flutter `3.41.9` in `.fvmrc`, and CI installs that
+version through `flutter-version-file: .fvmrc`. Historical evidence based only
+on the previously broken local `fvm flutter ...` and `fvm dart ...` commands
+remains invalid.
 
 ## Audit Scope and Method
 
@@ -113,11 +131,12 @@ model, lifecycle and LSP path, test/tool, package manifest, artifact script,
 workflow, example, and public document.
 
 Static comparison proves the source-level findings in this tracker. Current
-native storage behavior and the external-signer recovery invariant also have
-targeted iOS/Android execution evidence. This does not prove complete native
-runtime correctness: the general funded/unfunded workflows, full bridge
-families, failure/concurrency matrix, clean consumer archives, supported
-toolchain matrix, and exact immutable release commit remain failed gates.
+native storage behavior, the external-signer recovery invariant, and the
+covered funded/unfunded platform smokes also have targeted iOS/Android
+execution evidence. This does not prove complete native runtime correctness:
+full bridge families, failure/concurrency matrix, broader supported toolchain
+matrix, upstream production provenance/signatures, and exact immutable release commit remain failed
+gates.
 
 ## Issue Rollup
 
@@ -127,20 +146,65 @@ toolchain matrix, and exact immutable release commit remain failed gates.
 | P0 | 4 |
 | P1 | 98 |
 | P2 | 48 |
-| Open | 127 |
-| In progress | 1 |
-| Needs decision | 2 |
-| Accepted constraint | 3 |
-| Verified | 17 |
+| Open | 40 |
+| In progress | 0 |
+| Needs decision | 0 |
+| Accepted constraint | 5 |
+| Verified | 105 |
 
 This rollup is a snapshot of the master ledger below. Update it in the same
 change whenever an issue is added or its priority/status changes.
+
+## Remaining Open Work Groups
+
+This section is the execution order for the 40 open findings. It groups only
+currently open rows, and every open row appears exactly once. Keep this table
+in sync with the master ledger whenever a row is added, verified, accepted, or
+re-prioritized.
+
+The order is intentional: first lock the release truth model and public API
+policy, then correct the stable facade and low-level native behavior, then
+prove lifecycle and service/security behavior, then finish packaging, code
+quality, and exact-candidate evidence. Do not close a group by saying a script
+passes unless the rows in that group have their own exit criteria, tests,
+platform evidence, and documentation updated.
+
+Group 1, release truth/divergence policy/evidence schema, is verified in the
+2026-08-04 Group 1 execution log below. Group 2, low-level bridge/native
+behavior vectors, is verified in the 2026-08-05 execution log below. The
+Group 3, LSP/service/security audit, is partially verified in the 2026-08-05
+execution log below; only the audited/vetted Schnorr implementation assurance
+row remains open from that group. The remaining groups are:
+
+| Order | Group | Open rows | Count | P1/P2 | Why this order | Group exit gate |
+| ---: | --- | --- | ---: | ---: | --- | --- |
+| 1 | Stable public facade and domain contract | API-007, API-010, API-014, API-016, API-018, API-024, API-026, API-028, CODE-001, CODE-002, CODE-005, CODE-006, CODE-012, MODEL-016 | 14 | 4/10 | The wallet-facing API must stop exposing raw/stale/ambiguous shapes before exhaustive native tests make those shapes harder to change. | Stable exports are small and intentional; canonical wallet names return domain models; obsolete/raw surfaces are quarantined or deprecated; units, key identity, error shape, and adaptation rules are documented and tested. |
+| 2 | Lifecycle, concurrency, and native ownership | LIFE-004, LIFE-005, LIFE-007, LIFE-008, LIFE-010, LIFE-011, LIFE-013, TEST-007, TEST-015, CODE-004 | 10 | 6/4 | Lifecycle bugs can corrupt wallet state or leak native resources, and they can invalidate later funded/regtest evidence. | One lifecycle/concurrency owner exists; operation prerequisites, restart, destroy, detach, timeout/cancellation, cleanup, and fault injection pass on Dart plus native platforms where applicable. |
+| 3 | Crypto implementation assurance | SEC-007 | 1 | 1/0 | The current Dart Schnorr implementation has strong vectors and tamper/boundary tests, but no audited constant-time primitive or formal crypto review. | Use a vetted implementation/native primitive or complete an auditable constant-time/differential/property review before production funds. |
+| 4 | Packaging, platform minimums, and supply chain | PKG-001, PKG-002, PKG-006, PKG-008, PKG-014, PKG-015, DOC-004 | 7 | 4/3 | A package that works only from a warm local checkout is not releasable, even if its APIs are correct. | Clean artifact acquisition, deterministic consumer install, pod lint/minimum-platform policy, provenance/signature/reproducibility evidence, dry-run cleanliness, and support/upgrade/artifact docs are complete. |
+| 5 | Codebase hardening and public documentation depth | LIFE-012, CODE-003, CODE-007, CODE-008, CODE-011, TEST-003 | 6 | 0/6 | After contract and behavior stabilize, enforce maintainable structure, stricter analysis, immutable boundaries, coverage policy, and accurate public docs. | Large files are split by responsibility, strict lints pass, public DTOs are immutable at boundaries, docs cover public symbols and stale-claim checks, and coverage policy is meaningful. |
+| 6 | Exact release-candidate runtime proof | API-032, TEST-002 | 2 | 2/0 | This is last because it should run on the final clean candidate after the API, lifecycle, packaging, and evidence tooling are stable. | Full layered contract/native/end-to-end matrix and the external-signer trusted virtual BTC-channel regression pass on the exact clean candidate with immutable reports. |
+
+Coverage check: these groups cover 40 open rows total: 17 P1 and 23 P2. Any
+new issue discovered during a group must be added to the master ledger and to
+exactly one group before continuing.
 
 ## P0 Execution Log
 
 | Date | Scope | State | Evidence |
 | --- | --- | --- | --- |
-| 2026-08-02 | Upstream beta.26 refresh | In progress | Fresh `origin/dev` is `d5916c142077b501ffb86d028c457a9c21b60d59`, package `1.0.0-beta.26`, core `1.0.0-beta.6`, and RLN `0.10.0-beta.3`. The upstream delta adds richer native RLN error messages, category-correct iOS errors, `FailedVssInit`, and additional core UMA exports. BASE-008 owns the refresh and all prior beta.25 runtime evidence remains historical until rerun. |
+| 2026-08-05 | Group 3 LSP/service behavior and security audit | Partial verified | Added reproducible hosted Pub OSV vulnerability checks and fail-closed license classification to `tool/validate_supply_chain.dart`; the generated report `build/test-reports/group-3/supply-chain-c131f50.json` records 55 accepted dependency/license entries, 0 unknown, 0 rejected, 52 hosted Pub package queries, and 0 vulnerable packages, with the separate internal-beta warning that upstream artifact signatures/reproducible attestations are still absent under PKG-006. Added wallet/LSP tests proving typed `ConflictError` is the only peer-connect idempotence success path, same-host/foreign LSP errors are not unsafe fallbacks, `receiveAsset`/`sendAsset` preserve LSP service failures, failed settlement throws `LspSettlementException`, APay registration failures surface explicitly, HODL claims never fabricate missing preimages, HODL native claim failures are reported per payment, and VSS failures are not rewritten. Added BIP340 tamper and scalar/byte-length boundary tests beyond the official vectors. Evidence: `flutter test test/utexo_wallet_test.dart`, `flutter test test/crypto_bip340_vectors_test.dart`, `REPORT_DIR=build/test-reports/group-3 dart run tool/validate_supply_chain.dart`, `dart run tool/validate_test_matrix.dart`, and `dart run tool/validate_release_package.dart` pass. This verifies LSP-008, SEC-008, TEST-006, and TEST-009. SEC-007 remains open because these tests do not prove constant-time behavior and do not replace a vetted/audited Schnorr primitive. |
+| 2026-08-05 | Group 2 low-level bridge and native behavior vectors | Verified | Added `doc/BRIDGE_BEHAVIOR_CONTRACT.md` and `tool/test_matrix/bridge_behavior_vectors.json` to define bridge family vectors, critical method vectors, malformed-wire behavior, and the signed-Int64 Pigeon numeric boundary; added `tool/validate_bridge_vectors.dart` and wired it into the release-candidate and package gates; added Dart malformed-wire tests for invalid JSON, non-object single responses, and non-object list entries; added Dart model tests proving decimal integer strings parse through signed `Int64.max` and out-of-range native UInt64 strings throw `NativeProtocolException` instead of becoming `0`/`null`; fixed Swift/Kotlin request-heavy bridge methods so request validation happens before node lookup for `openChannel`, `lnInvoice`, `keysend`, and `sendPayment`; added mirrored Android JVM and iOS XCTest vectors for Group 2 numeric boundaries, unknown RGB assignment kinds, and unknown-node operation details across rotate/sign/verify/txid history methods. Evidence: `flutter test test/rln_client_contract_test.dart`, `flutter test test/utexo_wallet_test.dart`, `tool/test_native_android.sh`, `IOS_DEVICE=8B3E2FF7-3A8C-4834-94E9-CC6AD707F2E5 tool/test_native_ios.sh`, `flutter analyze --no-fatal-warnings --no-fatal-infos`, `dart run tool/validate_test_matrix.dart`, `dart run tool/validate_bridge_vectors.dart`, `dart run tool/validate_release_package.dart`, `dart run tool/validate_release_governance.dart`, and `git diff --check` pass after updating `tool/api_snapshot.json` for the intentional exported constants/native bridge drift. This verifies API-001, API-002, API-003, API-004, API-012, MODEL-015, TEST-001, TEST-005, and TEST-008. Exact clean-candidate funded runtime proof remains open under API-032 and TEST-002. |
+| 2026-08-04 | Group 1 release truth, divergence, and evidence schema | Verified | Added `doc/API_COMPATIBILITY_AND_DIVERGENCE.md` with source precedence, an approved divergence register, API stability tiers, Dart adaptation map, deprecation/breaking-change plan, and architecture decisions for Pigeon vs FFI/UniFFI, artifact ownership, and stable layering; added `doc/RELEASE_EVIDENCE_SCHEMA.md` with evidence IDs, required report fields, sanitization rules, matrix evidence catalog rules, API/ABI snapshot policy, and documentation completeness criteria; added `tool/test_matrix/evidence_catalog.json` and made `tool/validate_test_matrix.dart` require every bucket to resolve to test IDs, report families, claim levels, and assertions; added `tool/api_snapshot.json` plus `tool/validate_api_snapshot.dart` for exported Dart, Pigeon, generated bridge, and native bridge surface drift; added `tool/validate_release_governance.dart` to check tracker rollups and remaining-open group coverage mechanically; wired the new governance and snapshot gates into `tool/test_release_candidate.sh`; updated release report wrappers to include schema version, evidence IDs, full commit, dirty state, unique run IDs, sanitized repo-relative log paths, and log SHA-256; and fixed stale README/matrix docs. Evidence: `bash -n` passes for modified shell wrappers; `dart format` passes for modified tools; `dart run tool/validate_api_snapshot.dart`, `dart run tool/validate_test_matrix.dart`, `dart run tool/validate_release_package.dart`, and `dart run tool/validate_release_governance.dart` pass after tracker update. This verifies BASE-006, API-020, API-029, CODE-009, CODE-010, TEST-011, TEST-014, TEST-016, and DOC-005. Exact clean-candidate runtime proof remains open under API-032 and TEST-002. |
+| 2026-08-04 | Consumer/supply-chain/crypto/secret hardening pass | Partial verified | Added `tool/test_clean_consumer_matrix.sh`, which snapshots tracked/unignored candidate files, verifies package tarball contents, installs the SDK into fresh Flutter consumers by path and local Git ref, builds Android release APKs and iOS release no-codesign apps for both, checks prepared RLN iOS artifacts, and reruns CocoaPods with `--deployment --no-repo-update`; added `tool/validate_supply_chain.dart`, which produces an SBOM-style dependency inventory, license-file inventory, pinned provenance status, and iOS/Android ABI-symbol marker checks while failing production mode until upstream signatures/reproducible attestations exist; wired both gates into `tool/test_release_candidate.sh`; expanded package validation to require those gates and scan untracked candidate files; switched low-level Schnorr signing/verification to current BIP340 arbitrary-message semantics and added the official Bitcoin BIP340 vector fixture; wiped SDK-owned seed/private-key byte buffers after derivation/signing where possible; consumed native external signer seed hex after native handoff; and cleared password signer secrets after unlock while allowing explicit password refresh for future sessions. Evidence: `dart run tool/validate_supply_chain.dart`, `RUN_CONSUMER_ARCHIVES=1 REPORT_DIR=build/test-reports/current-candidate tool/test_clean_consumer_matrix.sh`, and targeted `flutter test test/crypto_bip340_vectors_test.dart test/utexo_wallet_test.dart` pass. This verified SEC-002 and PKG-016 at the time; Group 3 later added the missing license/vulnerability audit and BIP340 boundary coverage. PKG-006 remains open for upstream production signatures/reproducible attestations, and SEC-007 remains open for constant-time/vetted implementation assurance. |
+| 2026-08-04 | P1 typed bridge/lifecycle/platform evidence pass | Partial verified | Replaced broad generated Pigeon response maps with a typed `RlnWireResponse` JSON wire envelope and strict Dart decode that rejects malformed/non-object payloads; updated the RN parity validator to forbid broad response maps at the Pigeon boundary while preserving public semantic return categories; added Android/iOS detach cleanup that unregisters Pigeon and closes engine-owned native node/signer stores; made same-storage restart state transitions deterministic; exported iOS FFI headers to consumer/test targets through the podspec; extended Dart lifecycle guards so chain, RGB, Lightning, and channel operations fail before unlock; added native clear-all and unlock-gate tests; and made the release runner prepare the iOS simulator plus check Pigeon drift in dirty candidates without comparing against `HEAD`. Evidence: analyzer, `flutter test` (132 tests), release package validation, matrix validation, RN parity validation, generated-baseline check, native artifact verification, `dart format --output=none --set-exit-if-changed .`, `git diff --check`, Android JVM bridge tests (14 cases), iOS XCTest bridge tests (10 cases), four funded/unfunded platform smokes, and the all-up local release-candidate script pass on dirty commit `c131f50`. This verifies MODEL-001, LIFE-009, and TEST-013 only; full native behavior vectors, a deeper lifecycle/fault stress matrix, clean consumer archives, provenance/SBOM/license gates, and clean-commit dry-run evidence remain open. |
+| 2026-08-04 | Phase 6-7 LSP/network/security/package hardening | Partial verified | Ported current core LSP routing semantics into Dart: same-host Lightning Address resolution stays on the authenticated LSP client, foreign hosts use unauthenticated LNURL over the same injected HTTP client, callback rebasing preserves base path prefixes, non-loopback HTTP is rejected, LSP bodies/errors are bounded and redacted, missing HODL preimages are reported without native claim calls, polling uses monotonic timers with validated intervals, SDK network parsing is strict while native `utexo` maps to `signet`, core default timeout/log-level/endpoints are aligned, Android release `INTERNET` and iOS privacy bundling are declared, duplicate Android settings are removed, package constraints and versions are coherent, `.pubignore` is explicit, and package validation is a local/CI gate. Evidence: `flutter analyze --no-fatal-warnings --no-fatal-infos`, `flutter test` (129 tests), `dart run tool/validate_release_package.dart`, `dart run tool/validate_test_matrix.dart`, `RGB_SDK_RN_PATH=/Users/hardik/Projects/rgb-sdk-rn dart run tool/validate_rn_parity.dart`, generated-baseline check, and `git diff --check` pass. `dart pub publish --dry-run` still exits 65 because the worktree is dirty and `android/settings.gradle` is deleted-but-tracked until commit; native consumer archives/provenance/SBOM/pod lint/platform smokes were not run in this phase. |
+| 2026-08-04 | P1 API/lifecycle/error-mapping pass | Partial verified | Added Pigeon background task queues for every HostApi method and regenerated Dart/Swift/Kotlin; removed native `Thread.sleep`/`usleep` readiness polling and unknown conflict-as-success transitions; preserved full `onchainReceive` metadata; made canonical `estimateFeeRate` return `RlnFeeRate` with a scalar compatibility alias; added typed optional carrier slots for PSBT and begin/end flows; completed HODL invoice metadata returned by the facade; centralized `PlatformException` mapping into typed SDK errors with structured native cause; fixed UTEXO bridge status encoding plus HTTP timeout/close/required-field/error semantics; deduplicated known-asset transfer fallback. Evidence: `flutter test` (131 tests), analyzer, package validation, matrix validation, RN parity, generated-baseline check, `git diff --check`, Android JVM bridge tests (13 cases), and iOS XCTest bridge tests (10 cases) pass. Full native behavior vectors, funded/unfunded platform smokes, clean consumer archives, typed Pigeon DTO replacement, artifact provenance/SBOM/license gates, and Schnorr vetted/differential proof remain open. |
+| 2026-08-04 | P1 source-hardening pass | Partial verified | Added `.fvmrc` Flutter `3.41.9`, pinned CI to that file, and gated both in package validation; verified package/pod/Android module version alignment; added canonical `LightningChannel` mapping with sat-to-msat conversion and a facade method; changed facade defaults and native bridge validation so fractional fee rates fail instead of truncating; moved fee validation before native node lookup for bridge determinism; exposed external-signer RGB UTXO/issuance capabilities and fail-fast guards before native calls; and made the local release-candidate script require Android AAR checksum/ABI verification. Evidence: `flutter test` (130 tests) and Android JVM bridge tests (13 cases) pass for this slice. Later P1 API/lifecycle/error-mapping work superseded the native iOS XCTest and background-threading gaps; broader canonical API migration, platform smokes, typed Pigeon DTOs, and clean release evidence remain open. |
+| 2026-08-04 | Wallet API decisions | Verified | Removed Flutter-only `UtexoWallet.issueAssetCfa` and `UtexoWallet.issueAssetUda` from the stable wallet facade to match current `rgb-sdk-rn` wallet parity. CFA/UDA remain available only through low-level RN-parity `RlnClient`/`RLNBinding` APIs. Publishing/version distribution policy is accepted as deferred until the package is prepared for publication. Evidence: wallet method matrix now reports 89 wallet APIs. |
+| 2026-08-04 | Phase 4-5 Dart model/lifecycle hardening | Partial verified | Added `NativeProtocolException`, strict required-field decoding for high-risk RLN wallet models, current RN optionality for node/channel/payment/invoice/transfer/unspent fields, `pendingBlinded` preservation, strict outpoint/transfer enum mapping, PascalCase Lightning payment statuses, `gossipRgsServerUrl` fail-fast rejection, defensive seed-byte copying, and a serialized `UtexoWallet` lifecycle state machine with concurrent init/unlock coalescing and post-shutdown operation rejection. Evidence: `flutter analyze --no-fatal-warnings --no-fatal-infos`, `flutter test` (126 tests), `dart run tool/validate_test_matrix.dart`, and `RGB_SDK_RN_PATH=/Users/hardik/Projects/rgb-sdk-rn dart run tool/validate_rn_parity.dart` pass. Native iOS/Android lifecycle races, Pigeon typed DTOs, platform fixtures, and funded smokes were not run in this phase. |
+| 2026-08-04 | Phase 0-3 beta.26/static parity | Verified | `tool/release_baseline.json` now pins RN `d5916c142077b501ffb86d028c457a9c21b60d59`, core `1.0.0-beta.6`, RLN `0.10.0-beta.3`, iOS archive SHA-256 `be2adacc4f1e608648659b08b36baab92dc113818c950b311cf0c352a25130f5`, Android AAR SHA-256 `1b29fe696ea7a2ce38a30f7a67cd692271349394863da879d7abb55719f4f6a5`, iOS slices `arm64`/`arm64,x86_64`, and Android ABIs `arm64-v8a`, `armeabi-v7a`, `x86_64`. `validate_rn_parity`, `validate_test_matrix`, generated-baseline check, artifact verification, analyzer, full Dart tests, example tests, and Android JVM bridge tests pass. The release script correctly fails when iOS XCTest and platform smokes are skipped. |
+| 2026-08-02 | Upstream beta.26 refresh | Superseded | Fresh `origin/dev` is `d5916c142077b501ffb86d028c457a9c21b60d59`, package `1.0.0-beta.26`, core `1.0.0-beta.6`, and RLN `0.10.0-beta.3`. The upstream delta added richer native RLN error messages, category-correct iOS errors, `FailedVssInit`, and additional core UMA exports. The 2026-08-04 phase 0-3 row now owns the verified static/artifact baseline; all prior beta.25 runtime evidence remains historical until rerun. |
 | 2026-07-28 | Baseline refresh | Verified | Refetched RN `origin/dev`; it remains `cb4fe938b171ac3771093e46b494f5eca190e804`, package `1.0.0-beta.25`, core `1.0.0-beta.5`, RLN `0.9.0-beta.3`. One manifest now feeds generated constants and direct build/script readers; exact commit/source, checksums, installed iOS files/slices, and Android AAR/ABIs verify. |
 | 2026-07-28 | Durable external signer | Verified | Both plugins use RLN `newWithStorage(storageDirPath)` before attachment, Dart owns signer handles transactionally, native storage is owner-only, and funded process-restart/channel-payment proofs pass on iOS and Android. |
 | 2026-07-28 | Restart proof | Verified | One run-scoped binary/APK is installed once per platform, settles both directions, orderly-shuts down RLN, crosses an OS-enforced process boundary, relaunches without reinstalling, proves unchanged storage plus stable node/channel identities, and settles both directions again. This is not an abrupt-crash/power-loss proof; TEST-007 retains that work. |
@@ -156,15 +220,15 @@ change whenever an issue is added or its priority/status changes.
 
 | Gate | Status | Exit condition |
 | --- | --- | --- |
-| G-01 Baseline and artifact pin | Failed: stale | One authoritative manifest pins RN/core/RLN versions, immutable sources, checksums, ABI/slices, installed files, and platform requirements |
-| G-02 Low-level bridge parity | Failed: revalidation required | Every current RN `NativeRgb` method and parameter exists on Dart, iOS, and Android; Pigeon regeneration is idempotent |
-| G-03 Public wallet contract | Failed | Canonical methods, capabilities, defaults, errors, and return models match the approved core/RN contract |
-| G-04 Durable lifecycle | Failed | Init/unlock/restart/shutdown/dispose are idempotent, retryable, race-safe, and restart-tested |
-| G-05 Threading and responsiveness | Failed | Blocking RLN work never runs on a platform/UI message thread |
-| G-06 Model integrity | Failed | Typed wire DTOs reject malformed required fields and preserve optionality, units, enums, and all fields |
-| G-07 Security | Failed | Signer persistence, secret lifetime, transport policy, crypto boundary, and error redaction are reviewed |
-| G-08 Packaging and supply chain | Failed | Clean consumer installs are deterministic and verified on supported platform/toolchain matrices |
-| G-09 Test evidence | Failed | Contract, native, restart, failure, funded/unfunded, and cross-platform tests pass on the exact release commit |
+| G-01 Baseline and artifact pin | Passed static/artifact gate | One authoritative manifest pins RN/core/RLN versions, immutable sources, checksums, ABI/slices, installed files, and platform requirements |
+| G-02 Low-level bridge parity | Partial: static pass plus smoke evidence; exhaustive native behavior pending | Every current RN `NativeRgb` method and parameter exists on Dart, iOS, and Android; Pigeon regeneration is idempotent |
+| G-03 Public wallet contract | Partial | Canonical methods, capabilities, defaults, errors, and return models match the approved core/RN contract |
+| G-04 Durable lifecycle | Partial | Dart facade now has a serialized lifecycle state machine, init/unlock coalescing, post-shutdown rejection, cleanup aggregation, and native detach cleanup; one shared facade owner plus full platform race/fault evidence remain open |
+| G-05 Threading and responsiveness | Passed current bridge-threading gate | Blocking RLN bridge calls run on generated background Pigeon queues; cancellation/long-call policy and deeper stress remain tracked separately |
+| G-06 Model integrity | Partial | Dart wire mappers now fail closed for high-risk required fields, preserve current RN optionality for core wallet state, and use a typed Pigeon JSON envelope at the platform boundary; per-response DTOs, numeric-boundary policy, docs, and platform fixtures remain open |
+| G-07 Security | Partial | Signer persistence, LSP transport policy, LSP diagnostic redaction, native bridge error taxonomy, best-effort secret lifetime minimization, official BIP340 vectors, tamper/boundary tests, and dependency vulnerability/license checks are reviewed; constant-time/vetted crypto implementation and broader platform failure evidence remain open |
+| G-08 Packaging and supply chain | Partial | Package metadata, privacy manifest bundling, Android release permission, version/toolchain constraints, `.pubignore`, internal-beta boundary, clean consumer archives, Android exact AAR verification, SBOM-style inventory, license classification, hosted Pub OSV audit, license-file inventory, and ABI-symbol markers are checked; pod lint, upstream production signatures/reproducible attestations, and production artifact policy remain open |
+| G-09 Test evidence | Partial: local dirty-candidate runtime matrix passed | Contract, native, restart, failure, funded/unfunded, and cross-platform tests pass on the exact release commit |
 | G-10 Documentation | Failed | Public APIs, lifecycle, security boundary, support matrix, migration, and limitations are accurate |
 | G-11 Recovery | Accepted constraint | Local backup remains explicitly native-blocked; no recovery-ready/mainnet claim is allowed |
 | G-12 CI scope | Accepted constraint | Native builds and regtest smokes remain local-only, with mandatory signed/local release evidence |
@@ -173,7 +237,7 @@ change whenever an issue is added or its priority/status changes.
 
 ### Low-Level Bridge Remediation
 
-The seven beta.25 methods (`rlnRotateAddress`, `rlnSignMessage`,
+The seven originally missing low-level methods (`rlnRotateAddress`, `rlnSignMessage`,
 `rlnVerifyMessage`, `rlnInflate`, `rlnListTransactionsByTxid`,
 `rlnListTransfersByTxid`, and `rlnVssBackup`) now exist through Pigeon, Dart,
 Swift, and Kotlin. The four changed signatures now carry `reuseAddresses`,
@@ -184,16 +248,12 @@ This closes structural low-level parity, not behavioral release evidence.
 TEST-005 and TEST-008 retain the missing cross-platform method-family and
 malformed-response coverage.
 
-### Missing or Wrong High-Level Behavior
+### Remaining Missing or Wrong High-Level Behavior
 
 | Canonical API | Current behavior in RN | Flutter behavior |
 | --- | --- | --- |
-| `getLightningReceiveStatus(id)` | Returns canonical Lightning invoice status | Missing; old helper converts it into RGB transfer status |
-| `getLightningSendStatus(id)` | Returns canonical payment status or `null` | Missing; old helper converts it into RGB transfer status |
-| RGB send with `skipSync: true` | RN beta.25 accepts it but both native plugins discard it; RLN beta.3 has no request field | Rejected before native execution, which is the honest behavior |
-| `createLightningInvoice` | No arbitrary `paymentHash`; supports `descriptionHash` | Retains stale `paymentHash`; lacks `descriptionHash` |
-| `createHodlInvoice` | Supports `descriptionHash`; returns full `LightningInvoice` | Lacks field and returns reduced custom DTO |
-| `openChannel` | `withAnchors` defaults to `true` | Defaults to `false` |
+| RGB send with `skipSync: true` | RN accepts it but both native plugins discard it; current RLN has no request field | Rejected before native execution, which is the honest behavior |
+| `createHodlInvoice` | Supports `descriptionHash`; returns full `LightningInvoice` | Supports request metadata and returns richer custom DTO; native/LNURL vectors still missing |
 | `onchainSend` amount | Current RN requires caller-provided amount | Flutter silently falls back to decoded invoice assignment |
 
 ### Wrong Canonical Return Shapes
@@ -209,9 +269,9 @@ return core domain models; raw wire methods live below the wallet facade.
 | `listAssets` / `getAssetBalance` | Core asset models | Raw models; additive `*Core` variants are incomplete |
 | `blindReceive` / `witnessReceive` | Full `InvoiceReceiveData` | Raw invoice DTO; recipient optionality is lost |
 | `listTransactions` / `listTransfers` | Canonical transaction/transfer models | Raw models and lossy `toCore()` mappings |
-| `estimateFeeRate` | `{ feeRate }` | Bare `double` |
+| `estimateFeeRate` | `{ feeRate }` | Fixed to typed `RlnFeeRate`; scalar compatibility alias remains |
 | `listPayments` | `LightningPayment[]` | Raw `RlnPayment[]` |
-| `invoiceStatus` | Canonical status value | Wrapper object containing uppercased raw string |
+| `invoiceStatus` | Canonical status value | Wrapper object containing uppercased raw string; canonical `getLightningReceiveStatus` is fixed |
 | `getNodeInfo` | `LightningNodeInfo` | Raw, stale `RlnNodeInfo` |
 | `getNetworkInfo` | `LightningNetworkInfo` with `blockHeight` | Raw model with `height` |
 | `listPeers` / `listChannels` | Canonical domain models and units | Raw models, wrong optionality, `public` naming, sat/msat mismatch |
@@ -221,21 +281,15 @@ return core domain models; raw wire methods live below the wallet facade.
 ### Public Methods That Must Not Be Runtime Stubs
 
 Current core exposes unsupported platform groups through optional capability
-carriers. Flutter publicly declares methods and throws at runtime instead.
-
-`rotateColoredAddress`, `inflateBegin`, `inflateEnd`, `estimateFee(psbt)`,
-`payLightningInvoiceBegin`, `payLightningInvoiceEnd`,
-`getLightningSendFeeEstimate`, `onchainSendBegin`, `onchainSendEnd`,
-`getOnchainSendStatus`, `goOnline`, `createUtxosBegin`, `createUtxosEnd`,
-`sendBegin`, `sendEnd`, `sendBtcBegin`, `sendBtcEnd`, `signPsbt`,
-`configureVssBackup`, `disableVssAutoBackup`, `vssBackup`, and `vssBackupInfo`
-must be removed from the always-present facade or moved behind typed optional
-capabilities. `Object` parameters are not an acceptable placeholder contract.
+carriers. The always-present Flutter runtime stubs have been removed from the
+wallet facade; `psbt` and `beginEnd` are absent and capability flags are false.
+The remaining hardening work is to give those carriers stable typed Dart
+interfaces before any optional feature group is added.
 
 `createBackup` is different: the current RN facade still exposes it while both
 native paths throw, contradicting the current core contract. The approved
-project decision is to keep recovery explicitly native-blocked and make no
-recovery-ready claim until upstream supplies a real implementation.
+project decision is to keep recovery explicitly native-blocked, tested, and
+non-recovery-ready until upstream supplies a real implementation.
 
 ## Master Issue Ledger
 
@@ -243,120 +297,121 @@ recovery-ready claim until upstream supplies a real implementation.
 
 | ID | Pri | Status | Finding and evidence | Required outcome |
 | --- | --- | --- | --- | --- |
-| BASE-001 | P0 | Verified | Flutter now pins RN `1.0.0-beta.25`, core `1.0.0-beta.5`, and RLN `0.9.0-beta.3` from `tool/release_baseline.json`; generated Dart/Swift/Kotlin/shell/build consumers are current and exact native artifacts verify. | Keep baseline generation/drift checks and exact artifact verification mandatory whenever upstream changes. |
-| BASE-002 | P1 | Open | `pubspec`, podspec, and Android module versions are `0.1.0`, `0.0.1`, and `1.0-SNAPSHOT`. | Adopt one package version policy and verify all platform metadata from it. |
-| BASE-003 | P1 | Open | No `.fvmrc`; CI follows floating Flutter `stable`; local FVM commands can no-op. | Pin Flutter/Dart, assert versions at every gate, and test the oldest supported toolchain. |
+| BASE-001 | P0 | Verified | Flutter now pins RN `1.0.0-beta.26`, core `1.0.0-beta.6`, and RLN `0.10.0-beta.3` from `tool/release_baseline.json`; generated Dart/Swift/Kotlin/shell/build consumers are current and exact native artifacts verify. | Keep baseline generation/drift checks and exact artifact verification mandatory whenever upstream changes. |
+| BASE-002 | P1 | Verified | `pubspec.yaml`, `ios/rgb_sdk_flutter.podspec`, and `android/build.gradle.kts` now use package version `0.1.0`, and `tool/validate_release_package.dart` gates all three. | Keep platform metadata tied to the package version policy until a generated single-source version file is introduced. |
+| BASE-003 | P1 | Verified | `.fvmrc` now pins Flutter `3.41.9`, CI uses `flutter-version-file: .fvmrc` instead of floating `stable`, and release package validation gates both. | Test the oldest supported toolchain when the official release support window is selected. |
 | BASE-004 | P1 | Verified | Baseline metadata moved out of the alias-only parity manifest into `tool/release_baseline.json`, which pins exact RN/core/RLN source and artifact identities without a personal checkout path. | Keep the exact-commit validator and generated baseline as the only current-version authority. |
-| BASE-005 | P1 | Open | Current parity gate is absent from CI and fails against current RN dev. | Run a deterministic current-baseline contract gate wherever credentials permit; require it locally otherwise. |
-| BASE-006 | P2 | Open | RN, core, and native artifacts can contradict each other; current `createBackup` is one confirmed example. | Define precedence and record every approved divergence with an owner and test. |
+| BASE-005 | P1 | Verified | Current static parity gate runs locally and passes against RN dev `d5916c142077`; CI/native-smoke execution remains intentionally local-only under TEST-017. | Keep `RGB_SDK_RN_PATH=<exact-dev> dart run tool/validate_rn_parity.dart` mandatory for release evidence. |
+| BASE-006 | P2 | Verified | `doc/API_COMPATIBILITY_AND_DIVERGENCE.md` now defines native/core/RN/Flutter precedence and records approved divergences with owner, tracker row, evidence, and reversal trigger, including `createBackup`. `dart run tool/validate_release_governance.dart` gates the document. | Keep new divergences recorded before implementation and tied to a tracker row plus evidence. |
 | BASE-007 | P1 | Verified | The baseline generator emitted Dart that `dart format` changed, so CI's format step made the subsequent generated-drift check fail even when both started from generated output. | Generated Dart is now formatter-canonical; generate, `dart format --set-exit-if-changed`, and `--check` pass consecutively in CI order. |
+| BASE-008 | P1 | Verified | Upstream RN `dev` is `d5916c142077b501ffb86d028c457a9c21b60d59`, package `1.0.0-beta.26`, core `1.0.0-beta.6`, and RLN `0.10.0-beta.3`; Flutter now targets the same source/artifact baseline and verifies generated constants, installed iOS files, iOS archive, Android AAR, and static RN parity. | Rerun full native/platform release evidence on the exact clean candidate before making runtime parity claims. |
 
 ### Public and Native API
 
 | ID | Pri | Status | Finding and evidence | Required outcome |
 | --- | --- | --- | --- | --- |
-| API-001 | P1 | Open | All seven beta.25 low-level methods now exist through Dart/Pigeon/Swift/Kotlin, but not every method has independent iOS and Android behavioral coverage. | Add platform-equivalent success, failure, and malformed-response tests for the seven methods before treating implementation presence as behavior parity. |
-| API-002 | P1 | Open | `reuseAddresses`, signer storage, `descriptionHash`, and `assignmentKind` now traverse the generated bridge, but native request-field behavior is not fully covered on both platforms. | Add cross-platform request assertions and integration vectors for every changed field/default. |
-| API-003 | P1 | Open | Rotate, inflate, node-key sign, and node-key verify are implemented, but canonical return/error behavior lacks complete native and facade vectors. | Prove current native behavior and approved domain results on both platforms. |
-| API-004 | P1 | Open | Txid-filtered transaction and transfer APIs now exist at low and high levels; only local delegation/shape coverage exists. | Add native cross-platform semantics, empty-result, malformed-result, and `skipSync` vectors. |
-| API-005 | P1 | Open | `backupNow` now delegates to native VSS backup; the live RN validator still finds `getLightningReceiveStatus` and `getLightningSendStatus` missing from the public wallet contract. | Add canonical Lightning status APIs without retaining semantically wrong RGB-status aliases as the primary API. |
-| API-006 | P1 | Accepted constraint | RLN `0.9.0-beta.3` still has no RGB `skipSync` request field; RN beta.25 accepts and silently discards the value. | Keep Flutter fail-fast and its tests until upstream adds real support; never claim parity by ignoring the option. |
+| API-001 | P1 | Verified | Low-level beta.26 catch-up methods now have declared critical bridge vectors in `tool/test_matrix/bridge_behavior_vectors.json`; Dart delegation covers all 62 `RlnClient` calls, malformed wire decoding is covered, and Android/iOS native bridge suites cover unknown-node and request-boundary behavior for rotate/sign/verify, txid histories, invoice, RGB invoice, and inflate families. | Keep exact funded runtime behavior proof under API-032/TEST-002; any new low-level method must add a bridge-vector row before release. |
+| API-002 | P1 | Verified | `reuseAddresses`, signer storage path, `descriptionHash`, and `assignmentKind` are covered by Dart request delegation and mirrored Android/iOS invalid-request vectors; unknown `assignmentKind` fails before native node lookup on both platforms, and `lnInvoice` now validates request fields before node lookup. | Keep platform smokes tied to the exact release candidate; new request fields must be added to bridge vectors and native tests. |
+| API-003 | P1 | Verified | Rotate, inflate, node-key sign, and node-key verify now have Dart delegation, facade return-shape tests, malformed-wire tests where applicable, Android/iOS unknown-node vectors, and native numeric-boundary coverage for inflate. | Keep deeper funded semantic proofs under TEST-002; do not treat these bridge vectors as independent funds-flow evidence. |
+| API-004 | P1 | Verified | Txid-filtered transaction and transfer APIs have Dart request-shape coverage including `skipSync`, malformed list-response rejection, facade return-shape tests, and mirrored Android/iOS unknown-node operation-detail tests. | Keep exact-candidate funded/regtest history proof under TEST-002 before release. |
+| API-005 | P1 | Verified | `backupNow`, `getLightningReceiveStatus`, and `getLightningSendStatus` now exist on the public wallet facade and the live RN validator passes. | Keep canonical Lightning status APIs primary; old RGB-folding helpers remain compatibility-only until removed under API-016. |
+| API-006 | P1 | Accepted constraint | The current pinned RLN artifact still has no RGB `skipSync` request field; RN accepts and silently discards the value. | Keep Flutter fail-fast and its tests until upstream adds real support; never claim parity by ignoring the option. |
 | API-007 | P1 | Open | Canonical wallet names return raw models while incomplete `*Core` aliases carry intended domain shapes. | Make canonical APIs return canonical domain types; isolate raw bridge APIs. |
-| API-008 | P1 | Open | `onchainReceive` discards recipient ID, expiry, and batch transfer index. | Preserve the full native response. |
-| API-009 | P1 | Open | `estimateFeeRate` returns a scalar instead of the shared response object. | Match the approved domain contract. |
+| API-008 | P1 | Verified | `onchainReceive` now preserves invoice, recipient ID, expiration timestamp, and batch transfer index through `OnchainReceiveResponse.fromRln`; the wallet contract test asserts every field. | Add native response-field assertions under TEST-005 before claiming full platform behavior coverage. |
+| API-009 | P1 | Verified | Canonical `estimateFeeRate` now returns `RlnFeeRate`; the old scalar is isolated behind `estimateFeeRateValue`, and the wallet matrix plus unit test cover both. | Migrate callers to the typed response and deprecate the scalar alias under the public API policy. |
 | API-010 | P1 | Open | Lightning payment, node, network, channel, peer, keysend, and decode methods return wire shapes. | Add explicit wire-to-domain mappers equivalent to current RN mappings. |
-| API-011 | P1 | Open | Current Lightning receive/send helpers return RGB transfer statuses. | Expose Lightning status vocabularies without cross-domain conversion. |
-| API-012 | P1 | Open | `createLightningInvoice` retains removed `paymentHash` and lacks `descriptionHash`; HODL output is incomplete. | Match current narrowed invoice/HODL contracts and add LNURL metadata tests. |
-| API-013 | P1 | Open | `openChannel` defaults `withAnchors` to false; current RN defaults true. | Align the default and add a native request assertion. |
+| API-011 | P1 | Verified | Public canonical Lightning status methods now return normalized RLN Lightning vocabularies (`Pending`, `Claimable`, `Succeeded`, etc.); compatibility RGB-transfer folding helpers are no longer primary. | Remove/deprecate the old compatibility helpers under API-016 after migration. |
+| API-012 | P1 | Verified | `createLightningInvoice`/`rlnLnInvoice` supports `descriptionHash` and CLTV fields through Dart/Pigeon/Swift/Kotlin, now validates request fields before node lookup on both platforms, and is included in the critical bridge-vector manifest. HODL facade metadata remains covered by wallet tests. | Keep service-level LNURL/HODL settlement behavior under TEST-006; bridge request/shape parity for this method is verified. |
+| API-013 | P1 | Verified | `openChannel` now defaults `withAnchors` to true and the facade unit test asserts the native request field. | Add native platform request assertions under API-002/TEST-005. |
 | API-014 | P2 | Open | `onchainSend` amount fallback differs from current RN and is undocumented. | Choose one contract, validate explicitly, and add cross-SDK vectors. |
-| API-015 | P1 | Open | Unsupported methods are always-present runtime throws with `Object` inputs. | Remove them or expose typed optional capability carriers. |
+| API-015 | P1 | Verified | Always-present wallet facade stubs for PSBT/begin-end/bridge-only/service-only methods were removed; callers now see absent `psbt`/`beginEnd` carriers and false capability flags instead of callable `Object`-typed throwers. | Keep `createBackup` as the explicit accepted native-blocked exception under API-019. |
 | API-016 | P2 | Open | `getXpub`, generic `send`, old status aliases, and several bridge helpers are stale RN-era surface. | Remove/deprecate after a migration inventory; do not advertise as parity. |
-| API-017 | P2 | Needs decision | High-level CFA/UDA issuance is a Flutter extension absent from current RN wallet. | Classify as supported Flutter extension, move to advanced API, or remove. |
+| API-017 | P2 | Verified | High-level CFA/UDA issuance was a Flutter extension absent from current RN wallet. `UtexoWallet.issueAssetCfa` and `UtexoWallet.issueAssetUda` were removed from the stable wallet facade and the wallet method matrix. | Keep CFA/UDA issuance at the low-level RN-parity `RlnClient`/`RLNBinding` layer unless RN adds wallet-level methods. |
 | API-018 | P2 | Open | Package-level sign/verify uses derived BIP86 account keys while wallet sign/verify uses the node key upstream; names invite substitution. | Separate names/contracts and document key identity unambiguously. |
-| API-019 | P1 | Open | `createBackup` is exposed as working although both current RN native implementations are blocked. | Keep the call explicitly unavailable and forbid recovery/mainnet readiness claims. |
-| API-020 | P2 | Open | There is no stable/experimental/advanced API boundary or deprecation policy. | Publish a versioned API policy and snapshot the intended public surface. |
-| API-021 | P1 | Open | Exported defaults drift from core: API timeout is 30 seconds instead of 120; log level is string `info` instead of `LogLevel.ERROR` and cannot be passed to `configureLogging`. | Generate typed constants from the approved core contract and add compile/runtime parity vectors. |
-| API-022 | P1 | Open | Mainnet/testnet/testnet4/regtest indexer defaults are stale and can connect callers to different infrastructure; current regtest default is local Esplora on port 3002. | Align endpoints deliberately and test resolved unlock requests per network. |
-| API-023 | P1 | Open | Network handling adds unsupported `signet_custom`, lowercases values that core treats exactly, and maps numeric `0`/`3` incorrectly in `toNetworkName`. | Implement one strict network parser with exhaustive string/numeric vectors; do not copy the upstream numeric heuristic bug. |
-| API-024 | P1 | Open | Removed RN exports remain public: `RNSigner`, PSBT helpers, UTEXO bridge/network maps, `getBridgeAPI`, `TransferStatuses`, and `encodeTransferStatus`; the latter returns only the first UTF-8 byte. | Remove or quarantine obsolete exports; never represent a status with the first byte of its label. |
-| API-025 | P1 | Open | Legacy `FetchClient`/bridge helpers have no timeout or close contract, stringify missing required fields as `"null"`, and swallow every transfer lookup error as not-found. | Remove with the obsolete bridge surface or rebuild with typed results, ownership, timeout, and error semantics. |
+| API-019 | P1 | Accepted constraint | `createBackup` is now explicitly native-blocked and tested to throw without invoking native backup; recovery/mainnet readiness remains forbidden until upstream supplies a real implementation. | Preserve this boundary until native recovery is implemented and independently proven. |
+| API-020 | P2 | Verified | `doc/API_COMPATIBILITY_AND_DIVERGENCE.md` now defines stable facade, advanced parity, compatibility shim, unsupported/native-blocked, and internal tiers; it also defines deprecation and breaking-change rules. `tool/api_snapshot.json` plus `dart run tool/validate_api_snapshot.dart` gate the current exported Dart, Pigeon, generated bridge, and native bridge surface. | Update the snapshot and migration note in the same change as any intentional public API or bridge-surface change. |
+| API-021 | P1 | Verified | Exported core defaults now match beta.6 for API timeout (`120000`) and default log level (`3`, ERROR); the utility/defaults test asserts both values. | Replace raw integer log-level export with a richer typed compatibility layer under API-026/API-029 if the public API policy requires it. |
+| API-022 | P1 | Verified | Default transport/indexer endpoints now match current core beta.6, including local regtest Esplora `http://127.0.0.1:3002`; unlock resolution trims blank caller fields before applying defaults. | Keep resolved unlock request vectors current whenever core defaults change. |
+| API-023 | P1 | Verified | SDK network validation now uses exact core network names, rejects native-only `signet_custom`, preserves numeric aliases for `0`/`1`/`2`/`3`, and maps native `utexo` to RLN `signet` only at the native-boundary helper. | Keep any future native-only networks out of SDK-facing validation unless product explicitly supports them. |
+| API-024 | P1 | Open | Removed RN exports remain public: `RNSigner`, PSBT helpers, UTEXO bridge/network maps, `getBridgeAPI`, and `TransferStatuses`; `encodeTransferStatus` no longer returns the first UTF-8 byte and now validates known status indexes. | Remove or quarantine obsolete exports under the public API policy. |
+| API-025 | P1 | Verified | Legacy `FetchClient`/bridge helpers now expose timeout and close ownership, require string fields instead of stringifying missing data as `"null"`, and only treat HTTP 404 transfer lookup as not-found. | Quarantine or deprecate the whole obsolete bridge surface under API-024/CODE-001. |
 | API-026 | P2 | Open | Core-compatible error aliases do not match core shape (`statusCode`, stable code constructors, and serialization are missing). | Define a Dart-native but semantically equivalent error contract and compatibility tests. |
-| API-027 | P2 | Open | Current runtime export `LspLiquidityTimeoutError` is unmapped while the manifest still lists multiple exports removed from RN. | Regenerate and review the runtime export inventory from current source. |
-| API-028 | P1 | Open | Old-artifact `listTransfers()` fallback lists known assets one by one, so it can omit no-asset transfers and return duplicates. | Remove after artifact upgrade or make aggregation complete and deduplicated with fixtures. |
-| API-029 | P2 | Open | High-level input shapes have no approved Dart adaptation map: lifecycle credentials, skip-sync exposure, flexible Lightning aliases, on-chain requests, and raw request DTOs differ from RN/core. | Specify each intentional Dart-shaped signature and test semantic equivalence field by field. |
-| API-030 | P1 | Open | External-signer unlock accepts `gossipRgsServerUrl` through Dart and Pigeon, but both native plugins discard it because the underlying signer unlock has no such parameter. | Remove or explicitly reject the option for this signer mode, or obtain upstream support; never silently accept a no-op configuration. |
-| API-031 | P1 | Open | `UtexoWallet` has no current `capabilities`, `psbt`, or `beginEnd` carrier contract, so unsupported features remain callable runtime throws instead of compile-time absence. | Implement typed optional carriers and derive capability flags from carrier presence so declarations cannot drift from behavior. |
-| API-032 | P1 | Open | RLN beta.3 rejects RGB UTXO creation and asset issuance in external-signer mode, but the public wallet exposes both without a signer-mode capability or compile-time boundary. Funded restart execution discovered the restriction only at runtime. | Model signer-mode capabilities explicitly, document the native restriction, and make unsupported RGB UTXO/issuance operations unavailable before a native call; use the upstream trusted virtual BTC-channel regression to prove external-signer persistence. |
+| API-027 | P2 | Verified | Runtime export inventory was refreshed against RN beta.26; new UMA helpers/constants are mapped and `validate_rn_parity` passes the runtime export gate. | Keep export validation tied to the exact RN source baseline. |
+| API-028 | P1 | Open | Old-artifact `listTransfers()` fallback now deduplicates known-asset results, but the pinned native artifact can still omit no-asset transfers when unfiltered listing is rejected. | Remove after artifact upgrade or add a native complete unfiltered transfer API with fixtures. |
+| API-029 | P2 | Verified | `doc/API_COMPATIBILITY_AND_DIVERGENCE.md` now records the approved Dart adaptation map for lifecycle credentials, network/default resolution, `sendRgb(skipSync)`, Lightning aliases, on-chain request DTOs, and raw bridge DTOs, with linked tracker rows and executable evidence references. | Keep field-level implementation and native behavior gaps tracked under the owning API/model/test rows; new Dart-shaped signatures must extend the adaptation map before shipping. |
+| API-030 | P1 | Verified | `resolveUnlockConfig` now rejects non-empty `gossipRgsServerUrl` with `UnsupportedWalletFeatureException` before either password or native-external signer unlock can reach the native no-op field. | Keep this fail-fast divergence until the pinned native RLN signer unlock APIs support the option end to end. |
+| API-031 | P1 | Verified | `UtexoWallet` now exposes typed `PsbtWalletCarrier?` and `BeginEndWalletCarrier?` slots, and capability flags are derived from carrier presence so declarations cannot drift from behavior. | Keep future optional feature groups carrier-backed rather than adding standalone booleans. |
+| API-032 | P1 | Open | External-signer wallets now expose false RGB UTXO/issuance capabilities and fail fast before native calls, but the current beta.26 worktree still lacks fresh platform-smoke evidence for the approved trusted virtual BTC-channel external-signer regression. | Rerun the upstream trusted virtual BTC-channel regression on the exact candidate and attach evidence before verifying this row. |
 
 ### Models, Serialization, and Numeric Correctness
 
 | ID | Pri | Status | Finding and evidence | Required outcome |
 | --- | --- | --- | --- | --- |
-| MODEL-001 | P1 | Open | Pigeon uses `Map<Object?, Object?>` and `Object?` for most responses and issuance. | Define typed Pigeon DTOs or a generated strict wire schema for every response. |
-| MODEL-002 | P1 | Open | Required fields silently become `''`, `0`, `false`, empty maps, or empty lists in `rln_models.dart`. | Reject malformed required data with typed protocol errors. |
-| MODEL-003 | P1 | Open | Missing models include assignment kind, rotate/sign/verify/inflate responses, and `pendingBlinded`. | Add exact current wire types and generated shape tests. |
-| MODEL-004 | P1 | Open | `RlnNodeInfo` retains removed fields/xpubs and turns current optional metrics into required zeroes. | Match current wire optionality and map separately to the domain model. |
-| MODEL-005 | P1 | Open | Media fields are nullable in Flutter but required in current wire; asset off-chain balances have the inverse error. | Preserve exact nullability at the wire boundary. |
-| MODEL-006 | P1 | Open | Transaction fields/types are stale; current `SEND_BTC` and `INCOMING` can collapse to `User`. | Model every current enum case and reject unknown values at the appropriate boundary. |
-| MODEL-007 | P1 | Open | Transfer optionality is lost; statuses omit `WaitingSafeHeight`/`Initiated`; kind omits `Burn`. | Update transfer DTOs and canonical enum mapping without silent fallback. |
-| MODEL-008 | P1 | Open | `RlnUnspent.toCore()` drops `pendingBlinded`; current field is absent entirely. | Preserve the field end to end. |
-| MODEL-009 | P1 | Open | Payment type/status values are uppercased to a vocabulary that differs from current RN/core PascalCase. | Centralize generated enum normalization and add iOS/Android fixtures. |
-| MODEL-010 | P1 | Open | Channel wire optionals become required defaults; canonical mapper and sat-to-msat conversion are absent. | Preserve wire optionality and return canonical `LightningChannel`. |
-| MODEL-011 | P1 | Open | Invoice `recipientId` is optional upstream but becomes an empty required string. | Preserve nullability and validate only where a workflow requires it. |
-| MODEL-012 | P1 | Open | Core transfer mapper hard-codes `batchTransferIdx: 0` and silently substitutes status/kind defaults. | Preserve real values or fail; never invent transaction state. |
-| MODEL-013 | P1 | Open | Outpoint/assignment parsing uses permissive regex/string fallbacks and fabricates `vout: 0`. | Use structured native fields or strict parsers with typed failure. |
-| MODEL-014 | P1 | Open | Fee rates are `double` with default `1.5`, then truncated to native `UInt64` (`1`) on both platforms. | Use an integral type or reject fractions; add exact conversion vectors. |
-| MODEL-015 | P2 | Open | Pigeon signed `Int64` cannot represent the full native `UInt64` range; Android sometimes serializes large outputs as strings. | Define supported numeric ranges and one cross-platform large-integer representation. |
+| MODEL-001 | P1 | Verified | Generated Pigeon response methods now return a typed `RlnWireResponse` JSON envelope, issue methods no longer expose broad response maps, Dart decoding rejects malformed JSON and non-object roots with `NativeProtocolException`, and RN parity validation forbids broad response maps at the Pigeon boundary while preserving public semantic return categories. | Per-response generated DTO classes are intentionally not claimed; keep strict domain decoders and platform fixtures under MODEL-015/TEST-005/TEST-008. |
+| MODEL-002 | P1 | Verified | `rln_models.dart` now throws `NativeProtocolException` for missing/malformed required strings, integers, finite numbers, booleans, maps, and lists instead of returning empty strings, zeroes, false, or empty maps. | Extend this strict reader into generated Pigeon DTOs under MODEL-001; keep malformed-field tests for every high-risk mapper. |
+| MODEL-003 | P1 | Verified | Assignment kind, rotate/sign/verify/inflate response models, and `RlnUnspent.pendingBlinded` are represented and covered by facade/model tests. | Add platform fixture coverage under TEST-005/TEST-008 before claiming native behavior parity. |
+| MODEL-004 | P1 | Verified | `RlnNodeInfo` now preserves current RN optionality for removed/optional metrics and no longer fabricates optional node metrics as zero. | Move xpub compatibility fields behind a migration boundary under API-016/CODE-001. |
+| MODEL-005 | P1 | Verified | `RlnMedia` now requires `filePath`, `digest`, and `mime`; `RlnAssetBalance` keeps off-chain amounts optional-at-wire with explicit `0` domain defaults matching RN/core mapping. | Add fixture vectors for both camelCase and native platform spellings if upstream introduces them. |
+| MODEL-006 | P1 | Verified | Current transaction cases `RGB_SEND`, `DRAIN`, `CREATE_UTXOS`, `SEND_BTC`, and `INCOMING` map to canonical core names, and unknown transaction types throw `NativeProtocolException` instead of collapsing to `User`. | Add native platform fixtures for every transaction case. |
+| MODEL-007 | P1 | Verified | Transfer optionality is preserved for created/updated times and transport endpoints, and core mapping accepts `WaitingSafeHeight`, `Initiated`, and `Burn` while rejecting unknown status/kind values. | Add native platform fixtures for every transfer status/kind. |
+| MODEL-008 | P1 | Verified | `RlnUnspent.pendingBlinded` is decoded and preserved through `RlnUnspent.toCore()`. | Keep this in platform smoke assertions once RGB receive flows are covered. |
+| MODEL-009 | P1 | Verified | Lightning payment type/status mapping now returns canonical PascalCase values for payment APIs instead of uppercasing to wire-only vocabulary; invoice wire status stays uppercase until normalized by public helpers. | Add iOS/Android payment fixture vectors for every status/type. |
+| MODEL-010 | P1 | Verified | `LightningChannel` now models the RN/core channel contract, `RlnChannel.toLightningChannel()` maps `public` to `isPublic`, normalizes channel status, preserves optional channel fields, and converts `localBalanceSat` to `localBalanceMsat`; `UtexoWallet.listLightningChannels()` and unit coverage exercise the mapper. | Add native platform channel fixtures under TEST-005/TEST-008 before claiming runtime behavior parity. |
+| MODEL-011 | P1 | Verified | `RlnInvoice.recipientId` and `CoreInvoiceReceiveData.recipientId` now preserve upstream optionality instead of becoming an empty required string. | Validate recipient ID only in workflows that require it. |
+| MODEL-012 | P1 | Verified | Core transfer mapping no longer hard-codes `batchTransferIdx: 0` and no longer substitutes fallback status/kind values; optional values remain nullable and unknown state throws. | Add native vectors to prove the current transfer shape on both platforms. |
+| MODEL-013 | P1 | Verified | Outpoint parsing now requires `<txid>:<vout>` with a non-negative integer vout, and assignment parsing only accepts supported assignment shapes plus the RN/core numeric fungible shorthand. | Add fuzz/property tests for parser boundaries under TEST-009. |
+| MODEL-014 | P1 | Verified | Facade fee-rate defaults are now integer-equivalent (`1`), Dart validation rejects fractional rates, Swift/Kotlin bridge validation rejects fractional rates before node lookup, and Dart plus Android JVM tests prove `1.5` fails instead of truncating. | Add the matching iOS XCTest run on the next local iOS bridge pass. |
+| MODEL-015 | P2 | Verified | `doc/BRIDGE_BEHAVIOR_CONTRACT.md`, `bridge_behavior_vectors.json`, and `rln_models.dart` now define the Pigeon numeric contract: request integers are bounded to signed `Int64` over Pigeon, narrower unsigned fields are rejected natively before mutation, native unsigned outputs may arrive as decimal strings, Dart models parse decimal strings through signed `Int64.max`, and out-of-range values throw `NativeProtocolException` rather than fabricating `0`/`null`. | Introduce an explicit BigInt/string domain type in a future breaking API only if native/RN exposes values that exceed signed `Int64` in real release fixtures. |
 | MODEL-016 | P2 | Open | Timestamp and amount units are not consistently documented on public Dart models. | Document and test seconds/msat/sat semantics at every boundary. |
 
 ### Lifecycle, Threading, and Architecture
 
 | ID | Pri | Status | Finding and evidence | Required outcome |
 | --- | --- | --- | --- | --- |
-| LIFE-001 | P1 | Open | Pigeon HostApi handlers are synchronous; generated Swift/Kotlin handlers call RLN directly on message/platform threads. | Move every blocking native call to an owned background task queue and return asynchronously. |
-| LIFE-002 | P1 | Open | Native readiness probes call `Thread.sleep`/`usleep` in those synchronous handlers. | Replace blocking polling with cancellable asynchronous coordination. |
-| LIFE-003 | P1 | Open | `UtexoWallet.init()` is not idempotent/retry-safe; concurrent calls can repeat signer initialization or leave partial state. | Implement and test an explicit lifecycle state machine with in-flight operation coalescing. |
+| LIFE-001 | P1 | Verified | Every Pigeon HostApi method is annotated with `TaskQueueType.serialBackgroundThread`; regenerated Kotlin uses `binaryMessenger.makeBackgroundTaskQueue()`, regenerated Swift uses `makeBackgroundTaskQueue`, and Android/iOS native bridge suites pass with the regenerated source. | Keep Pigeon drift checks mandatory; typed DTO replacement remains separate under MODEL-001. |
+| LIFE-002 | P1 | Verified | Native readiness checks no longer call `Thread.sleep` or `usleep`; Android and iOS now use a single non-blocking `nodeInfo` readiness check under the background Pigeon queue, and source scan plus native bridge suites confirm the change. | Add cancellation/timeout policy for long RLN calls under LIFE-011. |
+| LIFE-003 | P1 | Verified | `UtexoWallet` now serializes lifecycle mutations and coalesces concurrent `init()`/`unlock()` calls; tests prove duplicate calls create/init/unlock only once and failed signer init remains retryable. | Extend the same guarantees to native platform stress tests under TEST-007. |
 | LIFE-004 | P1 | Open | `UtexoWallet` bypasses `RLNBinding`'s queue and calls `RlnClient` directly. | Establish one lifecycle/concurrency owner and route all facade calls through it. |
 | LIFE-005 | P1 | Open | `_requireNode()` checks handle/disposed only, so many operations run before init/unlock or after shutdown. | Encode required state per operation and fail deterministically before native calls. |
-| LIFE-006 | P1 | Open | Successful `shutdown()` leaves node ID and initialized state active while direct operations remain callable. | Represent shutdown explicitly and permit only documented restart/destroy operations. |
+| LIFE-006 | P1 | Verified | `shutdown()` now enters an explicit `shutDown` state; `isInitialized`/`isUnlocked` become false, regular operations and `nodeId` fail until `reinit()`, and tests prove restart after shutdown works. | Add native hot-restart/detach coverage under LIFE-009/TEST-007. |
 | LIFE-007 | P1 | Open | `reinit()` suppresses shutdown failure and recreates against the same storage path/handle, risking conflicts and partial state. | Make restart transactional and prove recovery after every failure point. |
-| LIFE-008 | P1 | Open | `destroy()` suppresses shutdown/signer failures and can lose diagnostics or leave partial native resources. | Aggregate cleanup errors, make disposal idempotent, and verify final native store state. |
-| LIFE-009 | P1 | Open | Android detach unregisters Pigeon only; iOS has no detach cleanup; global stores retain nodes/signers. | Close all engine-owned nodes/signers on detach and hot restart. |
+| LIFE-008 | P1 | Open | `destroy()` now aggregates shutdown, signer, and node-destroy errors and is idempotent at the Dart facade, but final native store/handle cleanup is still not proven by platform fault-injection tests. | Add native cleanup/failure-injection tests and verify final node/signer store state on iOS and Android. |
+| LIFE-009 | P1 | Verified | Android and iOS detach now unregister generated Pigeon APIs and clear engine-owned native node/signer stores; same-storage restart after shutdown uses deterministic created-state replacement, and Android/iOS native bridge suites plus store-level tests pass on the current candidate. | Keep crash/restart, cancellation, and fault-injection store checks under LIFE-007/LIFE-008/TEST-007. |
 | LIFE-010 | P1 | Open | iOS replaces a shutdown node without closing it; both stores mark the replacement initialized before its init phase. | Correct ownership/state transitions and add same-path restart tests. |
 | LIFE-011 | P2 | Open | Native operations have no uniform timeout/cancellation semantics. | Define cancellation and timeout policy for sync, unlock, network, channel, and send operations. |
 | LIFE-012 | P2 | Open | `UtexoWallet` (1595 lines), native plugins (1200+), binding (865), and models (994) combine unrelated domains. | Split by lifecycle, Bitcoin, RGB, Lightning, LSP, mapping, and bridge responsibilities. |
 | LIFE-013 | P2 | Open | Platform-interface/method-channel classes cover only artifact metadata while all real work bypasses them via Pigeon. | Simplify to one plugin abstraction or make platform substitution complete. |
-| LIFE-014 | P1 | Open | Native init/unlock treats any error text containing `"conflict"` as prior success; init can then return an empty pubkey and mark the node initialized. | Use typed native error categories and prove actual state before transition; never turn an unknown conflict into empty-success. |
-| LIFE-015 | P1 | Open | External-signer creation assigns the handle before init/attach completes. A failure can leak the old handle, overwrite it on retry, or skip a required attach on the next unlock. | Make signer creation/attach transactional, destroy failed handles, and test every retry/failure boundary. |
+| LIFE-014 | P1 | Verified | Native init/unlock no longer treats message text containing `"conflict"` as success, and init no longer returns an empty pubkey after a failed native init. The platform state machines either validate already-unlocked readiness or throw the original bridge error. | Add fault-injection restart/platform stress coverage under LIFE-007/TEST-007. |
+| LIFE-015 | P1 | Verified | Native external signer creation/attach is transactional in Dart: handles are assigned only after successful init/attach, failed temporary handles are destroyed, orphan cleanup blocks reuse until resolved, and retry/failure tests cover both init and cold attach paths. | Keep platform-level leak checks under LIFE-009/TEST-007. |
 
 ### LSP and Network Behavior
 
 | ID | Pri | Status | Finding and evidence | Required outcome |
 | --- | --- | --- | --- | --- |
-| LSP-001 | P1 | Open | Flutter keeps a duplicated pre-beta.25 LSP implementation; current RN re-exports the canonical core implementation. | Port the current core contract/behavior and remove duplicate drift. |
-| LSP-002 | P1 | Open | Callback rewrite replaces scheme/host/port but drops a configured base URL path prefix. | Rebase callback paths exactly like current core and add proxy-prefix tests. |
-| LSP-003 | P1 | Open | `payAddress` catches every configured-client error and falls back, masking auth, TLS, server, and parse failures. | Fall back only for an explicit unsupported/not-found case. |
-| LSP-004 | P1 | Open | Fallback HTTP bypasses the injected client, has no timeout/status checks, and follows untrusted callback schemes. | Use one owned client, enforce timeout/status/HTTPS policy, and validate callback hosts. |
-| LSP-005 | P1 | Open | `claimPendingPayments` substitutes an empty preimage and attempts a claim. | Skip/report missing preimages without making the native call. |
-| LSP-006 | P1 | Open | Old status helpers collapse Lightning states into RGB transfer states, breaking settlement semantics. | Use canonical Lightning status methods and types. |
-| LSP-007 | P2 | Open | Polling uses wall-clock time and accepts invalid timeout/poll values. | Use a monotonic clock, validate options, and inject time/sleep for deterministic tests. |
-| LSP-008 | P2 | Open | Peer-connect idempotence is detected by substring matching `"already"`. | Map a typed native conflict/already-connected error. |
-| LSP-009 | P2 | Open | Injected HTTP client ownership is undocumented and the client is always closed by the SDK. | Make ownership explicit or track whether the SDK created the client. |
+| LSP-001 | P1 | Verified | The Dart LSP implementation was reconciled with current core beta.6 behavior for routing, callback rebasing, status polling, APay, claim handling, and HTTP policy while keeping a Flutter-native injectable client. | Avoid future manual drift by comparing against core source whenever RN/core changes. |
+| LSP-002 | P1 | Verified | Callback rewrite now strips absolute callback URLs to path/query/fragment so requests rebase through `baseUrl` and preserve proxy path prefixes; the LSP HTTP policy test asserts `/lsp/pay/callback/...`. | Keep proxy-prefix coverage in package tests. |
+| LSP-003 | P1 | Verified | `payAddress` now routes by address host: same-LSP addresses use the authenticated LSP client and do not fall back on auth/server errors; foreign addresses use LNURL discovery directly. | Add native/regtest LSP failure vectors before release evidence claims runtime parity. |
+| LSP-004 | P1 | Verified | Foreign LNURL fallback now goes through `IUtexoLspClient.resolveExternalAddress`, sharing the same injected HTTP client, timeout handling, status checks, body parsing, and HTTPS/loopback policy. | Keep raw HTTP out of high-level LSP orchestration. |
+| LSP-005 | P1 | Verified | `claimPendingPayments` now reports missing preimages and skips the native `claimHodlInvoice` call instead of substituting an empty string; the unit test proves no native claim is recorded. | Add native fixture coverage for claimable payments with/without preimages. |
+| LSP-006 | P1 | Verified | Settlement polling now calls `getLightningReceiveStatus` and normalizes Lightning invoice states instead of using RGB transfer-status compatibility helpers. | Remove stale status helpers under API-016. |
+| LSP-007 | P2 | Verified | LSP polling and sleep now use `Stopwatch` monotonic elapsed time; timeout and poll interval inputs are validated before polling. | Add injectable time/sleep only if deterministic virtual-time tests become necessary. |
+| LSP-008 | P2 | Verified | Peer-connect idempotence now accepts only typed `ConflictError`/`CONFLICT` errors; the Group 3 wallet test proves typed conflicts are swallowed and an untyped `StateError('already connected')` is rethrown instead of substring-matched. | Keep native bridge conflict mapping centralized in `native_bridge_error_mapper.dart`; do not reintroduce service-level substring matching. |
+| LSP-009 | P2 | Verified | `UtexoLspClient` now tracks HTTP client ownership: SDK-created clients are closed, injected `http.Client`s are not; the public integration/security guide documents the contract. | Keep `IUtexoLspClient` lifecycle ownership explicit for future adapters. |
 
 ### Security and Cryptography
 
 | ID | Pri | Status | Finding and evidence | Required outcome |
 | --- | --- | --- | --- | --- |
 | SEC-001 | P0 | Verified | The former ephemeral VLS signer path was replaced with `newWithStorage(storageDirPath)` and transactional handle ownership. | Disk-backed signer creation and funded restart/channel-payment tests pass on both platforms. |
-| SEC-002 | P1 | Open | Password, mnemonic, seed bytes, and seed hex are retained in immutable Dart objects; external signer keeps `_seedHex` for its lifetime. | Minimize lifetime/copies, use zeroizable buffers where possible, and document unavoidable runtime limits. |
-| SEC-003 | P1 | Open | Native failures surface as raw `PlatformException`; exported typed SDK errors are not used for bridge failures. | Centralize stable domain error mapping with category, operation, retryability, and cause. |
-| SEC-004 | P1 | Open | Error text/details have no redaction policy; generated fallback errors include stack traces and native messages. | Redact secrets/paths/tokens and test support-safe serialization. |
-| SEC-005 | P1 | Open | `LspError` stores and prints unbounded response bodies. | Bound and redact response previews; preserve full bodies only in opt-in secure diagnostics. |
-| SEC-006 | P1 | Open | LSP/VSS HTTP can be enabled without a production transport policy. | Require TLS outside explicit regtest/development configuration. |
-| SEC-007 | P1 | Open | BIP340/Schnorr is hand-rolled over PointyCastle without an audited constant-time signing boundary or differential suite. | Use a vetted implementation/native primitive and run official/differential known-answer tests. |
-| SEC-008 | P2 | Open | No dependency vulnerability, license, binary provenance, or secret-log scan is a release gate. | Add reproducible audits and store results with the release evidence. |
+| SEC-002 | P1 | Verified | SDK-owned seed/private-key byte buffers are wiped after derivation/signing where Dart allows it; `NativeExternalRlnSigner` consumes seed hex immediately after native signer handoff so retries require a fresh signer; `PasswordRlnSigner` clears password/mnemonic references after unlock and accepts explicit password refresh for future sessions; docs state that strings, BIP32 internals, VM copies, and app-owned storage cannot be reliably zeroized by this package. | Keep secret-bearing strings out of logs/reports and consider native/keychain-backed secret handles if app requirements demand stronger zeroization than Dart can provide. |
+| SEC-003 | P1 | Verified | `RlnClient` now maps every Pigeon `PlatformException` through a centralized native bridge mapper into typed SDK errors with operation, native code, details, and retryability in `NativeBridgeFailure`; unit tests cover direct mapping and wallet fallback behavior. | Extend redaction and taxonomy as new native error categories appear. |
+| SEC-004 | P1 | Verified | LSP support-safe diagnostics now redact bearer tokens, common credential fields, preimages, seed hex/long hex material, and oversized previews; tests assert secret text is absent from `LspError.toString()`. | Extend the same redaction layer to native `PlatformException` mapping under SEC-003. |
+| SEC-005 | P1 | Verified | `LspError` response previews are bounded to 512 characters and redacted before exception display; full bodies are not preserved in public exceptions. | Add opt-in secure diagnostics only with explicit app consent. |
+| SEC-006 | P1 | Verified | LSP/LNURL HTTP rejects non-loopback plain HTTP before requests are sent; HTTPS and explicit loopback development hosts remain allowed. | Apply the same transport policy to VSS/client APIs that still accept URLs. |
+| SEC-007 | P1 | Open | BIP340/Schnorr now passes official signing/verification vectors plus Group 3 tamper and scalar/byte-length boundary tests, but the implementation is still hand-rolled over PointyCastle without audited constant-time signing, a vetted native primitive, or a formal crypto review. | Use a vetted implementation/native primitive or complete a formal constant-time/differential/property review before production funds. |
+| SEC-008 | P2 | Verified | `tool/validate_supply_chain.dart` now performs fail-closed hosted Pub OSV vulnerability checks and deterministic license classification in addition to secret-pattern scanning, SBOM-style dependency inventory, pinned artifact provenance status, and ABI-symbol gates; the Group 3 report has 55 accepted license entries, 0 unknown/rejected, 52 hosted Pub queries, and 0 vulnerable packages. | Keep OSV/license results attached to every release-candidate evidence bundle; upstream artifact signatures/reproducibility remain tracked separately under PKG-006. |
 | SEC-009 | P2 | Accepted constraint | Durable credential storage is app-owned, not SDK-owned. | Document the boundary; SDK still owns in-memory minimization and must never persist credentials implicitly. |
-| SEC-010 | P1 | Open | `RlnSeedBytesKeyMaterial` retains the caller's mutable `Uint8List` by reference, allowing key material to change after construction and leaving ownership/zeroization ambiguous. | Copy into an owned zeroizable representation and define destruction semantics. |
+| SEC-010 | P1 | Verified | `RlnSeedBytesKeyMaterial` now defensively copies caller-provided `Uint8List` material and returns copies from its getter; tests prove caller mutation cannot change the derived seed. | Zeroization remains part of broader secret-lifetime work under SEC-002. |
 | SEC-011 | P0 | Verified | Native node creation could leave a newly created storage root with group/other permissions, after which RLN correctly rejected `newWithStorage` and durable external-signer initialization could not start. | Both plugins now enforce owner-only storage roots and fail closed for unsafe existing paths; native policy tests and funded cross-process restart/payment smokes pass on iOS and Android. |
 | SEC-012 | P1 | Verified | The native storage policies rejected group/other access but accepted owner-only directory modes missing required owner read/write/execute bits, such as `0600`; RLN would then fail later through a less stable error path despite the policy claiming `0700`. | Both platforms now require exact mode `0700`; the new negative cases pass in the 9-case iOS and 12-case Android native suites. |
 
@@ -366,42 +421,42 @@ recovery-ready claim until upstream supplies a real implementation.
 | --- | --- | --- | --- | --- |
 | PKG-001 | P1 | Open | CI checksum verification fails in a clean checkout because all iOS artifacts are ignored and no download step runs. | Make clean CI artifact acquisition and verification deterministic. |
 | PKG-002 | P1 | Open | CocoaPods `prepare_command` downloads binaries during consumer install. | Prefer pre-resolved internal artifacts or a deterministic cacheable fetch with offline behavior. |
-| PKG-003 | P1 | Open | iOS downloader skips any existing framework/source without verifying version or checksum. | Verify before reuse and replace stale artifacts atomically. |
-| PKG-004 | P1 | Open | Version/checksum/source metadata is duplicated across Dart, Swift, Kotlin, Gradle, shell, tests, and docs. | Generate all consumers from one reviewed artifact manifest. |
-| PKG-005 | P1 | Open | Android AAR verification is optional and checks the first matching Gradle cache file. | Use Gradle dependency verification or resolve and hash the exact artifact. |
-| PKG-006 | P1 | Open | No artifact signature/provenance, SBOM, license inventory, ABI symbol check, or architecture validation exists. | Add and gate all five for a production release. |
-| PKG-007 | P1 | Open | `ios/Resources/PrivacyInfo.xcprivacy` exists but is not bundled by the podspec. | Bundle and validate the privacy manifest in a consumer app archive. |
+| PKG-003 | P1 | Verified | `tool/download_rln_ios.sh` verifies installed iOS artifacts against the release baseline before reuse and installs via a lock plus temporary extraction path before final verification. | Keep atomic install and checksum verification mandatory for new artifact versions. |
+| PKG-004 | P1 | Verified | Dart, Swift, Kotlin, shell, Gradle, and podspec consumers now read generated constants or `tool/release_baseline.json`; `generate_release_baseline.dart --check` proves generated files are current. | Keep new metadata consumers generated or direct-manifest based. |
+| PKG-005 | P1 | Verified | `tool/verify_native_artifacts.sh` verifies every resolved matching Android AAR by exact checksum, size, and ABI set, and `tool/test_release_candidate.sh` now requires Android artifact verification instead of running iOS-only. | Keep release-candidate artifact verification mandatory and attach resolved AAR paths in release evidence. |
+| PKG-006 | P1 | Open | Internal-beta supply-chain validation now records source pins, checksums, SBOM-style Dart dependency inventory, license-file inventory, iOS/Android ABI-symbol markers, and architecture metadata, but upstream artifact signatures and reproducible-build attestations are absent and production mode intentionally fails. | Obtain upstream signatures/reproducible attestations, classify licenses/vulnerabilities, and keep production supply-chain mode fail-closed until then. |
+| PKG-007 | P1 | Verified | The podspec now bundles `ios/Resources/PrivacyInfo.xcprivacy`, and `validate_release_package.dart` gates the file plus resource bundle declaration. | Prove presence in a clean consumer app archive under PKG-016. |
 | PKG-008 | P1 | Open | Pod lint reports vendored simulator objects built for iOS 18.5 while the pod declares iOS 13. | Rebuild compatible artifacts or raise/document the real minimum and test it. |
-| PKG-009 | P1 | Open | Plugin and example release manifests omit Android `INTERNET`; only debug/profile declare it. | Declare or clearly enforce the permission and verify a release build can network. |
-| PKG-010 | P2 | Open | Android plugin contains both `settings.gradle` and `settings.gradle.kts`. | Keep one supported build configuration. |
-| PKG-011 | P2 | Open | AGP 8.11.1, Kotlin 2.2.20, compileSdk 36, Java 17, minSdk 24, Swift 5, and iOS 13 have no consumer compatibility matrix. | Define and test supported Flutter/Gradle/Kotlin/Xcode/OS ranges. |
-| PKG-012 | P1 | Open | Dart `^3.11.5` is incompatible with the declared Flutter minimum `>=3.3.0`. | Set coherent SDK constraints based on tested Flutter releases. |
-| PKG-013 | P2 | Needs decision | `publish_to: none` and private Git install are used without an immutable distribution/version policy. | Decide private registry vs tagged Git distribution and document integrity/rollback. |
-| PKG-014 | P2 | Open | `dart pub publish --dry-run` exits 65 in the current dirty worktree: tracked historical docs are deleted locally but remain gitignored/indexed until commit, and no `.pubignore` defines intentional package contents. | Re-run from the clean candidate, add an intentional `.pubignore` where needed, and make dry-run warning-free. |
+| PKG-009 | P1 | Verified | The plugin and example main Android manifests now declare `android.permission.INTERNET`, so release builds do not rely on debug/profile-only networking. | Verify release networking in clean consumer archive tests under PKG-016. |
+| PKG-010 | P2 | Verified | `android/settings.gradle` was removed, leaving `android/settings.gradle.kts` as the single plugin settings file; package validation checks this invariant. | Commit deletion before relying on dry-run warning removal. |
+| PKG-011 | P2 | Verified | The supported baseline is now documented in `doc/INTEGRATION_SECURITY_AND_RELEASE.md` and enforced through `pubspec.yaml` plus `tool/release_baseline.json` checks. | Expand from baseline declaration to a tested compatibility matrix under PKG-016. |
+| PKG-012 | P1 | Verified | `pubspec.yaml` now declares coherent constraints for the tested toolchain family: Dart `>=3.11.0 <4.0.0` and Flutter `>=3.41.0`. | Revisit constraints when the official release target is selected. |
+| PKG-013 | P2 | Accepted constraint | `publish_to: none` and private Git install are intentionally retained for this internal-beta line; immutable publishing/version distribution policy is deferred until publication work starts. | Before public or external production distribution, decide private registry vs tagged Git release and document integrity/rollback. |
+| PKG-014 | P2 | Open | `.pubignore` now defines intentional package contents and dry-run no longer includes vendored native artifacts, but `dart pub publish --dry-run` still exits 65 until the dirty worktree and deleted tracked `android/settings.gradle` are committed. | Re-run from the clean candidate and make dry-run warning-free before release. |
 | PKG-015 | P2 | Open | Podspec lacks complete license/source metadata and lint emits warnings. | Make pod lint warning-free except documented unavoidable vendor warnings. |
-| PKG-016 | P1 | Open | No clean consumer tests cover Git/tarball install, cold/stale/offline CocoaPods cache, Gradle resolution, or release archives. | Add a local release matrix using clean temporary consumer projects. |
-| PKG-017 | P2 | Open | Upstream artifacts are accepted only for development/internal beta, but the package does not enforce that boundary. | Mark artifacts/builds as non-production until production provenance gates pass. |
+| PKG-016 | P1 | Verified | `tool/test_clean_consumer_matrix.sh` snapshots tracked/unignored candidate files, validates tarball contents with `dart pub publish --dry-run`, installs into fresh consumers by path and local Git ref, builds Android release APKs and iOS release no-codesign apps for both, checks prepared RLN iOS artifacts, and reruns CocoaPods with `--deployment --no-repo-update`; the archive-enabled run passed with report `build/test-reports/current-candidate/clean-consumer-matrix-20260804T162339Z-c131f50.json`. | Fully air-gapped CocoaPods/Gradle builds are not claimed; add them only if the release policy requires offline distribution. |
+| PKG-017 | P2 | Verified | `tool/release_baseline.json` keeps `releaseTier: internal-beta`, `validate_release_package.dart` gates that value, and public docs state that artifacts are development/internal beta only until provenance gates pass. | Change releaseTier only after provenance/SBOM/license/reproducibility gates are verified. |
 
 ### Testing and Release Evidence
 
 | ID | Pri | Status | Finding and evidence | Required outcome |
 | --- | --- | --- | --- | --- |
-| TEST-001 | P1 | Open | Dart tests now assert supported rotate/inflate/sign/verify delegation and the intentional `skipSync` fail-fast divergence, but these remain mostly mock/contract checks rather than native behavior proofs. | Add current real-native success/failure vectors while retaining the approved `skipSync` divergence test. |
+| TEST-001 | P1 | Verified | Dart bridge tests now cover all 62 low-level method delegations, `skipSync` fail-fast, platform error mapping, malformed wire response rejection, and Group 2 critical request/return shapes; Android/iOS bridge suites add native failure vectors for the high-risk families. | Keep exact funded success proof under TEST-002 and do not cite Dart-only tests as funds behavior. |
 | TEST-002 | P1 | Open | Most Dart tests are mock/delegation contracts; they cannot prove native serialization, persistence, threading, or funds behavior. | Add layered contract, native, and end-to-end tests with independent oracles. |
 | TEST-003 | P2 | Open | Dart line coverage is 57.4%; no threshold or changed-line rule exists. | Define meaningful domain thresholds while excluding generated code appropriately. |
 | TEST-004 | P0 | Verified | No external-signer process-restart/channel-state/payment test existed. | The one-install/two-process funded restart proof passes on iOS and Android with pre/post-restart bidirectional settlement. |
-| TEST-005 | P1 | Open | Dart contract tests cover the new beta.25 surface, but rotate/sign/verify/inflate, txid histories, `backupNow`, assignment kinds, and description hash do not have complete iOS/Android execution coverage. | Cover every new beta.25 API on both platforms and at the public facade with independent assertions. |
-| TEST-006 | P1 | Open | HODL/APay/LSP/VSS tests are mainly mocked and do not cover production failure/retry/settlement paths. | Add controlled service/native integration suites and negative cases. |
+| TEST-005 | P1 | Verified | Current beta.26 bridge vectors now cover rotate/sign/verify/inflate, txid histories, `backupNow`, assignment kinds, and `descriptionHash` across Dart contract/facade tests plus mirrored Android JVM and iOS XCTest failure/request-boundary vectors; the bridge-vector manifest points each critical method to executable evidence. | Keep exact funded/unfunded platform-smoke reports under TEST-002/TEST-013 for runtime funds behavior. |
+| TEST-006 | P1 | Verified | Group 3 adds controlled negative-path tests for peer-connect idempotence, `receiveAsset`/`sendAsset` LSP failures, failed settlement status, APay registration failure, missing-preimage HODL claims, native HODL claim failure reporting, and VSS failure propagation. These are unit/service-orchestration proofs, not funds-movement proof. | Keep production funds behavior under TEST-002 and exact platform-smoke evidence; add live LSP failure fixtures only when the release stack exposes deterministic service controls. |
 | TEST-007 | P1 | Open | No lifecycle concurrency, retry, crash/restart, hot-restart, cancellation, stress, or fault-injection suite exists. | Build deterministic state-machine and platform stress tests. |
-| TEST-008 | P1 | Open | Native bridge tests are small and asymmetric; Flutter has no Android instrumentation equivalent and limited iOS XCTest. | Create platform-equivalent native suites for every bridge family and malformed response. |
-| TEST-009 | P2 | Open | No fuzz/property/differential tests cover parsers, numeric boundaries, enums, keys, or Schnorr. | Add official vectors plus property and cross-implementation differential tests. |
-| TEST-010 | P1 | Open | Parity validator compares names, not signatures/defaults/fields/returns/native implementations/behavior; its regex misses multiline methods. | Replace with AST/schema-based API and generated native conformance checks. |
-| TEST-011 | P1 | Open | Test-matrix `fixture` and `contract` fields are unlinked declarations; labels such as `restart_persistence` and `funded_rgb_asset_types` do not prove those flows ran, while the validator skips getters/static APIs and can pass fake stubs. | Link every row to executable test IDs, implementation symbols, platform evidence, and independent assertions. |
-| TEST-012 | P1 | Open | Release script reports `passed` when iOS XCTest/platform smokes are skipped. | Represent required, passed, failed, and skipped gates explicitly; skipped required gates fail release. |
-| TEST-013 | P1 | Open | Current iOS/Android builds and funded/unfunded smokes were not run on the audited commit/artifacts. | Run the complete local matrix on the exact candidate and attach evidence. |
-| TEST-014 | P2 | Open | Reports are ignored, unauthenticated, and contain local absolute paths. Native/release reports use only the short HEAD, omit dirty-worktree state, and overwrite earlier runs at the same commit; restart reports record dirty state but are still mutable local files. | Produce sanitized checksummed reports tied to the exact clean commit, tools, devices, artifacts, stack image, and unique run ID. |
+| TEST-008 | P1 | Verified | Native bridge tests now pass on Android JVM (17 cases) and iOS XCTest (13 cases), with mirrored Group 2 coverage for numeric-boundary rejection, unknown RGB assignment kind rejection, and unknown-node operation details across rotate/sign/verify/txid history methods; Dart covers malformed wire JSON/list roots because native XCTest/JVM cannot safely fabricate successful RLN payloads without a live node. | Keep live-node success/funds behavior in the platform smoke suite and exact-candidate release evidence. |
+| TEST-009 | P2 | Verified | Group 2/3 tests now cover native integer-string boundaries, strict model decoding, enum/status normalization, parser rejection paths, official BIP340 vectors, BIP340 message/public-key/signature tampering, and Schnorr scalar/byte-length boundaries. This closes package-level property/boundary coverage, while audited constant-time crypto assurance remains open under SEC-007. | Extend with generated fuzz corpora if future API changes add new parsers or wire formats. |
+| TEST-010 | P1 | Verified | `validate_rn_parity.dart` now compares exact RN commit/package/core/RLN pins, multiline NativeRgb method names, low-level parameter names/types/nullability, return categories, wallet method inventory, and runtime exports against RN `dev`. | Add generated AST/schema extraction later if regex parsing becomes insufficient, but current beta.26 static parity is machine-checked. |
+| TEST-011 | P1 | Verified | `tool/test_matrix/evidence_catalog.json` maps every evidence bucket to executable test IDs, platform report families, claim levels, and independent assertions; `dart run tool/validate_test_matrix.dart` now fails uncataloged buckets and still checks implementation symbols/source coverage. | Move from bucket-level links to row-specific immutable platform reports where later runtime rows require stronger evidence. |
+| TEST-012 | P1 | Verified | `tool/test_release_candidate.sh` now records required skipped gates as exit code `125`, includes skip notes in the JSON report, and fails unless `ALLOW_SKIPPED_RELEASE_GATES=1`; dry run failed because `IOS_DEVICE` and platform smokes were skipped. | Keep skipped required gates non-green for every release-candidate run. |
+| TEST-013 | P1 | Verified | Android JVM bridge tests, iOS XCTest bridge tests, iOS unfunded, iOS funded, Android unfunded, Android funded, and the all-up `RUN_PLATFORM=1` local release-candidate script passed on dirty candidate `c131f50` against the current beta.26/RLN 0.10.0-beta.3 artifacts and regtest stack. | Rerun from the exact clean release commit and attach immutable reports under TEST-014 before release. |
+| TEST-014 | P2 | Verified | `doc/RELEASE_EVIDENCE_SCHEMA.md` defines evidence IDs, required fields, sanitization, and release eligibility. `tool/test_release_candidate.sh`, `tool/test_native_android.sh`, `tool/test_native_ios.sh`, `tool/test_platform_unfunded.sh`, `tool/test_platform_funded.sh`, and `tool/test_external_signer_restart.sh` now emit unique run-ID filenames with schema version, evidence ID, full commit, dirty state, sanitized repo-relative log path, and log SHA-256. | Exact clean-candidate runtime reports are still required under API-032 and TEST-002 before release; do not cite dirty reports as release-eligible. |
 | TEST-015 | P2 | Open | Integration tests create wallet temp directories without guaranteed cleanup. | Use teardown/finally cleanup and verify no native handles/files remain. |
-| TEST-016 | P2 | Open | No public API/ABI snapshot or semantic versioning compatibility test exists. | Snapshot Dart API, Pigeon schema, Android ABI, iOS symbols, and model JSON/wire fixtures. |
+| TEST-016 | P2 | Verified | `tool/api_snapshot.json` snapshots the normalized exported Dart surface, Pigeon schema, generated Dart/Swift/Kotlin Pigeon surface, and native bridge/store source markers; `dart run tool/validate_api_snapshot.dart` gates drift. | Add model JSON/wire fixture snapshots when Group 2/3 finish domain-model cleanup and native behavior vectors. |
 | TEST-017 | P2 | Accepted constraint | Native builds and regtest smokes will not run in CI. | Make the local release gate mandatory, reproducible, attributable, and impossible to report green when skipped. |
 | TEST-018 | P1 | Verified | The native iOS test script reused a stale CocoaPods source graph and omitted newly added plugin files. It now runs `pod install` before `xcodebuild`, records that step, and the follow-up XCTest run compiled the new policy file and passed all nine cases. | Keep the explicit pod refresh in every local native iOS release run. |
 | TEST-019 | P1 | Verified | Regtest startup considered electrs ready when its TCP port opened, even while a persisted stale Bitcoin tip kept bitcoind in IBD and electrs returned no protocol response; RLN unlock then failed after its startup timeout. | Startup now establishes a current non-IBD tip and validates an Electrum `server.version` JSON response; both final platform restart runs passed the gate. |
@@ -422,15 +477,15 @@ recovery-ready claim until upstream supplies a real implementation.
 | CODE-006 | P2 | Open | LSP, wallet, binding, client, and native plugins duplicate validation/default/status logic. | Centralize generated contracts and domain policies. |
 | CODE-007 | P2 | Open | Public API docs are sparse and rarely state lifecycle prerequisites, units, errors, side effects, secret handling, or platform support. | Document every public symbol and verify examples in CI/local gates. |
 | CODE-008 | P2 | Open | Current code/docs no longer contain beta.19 claims outside historical tracker/changelog context, but broad “RN-style/parity” names remain and no automated stale-baseline language check exists. | Tie parity claims to the generated baseline and executable contract scope so future comments/tests cannot imply more than they prove. |
-| CODE-009 | P2 | Open | There is no architecture decision record for Pigeon vs FFI/UniFFI-Dart, artifact ownership, or stable API layering. | Record decisions, alternatives, reversal criteria, and ownership. |
-| CODE-010 | P2 | Open | No formal compatibility/migration plan exists for removing the large stale public surface. | Add deprecations, migration notes, and a versioned breaking-change plan. |
+| CODE-009 | P2 | Verified | `doc/API_COMPATIBILITY_AND_DIVERGENCE.md` records the Pigeon decision, FFI/UniFFI alternatives, reversal criteria, artifact ownership boundary, and intended stable/advanced/generated/native layering. | Reopen with a new tracker row if a UniFFI/FFI spike proves a superior bridge path. |
+| CODE-010 | P2 | Verified | `doc/API_COMPATIBILITY_AND_DIVERGENCE.md` now defines the compatibility-shim tier and the five-step deprecation/breaking-change plan, including required migration notes and API snapshot updates. | Execute the actual stale-surface removals under API-016/API-024/CODE-001 rather than treating this policy as implementation cleanup. |
 | CODE-011 | P2 | Open | Public DTOs/configs are only shallowly immutable and retain mutable lists/maps; most have no value equality or copy semantics. | Adopt immutable value types and defensive copies at public boundaries. |
 | CODE-012 | P2 | Open | Public failures mix `PlatformException`, SDK exceptions, `ArgumentError`, `StateError`, and raw HTTP errors. | Define one documented error taxonomy and map every boundary into it. |
 | DOC-001 | P1 | Verified | Root README claimed release-candidate hardening and 55/55 beta.19 parity after upstream changed. | README now states the exact audited baselines, no-go verdict, and limits of existing test/parity evidence. |
 | DOC-002 | P2 | Verified | Sixteen overlapping historical docs were removed in favor of this tracker. | Keep this file authoritative; do not recreate parallel status documents. |
 | DOC-003 | P2 | Verified | Example and test-matrix READMEs previously treated mocked/matrix checks as production evidence. | Both now state their exact scope, stale baseline, missing evidence, and authoritative release-gate link. |
-| DOC-004 | P2 | Open | No current support matrix, upgrade guide, artifact migration, recovery boundary, or app integration security guide exists. | Publish them after the API/artifact baseline is fixed. |
-| DOC-005 | P2 | Open | `dart doc` has zero warnings but this does not measure completeness or semantic accuracy. | Add documentation coverage/review criteria and executable snippets. |
+| DOC-004 | P2 | Open | `doc/INTEGRATION_SECURITY_AND_RELEASE.md` now documents the current toolchain baseline, artifact tier, transport policy, secure-storage boundary, and local release gates, but the full support matrix, upgrade guide, artifact migration guide, and API policy remain incomplete. | Finish the release documentation set after the API/artifact baseline is fixed. |
+| DOC-005 | P2 | Verified | `doc/RELEASE_EVIDENCE_SCHEMA.md` now defines documentation completeness criteria beyond `dart doc`: lifecycle prerequisites, platform support, units, side effects, error categories, unsupported behavior, secret handling, and executable or manually verified snippets for stable facade symbols. | Complete per-symbol public docs under CODE-007; `dart doc` remains only syntax/link evidence. |
 | DOC-006 | P2 | Verified | GitHub issue templates referenced the deleted parity matrix, omitted exact baselines, and allowed tests to be deferred without release-gate semantics. | Templates now require tracker IDs, immutable baselines, typed cross-platform scope, executable evidence, and tracker updates. |
 
 ## Accepted Decisions and Constraints
@@ -449,7 +504,7 @@ recovery-ready claim until upstream supplies a real implementation.
 5. **Secure storage:** durable credential storage is app-level. The SDK remains
    responsible for minimizing in-memory secrets and documenting ownership.
 6. **RGB `skipSync`:** keep fail-fast until the native artifact adds real
-   support. RN beta.25 silently discards the option on both platforms, which is
+   support. RN silently discards the option on both platforms, which is
    not behavior Flutter should copy.
 
 ## Upstream Defects We Must Not Copy
@@ -468,26 +523,289 @@ The RN `dev` branch is the parity reference, not an automatic quality oracle.
 | Core `toNetworkName` also misclassifies numeric network identifiers through substring heuristics | Use an exhaustive network mapping with vectors for every accepted identifier |
 | RN also accepts `gossipRgsServerUrl` for native external-signer unlock and silently drops it in both native plugins | Reject unsupported configuration or add real upstream support; do not claim the option was applied |
 | RN also uses conflict-string heuristics around lifecycle operations | Require typed errors and verified state transitions |
-| RN beta.25 accepts RGB `skipSync` but omits it from both native `SendRgbRequest` constructions because RLN beta.3 has no such field | Preserve Flutter's explicit fail-fast behavior until the artifact supports it |
+| RN accepts RGB `skipSync` but omits it from both native `SendRgbRequest` constructions because the pinned RLN artifact has no such field | Preserve Flutter's explicit fail-fast behavior until the artifact supports it |
 
-## Remediation Order
+## Execution Phase Plan
 
-1. **Safety baseline:** upgrade RLN artifacts, implement disk-backed signer
-   persistence, establish one version manifest, and prove restart safety.
-2. **Generated contract:** model the complete current native API with typed
-   requests/responses and regenerate Dart/Swift/Kotlin.
-3. **Domain API:** rebuild the stable wallet facade around canonical models,
-   optional capability carriers, explicit errors, and correct defaults.
-4. **Lifecycle/threading:** move native work off platform threads and implement
-   a tested transactional lifecycle state machine.
-5. **LSP/security:** port current core behavior, harden transport/error/secret
-   handling, and replace or independently audit cryptographic primitives.
-6. **Packaging:** make artifact acquisition, verification, privacy metadata,
-   permissions, and clean consumer installs deterministic.
-7. **Verification:** execute the full contract/native/restart/failure/funded
-   matrix on both platforms and attach sanitized release evidence.
-8. **Public release:** finalize docs, migration, semver/API snapshots, and only
-   then reconsider the no-go verdict.
+This plan is intentionally broader than the original P0 remediation. The
+target is production-candidate quality and 1:1 parity with the current React
+Native `dev` reference where parity is safe to copy, with explicit documented
+divergences where upstream behavior is unsafe or native-blocked. No phase is
+complete until the tracker rows it owns are updated, new findings discovered
+during implementation are added, and verification evidence is recorded.
+
+### Phase 0: Tracker, Baseline Truth, and Scope Lock
+
+**Goal:** make the release target impossible to misread before code changes
+continue.
+
+**Owns:** BASE-005, BASE-006, API-020, TEST-010, TEST-011, TEST-012,
+TEST-014, DOC-004, DOC-005, CODE-009, CODE-010.
+
+**Work:**
+
+- Treat this tracker as the only release-readiness source; keep deleted
+  historical docs deleted.
+- Refresh every generated inventory against RN `dev`
+  `d5916c142077b501ffb86d028c457a9c21b60d59`, `@utexo/rgb-sdk-rn`
+  `1.0.0-beta.26`, `@utexo/rgb-sdk-core` `1.0.0-beta.6`, and RLN
+  `0.10.0-beta.3`.
+- Replace name-only parity claims with typed API/default/model/behavior
+  evidence requirements.
+- Record every accepted divergence before implementation, not after a failed
+  test.
+
+**Exit gates:**
+
+- `validate_rn_parity` reports typed method/default/export deltas, not only
+  names.
+- Every matrix row links to an implementation symbol and executable evidence
+  bucket.
+- The release script cannot mark required skipped gates as passed.
+
+### Phase 1: Upstream Beta.26 Baseline and Artifact Refresh
+
+**Goal:** stop building and testing against stale beta.25/core beta.5/RLN
+beta.3 while claiming current RN parity.
+
+**Owns:** BASE-001, BASE-002, BASE-003, BASE-004, BASE-007, BASE-008,
+PKG-001, PKG-003, PKG-004, PKG-005, PKG-006, PKG-012, PKG-017.
+
+**Work:**
+
+- Update `tool/release_baseline.json` to RN beta.26/core beta.6/RLN
+  `0.10.0-beta.3`, including immutable commits, archive URLs, checksums,
+  ABI/slice inventory, installed iOS file hashes, and platform requirements.
+- Regenerate Dart, Swift, Kotlin, shell, Gradle, and podspec consumers from the
+  single manifest.
+- Make artifact verification fail closed for stale local iOS files and exact
+  Android artifact resolution.
+- Add a coherent package/platform version policy and direct Flutter/Dart
+  toolchain assertion.
+
+**Exit gates:**
+
+- Generated baseline check passes immediately after format.
+- Native artifacts verify from a clean cache and from an already-populated
+  cache.
+- `validate_rn_parity` no longer fails due to stale versions or artifacts.
+- The tracker’s Audit Evidence table is updated with the new exact commit and
+  artifact set.
+
+### Phase 2: Low-Level Bridge Contract and Native Error Parity
+
+**Goal:** prove that every current RN `NativeRgb` operation has equivalent
+Dart, Pigeon, Swift, and Kotlin behavior under the new native artifact.
+
+**Owns:** API-001, API-002, API-003, API-004, API-006, API-030, LIFE-014,
+SEC-003, SEC-004, TEST-001, TEST-005, TEST-008.
+
+**Work:**
+
+- Regenerate or hand-verify Pigeon host APIs against current RN native bridge
+  signatures, including beta.26 error/category behavior.
+- Replace string-conflict heuristics with typed native error classification
+  and state verification.
+- Preserve Flutter’s explicit `sendRgb(skipSync: true)` fail-fast divergence
+  until the native request supports it.
+- Reject or remove unsupported no-op fields such as external-signer
+  `gossipRgsServerUrl` unless upstream adds real support.
+
+**Exit gates:**
+
+- iOS XCTest and Android JVM/bridge suites cover every bridge family with
+  success, expected failure, malformed response, and error-category vectors.
+- Bridge tests execute the current source graph, not stale CocoaPods or Gradle
+  outputs.
+- Error mapping produces stable SDK errors with redacted details.
+
+### Phase 3: Public Wallet Facade and Capability Boundaries
+
+**Goal:** make the always-present Dart public API match the approved
+RN/core contract and stop exposing runtime stubs as if they were supported.
+
+**Owns:** API-005, API-007, API-008, API-009, API-010, API-011, API-012,
+API-013, API-014, API-015, API-016, API-017, API-018, API-019, API-021,
+API-022, API-023, API-024, API-025, API-026, API-027, API-028, API-029,
+API-031, API-032, CODE-001, CODE-002, CODE-005, CODE-006, CODE-012.
+
+**Work:**
+
+- Add canonical `getLightningReceiveStatus` and `getLightningSendStatus` with
+  Lightning-domain statuses; demote old RGB-status helpers.
+- Make canonical wallet method names return canonical domain models; keep raw
+  wire access below `RlnClient`/advanced libraries only.
+- Replace unsupported always-present methods with typed nullable capability
+  carriers such as PSBT, begin/end flows, signer-mode RGB issuance, and VSS
+  surfaces.
+- Align defaults and constants: `openChannel.withAnchors`, API timeout, log
+  level, network defaults, strict network parsing, and current core UMA
+  exports.
+- Keep the stable wallet facade aligned with current RN wallet issuance:
+  `issueAssetNia` and `issueAssetIfa` only. CFA/UDA issuance remains low-level
+  bridge surface unless RN adds stable wallet methods.
+
+**Exit gates:**
+
+- Public API snapshot matches the intended Dart contract and every deliberate
+  RN/core divergence has a tracker row.
+- No stable public method exists solely to throw “unsupported” at runtime.
+- All defaults have parity vectors or an explicit approved divergence.
+
+### Phase 4: Models, Serialization, Units, and Strict Decoding
+
+**Goal:** prevent malformed native data from becoming invented wallet state.
+
+**Owns:** MODEL-001 through MODEL-016, plus the model parts of API-007 through
+API-012 and TEST-009.
+
+**Work:**
+
+- Define exact wire DTOs or a generated strict wire schema for every native
+  response currently represented as `Map<Object?, Object?>`.
+- Replace permissive `''`, `0`, `false`, empty-list, and regex fallbacks with
+  required-field validation and typed protocol errors.
+- Preserve nullability, enum vocabularies, sat/msat/seconds units, numeric
+  ranges, `pendingBlinded`, batch transfer indexes, assignment kinds, and
+  transaction/transfer/payment states.
+- Add model fixtures from both platforms and differential vectors against
+  current RN/core mappings.
+
+**Exit gates:**
+
+- Required malformed fields fail closed in tests.
+- Every public model documents units and optionality.
+- No mapper fabricates batch indexes, vouts, statuses, kinds, or balance
+  values.
+
+### Phase 5: Lifecycle, Concurrency, Threading, and Native Ownership
+
+**Goal:** make wallet/node/signer lifecycle deterministic under real app
+conditions rather than only under sequential tests.
+
+**Owns:** LIFE-001 through LIFE-015, TEST-007, TEST-015, SEC-001, SEC-010.
+
+**Work:**
+
+- Move blocking native RLN work off platform/UI message threads and expose
+  asynchronous native completion correctly.
+- Implement a single lifecycle state machine for init, unlock, shutdown,
+  reinit, destroy, detach, hot restart, and disposed states.
+- Coalesce concurrent init/unlock calls, make failed signer/native setup
+  transactional, aggregate cleanup failures, and close all engine-owned
+  resources on detach.
+- Define operation prerequisites and timeout/cancellation policy per method
+  family.
+
+**Exit gates:**
+
+- Race, retry, shutdown, dispose, hot-restart, and failure-injection tests pass
+  on Dart plus native platforms where applicable.
+- No operation can run before the required state or after shutdown unless
+  documented.
+- Restart proof still passes after the lifecycle rewrite.
+
+### Phase 6: LSP, Network, Transport, and Security Hardening
+
+**Goal:** keep public LSP/network behavior compatible while fixing unsafe
+orchestration patterns we should not copy from upstream.
+
+**Owns:** LSP-001 through LSP-009, SEC-002 through SEC-009, SEC-011, SEC-012,
+API-022, API-023.
+
+**Work:**
+
+- Port the current core LSP contract or wrap it with semantically equivalent
+  Dart behavior; remove duplicated stale implementation drift.
+- Fix callback URL rebasing, fallback policy, HTTP ownership, timeouts,
+  TLS/regtest policy, invalid preimage claiming, and typed already-connected
+  handling.
+- Minimize in-memory secret lifetime, defensively copy seed material, define
+  zeroization/destruction limits, and redact all support-safe diagnostics.
+- Replace or independently audit Schnorr/BIP340 signing with official and
+  differential vectors.
+
+**Exit gates:**
+
+- LSP integration/failure tests prove fallback only happens for approved cases.
+- Security review has evidence for secret lifetime, transport policy, error
+  redaction, dependency/license scans, and crypto vectors.
+- App-level secure storage boundary is documented without implying SDK-owned
+  persistence.
+
+### Phase 7: Packaging, Consumer Install, and Supply Chain
+
+**Goal:** make the package installable and archiveable by a clean consumer
+without local history, stale caches, or hidden network assumptions.
+
+**Owns:** PKG-002, PKG-007, PKG-008, PKG-009, PKG-010, PKG-011, PKG-013,
+PKG-014, PKG-015, PKG-016, SEC-008, TEST-016.
+
+**Work:**
+
+- Make CocoaPods and Gradle acquisition deterministic, cache-aware, and
+  checksum-verified.
+- Bundle/validate the iOS privacy manifest; settle the real iOS minimum for
+  vendored artifacts; declare required Android permissions for release.
+- Remove duplicate build files, add supported toolchain/OS matrix, and make
+  `pub publish --dry-run` warning-free for the intentional private package
+  contents.
+- Add API/ABI snapshots for Dart, Pigeon, Android, iOS, and JSON/wire models.
+
+**Exit gates:**
+
+- Clean temporary Flutter apps install the package from Git/tag/tarball,
+  run/compile on iOS and Android, and archive release builds.
+- Pod lint is warning-free except documented unavoidable vendor warnings.
+- Supply-chain report includes artifacts, licenses, binaries, ABIs/slices, and
+  reproducibility status.
+
+### Phase 8: Full Cross-Platform Runtime Evidence
+
+**Goal:** produce the evidence that actually justifies a release candidate.
+
+**Owns:** TEST-002, TEST-003, TEST-004 through TEST-023, G-09, and all rows
+whose exit criteria require runtime proof.
+
+**Work:**
+
+- Run Dart contract tests, example tests, coverage, analyzer, docs, format,
+  generated-drift checks, native iOS XCTest, Android bridge tests, iOS/Android
+  funded and unfunded smokes, external-signer restart, and failure/stress
+  suites on one exact clean commit.
+- Produce sanitized, checksummed, immutable reports tied to commit, artifacts,
+  devices, toolchains, regtest stack, and run IDs.
+- Make skipped required local gates fail the release report even though native
+  CI remains intentionally out of scope.
+
+**Exit gates:**
+
+- No P0/P1 row remains Open, In progress, or Needs decision.
+- The combined release-candidate script passes without skipped required gates.
+- The tracker’s evidence table points to current reports from the exact
+  candidate commit.
+
+### Phase 9: Public Documentation, Migration, and Release Decision
+
+**Goal:** make the public story match executable behavior exactly.
+
+**Owns:** DOC-001 through DOC-006, CODE-007, CODE-008, CODE-010, PKG-013, and
+the final status of every accepted constraint.
+
+**Work:**
+
+- Finalize README, API docs, support matrix, security/integration guide,
+  recovery boundary, artifact policy, migration guide, and semver policy.
+- Document backup/recovery as native-blocked, native/regtest gates as
+  local-only, Pigeon as the current bridge, upstream artifacts as internal beta
+  only unless provenance gates pass, and secure storage as app-level.
+- Review docs against code, generated API snapshot, and release evidence.
+
+**Exit gates:**
+
+- Docs contain no stale beta.19/beta.25/current-parity overclaims.
+- Every public example compiles or is covered by an executable snippet/test.
+- Only after all gates pass may the release verdict change from NO-GO.
 
 ## Definition of Production Ready
 

@@ -21,6 +21,21 @@ class WalletException extends RgbSdkException {
     : super(code: 'WALLET_ERROR');
 }
 
+/// Native response violated the SDK's wire contract.
+class NativeProtocolException extends RgbSdkException {
+  const NativeProtocolException(super.message, {this.field, super.cause})
+    : super(code: 'NATIVE_PROTOCOL_ERROR');
+
+  final String? field;
+
+  @override
+  String toString() {
+    final field = this.field;
+    if (field == null) return 'NativeProtocolException: $message';
+    return 'NativeProtocolException($field): $message';
+  }
+}
+
 /// RN-core compatible wallet error name.
 class WalletError extends WalletException {
   const WalletError(super.message, {super.cause});

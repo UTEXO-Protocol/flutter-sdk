@@ -7,13 +7,13 @@ RGB Lightning Node native artifacts.
 
 **Not production ready. Do not use this revision with mainnet funds.**
 
-The 2026-07-27 release-candidate audit compared this repository with:
+The current source/static parity pass compares this repository with:
 
 - `UTEXO-Protocol/rgb-sdk-rn` `dev` at
-  `cb4fe938b171ac3771093e46b494f5eca190e804`
-- `@utexo/rgb-sdk-rn` `1.0.0-beta.25`
-- `@utexo/rgb-sdk-core` `1.0.0-beta.5`
-- RGB Lightning Node `0.9.0-beta.3`
+  `d5916c142077b501ffb86d028c457a9c21b60d59`
+- `@utexo/rgb-sdk-rn` `1.0.0-beta.26`
+- `@utexo/rgb-sdk-core` `1.0.0-beta.6`
+- RGB Lightning Node `0.10.0-beta.3`
 
 The bridge and native artifact baseline now target those exact versions. The
 SDK still has confirmed API, model, threading, lifecycle, packaging, security,
@@ -22,8 +22,8 @@ readiness.
 
 The authoritative verdict and issue ledger are in the
 [Release Readiness Tracker](doc/RELEASE_READINESS_TRACKER.md). Do not infer
-production readiness from passing unit tests, the old parity matrices, or the
-presence of a method with a runtime unsupported implementation.
+production readiness from passing unit tests, static parity matrices, local
+artifact checks, or the presence of an advanced/raw bridge method.
 
 ## Intended Architecture
 
@@ -83,14 +83,17 @@ await wallet.unlock(
 
 ## Local Checks
 
-Use the pinned toolchain once one is added. The repository currently has no
-`.fvmrc`, so verify the active versions explicitly before trusting results.
+Use the pinned toolchain in `.fvmrc`. Release evidence must record the exact
+toolchain and must fail when required local gates are skipped.
 
 ```sh
 flutter --version
 dart --version
 flutter pub get
 dart format --output=none --set-exit-if-changed lib test pigeons tool
+dart run tool/validate_release_governance.dart
+dart run tool/validate_api_snapshot.dart
+dart run tool/validate_bridge_vectors.dart
 flutter analyze
 flutter test
 dart run tool/validate_test_matrix.dart
@@ -98,8 +101,8 @@ RGB_SDK_RN_PATH=<current-rn-checkout> \
   dart run tool/validate_rn_parity.dart
 ```
 
-The current RN parity command is expected to fail until the open parity work is
-implemented.
+The current RN parity command is expected to pass for static method/export
+inventory. It is not behavioral runtime evidence.
 
 Native builds, iOS XCTest, and funded/unfunded regtest smokes are intentionally
 local-only release gates. A release report must fail when any required local
@@ -112,9 +115,16 @@ recovery readiness until upstream provides a working, tested implementation.
 Durable credential storage is owned by the consuming app; the SDK still owns
 in-memory secret minimization and safe diagnostics.
 
+LSP/LNURL HTTP uses HTTPS by default. Plain HTTP is accepted only for explicit
+local loopback development hosts.
+
 ## Project Documents
 
 - [Release Readiness Tracker](doc/RELEASE_READINESS_TRACKER.md)
+- [Integration, Security, and Release Policy](doc/INTEGRATION_SECURITY_AND_RELEASE.md)
+- [API Compatibility and Divergence Policy](doc/API_COMPATIBILITY_AND_DIVERGENCE.md)
+- [Bridge Behavior Contract](doc/BRIDGE_BEHAVIOR_CONTRACT.md)
+- [Release Evidence Schema](doc/RELEASE_EVIDENCE_SCHEMA.md)
 - [Security Policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
 - [Machine-Readable Test Matrix](tool/test_matrix/README.md)

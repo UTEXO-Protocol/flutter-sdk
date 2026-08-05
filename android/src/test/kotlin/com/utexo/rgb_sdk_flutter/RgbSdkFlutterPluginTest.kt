@@ -91,7 +91,7 @@ internal class RgbSdkFlutterPluginTest {
                 reuseAddresses = false
             )
         }
-        assertInvalidArgument(negativePort, field = "daemonListeningPort")
+        assertInvalidArgument(negativePort, operation = "rlnCreateNode", field = "daemonListeningPort")
 
         val oversizedMediaLimit = assertFailsWith<FlutterError> {
             plugin.rlnCreateNode(
@@ -110,7 +110,7 @@ internal class RgbSdkFlutterPluginTest {
                 reuseAddresses = false
             )
         }
-        assertInvalidArgument(oversizedMediaLimit, field = "maxMediaUploadSizeMb")
+        assertInvalidArgument(oversizedMediaLimit, operation = "rlnCreateNode", field = "maxMediaUploadSizeMb")
     }
 
     @Test
@@ -133,8 +133,122 @@ internal class RgbSdkFlutterPluginTest {
             )
         }
 
-        assertInvalidArgument(error, field = "storageDirPath")
+        assertInvalidArgument(error, operation = "rlnCreateNode", field = "storageDirPath")
         assertTrue(error.message.orEmpty().contains("absolute path"))
+    }
+
+    @Test
+    fun bridgeRejectsFractionalFeeRateBeforeNativeNodeLookup() {
+        val error = assertFailsWith<FlutterError> {
+            plugin.rlnSendBtc(
+                nodeId = 9_999,
+                amount = 1,
+                address = "bcrt1destination",
+                feeRate = 1.5,
+                skipSync = false
+            )
+        }
+
+        assertInvalidArgument(error, operation = "rlnSendBtc", field = "feeRate")
+        assertTrue(error.message.orEmpty().contains("integer fee rate"))
+    }
+
+    @Test
+    fun bridgeRejectsGroupTwoNumericBoundaryFieldsBeforeNativeNodeLookup() {
+        val openChannel = assertFailsWith<FlutterError> {
+            plugin.rlnOpenChannel(
+                nodeId = 9_999,
+                peerPubkeyAndOptAddr = "peer@127.0.0.1:9735",
+                capacitySat = -1,
+                pushMsat = 0,
+                publicChannel = false,
+                withAnchors = true,
+                feeBaseMsat = null,
+                feeProportionalMillionths = null,
+                temporaryChannelId = null,
+                assetId = null,
+                assetAmount = null,
+                pushAssetAmount = null,
+                virtualOpenMode = null
+            )
+        }
+        assertInvalidArgument(openChannel, operation = "rlnOpenChannel", field = "capacitySat")
+
+        val invoice = assertFailsWith<FlutterError> {
+            plugin.rlnLnInvoice(
+                nodeId = 9_999,
+                amtMsat = null,
+                expirySec = -1,
+                assetId = null,
+                assetAmount = null,
+                paymentHash = null,
+                minFinalCltvExpiryDelta = null,
+                descriptionHash = "description-hash"
+            )
+        }
+        assertInvalidArgument(invoice, operation = "rlnLnInvoice", field = "expirySec")
+
+        val sendPayment = assertFailsWith<FlutterError> {
+            plugin.rlnSendPayment(
+                nodeId = 9_999,
+                invoice = "lnbc1invoice",
+                amtMsat = -1,
+                assetId = null,
+                assetAmount = null
+            )
+        }
+        assertInvalidArgument(sendPayment, operation = "rlnSendPayment", field = "amtMsat")
+
+        val inflate = assertFailsWith<FlutterError> {
+            plugin.rlnInflate(
+                nodeId = 9_999,
+                assetId = "asset",
+                inflationAmounts = listOf(-1),
+                feeRate = 1.0,
+                minConfirmations = 1
+            )
+        }
+        assertInvalidArgument(inflate, operation = "rlnInflate", field = "inflationAmounts[0]")
+    }
+
+    @Test
+    fun rgbInvoiceRejectsUnknownAssignmentKindBeforeNativeNodeLookup() {
+        val error = assertFailsWith<FlutterError> {
+            plugin.rlnRgbInvoice(
+                nodeId = 9_999,
+                assetId = "asset",
+                assignmentAmount = 1,
+                durationSeconds = null,
+                minConfirmations = 1,
+                witness = false,
+                assignmentKind = "Mystery"
+            )
+        }
+
+        assertInvalidArgument(error, operation = "rlnRgbInvoice", field = "assignmentKind")
+        assertTrue(error.message.orEmpty().contains("Unknown assignmentKind"))
+    }
+
+    @Test
+    fun bridgeReportsUnknownNodeForGroupTwoMethodFamilies() {
+        val cases = listOf<Pair<String, () -> Unit>>(
+            "rlnRotateAddress" to { plugin.rlnRotateAddress(9_999) },
+            "rlnSignMessage" to { plugin.rlnSignMessage(9_999, "message") },
+            "rlnVerifyMessage" to { plugin.rlnVerifyMessage(9_999, "message", "signature") },
+            "rlnListTransactionsByTxid" to {
+                plugin.rlnListTransactionsByTxid(9_999, "txid", false)
+            },
+            "rlnListTransfersByTxid" to {
+                plugin.rlnListTransfersByTxid(9_999, "txid")
+            }
+        )
+
+        for ((operation, call) in cases) {
+            val error = assertFailsWith<FlutterError> { call() }
+            val details = error.details as Map<*, *>
+            assertEquals(operation, details["operation"])
+            assertTrue(error.message.orEmpty().contains("not found"))
+        }
     }
 
     @Test
@@ -237,7 +351,7 @@ internal class RgbSdkFlutterPluginTest {
             val reusedId = RlnNodeStore.create(replacementNode, path)
             assertEquals(firstId, reusedId)
             assertSame(replacementNode, RlnNodeStore.get(reusedId))
-            assertEquals(RlnNodeStore.NodeLifecycleState.INITIALIZED, RlnNodeStore.getState(reusedId))
+            assertEquals(RlnNodeStore.NodeLifecycleState.CREATED, RlnNodeStore.getState(reusedId))
 
             assertEquals(1, firstNode.closeCount)
         } finally {
@@ -298,10 +412,29 @@ internal class RgbSdkFlutterPluginTest {
         }
     }
 
-    private fun assertInvalidArgument(error: FlutterError, field: String) {
+    @Test
+    fun nodeStoreClearAllClosesNodesAndSignersAndResetsHandles() {
+        val node = CloseTrackingSdkNode()
+        val signer = CloseTrackingNativeSigner()
+        val nodeId = RlnNodeStore.create(node, uniquePath("clear-all"))
+        val signerId = RlnNodeStore.createSigner(signer)
+
+        RlnNodeStore.clearAll()
+
+        assertEquals(1, node.closeCount)
+        assertEquals(1, signer.closeCount)
+        assertFailsWith<IllegalStateException> {
+            RlnNodeStore.get(nodeId)
+        }
+        assertFailsWith<IllegalStateException> {
+            RlnNodeStore.getSigner(signerId)
+        }
+    }
+
+    private fun assertInvalidArgument(error: FlutterError, operation: String, field: String) {
         assertEquals("invalidArgument", error.code)
         val details = error.details as Map<*, *>
-        assertEquals("rlnCreateNode", details["operation"])
+        assertEquals(operation, details["operation"])
         assertEquals(field, details["field"])
     }
 

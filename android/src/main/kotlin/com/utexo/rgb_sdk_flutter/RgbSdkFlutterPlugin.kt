@@ -11,6 +11,8 @@ import org.utexo.rgblightningnode.SdkInitRequest
 import org.utexo.rgblightningnode.SdkNode
 import org.utexo.rgblightningnode.SdkUnlockRequest
 import org.utexo.rgblightningnode.SdkVssClearFenceRequest
+import org.json.JSONArray
+import org.json.JSONObject
 
 /** RgbSdkFlutterPlugin */
 class RgbSdkFlutterPlugin :
@@ -48,6 +50,33 @@ class RgbSdkFlutterPlugin :
             throw e
         } catch (e: Exception) {
             throw bridgeError(e, operation)
+        }
+    }
+
+    private fun <T> runRlnWire(operation: String, block: () -> T): RlnWireResponse {
+        return wireResponse(runRln(operation, block))
+    }
+
+    private fun <T> runRlnWireList(operation: String, block: () -> List<T>): List<RlnWireResponse> {
+        return runRln(operation, block).map(::wireResponse)
+    }
+
+    private fun wireResponse(value: Any?): RlnWireResponse {
+        return RlnWireResponse(json = toJsonValue(value).toString())
+    }
+
+    private fun toJsonValue(value: Any?): Any {
+        return when (value) {
+            null -> JSONObject.NULL
+            is Map<*, *> -> JSONObject(
+                value.entries.associate { (key, entryValue) ->
+                    key.toString() to toJsonValue(entryValue)
+                }
+            )
+            is Iterable<*> -> JSONArray(value.map(::toJsonValue))
+            is Array<*> -> JSONArray(value.map(::toJsonValue))
+            is Boolean, is Number, is String -> value
+            else -> value.toString()
         }
     }
 
@@ -107,8 +136,8 @@ class RgbSdkFlutterPlugin :
     }
 
     private fun requireFeeRate(value: Double, field: String, operation: String): ULong {
-        if (!value.isFinite() || value < 0 || value > Long.MAX_VALUE.toDouble()) {
-            invalidArgument(operation, field, "$field must be a finite non-negative fee rate.")
+        if (!value.isFinite() || value < 0 || value > Long.MAX_VALUE.toDouble() || value % 1.0 != 0.0) {
+            invalidArgument(operation, field, "$field must be a finite non-negative integer fee rate.")
         }
         return value.toLong().toULong()
     }
@@ -171,24 +200,12 @@ class RgbSdkFlutterPlugin :
         }
     }
 
-    private fun isConflictLike(error: Throwable): Boolean {
-        return (error.message ?: "").lowercase().contains("conflict")
-    }
-
-    private fun probeNodeReady(node: SdkNode, attempts: Int, delayMs: Long): Boolean {
-        repeat(attempts) { index ->
-            try {
-                if (node.nodeInfo().pubkey.isNotBlank()) {
-                    return true
-                }
-            } catch (_: Exception) {
-                // Keep polling through transient transition states.
-            }
-            if (index < attempts - 1) {
-                Thread.sleep(delayMs)
-            }
+    private fun isNodeReady(node: SdkNode): Boolean {
+        return try {
+            node.nodeInfo().pubkey.isNotBlank()
+        } catch (_: Exception) {
+            false
         }
-        return false
     }
 
     private fun btcBalanceMap(balance: org.utexo.rgblightningnode.BtcBalance): Map<Any?, Any?> {
@@ -520,11 +537,6 @@ class RgbSdkFlutterPlugin :
             RlnNodeStore.markInitialized(nodeId)
             return pubkey
         } catch (e: Exception) {
-            val node = runCatching { RlnNodeStore.get(nodeId) }.getOrNull()
-            if (node != null && isConflictLike(e)) {
-                RlnNodeStore.markInitialized(nodeId)
-                return runCatching { node.nodeInfo().pubkey }.getOrDefault("")
-            }
             throw bridgeError(e, "rlnInitNode")
         }
     }
@@ -591,7 +603,7 @@ class RgbSdkFlutterPlugin :
             val signer = RlnNodeStore.getSigner(signerId)
             when (RlnNodeStore.beginUnlock(nodeId)) {
                 RlnNodeStore.NodeLifecycleState.UNLOCKED -> {
-                    if (probeNodeReady(node, attempts = 3, delayMs = 200L)) {
+                    if (isNodeReady(node)) {
                         return
                     }
                     throw IllegalStateException("RLN node is marked unlocked but nodeInfo is not available")
@@ -612,11 +624,6 @@ class RgbSdkFlutterPlugin :
             )
             RlnNodeStore.markUnlocked(nodeId)
         } catch (e: Exception) {
-            val node = runCatching { RlnNodeStore.get(nodeId) }.getOrNull()
-            if (node != null && isConflictLike(e) && probeNodeReady(node, attempts = 12, delayMs = 500L)) {
-                RlnNodeStore.markUnlocked(nodeId)
-                return
-            }
             RlnNodeStore.rollbackUnlock(nodeId)
             throw bridgeError(e, "rlnUnlockNodeWithNativeExternalSigner")
         }
@@ -664,7 +671,7 @@ class RgbSdkFlutterPlugin :
             val node = RlnNodeStore.get(nodeId)
             when (RlnNodeStore.beginUnlock(nodeId)) {
                 RlnNodeStore.NodeLifecycleState.UNLOCKED -> {
-                    if (probeNodeReady(node, attempts = 3, delayMs = 200L)) {
+                    if (isNodeReady(node)) {
                         return
                     }
                     throw IllegalStateException("RLN node is marked unlocked but nodeInfo is not available")
@@ -688,11 +695,6 @@ class RgbSdkFlutterPlugin :
             )
             RlnNodeStore.markUnlocked(nodeId)
         } catch (e: Exception) {
-            val node = runCatching { RlnNodeStore.get(nodeId) }.getOrNull()
-            if (node != null && isConflictLike(e) && probeNodeReady(node, attempts = 12, delayMs = 500L)) {
-                RlnNodeStore.markUnlocked(nodeId)
-                return
-            }
             RlnNodeStore.rollbackUnlock(nodeId)
             throw bridgeError(e, "rlnUnlockNode")
         }
@@ -702,8 +704,8 @@ class RgbSdkFlutterPlugin :
         RlnNodeStore.remove(nodeId)
     }
 
-    override fun rlnNodeInfo(nodeId: Long): Map<Any?, Any?> {
-        return runRln("rlnNodeInfo") {
+    override fun rlnNodeInfo(nodeId: Long): RlnWireResponse {
+        return runRlnWire("rlnNodeInfo") {
             val info = RlnNodeStore.get(nodeId).nodeInfo()
             mapOf(
                 "pubkey" to info.pubkey,
@@ -729,8 +731,8 @@ class RgbSdkFlutterPlugin :
         }
     }
 
-    override fun rlnNetworkInfo(nodeId: Long): Map<Any?, Any?> {
-        return runRln("rlnNetworkInfo") {
+    override fun rlnNetworkInfo(nodeId: Long): RlnWireResponse {
+        return runRlnWire("rlnNetworkInfo") {
             val info = RlnNodeStore.get(nodeId).networkInfo()
             mapOf(
                 "network" to info.network,
@@ -739,8 +741,8 @@ class RgbSdkFlutterPlugin :
         }
     }
 
-    override fun rlnListPeers(nodeId: Long): List<Map<Any?, Any?>> {
-        return runRln("rlnListPeers") {
+    override fun rlnListPeers(nodeId: Long): List<RlnWireResponse> {
+        return runRlnWireList("rlnListPeers") {
             RlnNodeStore.get(nodeId).listPeers().map { mapOf("pubkey" to it.pubkey) }
         }
     }
@@ -759,30 +761,29 @@ class RgbSdkFlutterPlugin :
         }
     }
 
-    override fun rlnListChannels(nodeId: Long): List<Map<Any?, Any?>> {
-        return runRln("rlnListChannels") {
+    override fun rlnListChannels(nodeId: Long): List<RlnWireResponse> {
+        return runRlnWireList("rlnListChannels") {
             RlnNodeStore.get(nodeId).listChannels().map(::channelMap)
         }
     }
 
-    override fun rlnOpenChannel(nodeId: Long, peerPubkeyAndOptAddr: String, capacitySat: Long, pushMsat: Long, publicChannel: Boolean, withAnchors: Boolean, feeBaseMsat: Long?, feeProportionalMillionths: Long?, temporaryChannelId: String?, assetId: String?, assetAmount: Long?, pushAssetAmount: Long?, virtualOpenMode: String?): Map<Any?, Any?> {
-        return runRln("rlnOpenChannel") {
-            val response = RlnNodeStore.get(nodeId).openchannel(
-                org.utexo.rgblightningnode.SdkOpenChannelRequest(
-                    peerPubkeyAndOptAddr = peerPubkeyAndOptAddr,
-                    capacitySat = requireULong(capacitySat, "capacitySat", "rlnOpenChannel"),
-                    pushMsat = requireULong(pushMsat, "pushMsat", "rlnOpenChannel"),
-                    public = publicChannel,
-                    withAnchors = withAnchors,
-                    feeBaseMsat = feeBaseMsat?.let { requireUInt(it, "feeBaseMsat", "rlnOpenChannel") },
-                    feeProportionalMillionths = feeProportionalMillionths?.let { requireUInt(it, "feeProportionalMillionths", "rlnOpenChannel") },
-                    temporaryChannelId = temporaryChannelId,
-                    assetId = assetId,
-                    assetAmount = assetAmount?.let { requireULong(it, "assetAmount", "rlnOpenChannel") },
-                    pushAssetAmount = pushAssetAmount?.let { requireULong(it, "pushAssetAmount", "rlnOpenChannel") },
-                    virtualOpenMode = virtualOpenMode
-                )
+    override fun rlnOpenChannel(nodeId: Long, peerPubkeyAndOptAddr: String, capacitySat: Long, pushMsat: Long, publicChannel: Boolean, withAnchors: Boolean, feeBaseMsat: Long?, feeProportionalMillionths: Long?, temporaryChannelId: String?, assetId: String?, assetAmount: Long?, pushAssetAmount: Long?, virtualOpenMode: String?): RlnWireResponse {
+        return runRlnWire("rlnOpenChannel") {
+            val request = org.utexo.rgblightningnode.SdkOpenChannelRequest(
+                peerPubkeyAndOptAddr = peerPubkeyAndOptAddr,
+                capacitySat = requireULong(capacitySat, "capacitySat", "rlnOpenChannel"),
+                pushMsat = requireULong(pushMsat, "pushMsat", "rlnOpenChannel"),
+                public = publicChannel,
+                withAnchors = withAnchors,
+                feeBaseMsat = feeBaseMsat?.let { requireUInt(it, "feeBaseMsat", "rlnOpenChannel") },
+                feeProportionalMillionths = feeProportionalMillionths?.let { requireUInt(it, "feeProportionalMillionths", "rlnOpenChannel") },
+                temporaryChannelId = temporaryChannelId,
+                assetId = assetId,
+                assetAmount = assetAmount?.let { requireULong(it, "assetAmount", "rlnOpenChannel") },
+                pushAssetAmount = pushAssetAmount?.let { requireULong(it, "pushAssetAmount", "rlnOpenChannel") },
+                virtualOpenMode = virtualOpenMode
             )
+            val response = RlnNodeStore.get(nodeId).openchannel(request)
             mapOf("temporaryChannelId" to response.temporaryChannelId)
         }
     }
@@ -799,38 +800,38 @@ class RgbSdkFlutterPlugin :
         }
     }
 
-    override fun rlnListPayments(nodeId: Long): List<Map<Any?, Any?>> {
-        return runRln("rlnListPayments") {
+    override fun rlnListPayments(nodeId: Long): List<RlnWireResponse> {
+        return runRlnWireList("rlnListPayments") {
             RlnNodeStore.get(nodeId).listPayments().map(::paymentMap)
         }
     }
 
-    override fun rlnAddress(nodeId: Long): Map<Any?, Any?> {
-        return runRln("rlnAddress") {
+    override fun rlnAddress(nodeId: Long): RlnWireResponse {
+        return runRlnWire("rlnAddress") {
             mapOf("address" to RlnNodeStore.get(nodeId).address().address)
         }
     }
 
-    override fun rlnRotateAddress(nodeId: Long): Map<Any?, Any?> {
-        return runRln("rlnRotateAddress") {
+    override fun rlnRotateAddress(nodeId: Long): RlnWireResponse {
+        return runRlnWire("rlnRotateAddress") {
             mapOf("address" to RlnNodeStore.get(nodeId).rotateAddress().address)
         }
     }
 
-    override fun rlnSignMessage(nodeId: Long, message: String): Map<Any?, Any?> {
-        return runRln("rlnSignMessage") {
+    override fun rlnSignMessage(nodeId: Long, message: String): RlnWireResponse {
+        return runRlnWire("rlnSignMessage") {
             mapOf("signedMessage" to RlnNodeStore.get(nodeId).signMessage(message).signedMessage)
         }
     }
 
-    override fun rlnVerifyMessage(nodeId: Long, message: String, signature: String): Map<Any?, Any?> {
-        return runRln("rlnVerifyMessage") {
+    override fun rlnVerifyMessage(nodeId: Long, message: String, signature: String): RlnWireResponse {
+        return runRlnWire("rlnVerifyMessage") {
             mapOf("valid" to RlnNodeStore.get(nodeId).verifyMessage(message, signature).valid)
         }
     }
 
-    override fun rlnAssetBalance(nodeId: Long, assetId: String): Map<Any?, Any?> {
-        return runRln("rlnAssetBalance") {
+    override fun rlnAssetBalance(nodeId: Long, assetId: String): RlnWireResponse {
+        return runRlnWire("rlnAssetBalance") {
             assetBalanceMap(RlnNodeStore.get(nodeId).assetBalance(assetId))
         }
     }
@@ -843,8 +844,8 @@ class RgbSdkFlutterPlugin :
         )
     }
 
-    override fun rlnBtcBalance(nodeId: Long, skipSync: Boolean): Map<Any?, Any?> {
-        return runRln("rlnBtcBalance") {
+    override fun rlnBtcBalance(nodeId: Long, skipSync: Boolean): RlnWireResponse {
+        return runRlnWire("rlnBtcBalance") {
             val balance = RlnNodeStore.get(nodeId).btcBalance(skipSync)
             mapOf(
                 "vanilla" to btcBalanceMap(balance.vanilla),
@@ -853,8 +854,8 @@ class RgbSdkFlutterPlugin :
         }
     }
 
-    override fun rlnCheckIndexerUrl(nodeId: Long, indexerUrl: String): Map<Any?, Any?> {
-        return runRln("rlnCheckIndexerUrl") {
+    override fun rlnCheckIndexerUrl(nodeId: Long, indexerUrl: String): RlnWireResponse {
+        return runRlnWire("rlnCheckIndexerUrl") {
             val response = RlnNodeStore.get(nodeId).checkIndexerUrl(indexerUrl)
             mapOf("indexerProtocol" to response.indexerProtocol)
         }
@@ -868,32 +869,31 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnCreateUtxos(nodeId: Long, upTo: Boolean, num: Long?, size: Long?, feeRate: Double, skipSync: Boolean) {
         runRln("rlnCreateUtxos") {
-            RlnNodeStore.get(nodeId).createutxos(
-                org.utexo.rgblightningnode.SdkCreateUtxosRequest(
-                    upTo = upTo,
-                    num = num?.let { requireUByte(it, "num", "rlnCreateUtxos") },
-                    size = size?.let { requireUInt(it, "size", "rlnCreateUtxos") },
-                    feeRate = requireFeeRate(feeRate, "feeRate", "rlnCreateUtxos"),
-                    skipSync = skipSync
-                )
+            val request = org.utexo.rgblightningnode.SdkCreateUtxosRequest(
+                upTo = upTo,
+                num = num?.let { requireUByte(it, "num", "rlnCreateUtxos") },
+                size = size?.let { requireUInt(it, "size", "rlnCreateUtxos") },
+                feeRate = requireFeeRate(feeRate, "feeRate", "rlnCreateUtxos"),
+                skipSync = skipSync
             )
+            RlnNodeStore.get(nodeId).createutxos(request)
         }
     }
 
-    override fun rlnDecodeLnInvoice(nodeId: Long, invoice: String): Map<Any?, Any?> {
-        return runRln("rlnDecodeLnInvoice") {
+    override fun rlnDecodeLnInvoice(nodeId: Long, invoice: String): RlnWireResponse {
+        return runRlnWire("rlnDecodeLnInvoice") {
             decodeLnInvoiceMap(RlnNodeStore.get(nodeId).decodeLnInvoice(invoice))
         }
     }
 
-    override fun rlnDecodeRgbInvoice(nodeId: Long, invoice: String): Map<Any?, Any?> {
-        return runRln("rlnDecodeRgbInvoice") {
+    override fun rlnDecodeRgbInvoice(nodeId: Long, invoice: String): RlnWireResponse {
+        return runRlnWire("rlnDecodeRgbInvoice") {
             decodeRgbInvoiceMap(RlnNodeStore.get(nodeId).decodeRgbInvoice(invoice))
         }
     }
 
-    override fun rlnEstimateFee(nodeId: Long, blocks: Long): Map<Any?, Any?> {
-        return runRln("rlnEstimateFee") {
+    override fun rlnEstimateFee(nodeId: Long, blocks: Long): RlnWireResponse {
+        return runRlnWire("rlnEstimateFee") {
             val response = RlnNodeStore.get(nodeId).estimateFee(
                 requireUShort(blocks, "blocks", "rlnEstimateFee")
             )
@@ -901,8 +901,8 @@ class RgbSdkFlutterPlugin :
         }
     }
 
-    override fun rlnFailTransfers(nodeId: Long, batchTransferIdx: Long?, noAssetOnly: Boolean, skipSync: Boolean): Map<Any?, Any?> {
-        return runRln("rlnFailTransfers") {
+    override fun rlnFailTransfers(nodeId: Long, batchTransferIdx: Long?, noAssetOnly: Boolean, skipSync: Boolean): RlnWireResponse {
+        return runRlnWire("rlnFailTransfers") {
             val response = RlnNodeStore.get(nodeId).failtransfers(
                 org.utexo.rgblightningnode.SdkFailTransfersRequest(
                     batchTransferIdx = batchTransferIdx?.let { requireInt(it, "batchTransferIdx", "rlnFailTransfers") },
@@ -920,8 +920,8 @@ class RgbSdkFlutterPlugin :
         }
     }
 
-    override fun rlnGetPayment(nodeId: Long, paymentHash: String): Map<Any?, Any?> {
-        return runRln("rlnGetPayment") {
+    override fun rlnGetPayment(nodeId: Long, paymentHash: String): RlnWireResponse {
+        return runRlnWire("rlnGetPayment") {
             val node = RlnNodeStore.get(nodeId)
             var lastError: Exception? = null
             for (paymentType in listOf(
@@ -930,7 +930,7 @@ class RgbSdkFlutterPlugin :
                 org.utexo.rgblightningnode.PaymentType.INBOUND_HODL
             )) {
                 try {
-                    return@runRln paymentMap(node.getPayment(paymentHash, paymentType))
+                    return@runRlnWire paymentMap(node.getPayment(paymentHash, paymentType))
                 } catch (e: Exception) {
                     lastError = e
                 }
@@ -939,34 +939,33 @@ class RgbSdkFlutterPlugin :
         }
     }
 
-    override fun rlnInvoiceStatus(nodeId: Long, invoice: String): Map<Any?, Any?> {
-        return runRln("rlnInvoiceStatus") {
+    override fun rlnInvoiceStatus(nodeId: Long, invoice: String): RlnWireResponse {
+        return runRlnWire("rlnInvoiceStatus") {
             mapOf("status" to RlnNodeStore.get(nodeId).invoiceStatus(invoice).name)
         }
     }
 
-    override fun rlnKeysend(nodeId: Long, destPubkey: String, amtMsat: Long, assetId: String?, assetAmount: Long?): Map<Any?, Any?> {
-        return runRln("rlnKeysend") {
-            val response = RlnNodeStore.get(nodeId).keysend(
-                org.utexo.rgblightningnode.SdkKeysendRequest(
-                    destPubkey = destPubkey,
-                    amtMsat = requireULong(amtMsat, "amtMsat", "rlnKeysend"),
-                    assetId = assetId,
-                    assetAmount = assetAmount?.let { requireULong(it, "assetAmount", "rlnKeysend") }
-                )
+    override fun rlnKeysend(nodeId: Long, destPubkey: String, amtMsat: Long, assetId: String?, assetAmount: Long?): RlnWireResponse {
+        return runRlnWire("rlnKeysend") {
+            val request = org.utexo.rgblightningnode.SdkKeysendRequest(
+                destPubkey = destPubkey,
+                amtMsat = requireULong(amtMsat, "amtMsat", "rlnKeysend"),
+                assetId = assetId,
+                assetAmount = assetAmount?.let { requireULong(it, "assetAmount", "rlnKeysend") }
             )
+            val response = RlnNodeStore.get(nodeId).keysend(request)
             keysendMap(response)
         }
     }
 
-    override fun rlnListAssets(nodeId: Long, filterAssetSchemas: List<String>): Map<Any?, Any?> {
-        return runRln("rlnListAssets") {
+    override fun rlnListAssets(nodeId: Long, filterAssetSchemas: List<String>): RlnWireResponse {
+        return runRlnWire("rlnListAssets") {
             listAssetsMap(RlnNodeStore.get(nodeId).listAssets(filterAssetSchemas))
         }
     }
 
-    override fun rlnListTransactions(nodeId: Long, skipSync: Boolean): List<Map<Any?, Any?>> {
-        return runRln("rlnListTransactions") {
+    override fun rlnListTransactions(nodeId: Long, skipSync: Boolean): List<RlnWireResponse> {
+        return runRlnWireList("rlnListTransactions") {
             RlnNodeStore.get(nodeId).listTransactions(skipSync).map(::transactionMap)
         }
     }
@@ -975,26 +974,26 @@ class RgbSdkFlutterPlugin :
         nodeId: Long,
         txid: String,
         skipSync: Boolean
-    ): List<Map<Any?, Any?>> {
-        return runRln("rlnListTransactionsByTxid") {
+    ): List<RlnWireResponse> {
+        return runRlnWireList("rlnListTransactionsByTxid") {
             RlnNodeStore.get(nodeId).listTransactionsByTxid(txid, skipSync).map(::transactionMap)
         }
     }
 
-    override fun rlnListTransfers(nodeId: Long, assetId: String): List<Map<Any?, Any?>> {
-        return runRln("rlnListTransfers") {
+    override fun rlnListTransfers(nodeId: Long, assetId: String): List<RlnWireResponse> {
+        return runRlnWireList("rlnListTransfers") {
             RlnNodeStore.get(nodeId).listTransfers(assetId).map(::transferMap)
         }
     }
 
-    override fun rlnListTransfersByTxid(nodeId: Long, txid: String): List<Map<Any?, Any?>> {
-        return runRln("rlnListTransfersByTxid") {
+    override fun rlnListTransfersByTxid(nodeId: Long, txid: String): List<RlnWireResponse> {
+        return runRlnWireList("rlnListTransfersByTxid") {
             RlnNodeStore.get(nodeId).listTransfersByTxid(txid).map(::transferMap)
         }
     }
 
-    override fun rlnListUnspents(nodeId: Long, skipSync: Boolean): List<Map<Any?, Any?>> {
-        return runRln("rlnListUnspents") {
+    override fun rlnListUnspents(nodeId: Long, skipSync: Boolean): List<RlnWireResponse> {
+        return runRlnWireList("rlnListUnspents") {
             RlnNodeStore.get(nodeId).listUnspents(skipSync).map(::unspentMap)
         }
     }
@@ -1008,25 +1007,24 @@ class RgbSdkFlutterPlugin :
         paymentHash: String?,
         minFinalCltvExpiryDelta: Long?,
         descriptionHash: String?
-    ): Map<Any?, Any?> {
-        return runRln("rlnLnInvoice") {
-            val response = RlnNodeStore.get(nodeId).lnInvoice(
-                LnInvoiceRequest(
-                    amtMsat = amtMsat?.let { requireULong(it, "amtMsat", "rlnLnInvoice") },
-                    expirySec = requireUInt(expirySec, "expirySec", "rlnLnInvoice"),
-                    assetId = assetId,
-                    assetAmount = assetAmount?.let { requireULong(it, "assetAmount", "rlnLnInvoice") },
-                    paymentHash = paymentHash,
-                    descriptionHash = descriptionHash,
-                    minFinalCltvExpiryDelta = minFinalCltvExpiryDelta?.let { requireUShort(it, "minFinalCltvExpiryDelta", "rlnLnInvoice") }
-                )
+    ): RlnWireResponse {
+        return runRlnWire("rlnLnInvoice") {
+            val request = LnInvoiceRequest(
+                amtMsat = amtMsat?.let { requireULong(it, "amtMsat", "rlnLnInvoice") },
+                expirySec = requireUInt(expirySec, "expirySec", "rlnLnInvoice"),
+                assetId = assetId,
+                assetAmount = assetAmount?.let { requireULong(it, "assetAmount", "rlnLnInvoice") },
+                paymentHash = paymentHash,
+                descriptionHash = descriptionHash,
+                minFinalCltvExpiryDelta = minFinalCltvExpiryDelta?.let { requireUShort(it, "minFinalCltvExpiryDelta", "rlnLnInvoice") }
             )
+            val response = RlnNodeStore.get(nodeId).lnInvoice(request)
             mapOf("invoice" to response.invoice)
         }
     }
 
-    override fun rlnClaimHodlInvoice(nodeId: Long, paymentHash: String, paymentPreimage: String): Map<Any?, Any?> {
-        return runRln("rlnClaimHodlInvoice") {
+    override fun rlnClaimHodlInvoice(nodeId: Long, paymentHash: String, paymentPreimage: String): RlnWireResponse {
+        return runRlnWire("rlnClaimHodlInvoice") {
             val response = RlnNodeStore.get(nodeId).claimhodlinvoice(
                 ClaimHodlInvoiceRequest(
                     paymentHash = paymentHash,
@@ -1045,8 +1043,8 @@ class RgbSdkFlutterPlugin :
         }
     }
 
-    override fun rlnApayNew(nodeId: Long, hostNodeId: String): Map<Any?, Any?> {
-        return runRln("rlnApayNew") {
+    override fun rlnApayNew(nodeId: Long, hostNodeId: String): RlnWireResponse {
+        return runRlnWire("rlnApayNew") {
             val response = RlnNodeStore.get(nodeId).apayNew(hostNodeId)
             mapOf(
                 "requestId" to response.requestId,
@@ -1065,8 +1063,8 @@ class RgbSdkFlutterPlugin :
         }
     }
 
-    override fun rlnApayNewWithAddress(nodeId: Long, hostNodeId: String, username: String, domain: String): Map<Any?, Any?> {
-        return runRln("rlnApayNewWithAddress") {
+    override fun rlnApayNewWithAddress(nodeId: Long, hostNodeId: String, username: String, domain: String): RlnWireResponse {
+        return runRlnWire("rlnApayNewWithAddress") {
             val response = RlnNodeStore.get(nodeId).apayNewWithAddress(hostNodeId, username, domain)
             mapOf(
                 "requestId" to response.requestId,
@@ -1117,8 +1115,8 @@ class RgbSdkFlutterPlugin :
         minConfirmations: Long,
         witness: Boolean,
         assignmentKind: String?
-    ): Map<Any?, Any?> {
-        return runRln("rlnRgbInvoice") {
+    ): RlnWireResponse {
+        return runRlnWire("rlnRgbInvoice") {
             val request = org.utexo.rgblightningnode.SdkRgbInvoiceRequest(
                 assetId = assetId,
                 assignmentKind = parseAssignmentKind(assignmentKind),
@@ -1131,36 +1129,34 @@ class RgbSdkFlutterPlugin :
         }
     }
 
-    override fun rlnSendBtc(nodeId: Long, amount: Long, address: String, feeRate: Double, skipSync: Boolean): Map<Any?, Any?> {
-        return runRln("rlnSendBtc") {
-            val response = RlnNodeStore.get(nodeId).sendbtc(
-                org.utexo.rgblightningnode.SdkSendBtcRequest(
-                    amount = requireULong(amount, "amount", "rlnSendBtc"),
-                    address = address,
-                    feeRate = requireFeeRate(feeRate, "feeRate", "rlnSendBtc"),
-                    skipSync = skipSync
-                )
+    override fun rlnSendBtc(nodeId: Long, amount: Long, address: String, feeRate: Double, skipSync: Boolean): RlnWireResponse {
+        return runRlnWire("rlnSendBtc") {
+            val request = org.utexo.rgblightningnode.SdkSendBtcRequest(
+                amount = requireULong(amount, "amount", "rlnSendBtc"),
+                address = address,
+                feeRate = requireFeeRate(feeRate, "feeRate", "rlnSendBtc"),
+                skipSync = skipSync
             )
+            val response = RlnNodeStore.get(nodeId).sendbtc(request)
             mapOf("txid" to response.txid)
         }
     }
 
-    override fun rlnSendPayment(nodeId: Long, invoice: String, amtMsat: Long?, assetId: String?, assetAmount: Long?): Map<Any?, Any?> {
-        return runRln("rlnSendPayment") {
-            val response = RlnNodeStore.get(nodeId).sendpayment(
-                org.utexo.rgblightningnode.SdkSendPaymentRequest(
-                    invoice = invoice,
-                    amtMsat = amtMsat?.let { requireULong(it, "amtMsat", "rlnSendPayment") },
-                    assetId = assetId,
-                    assetAmount = assetAmount?.let { requireULong(it, "assetAmount", "rlnSendPayment") }
-                )
+    override fun rlnSendPayment(nodeId: Long, invoice: String, amtMsat: Long?, assetId: String?, assetAmount: Long?): RlnWireResponse {
+        return runRlnWire("rlnSendPayment") {
+            val request = org.utexo.rgblightningnode.SdkSendPaymentRequest(
+                invoice = invoice,
+                amtMsat = amtMsat?.let { requireULong(it, "amtMsat", "rlnSendPayment") },
+                assetId = assetId,
+                assetAmount = assetAmount?.let { requireULong(it, "assetAmount", "rlnSendPayment") }
             )
+            val response = RlnNodeStore.get(nodeId).sendpayment(request)
             sendPaymentMap(response)
         }
     }
 
-    override fun rlnSendRgb(nodeId: Long, donation: Boolean, feeRate: Double, minConfirmations: Long, skipSync: Boolean, assetId: String, recipientId: String, amount: Long, transportEndpoints: List<String>, witnessAmountSat: Long?, witnessBlinding: Long?): Map<Any?, Any?> {
-        return runRln("rlnSendRgb") {
+    override fun rlnSendRgb(nodeId: Long, donation: Boolean, feeRate: Double, minConfirmations: Long, skipSync: Boolean, assetId: String, recipientId: String, amount: Long, transportEndpoints: List<String>, witnessAmountSat: Long?, witnessBlinding: Long?): RlnWireResponse {
+        return runRlnWire("rlnSendRgb") {
             if (skipSync) {
                 throw FlutterError(
                     code = "UnsupportedOperationException",
@@ -1183,19 +1179,18 @@ class RgbSdkFlutterPlugin :
                 assignmentAmount = requireULong(amount, "amount", "rlnSendRgb"),
                 transportEndpoints = transportEndpoints
             )
-            val response = RlnNodeStore.get(nodeId).sendRgb(
-                org.utexo.rgblightningnode.SendRgbRequest(
-                    donation = donation,
-                    feeRate = requireFeeRate(feeRate, "feeRate", "rlnSendRgb"),
-                    minConfirmations = requireUByte(minConfirmations, "minConfirmations", "rlnSendRgb"),
-                    recipientGroups = listOf(
-                        org.utexo.rgblightningnode.AssetRecipients(
-                            assetId = assetId,
-                            recipients = listOf(recipient)
-                        )
+            val request = org.utexo.rgblightningnode.SendRgbRequest(
+                donation = donation,
+                feeRate = requireFeeRate(feeRate, "feeRate", "rlnSendRgb"),
+                minConfirmations = requireUByte(minConfirmations, "minConfirmations", "rlnSendRgb"),
+                recipientGroups = listOf(
+                    org.utexo.rgblightningnode.AssetRecipients(
+                        assetId = assetId,
+                        recipients = listOf(recipient)
                     )
                 )
             )
+            val response = RlnNodeStore.get(nodeId).sendRgb(request)
             mapOf(
                 "txid" to response.txid,
                 "batchTransferIdx" to response.batchTransferIdx
@@ -1217,8 +1212,8 @@ class RgbSdkFlutterPlugin :
         }
     }
 
-    override fun rlnIssueAssetNia(nodeId: Long, ticker: String, name: String, precision: Long, amounts: List<Long>): Any? {
-        return runRln("rlnIssueAssetNia") {
+    override fun rlnIssueAssetNia(nodeId: Long, ticker: String, name: String, precision: Long, amounts: List<Long>): RlnWireResponse {
+        return runRlnWire("rlnIssueAssetNia") {
             val asset = RlnNodeStore.get(nodeId).issueassetnia(
                 org.utexo.rgblightningnode.SdkIssueAssetNiaRequest(
                     amounts = requireULongList(amounts, "amounts", "rlnIssueAssetNia"),
@@ -1231,8 +1226,8 @@ class RgbSdkFlutterPlugin :
         }
     }
 
-    override fun rlnIssueAssetCfa(nodeId: Long, name: String, details: String?, precision: Long, amounts: List<Long>, fileDigest: String?): Any? {
-        return runRln("rlnIssueAssetCfa") {
+    override fun rlnIssueAssetCfa(nodeId: Long, name: String, details: String?, precision: Long, amounts: List<Long>, fileDigest: String?): RlnWireResponse {
+        return runRlnWire("rlnIssueAssetCfa") {
             val asset = RlnNodeStore.get(nodeId).issueassetcfa(
                 org.utexo.rgblightningnode.SdkIssueAssetCfaRequest(
                     amounts = requireULongList(amounts, "amounts", "rlnIssueAssetCfa"),
@@ -1246,8 +1241,8 @@ class RgbSdkFlutterPlugin :
         }
     }
 
-    override fun rlnIssueAssetIfa(nodeId: Long, ticker: String, name: String, precision: Long, amounts: List<Long>, inflationAmounts: List<Long>, rejectListUrl: String?): Any? {
-        return runRln("rlnIssueAssetIfa") {
+    override fun rlnIssueAssetIfa(nodeId: Long, ticker: String, name: String, precision: Long, amounts: List<Long>, inflationAmounts: List<Long>, rejectListUrl: String?): RlnWireResponse {
+        return runRlnWire("rlnIssueAssetIfa") {
             val asset = RlnNodeStore.get(nodeId).issueassetifa(
                 org.utexo.rgblightningnode.SdkIssueAssetIfaRequest(
                     amounts = requireULongList(amounts, "amounts", "rlnIssueAssetIfa"),
@@ -1268,30 +1263,29 @@ class RgbSdkFlutterPlugin :
         inflationAmounts: List<Long>,
         feeRate: Double,
         minConfirmations: Long
-    ): Map<Any?, Any?> {
-        return runRln("rlnInflate") {
-            val response = RlnNodeStore.get(nodeId).inflate(
-                org.utexo.rgblightningnode.InflateRequest(
-                    assetId = assetId,
-                    inflationAmounts = requireULongList(
-                        inflationAmounts,
-                        "inflationAmounts",
-                        "rlnInflate"
-                    ),
-                    feeRate = requireFeeRate(feeRate, "feeRate", "rlnInflate"),
-                    minConfirmations = requireUByte(
-                        minConfirmations,
-                        "minConfirmations",
-                        "rlnInflate"
-                    )
+    ): RlnWireResponse {
+        return runRlnWire("rlnInflate") {
+            val request = org.utexo.rgblightningnode.InflateRequest(
+                assetId = assetId,
+                inflationAmounts = requireULongList(
+                    inflationAmounts,
+                    "inflationAmounts",
+                    "rlnInflate"
+                ),
+                feeRate = requireFeeRate(feeRate, "feeRate", "rlnInflate"),
+                minConfirmations = requireUByte(
+                    minConfirmations,
+                    "minConfirmations",
+                    "rlnInflate"
                 )
             )
+            val response = RlnNodeStore.get(nodeId).inflate(request)
             mapOf("txid" to response.txid)
         }
     }
 
-    override fun rlnIssueAssetUda(nodeId: Long, ticker: String, name: String, details: String?, precision: Long, mediaFileDigest: String?, attachmentsFileDigests: List<String>): Any? {
-        return runRln("rlnIssueAssetUda") {
+    override fun rlnIssueAssetUda(nodeId: Long, ticker: String, name: String, details: String?, precision: Long, mediaFileDigest: String?, attachmentsFileDigests: List<String>): RlnWireResponse {
+        return runRlnWire("rlnIssueAssetUda") {
             val asset = RlnNodeStore.get(nodeId).issueassetuda(
                 org.utexo.rgblightningnode.SdkIssueAssetUdaRequest(
                     ticker = ticker,
@@ -1322,5 +1316,6 @@ class RgbSdkFlutterPlugin :
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         RlnHostApi.setUp(binding.binaryMessenger, null)
+        RlnNodeStore.clearAll()
     }
 }

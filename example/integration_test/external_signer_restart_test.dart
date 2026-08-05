@@ -452,7 +452,7 @@ RlnChannel? _usableVirtualChannel(
   for (final channel in channels) {
     if (channel.peerPubkey == peerPubkey &&
         channel.ready &&
-        channel.isUsable &&
+        channel.isUsable == true &&
         channel.assetId == null &&
         channel.capacitySat == _virtualChannelCapacitySat &&
         (requireVirtualMode
@@ -507,7 +507,7 @@ Future<void> _waitForPaymentFinal(
     final payments = await wallet.listPayments();
     for (final payment in payments) {
       if (payment.paymentHash != paymentHash) continue;
-      final status = payment.status.toLowerCase();
+      final status = payment.status?.toLowerCase();
       if (status == 'succeeded') return;
       if (status == 'failed' || status == 'expired' || status == 'cancelled') {
         fail('$label payment reached terminal failure state: $status.');

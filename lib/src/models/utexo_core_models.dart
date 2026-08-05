@@ -1,3 +1,4 @@
+import '../errors/rgb_sdk_exception.dart';
 import 'rln_models.dart';
 
 /// RGB assignment shape used by the RN package's core model layer.
@@ -106,9 +107,9 @@ class CoreTransaction {
 class CoreTransfer {
   const CoreTransfer({
     required this.idx,
-    required this.batchTransferIdx,
-    required this.createdAt,
-    required this.updatedAt,
+    this.batchTransferIdx,
+    this.createdAt,
+    this.updatedAt,
     required this.status,
     required this.assignments,
     required this.kind,
@@ -121,9 +122,9 @@ class CoreTransfer {
   });
 
   final int idx;
-  final int batchTransferIdx;
-  final int createdAt;
-  final int updatedAt;
+  final int? batchTransferIdx;
+  final int? createdAt;
+  final int? updatedAt;
   final String status;
   final List<Assignment> assignments;
   final String kind;
@@ -138,13 +139,13 @@ class CoreTransfer {
 class CoreInvoiceReceiveData {
   const CoreInvoiceReceiveData({
     required this.invoice,
-    required this.recipientId,
+    this.recipientId,
     this.expirationTimestamp,
     required this.batchTransferIdx,
   });
 
   final String invoice;
-  final String recipientId;
+  final String? recipientId;
   final int? expirationTimestamp;
   final int batchTransferIdx;
 }
@@ -281,6 +282,51 @@ class CoreListAssets {
   final List<CoreAssetUda> uda;
 }
 
+/// Canonical Lightning channel shape used by the RN/core contract.
+class LightningChannel {
+  const LightningChannel({
+    required this.channelId,
+    required this.peerPubkey,
+    required this.capacitySat,
+    required this.ready,
+    required this.isPublic,
+    this.isUsable,
+    this.status,
+    this.localBalanceMsat,
+    this.outboundBalanceMsat,
+    this.inboundBalanceMsat,
+    this.nextOutboundHtlcLimitMsat,
+    this.nextOutboundHtlcMinimumMsat,
+    this.fundingTxid,
+    this.peerAlias,
+    this.shortChannelId,
+    this.assetId,
+    this.assetLocalAmount,
+    this.assetRemoteAmount,
+    this.virtualOpenMode,
+  });
+
+  final String channelId;
+  final String peerPubkey;
+  final int capacitySat;
+  final bool ready;
+  final bool isPublic;
+  final bool? isUsable;
+  final String? status;
+  final int? localBalanceMsat;
+  final int? outboundBalanceMsat;
+  final int? inboundBalanceMsat;
+  final int? nextOutboundHtlcLimitMsat;
+  final int? nextOutboundHtlcMinimumMsat;
+  final String? fundingTxid;
+  final String? peerAlias;
+  final int? shortChannelId;
+  final String? assetId;
+  final int? assetLocalAmount;
+  final int? assetRemoteAmount;
+  final String? virtualOpenMode;
+}
+
 Assignment parseCoreAssignment(String assignment) {
   final fungible = RegExp(r'Fungible\((\d+)\)').firstMatch(assignment);
   if (fungible != null) {
@@ -292,21 +338,32 @@ Assignment parseCoreAssignment(String assignment) {
     'ReplaceRight',
     'Any',
   ]) {
-    if (assignment.contains(type)) return Assignment(type: type);
+    if (assignment == type) return Assignment(type: type);
   }
   final amount = int.tryParse(assignment);
-  return amount == null
-      ? const Assignment(type: 'Any')
-      : Assignment(type: 'Fungible', amount: amount);
+  if (amount != null) return Assignment(type: 'Fungible', amount: amount);
+  throw NativeProtocolException(
+    'Unsupported RGB assignment shape "$assignment".',
+    field: 'assignment',
+  );
 }
 
 Outpoint parseCoreOutpoint(String value) {
   final index = value.lastIndexOf(':');
-  if (index < 0) return Outpoint(txid: value, vout: 0);
-  return Outpoint(
-    txid: value.substring(0, index),
-    vout: int.tryParse(value.substring(index + 1)) ?? 0,
-  );
+  if (index <= 0 || index == value.length - 1) {
+    throw NativeProtocolException(
+      'Outpoint must use "<txid>:<vout>" format.',
+      field: 'outpoint',
+    );
+  }
+  final vout = int.tryParse(value.substring(index + 1));
+  if (vout == null || vout < 0) {
+    throw NativeProtocolException(
+      'Outpoint vout must be a non-negative integer.',
+      field: 'outpoint',
+    );
+  }
+  return Outpoint(txid: value.substring(0, index), vout: vout);
 }
 
 extension RlnCoreBalanceMapper on RlnBalance {
@@ -350,18 +407,30 @@ extension RlnCoreUnspentMapper on RlnUnspent {
             ),
           )
           .toList(growable: false),
+      pendingBlinded: pendingBlinded,
     );
   }
 }
 
 extension RlnCoreTransactionMapper on RlnTransaction {
   CoreTransaction toCore() {
-    const validTypes = <String>{'RgbSend', 'Drain', 'CreateUtxos', 'User'};
+    const typeMap = <String, String>{
+      'RGB_SEND': 'RgbSend',
+      'DRAIN': 'Drain',
+      'CREATE_UTXOS': 'CreateUtxos',
+      'SEND_BTC': 'SendBtc',
+      'INCOMING': 'Incoming',
+    };
+    final mappedType = typeMap[transactionType];
+    if (mappedType == null) {
+      throw NativeProtocolException(
+        'Unsupported transaction type "$transactionType".',
+        field: 'transactionType',
+      );
+    }
     return CoreTransaction(
       txid: txid,
-      transactionType: validTypes.contains(transactionType)
-          ? transactionType
-          : 'User',
+      transactionType: mappedType,
       received: received,
       sent: sent,
       fee: fee,
@@ -374,9 +443,11 @@ extension RlnCoreTransferMapper on RlnTransfer {
   CoreTransfer toCore() {
     const validStatuses = <String>{
       'WaitingCounterparty',
+      'WaitingSafeHeight',
       'WaitingConfirmations',
       'Settled',
       'Failed',
+      'Initiated',
     };
     const validKinds = <String>{
       'Issuance',
@@ -384,15 +455,29 @@ extension RlnCoreTransferMapper on RlnTransfer {
       'ReceiveWitness',
       'Send',
       'Inflation',
+      'Burn',
     };
+    final kind = this.kind;
+    if (!validStatuses.contains(status)) {
+      throw NativeProtocolException(
+        'Unsupported transfer status "$status".',
+        field: 'status',
+      );
+    }
+    if (kind == null || !validKinds.contains(kind)) {
+      throw NativeProtocolException(
+        'Unsupported transfer kind "$kind".',
+        field: 'kind',
+      );
+    }
     return CoreTransfer(
       idx: idx,
-      batchTransferIdx: 0,
+      batchTransferIdx: batchTransferIdx,
       createdAt: createdAt,
       updatedAt: updatedAt,
-      status: validStatuses.contains(status) ? status : 'WaitingCounterparty',
+      status: status,
       assignments: assignments.map(parseCoreAssignment).toList(growable: false),
-      kind: validKinds.contains(kind) ? kind : 'Send',
+      kind: kind,
       txid: txid,
       recipientId: recipientId,
       receiveUtxo: receiveUtxo == null ? null : parseCoreOutpoint(receiveUtxo!),
@@ -499,4 +584,48 @@ extension RlnCoreAssetsMapper on RlnAssets {
           .toList(growable: false),
     );
   }
+}
+
+extension RlnLightningChannelMapper on RlnChannel {
+  LightningChannel toLightningChannel() {
+    return LightningChannel(
+      channelId: channelId,
+      peerPubkey: peerPubkey,
+      capacitySat: capacitySat,
+      ready: ready,
+      isPublic: public,
+      isUsable: isUsable,
+      status: status == null ? null : _normalizeChannelStatus(status!),
+      localBalanceMsat: localBalanceSat == null
+          ? null
+          : localBalanceSat! * 1000,
+      outboundBalanceMsat: outboundBalanceMsat,
+      inboundBalanceMsat: inboundBalanceMsat,
+      nextOutboundHtlcLimitMsat: nextOutboundHtlcLimitMsat,
+      nextOutboundHtlcMinimumMsat: nextOutboundHtlcMinimumMsat,
+      fundingTxid: fundingTxid,
+      peerAlias: peerAlias,
+      shortChannelId: shortChannelId,
+      assetId: assetId,
+      assetLocalAmount: assetLocalAmount,
+      assetRemoteAmount: assetRemoteAmount,
+      virtualOpenMode: virtualOpenMode,
+    );
+  }
+}
+
+String _normalizeChannelStatus(String status) {
+  const statuses = <String, String>{
+    'opening': 'Opening',
+    'opened': 'Opened',
+    'closing': 'Closing',
+  };
+  final normalized = statuses[status.toLowerCase()];
+  if (normalized == null) {
+    throw NativeProtocolException(
+      'Unsupported channel status "$status".',
+      field: 'status',
+    );
+  }
+  return normalized;
 }

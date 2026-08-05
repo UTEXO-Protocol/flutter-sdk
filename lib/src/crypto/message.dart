@@ -120,13 +120,10 @@ ECPoint _liftX(Uint8List xBytes) {
 }
 
 Uint8List signSchnorr(
-  Uint8List messageHash,
+  Uint8List message,
   Uint8List privateKey, {
   Uint8List? auxRand,
 }) {
-  if (messageHash.length != 32) {
-    throw const ValidationError('message hash must be 32 bytes', 'message');
-  }
   final d0 = _bytesToInt(privateKey);
   if (d0 <= BigInt.zero || d0 >= _n) {
     throw const ValidationError('Invalid private key', 'privateKey');
@@ -150,7 +147,7 @@ Uint8List signSchnorr(
   final rand = _taggedHash('BIP0340/nonce', <int>[
     ...t,
     ...publicKey,
-    ...messageHash,
+    ...message,
   ]);
   final k0 = _bytesToInt(rand) % _n;
   if (k0 == BigInt.zero) {
@@ -162,11 +159,7 @@ Uint8List signSchnorr(
   final r = _intToBytes(rPoint.x!.toBigInteger()!);
   final e =
       _bytesToInt(
-        _taggedHash('BIP0340/challenge', <int>[
-          ...r,
-          ...publicKey,
-          ...messageHash,
-        ]),
+        _taggedHash('BIP0340/challenge', <int>[...r, ...publicKey, ...message]),
       ) %
       _n;
   final s = (k + e * d) % _n;
@@ -174,13 +167,11 @@ Uint8List signSchnorr(
 }
 
 bool verifySchnorr(
-  Uint8List messageHash,
+  Uint8List message,
   Uint8List publicKey,
   Uint8List signature,
 ) {
-  if (messageHash.length != 32 ||
-      publicKey.length != 32 ||
-      signature.length != 64) {
+  if (publicKey.length != 32 || signature.length != 64) {
     return false;
   }
   final r = _bytesToInt(signature.sublist(0, 32));
@@ -194,7 +185,7 @@ bool verifySchnorr(
           _taggedHash('BIP0340/challenge', <int>[
             ...signature.sublist(0, 32),
             ...publicKey,
-            ...messageHash,
+            ...message,
           ]),
         ) %
         _n;
@@ -209,17 +200,26 @@ bool verifySchnorr(
 Future<String> signMessage(SignMessageParams params) async {
   final normalizedNetwork = normalizeNetwork(params.network);
   final seed = normalizeSeedInput(params.seed, 'seed');
-  final root = rootNodeFromSeed(seed, normalizedNetwork);
-  final accountNode = root.derivePath(
-    accountDerivationPath(normalizedNetwork, false),
-  );
-  final child = accountNode.derivePath('0/0');
-  final privateKey = child.privateKey;
-  if (privateKey == null) {
-    throw const CryptoError('Derived node does not contain a private key');
+  try {
+    final root = rootNodeFromSeed(seed, normalizedNetwork);
+    final accountNode = root.derivePath(
+      accountDerivationPath(normalizedNetwork, false),
+    );
+    final child = accountNode.derivePath('0/0');
+    final privateKey = child.privateKey;
+    if (privateKey == null) {
+      throw const CryptoError('Derived node does not contain a private key');
+    }
+    final messageHash = _sha256(_messageBytes(params.message));
+    final privateKeyCopy = Uint8List.fromList(privateKey);
+    try {
+      return base64Encode(signSchnorr(messageHash, privateKeyCopy));
+    } finally {
+      wipeSecretBytes(privateKeyCopy);
+    }
+  } finally {
+    wipeSecretBytes(seed);
   }
-  final messageHash = _sha256(_messageBytes(params.message));
-  return base64Encode(signSchnorr(messageHash, privateKey));
 }
 
 Future<bool> verifyMessage(VerifyMessageParams params) async {

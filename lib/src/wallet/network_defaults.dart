@@ -1,4 +1,5 @@
 import '../crypto/constants.dart';
+import '../crypto/validation.dart';
 import '../errors/rgb_sdk_exception.dart';
 
 class NetworkEndpoints {
@@ -12,13 +13,13 @@ class NetworkEndpoints {
 }
 
 String normalizeNativeRlnNetwork(String network) {
-  final normalized = network.trim().toLowerCase();
+  final normalized = normalizeNetwork(network.trim().toLowerCase());
   if (normalized == 'utexo') return 'signet';
   return normalized;
 }
 
 NetworkEndpoints? getNetworkDefaults(String network) {
-  final normalized = network.trim().toLowerCase();
+  final normalized = normalizeNetwork(network.trim());
   final indexerUrl = DEFAULT_INDEXER_URLS[normalized];
   final proxyEndpoint = DEFAULT_TRANSPORT_ENDPOINTS[normalized];
   if (indexerUrl == null || proxyEndpoint == null) return null;
@@ -32,7 +33,7 @@ NetworkEndpoints? getNetworkDefaults(String network) {
 }
 
 String? getDefaultLspBaseUrl(String network) {
-  return switch (network.trim().toLowerCase()) {
+  return switch (normalizeNetwork(network.trim())) {
     'utexo' => 'https://lsp-signet.utexo.com',
     _ => null,
   };

@@ -29,7 +29,7 @@ internal object RlnNodeStore {
                 if (states[existingId] == NodeLifecycleState.SHUTDOWN) {
                     nodes[existingId]?.close()
                     nodes[existingId] = node
-                    states[existingId] = NodeLifecycleState.INITIALIZED
+                    states[existingId] = NodeLifecycleState.CREATED
                     return existingId
                 }
 
@@ -127,5 +127,16 @@ internal object RlnNodeStore {
     @Synchronized
     fun removeSigner(id: Long) {
         signers.remove(id)?.close()
+    }
+
+    @Synchronized
+    fun clearAll() {
+        nodes.values.forEach { it.close() }
+        signers.values.forEach { it.close() }
+        nodes.clear()
+        states.clear()
+        preUnlockStates.clear()
+        storageDirByNodeId.clear()
+        signers.clear()
     }
 }

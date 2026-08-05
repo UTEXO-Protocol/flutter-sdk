@@ -28,8 +28,9 @@ final class RlnNodeStore {
       if !normalizedPath.isEmpty,
          let existingId = storageDirByNodeId.first(where: { $0.value == normalizedPath })?.key {
         if states[existingId] == .shutdown {
+          nodes[existingId]?.shutdown()
           nodes[existingId] = node
-          states[existingId] = .initialized
+          states[existingId] = .created
           return existingId
         }
 
@@ -156,6 +157,17 @@ final class RlnNodeStore {
   func removeSigner(id: Int64) {
     queue.sync {
       signers.removeValue(forKey: id)
+    }
+  }
+
+  func clearAll() {
+    queue.sync {
+      nodes.values.forEach { $0.shutdown() }
+      nodes.removeAll()
+      states.removeAll()
+      preUnlockStates.removeAll()
+      storageDirByNodeId.removeAll()
+      signers.removeAll()
     }
   }
 }

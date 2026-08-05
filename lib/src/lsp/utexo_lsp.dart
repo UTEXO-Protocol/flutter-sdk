@@ -1,9 +1,8 @@
 import 'dart:async';
-import 'dart:convert';
-
-import 'package:http/http.dart' as http_package;
 
 import '../models/rln_models.dart';
+import '../errors/rgb_sdk_exception.dart';
+import '../crypto/validation.dart';
 import '../wallet/utexo_wallet.dart';
 import 'lsp_errors.dart';
 import 'lsp_types.dart';
@@ -141,6 +140,7 @@ class UtexoLsp {
   static const _defaultChannelTimeoutMs = 120000;
   static const _defaultSettlementTimeoutMs = 60000;
   static const _defaultPollIntervalMs = 2000;
+  static const _minPollIntervalMs = 50;
 
   final UtexoWallet wallet;
   final LspPeer peer;
@@ -158,7 +158,7 @@ class UtexoLsp {
     try {
       await wallet.connectPeer(peerUri(peer));
     } catch (error) {
-      if (!error.toString().toLowerCase().contains('already')) rethrow;
+      if (!_isAlreadyConnectedError(error)) rethrow;
     }
   }
 
@@ -169,11 +169,11 @@ class UtexoLsp {
     if (assetId.isEmpty) {
       throw ArgumentError.value(assetId, 'assetId', 'assetId is required');
     }
-    final timeoutMs = options.timeoutMs ?? _defaultChannelTimeoutMs;
-    final pollIntervalMs = options.pollIntervalMs ?? _defaultPollIntervalMs;
-    final deadline = DateTime.now().millisecondsSinceEpoch + timeoutMs;
+    final timeoutMs = _validatedTimeoutMs(options, _defaultChannelTimeoutMs);
+    final pollIntervalMs = _validatedPollIntervalMs(options);
+    final timer = Stopwatch()..start();
 
-    while (DateTime.now().millisecondsSinceEpoch < deadline) {
+    while (timer.elapsedMilliseconds < timeoutMs) {
       _checkCancelled(options);
       await options.onEachPoll?.call();
 
@@ -237,17 +237,18 @@ class UtexoLsp {
     String lnInvoice, {
     WaitOptions options = const WaitOptions(),
   }) async {
-    final timeoutMs = options.timeoutMs ?? _defaultSettlementTimeoutMs;
-    final pollIntervalMs = options.pollIntervalMs ?? _defaultPollIntervalMs;
-    final deadline = DateTime.now().millisecondsSinceEpoch + timeoutMs;
+    final timeoutMs = _validatedTimeoutMs(options, _defaultSettlementTimeoutMs);
+    final pollIntervalMs = _validatedPollIntervalMs(options);
+    final timer = Stopwatch()..start();
 
-    while (DateTime.now().millisecondsSinceEpoch < deadline) {
+    while (timer.elapsedMilliseconds < timeoutMs) {
       _checkCancelled(options);
       await options.onEachPoll?.call();
 
       await wallet.syncWallet();
-      final raw = await wallet.getLightningReceiveRequest(lnInvoice);
-      final status = normalizeReceiveStatus(raw);
+      final status = normalizeReceiveStatus(
+        await wallet.getLightningReceiveStatus(lnInvoice),
+      );
 
       options.onProgress?.call(status);
 
@@ -277,11 +278,11 @@ class UtexoLsp {
         'minMsat must be non-negative',
       );
     }
-    final timeoutMs = options.timeoutMs ?? _defaultChannelTimeoutMs;
-    final pollIntervalMs = options.pollIntervalMs ?? _defaultPollIntervalMs;
-    final deadline = DateTime.now().millisecondsSinceEpoch + timeoutMs;
+    final timeoutMs = _validatedTimeoutMs(options, _defaultChannelTimeoutMs);
+    final pollIntervalMs = _validatedPollIntervalMs(options);
+    final timer = Stopwatch()..start();
 
-    while (DateTime.now().millisecondsSinceEpoch < deadline) {
+    while (timer.elapsedMilliseconds < timeoutMs) {
       _checkCancelled(options);
       await options.onEachPoll?.call();
 
@@ -290,7 +291,8 @@ class UtexoLsp {
       final lspChannel = channels
           .where(
             (channel) =>
-                channel.peerPubkey == peer.peerPubkey && channel.isUsable,
+                channel.peerPubkey == peer.peerPubkey &&
+                channel.isUsable == true,
           )
           .firstOrNull;
       final outbound = lspChannel?.outboundBalanceMsat ?? 0;
@@ -324,47 +326,44 @@ class UtexoLsp {
   }
 
   Future<PayAddressResult> payAddress(PayAddressOptions options) async {
-    final parts = options.address.split('@');
-    if (parts.length != 2 || parts.first.isEmpty || parts.last.isEmpty) {
-      throw ArgumentError.value(
-        options.address,
-        'address',
-        'Invalid Lightning Address',
+    final parsedAddress = parseLightningAddress(options.address);
+    final username = parsedAddress.username;
+    final domain = parsedAddress.domain;
+    if (options.amtMsat <= 0) {
+      throw const ValidationError(
+        'amtMsat must be a finite positive integer (msat)',
+        'amtMsat',
       );
     }
-
-    final username = parts.first;
-    final domain = parts.last;
+    final asset = options.asset;
+    if (asset != null && asset.assetAmount < 0) {
+      throw const ValidationError(
+        'asset.assetAmount must be non-negative',
+        'asset.assetAmount',
+      );
+    }
     String? invoice;
 
-    try {
+    if (isSameLspHost(domain, peer.baseUrl)) {
       final callback = await http.resolveAddress(
         username,
         options.amtMsat,
-        assetId: options.asset?.assetId,
-        assetAmount: options.asset?.assetAmount,
+        assetId: asset?.assetId,
+        assetAmount: asset?.assetAmount,
       );
       invoice = callback.pr;
-    } catch (_) {
-      final metaUri = Uri.https(domain, '/.well-known/lnurlp/$username');
-      final metaResponse = await _httpGet(metaUri);
-      final meta = jsonDecode(metaResponse.body) as Map<String, Object?>;
-      final callback = meta['callback']?.toString();
-      if (callback == null || callback.isEmpty) {
-        throw StateError('Missing callback in LNURL response');
-      }
-      final callbackUri = _addQueryParams(callback, <String, String>{
-        'amount': options.amtMsat.toString(),
-        if (options.asset?.assetId != null) 'asset_id': options.asset!.assetId,
-        if (options.asset?.assetAmount != null)
-          'asset_amount': options.asset!.assetAmount.toString(),
-      });
-      final callbackResponse = await _httpGet(Uri.parse(callbackUri));
-      final body = jsonDecode(callbackResponse.body) as Map<String, Object?>;
-      invoice = body['pr']?.toString();
+    } else {
+      final callback = await http.resolveExternalAddress(
+        domain,
+        username,
+        options.amtMsat,
+        assetId: asset?.assetId,
+        assetAmount: asset?.assetAmount,
+      );
+      invoice = callback.pr;
     }
 
-    if (invoice == null || invoice.isEmpty) {
+    if (invoice.isEmpty) {
       throw StateError('No invoice returned for Lightning Address');
     }
     final sendResult = await wallet.payLightningInvoice(lnInvoice: invoice);
@@ -437,13 +436,23 @@ class UtexoLsp {
   Future<List<ClaimResult>> claimPendingPayments() async {
     final payments = await wallet.listPaymentsRaw();
     final claimable = payments.where((payment) {
-      final status = payment.status.toUpperCase();
+      final status = payment.status?.toUpperCase();
       return status == 'CLAIMABLE' || status == 'CLAIMING';
     });
 
     final results = <ClaimResult>[];
     for (final payment in claimable) {
-      final preimage = payment.preimage ?? '';
+      final preimage = payment.preimage;
+      if (preimage == null || preimage.isEmpty) {
+        results.add(
+          ClaimResult(
+            paymentHash: payment.paymentHash,
+            claimed: false,
+            error: 'Missing preimage for claimable payment',
+          ),
+        );
+        continue;
+      }
       try {
         await wallet.claimHodlInvoice(payment.paymentHash, preimage);
         results.add(
@@ -462,14 +471,10 @@ class UtexoLsp {
     return results;
   }
 
-  Future<http_package.Response> _httpGet(Uri uri) {
-    return http_package.get(uri);
-  }
-
   bool _isUsableRgbChannel(RlnChannel channel, String assetId) {
     return channel.peerPubkey == peer.peerPubkey &&
         channel.assetId == assetId &&
-        channel.isUsable;
+        _isUsable(channel);
   }
 
   ChannelReadyInfo _toChannelReadyInfo(RlnChannel channel) {
@@ -477,8 +482,8 @@ class UtexoLsp {
       channelId: channel.channelId,
       peerPubkey: channel.peerPubkey,
       capacitySat: channel.capacitySat,
-      outboundBalanceMsat: channel.outboundBalanceMsat,
-      inboundBalanceMsat: channel.inboundBalanceMsat,
+      outboundBalanceMsat: channel.outboundBalanceMsat ?? 0,
+      inboundBalanceMsat: channel.inboundBalanceMsat ?? 0,
     );
   }
 
@@ -489,22 +494,45 @@ class UtexoLsp {
   }
 
   Future<void> _sleep(int ms, WaitOptions options) async {
-    final end = DateTime.now().millisecondsSinceEpoch + ms;
-    while (DateTime.now().millisecondsSinceEpoch < end) {
+    final timer = Stopwatch()..start();
+    while (timer.elapsedMilliseconds < ms) {
       _checkCancelled(options);
-      final remaining = end - DateTime.now().millisecondsSinceEpoch;
+      final remaining = ms - timer.elapsedMilliseconds;
       await Future<void>.delayed(
         Duration(milliseconds: remaining.clamp(1, 250).toInt()),
       );
     }
   }
 
-  String _addQueryParams(String url, Map<String, String> params) {
-    final uri = Uri.parse(url);
-    return uri
-        .replace(
-          queryParameters: <String, String>{...uri.queryParameters, ...params},
-        )
-        .toString();
+  bool _isUsable(RlnChannel channel) {
+    return channel.isUsable ?? channel.ready;
+  }
+
+  int _validatedTimeoutMs(WaitOptions options, int fallback) {
+    final value = options.timeoutMs ?? fallback;
+    if (value <= 0) {
+      throw const ValidationError(
+        'timeoutMs must be a positive integer',
+        'timeoutMs',
+      );
+    }
+    return value;
+  }
+
+  int _validatedPollIntervalMs(WaitOptions options) {
+    final value = options.pollIntervalMs ?? _defaultPollIntervalMs;
+    if (value < _minPollIntervalMs) {
+      throw ValidationError(
+        'pollIntervalMs must be at least $_minPollIntervalMs',
+        'pollIntervalMs',
+      );
+    }
+    return value;
+  }
+
+  bool _isAlreadyConnectedError(Object error) {
+    if (error is ConflictError) return true;
+    if (error is RgbSdkException && error.code == 'CONFLICT') return true;
+    return false;
   }
 }

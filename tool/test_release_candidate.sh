@@ -10,17 +10,41 @@ DART_BIN="${DART_BIN:-dart}"
 mkdir -p "${REPORT_DIR}"
 
 STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-COMMIT="$(git -C "${REPO_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
-REPORT_FILE="${REPORT_DIR}/release-candidate-${COMMIT}.json"
-LOG_FILE="${REPORT_DIR}/release-candidate-${COMMIT}.log"
+FULL_COMMIT="$(git -C "${REPO_DIR}" rev-parse HEAD 2>/dev/null || echo unknown)"
+SHORT_COMMIT="$(git -C "${REPO_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+RUN_ID="${RELEASE_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
+if [[ -n "$(git -C "${REPO_DIR}" status --short 2>/dev/null)" ]]; then
+  WORKTREE_DIRTY="true"
+else
+  WORKTREE_DIRTY="false"
+fi
+REPORT_FILE="${REPORT_DIR}/release-candidate-${RUN_ID}-${SHORT_COMMIT}.json"
+LOG_FILE="${REPORT_DIR}/release-candidate-${RUN_ID}-${SHORT_COMMIT}.log"
 
 STEP_NAMES=()
 STEP_CODES=()
 STEP_DURATIONS=()
+STEP_NOTES=()
 FAILED=0
 
 json_escape() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
+}
+
+sha256_file() {
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  else
+    sha256sum "$1" | awk '{print $1}'
+  fi
+}
+
+repo_label_path() {
+  local path="$1"
+  case "${path}" in
+    "${REPO_DIR}"/*) printf '<repo>/%s' "${path#"${REPO_DIR}/"}" ;;
+    *) printf '%s' "${path}" ;;
+  esac
 }
 
 run_step() {
@@ -42,11 +66,44 @@ run_step() {
   STEP_NAMES+=("${name}")
   STEP_CODES+=("${code}")
   STEP_DURATIONS+=("$((finish - start))")
+  STEP_NOTES+=("")
 
   if [[ "${code}" -ne 0 ]]; then
     FAILED=1
     echo "!! ${name} failed with exit code ${code}"
   fi
+}
+
+mark_required_skip() {
+  local name="$1"
+  local reason="$2"
+
+  echo "!! ${name} skipped: ${reason}"
+  STEP_NAMES+=("${name}")
+  STEP_CODES+=(125)
+  STEP_DURATIONS+=(0)
+  STEP_NOTES+=("required gate skipped: ${reason}")
+  if [[ "${ALLOW_SKIPPED_RELEASE_GATES:-0}" != "1" ]]; then
+    FAILED=1
+  fi
+}
+
+ensure_ios_simulator_visible() {
+  local device="$1"
+
+  xcrun simctl boot "${device}" >/dev/null 2>&1 || true
+  xcrun simctl bootstatus "${device}" -b >/dev/null 2>&1 || true
+  open -a Simulator --args -CurrentDeviceUDID "${device}" >/dev/null 2>&1 || true
+
+  for _ in 1 2 3 4 5 6; do
+    if "${FLUTTER_BIN}" devices 2>/dev/null | grep -F "${device}" >/dev/null; then
+      return 0
+    fi
+    sleep 2
+  done
+
+  "${FLUTTER_BIN}" devices
+  return 1
 }
 
 write_report() {
@@ -58,22 +115,40 @@ write_report() {
   else
     status="failed"
   fi
+  if [[ "${FAILED}" -eq 0 && "${WORKTREE_DIRTY}" == "false" ]]; then
+    release_eligible="true"
+  else
+    release_eligible="false"
+  fi
+  local log_sha
+  if [[ -f "${LOG_FILE}" ]]; then
+    log_sha="$(sha256_file "${LOG_FILE}")"
+  else
+    log_sha=""
+  fi
 
   {
     echo "{"
+    echo "  \"schemaVersion\": 1,"
     echo "  \"suite\": \"release-candidate\","
     echo "  \"status\": \"${status}\","
-    echo "  \"commit\": \"$(json_escape "${COMMIT}")\","
+    echo "  \"releaseEligible\": ${release_eligible},"
+    echo "  \"evidenceId\": \"$(json_escape "rgb-sdk-flutter/release-candidate/${RUN_ID}/${FULL_COMMIT}/local")\","
+    echo "  \"repository\": {\"commit\": \"$(json_escape "${FULL_COMMIT}")\", \"shortCommit\": \"$(json_escape "${SHORT_COMMIT}")\"},"
+    echo "  \"workingTree\": {\"dirty\": ${WORKTREE_DIRTY}},"
+    echo "  \"baseline\": {\"file\": \"tool/release_baseline.json\"},"
     echo "  \"startedAt\": \"${STARTED_AT}\","
     echo "  \"finishedAt\": \"${finished_at}\","
-    echo "  \"logPath\": \"$(json_escape "${LOG_FILE}")\","
+    echo "  \"logPath\": \"$(json_escape "$(repo_label_path "${LOG_FILE}")")\","
+    echo "  \"logSha256\": \"$(json_escape "${log_sha}")\","
+    echo "  \"sanitization\": {\"pathPolicy\": \"repo-relative-labels\", \"secretScan\": \"release-package-validator\"},"
     echo "  \"steps\": ["
     for index in "${!STEP_NAMES[@]}"; do
       local comma=","
       if [[ "${index}" -eq $((${#STEP_NAMES[@]} - 1)) ]]; then
         comma=""
       fi
-      echo "    {\"name\": \"$(json_escape "${STEP_NAMES[${index}]}")\", \"exitCode\": ${STEP_CODES[${index}]}, \"durationSeconds\": ${STEP_DURATIONS[${index}]}}${comma}"
+      echo "    {\"name\": \"$(json_escape "${STEP_NAMES[${index}]}")\", \"exitCode\": ${STEP_CODES[${index}]}, \"durationSeconds\": ${STEP_DURATIONS[${index}]}, \"note\": \"$(json_escape "${STEP_NOTES[${index}]}")\"}${comma}"
     done
     echo "  ]"
     echo "}"
@@ -88,11 +163,21 @@ main() {
 
   run_step "package dependency resolution" "${FLUTTER_BIN}" pub get
   run_step "example dependency resolution" bash -lc "cd '${REPO_DIR}/example' && '${FLUTTER_BIN}' pub get"
-  run_step "format check" "${DART_BIN}" format --set-exit-if-changed .
+  run_step "format check" "${DART_BIN}" format --set-exit-if-changed lib test tool pigeons
   run_step "test matrix validation" "${DART_BIN}" run tool/validate_test_matrix.dart
+  run_step "bridge behavior vector validation" "${DART_BIN}" run tool/validate_bridge_vectors.dart
+  run_step "release governance validation" "${DART_BIN}" run tool/validate_release_governance.dart
+  run_step "API and bridge snapshot validation" "${DART_BIN}" run tool/validate_api_snapshot.dart
   run_step "RN dev source parity validation" "${DART_BIN}" run tool/validate_rn_parity.dart
-  run_step "native artifact checksum verification" ./tool/verify_native_artifacts.sh --ios-only
-  run_step "pigeon drift check" bash -lc "'${REPO_DIR}/tool/generate_pigeon.sh' && '${DART_BIN}' format '${REPO_DIR}/lib/src/pigeon/rln_api.g.dart' && git -C '${REPO_DIR}' diff --exit-code -- lib/src/pigeon/rln_api.g.dart android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnApi.g.kt ios/Classes/RlnApi.g.swift"
+  run_step "release package validation" "${DART_BIN}" run tool/validate_release_package.dart
+  run_step "native artifact checksum verification" ./tool/verify_native_artifacts.sh --require-android
+  run_step "supply-chain provenance, SBOM, license, and ABI gate" "${DART_BIN}" run tool/validate_supply_chain.dart
+  if [[ "${RUN_CONSUMER_MATRIX:-1}" == "1" ]]; then
+    run_step "clean consumer install and archive matrix" bash -lc "REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_clean_consumer_matrix.sh'"
+  else
+    mark_required_skip "clean consumer install and archive matrix" "RUN_CONSUMER_MATRIX is not 1"
+  fi
+  run_step "pigeon drift check" bash -lc "before=\$(mktemp) && after=\$(mktemp) && git -C '${REPO_DIR}' diff -- pigeons/rln_api.dart lib/src/pigeon/rln_api.g.dart android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnApi.g.kt ios/Classes/RlnApi.g.swift > \"\${before}\" && '${REPO_DIR}/tool/generate_pigeon.sh' && '${DART_BIN}' format '${REPO_DIR}/lib/src/pigeon/rln_api.g.dart' && git -C '${REPO_DIR}' diff -- pigeons/rln_api.dart lib/src/pigeon/rln_api.g.dart android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnApi.g.kt ios/Classes/RlnApi.g.swift > \"\${after}\" && cmp -s \"\${before}\" \"\${after}\""
   run_step "package analyze" "${FLUTTER_BIN}" analyze
   run_step "package tests" "${FLUTTER_BIN}" test
   run_step "example widget tests" bash -lc "cd '${REPO_DIR}/example' && '${FLUTTER_BIN}' test test"
@@ -101,26 +186,27 @@ main() {
   if [[ -n "${IOS_DEVICE:-}" ]]; then
     run_step "native iOS XCTest bridge tests" bash -lc "DEVICE='${IOS_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_native_ios.sh'"
   else
-    echo "Skipping native iOS XCTest bridge tests because IOS_DEVICE is unset."
+    mark_required_skip "native iOS XCTest bridge tests" "IOS_DEVICE is unset"
   fi
 
   if [[ "${RUN_PLATFORM:-0}" == "1" ]]; then
     if [[ -n "${IOS_DEVICE:-}" ]]; then
+      run_step "prepare iOS simulator for Flutter platform smokes" ensure_ios_simulator_visible "${IOS_DEVICE}"
       run_step "iOS unfunded regtest smoke" bash -lc "DEVICE='${IOS_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_platform_unfunded.sh'"
       run_step "iOS funded regtest smoke" bash -lc "DEVICE='${IOS_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_platform_funded.sh'"
     else
-      echo "Skipping iOS platform tests because IOS_DEVICE is unset."
+      mark_required_skip "iOS platform regtest smokes" "RUN_PLATFORM=1 but IOS_DEVICE is unset"
     fi
 
     if [[ -n "${ANDROID_DEVICE:-}" ]]; then
       run_step "Android unfunded regtest smoke" bash -lc "DEVICE='${ANDROID_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_platform_unfunded.sh'"
       run_step "Android funded regtest smoke" bash -lc "DEVICE='${ANDROID_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_platform_funded.sh'"
     else
-      echo "Skipping Android platform tests because ANDROID_DEVICE is unset."
+      mark_required_skip "Android platform regtest smokes" "RUN_PLATFORM=1 but ANDROID_DEVICE is unset"
     fi
   else
-    echo
-    echo "Platform tests are local release gates. Run with RUN_PLATFORM=1 IOS_DEVICE=<id> ANDROID_DEVICE=<id> when devices are available."
+    mark_required_skip "iOS funded/unfunded regtest smokes" "RUN_PLATFORM is not 1"
+    mark_required_skip "Android funded/unfunded regtest smokes" "RUN_PLATFORM is not 1"
   fi
 
   write_report

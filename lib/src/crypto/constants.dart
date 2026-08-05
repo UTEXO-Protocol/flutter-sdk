@@ -26,9 +26,9 @@ const int COIN_BITCOIN_MAINNET = 0;
 const int COIN_BITCOIN_TESTNET = 1;
 
 const String DEFAULT_NETWORK = 'regtest';
-const int DEFAULT_API_TIMEOUT = 30000;
+const int DEFAULT_API_TIMEOUT = 120000;
 const int DEFAULT_MAX_RETRIES = 3;
-const String DEFAULT_LOG_LEVEL = 'info';
+const int DEFAULT_LOG_LEVEL = 3;
 const String DEFAULT_VSS_SERVER_URL = 'https://vss-server.utexo.com/vss';
 
 /// Network aliases mirrored from `@utexo/rgb-sdk-core`.
@@ -41,7 +41,6 @@ const Map<String, Network> NETWORK_MAP = <String, Network>{
   'testnet': 'testnet',
   'testnet4': 'testnet4',
   'signet': 'signet',
-  'signet_custom': 'signet_custom',
   'utexo': 'utexo',
   'regtest': 'regtest',
 };
@@ -52,10 +51,6 @@ const Map<Network, Map<String, int>> BIP32_VERSIONS =
       'testnet': <String, int>{'public': 0x043587cf, 'private': 0x04358394},
       'testnet4': <String, int>{'public': 0x043587cf, 'private': 0x04358394},
       'signet': <String, int>{'public': 0x043587cf, 'private': 0x04358394},
-      'signet_custom': <String, int>{
-        'public': 0x043587cf,
-        'private': 0x04358394,
-      },
       'utexo': <String, int>{'public': 0x043587cf, 'private': 0x04358394},
       'regtest': <String, int>{'public': 0x043587cf, 'private': 0x04358394},
     };
@@ -65,7 +60,6 @@ const Map<Network, String> DEFAULT_TRANSPORT_ENDPOINTS = <Network, String>{
   'testnet': 'rpcs://rgb-proxy-testnet3.utexo.com/json-rpc',
   'testnet4': 'rpcs://proxy.iriswallet.com/0.2/json-rpc',
   'signet': 'rpcs://proxy.iriswallet.com/0.2/json-rpc',
-  'signet_custom': 'rpcs://proxy.iriswallet.com/0.2/json-rpc',
   'utexo': 'rpcs://rgb-proxy-utexo.utexo.com/json-rpc',
   'regtest': 'rpcs://proxy.iriswallet.com/0.2/json-rpc',
 };
@@ -75,9 +69,8 @@ const Map<Network, String> DEFAULT_INDEXER_URLS = <Network, String>{
   'testnet': 'ssl://electrum.iriswallet.com:50013',
   'testnet4': 'ssl://electrum.iriswallet.com:50053',
   'signet': 'ssl://electrum.iriswallet.com:50033',
-  'signet_custom': 'ssl://electrum.iriswallet.com:50033',
   'utexo': 'https://esplora-api.utexo.com',
-  'regtest': 'tcp://regtest.thunderstack.org:50001',
+  'regtest': 'http://127.0.0.1:3002',
 };
 
 class NetworkVersions {
@@ -110,6 +103,8 @@ NetworkVersions getNetworkVersions(Object bitcoinNetwork) {
 }
 
 Network toNetworkName(Object bitcoinNetwork) {
+  final exact = NETWORK_MAP[bitcoinNetwork.toString()];
+  if (exact != null) return exact;
   final normalized = bitcoinNetwork.toString().toLowerCase();
   if (normalized.contains('main')) return 'mainnet';
   if (normalized.contains('reg')) return 'regtest';

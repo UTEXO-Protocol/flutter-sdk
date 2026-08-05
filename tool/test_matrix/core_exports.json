@@ -2,40 +2,365 @@
   "schemaVersion": 1,
   "api": "package:rgb_sdk_flutter core exports",
   "methods": [
-    {"id": "createWallet", "group": "keys", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "generateKeys", "group": "keys", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "deriveKeysFromMnemonic", "group": "keys", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "deriveKeysFromSeed", "group": "keys", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "deriveKeysFromMnemonicOrSeed", "group": "keys", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "restoreKeys", "group": "keys", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "getXprivFromMnemonic", "group": "keys", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "getXpubFromXpriv", "group": "keys", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "deriveKeysFromXpriv", "group": "keys", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "accountXpubsFromMnemonic", "group": "keys", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "signMessage", "group": "message", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "verifyMessage", "group": "message", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "signSchnorr", "group": "message", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "verifySchnorr", "group": "message", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "signPsbt", "group": "psbt", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "signPsbtFromSeed", "group": "psbt", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "estimatePsbt", "group": "psbt", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "RLNBinding", "group": "rln-advanced", "support": "supported", "fixture": "unit_contract", "contract": "covered"},
-    {"id": "RLNManager", "group": "rln-advanced", "support": "supported", "fixture": "unit_contract", "contract": "covered"},
-    {"id": "createRLNManager", "group": "rln-advanced", "support": "supported", "fixture": "unit_contract", "contract": "covered"},
-    {"id": "RNSigner", "group": "rln-advanced", "support": "supported", "fixture": "unit_contract", "contract": "covered"},
-    {"id": "IRLNNodeCreateParams", "group": "rln-advanced", "support": "supported", "fixture": "unit_contract", "contract": "covered"},
-    {"id": "IRLNUnlockParams", "group": "rln-advanced", "support": "supported", "fixture": "unit_contract", "contract": "covered"},
-    {"id": "IRLNExternalSignerBootstrap", "group": "rln-advanced", "support": "supported", "fixture": "unit_contract", "contract": "covered"},
-    {"id": "normalizeNetwork", "group": "validation", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "normalizeNativeRlnNetwork", "group": "validation", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "getNetworkDefaults", "group": "validation", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "resolveUnlockConfig", "group": "validation", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "resolveUnlockParams", "group": "validation", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "toUnitsNumber", "group": "validation", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "fromUnitsNumber", "group": "validation", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "getUtxoNetworkConfig", "group": "utexo", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "getDestinationAsset", "group": "utexo", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "decodeBridgeInvoice", "group": "utexo", "support": "supported", "fixture": "unit_vectors", "contract": "covered"},
-    {"id": "encodeTransferStatus", "group": "utexo", "support": "supported", "fixture": "unit_vectors", "contract": "covered"}
+    {
+      "id": "createWallet",
+      "group": "keys",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::createWallet",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "generateKeys",
+      "group": "keys",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::generateKeys",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "deriveKeysFromMnemonic",
+      "group": "keys",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::deriveKeysFromMnemonic",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "deriveKeysFromSeed",
+      "group": "keys",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::deriveKeysFromSeed",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "deriveKeysFromMnemonicOrSeed",
+      "group": "keys",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::deriveKeysFromMnemonicOrSeed",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "restoreKeys",
+      "group": "keys",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::restoreKeys",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "getXprivFromMnemonic",
+      "group": "keys",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::getXprivFromMnemonic",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "getXpubFromXpriv",
+      "group": "keys",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::getXpubFromXpriv",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "deriveKeysFromXpriv",
+      "group": "keys",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::deriveKeysFromXpriv",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "accountXpubsFromMnemonic",
+      "group": "keys",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::accountXpubsFromMnemonic",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "signMessage",
+      "group": "message",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::signMessage",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "verifyMessage",
+      "group": "message",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::verifyMessage",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "signSchnorr",
+      "group": "message",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::signSchnorr",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "verifySchnorr",
+      "group": "message",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::verifySchnorr",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "signPsbt",
+      "group": "psbt",
+      "support": "unsupported-parity",
+      "fixture": "expected_failure",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::signPsbt",
+      "evidenceBucket": "expected_failure"
+    },
+    {
+      "id": "signPsbtFromSeed",
+      "group": "psbt",
+      "support": "unsupported-parity",
+      "fixture": "expected_failure",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::signPsbtFromSeed",
+      "evidenceBucket": "expected_failure"
+    },
+    {
+      "id": "estimatePsbt",
+      "group": "psbt",
+      "support": "unsupported-parity",
+      "fixture": "expected_failure",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::estimatePsbt",
+      "evidenceBucket": "expected_failure"
+    },
+    {
+      "id": "RLNBinding",
+      "group": "rln-advanced",
+      "support": "supported",
+      "fixture": "unit_contract",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::RLNBinding",
+      "evidenceBucket": "unit_contract"
+    },
+    {
+      "id": "RLNManager",
+      "group": "rln-advanced",
+      "support": "supported",
+      "fixture": "unit_contract",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::RLNManager",
+      "evidenceBucket": "unit_contract"
+    },
+    {
+      "id": "createRLNManager",
+      "group": "rln-advanced",
+      "support": "supported",
+      "fixture": "unit_contract",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::createRLNManager",
+      "evidenceBucket": "unit_contract"
+    },
+    {
+      "id": "RNSigner",
+      "group": "rln-advanced",
+      "support": "supported",
+      "fixture": "unit_contract",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::RNSigner",
+      "evidenceBucket": "unit_contract"
+    },
+    {
+      "id": "IRLNNodeCreateParams",
+      "group": "rln-advanced",
+      "support": "supported",
+      "fixture": "unit_contract",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::IRLNNodeCreateParams",
+      "evidenceBucket": "unit_contract"
+    },
+    {
+      "id": "IRLNUnlockParams",
+      "group": "rln-advanced",
+      "support": "supported",
+      "fixture": "unit_contract",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::IRLNUnlockParams",
+      "evidenceBucket": "unit_contract"
+    },
+    {
+      "id": "IRLNExternalSignerBootstrap",
+      "group": "rln-advanced",
+      "support": "supported",
+      "fixture": "unit_contract",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::IRLNExternalSignerBootstrap",
+      "evidenceBucket": "unit_contract"
+    },
+    {
+      "id": "normalizeNetwork",
+      "group": "validation",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::normalizeNetwork",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "normalizeNativeRlnNetwork",
+      "group": "validation",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::normalizeNativeRlnNetwork",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "getNetworkDefaults",
+      "group": "validation",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::getNetworkDefaults",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "resolveUnlockConfig",
+      "group": "validation",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::resolveUnlockConfig",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "resolveUnlockParams",
+      "group": "validation",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::resolveUnlockParams",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "toUnitsNumber",
+      "group": "validation",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::toUnitsNumber",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "fromUnitsNumber",
+      "group": "validation",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::fromUnitsNumber",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "getUtxoNetworkConfig",
+      "group": "utexo",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::getUtxoNetworkConfig",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "getDestinationAsset",
+      "group": "utexo",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::getDestinationAsset",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "decodeBridgeInvoice",
+      "group": "utexo",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::decodeBridgeInvoice",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "encodeTransferStatus",
+      "group": "utexo",
+      "support": "supported",
+      "fixture": "unit_vectors",
+      "contract": "covered",
+      "implementation": "lib/rgb_sdk_flutter.dart::encodeTransferStatus",
+      "evidenceBucket": "unit_vectors"
+    },
+    {
+      "id": "isUmaAddress",
+      "group": "lightning_address",
+      "support": "supported",
+      "fixture": "unit_validation",
+      "contract": "covered",
+      "implementation": "lib/src/crypto/validation.dart::isUmaAddress",
+      "evidenceBucket": "unit_validation"
+    },
+    {
+      "id": "normalizeLightningAddress",
+      "group": "lightning_address",
+      "support": "supported",
+      "fixture": "unit_validation",
+      "contract": "covered",
+      "implementation": "lib/src/crypto/validation.dart::normalizeLightningAddress",
+      "evidenceBucket": "unit_validation"
+    },
+    {
+      "id": "parseLightningAddress",
+      "group": "lightning_address",
+      "support": "supported",
+      "fixture": "unit_validation",
+      "contract": "covered",
+      "implementation": "lib/src/crypto/validation.dart::parseLightningAddress",
+      "evidenceBucket": "unit_validation"
+    },
+    {
+      "id": "UMA_PREFIX",
+      "group": "lightning_address",
+      "support": "supported",
+      "fixture": "unit_validation",
+      "contract": "covered",
+      "implementation": "lib/src/crypto/validation.dart::UMA_PREFIX",
+      "evidenceBucket": "unit_validation"
+    },
+    {
+      "id": "UMA_MAX_USERNAME_LENGTH",
+      "group": "lightning_address",
+      "support": "supported",
+      "fixture": "unit_validation",
+      "contract": "covered",
+      "implementation": "lib/src/crypto/validation.dart::UMA_MAX_USERNAME_LENGTH",
+      "evidenceBucket": "unit_validation"
+    }
   ]
 }

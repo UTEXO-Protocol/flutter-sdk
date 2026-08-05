@@ -1,0 +1,63 @@
+{
+  "schemaVersion": 1,
+  "description": "Normalized public API and bridge snapshot. Update only with a tracker row and migration note.",
+  "dartExportedSurface": {
+    "count": 1840,
+    "hash": "5b3886af86c79b2139b8b8cd128b45a8cb84e874b121bc9cd107212e39c6e427",
+    "files": [
+      "lib/rgb_sdk_flutter.dart",
+      "lib/src/binding/rln_binding.dart",
+      "lib/src/client/rln_client.dart",
+      "lib/src/crypto/constants.dart",
+      "lib/src/crypto/keys.dart",
+      "lib/src/crypto/message.dart",
+      "lib/src/crypto/signer.dart",
+      "lib/src/crypto/validation.dart",
+      "lib/src/errors/native_bridge_error_mapper.dart",
+      "lib/src/errors/rgb_sdk_exception.dart",
+      "lib/src/lsp/lsp_errors.dart",
+      "lib/src/lsp/lsp_types.dart",
+      "lib/src/lsp/utexo_lsp.dart",
+      "lib/src/lsp/utexo_lsp_client.dart",
+      "lib/src/models/rln_models.dart",
+      "lib/src/models/utexo_core_models.dart",
+      "lib/src/native_artifact_info.dart",
+      "lib/src/signer/rn_signer.dart",
+      "lib/src/utexo/bridge.dart",
+      "lib/src/utexo/network.dart",
+      "lib/src/utils/logger.dart",
+      "lib/src/wallet/network_defaults.dart",
+      "lib/src/wallet/rln_manager.dart",
+      "lib/src/wallet/rln_signers.dart",
+      "lib/src/wallet/utexo_wallet.dart"
+    ]
+  },
+  "pigeonSchema": {
+    "count": 67,
+    "hash": "6001c35674581cb32bcee7e3f608984d7ec1864c81c58d38b9c73ca0affa5363",
+    "files": [
+      "pigeons/rln_api.dart"
+    ]
+  },
+  "generatedPigeonSurface": {
+    "count": 1403,
+    "hash": "dc171b886277c0fd58a21dcc7a3b744334fa13b2820d9f1b148df0693a4b6a69",
+    "files": [
+      "lib/src/pigeon/rln_api.g.dart",
+      "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnApi.g.kt",
+      "ios/Classes/RlnApi.g.swift"
+    ]
+  },
+  "nativeBridgeSurface": {
+    "count": 309,
+    "hash": "ef386532b4837abe3087ad478009f9aa59c85e02f4a279635f5376bf72c6ddb4",
+    "files": [
+      "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPlugin.kt",
+      "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnNodeStore.kt",
+      "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnStorageDirectoryPolicy.kt",
+      "ios/Classes/RgbSdkFlutterPlugin.swift",
+      "ios/Classes/RlnNodeStore.swift",
+      "ios/Classes/RlnStorageDirectoryPolicy.swift"
+    ]
+  }
+}

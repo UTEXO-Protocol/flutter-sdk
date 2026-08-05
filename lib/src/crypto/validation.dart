@@ -10,13 +10,12 @@ const List<Network> _validNetworks = <Network>[
   'testnet',
   'testnet4',
   'signet',
-  'signet_custom',
   'utexo',
   'regtest',
 ];
 
 void validateNetwork(Object network) {
-  final normalized = NETWORK_MAP[network.toString().toLowerCase()];
+  final normalized = NETWORK_MAP[network.toString()];
   if (normalized == null || !_validNetworks.contains(normalized)) {
     throw ValidationError(
       'Invalid network: $network. Must be one of: ${_validNetworks.join(', ')}',
@@ -27,13 +26,106 @@ void validateNetwork(Object network) {
 
 Network normalizeNetwork(Object network) {
   validateNetwork(network);
-  return NETWORK_MAP[network.toString().toLowerCase()]!;
+  return NETWORK_MAP[network.toString()]!;
 }
 
 bool isNetwork(Object? value) {
   if (value is! String) return false;
-  final normalized = NETWORK_MAP[value.toLowerCase()];
+  final normalized = NETWORK_MAP[value];
   return normalized != null && _validNetworks.contains(normalized);
+}
+
+/// The prefix that distinguishes a UMA address from a plain Lightning Address.
+// ignore: constant_identifier_names
+const String UMA_PREFIX = r'$';
+
+/// Maximum UMA username length including [UMA_PREFIX], matching UMAD-01.
+// ignore: constant_identifier_names
+const int UMA_MAX_USERNAME_LENGTH = 64;
+
+final RegExp _umaUsernamePattern = RegExp(r'^[a-z0-9\-_.+]+$');
+
+/// Parsed Lightning Address or UMA-style Lightning Address.
+class ParsedLightningAddress {
+  const ParsedLightningAddress({
+    required this.username,
+    required this.domain,
+    required this.isUma,
+    required this.address,
+  });
+
+  /// Local part, with any UMA prefix stripped.
+  final String username;
+
+  /// Host part. May include a port for local/regtest stacks.
+  final String domain;
+
+  /// Whether the original input carried [UMA_PREFIX].
+  final bool isUma;
+
+  /// Canonical `username@domain` form without [UMA_PREFIX].
+  final String address;
+}
+
+/// Returns true when [address] carries the UMA prefix.
+///
+/// This is address-format compatibility only, not UMA protocol support.
+bool isUmaAddress(String address) => address.trim().startsWith(UMA_PREFIX);
+
+/// Converts a UMA-style Lightning Address to plain Lightning Address text.
+///
+/// UMA inputs are lowercased; plain Lightning Addresses keep their case because
+/// providers may treat the local part as case-sensitive.
+String normalizeLightningAddress(String address) {
+  final trimmed = address.trim();
+  if (!trimmed.startsWith(UMA_PREFIX)) return trimmed;
+  return trimmed.substring(UMA_PREFIX.length).toLowerCase();
+}
+
+/// Splits and validates a Lightning Address or UMA-style Lightning Address.
+ParsedLightningAddress parseLightningAddress(String address) {
+  if (address.trim().isEmpty) {
+    throw const ValidationError(
+      'Lightning Address must be a non-empty string',
+      'address',
+    );
+  }
+  final trimmed = address.trim();
+  final isUma = trimmed.startsWith(UMA_PREFIX);
+  final bare = normalizeLightningAddress(trimmed);
+  final parts = bare.split('@');
+  if (parts.length != 2) {
+    throw ValidationError('Invalid Lightning Address: "$address"', 'address');
+  }
+  final username = parts[0];
+  final domain = parts[1];
+  if (username.isEmpty ||
+      domain.isEmpty ||
+      RegExp(r'\s').hasMatch(username) ||
+      RegExp(r'[\s/]').hasMatch(domain)) {
+    throw ValidationError('Invalid Lightning Address: "$address"', 'address');
+  }
+  if (isUma) {
+    if (username.length + UMA_PREFIX.length > UMA_MAX_USERNAME_LENGTH) {
+      throw ValidationError(
+        'UMA username exceeds $UMA_MAX_USERNAME_LENGTH characters including '
+            'the "$UMA_PREFIX": "$address"',
+        'address',
+      );
+    }
+    if (!_umaUsernamePattern.hasMatch(username)) {
+      throw ValidationError(
+        'UMA username may only contain a-z 0-9 - _ . +; got "$username"',
+        'address',
+      );
+    }
+  }
+  return ParsedLightningAddress(
+    username: username,
+    domain: domain,
+    isUma: isUma,
+    address: '$username@$domain',
+  );
 }
 
 void validateMnemonic(Object? mnemonic, [String field = 'mnemonic']) {

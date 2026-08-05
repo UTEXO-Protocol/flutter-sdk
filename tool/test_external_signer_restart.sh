@@ -6,7 +6,7 @@ REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 RESTART_SMOKE="${SCRIPT_DIR}/regtest/flutter_external_signer_restart.sh"
 DEVICE="${DEVICE:-}"
 REPORT_DIR="${REPORT_DIR:-${REPO_DIR}/build/test-reports/platform}"
-RUN_ID="${RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)-$$}"
+RUN_ID="${RELEASE_RUN_ID:-${RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}}"
 
 [[ -n "${DEVICE}" ]] || {
   echo "error: set DEVICE to a Flutter device id." >&2
@@ -22,8 +22,24 @@ if [[ -n "$(git -C "${REPO_DIR}" status --porcelain 2>/dev/null)" ]]; then
   DIRTY=true
 fi
 DEVICE_SLUG="${DEVICE//[^A-Za-z0-9_.-]/_}"
-REPORT_FILE="${REPORT_DIR}/external-signer-restart-${DEVICE_SLUG}-${SHORT_COMMIT}.json"
-LOG_FILE="${REPORT_DIR}/external-signer-restart-${DEVICE_SLUG}-${SHORT_COMMIT}.log"
+REPORT_FILE="${REPORT_DIR}/external-signer-restart-${DEVICE_SLUG}-${RUN_ID}-${SHORT_COMMIT}.json"
+LOG_FILE="${REPORT_DIR}/external-signer-restart-${DEVICE_SLUG}-${RUN_ID}-${SHORT_COMMIT}.log"
+
+sha256_file() {
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  else
+    sha256sum "$1" | awk '{print $1}'
+  fi
+}
+
+repo_label_path() {
+  local path="$1"
+  case "${path}" in
+    "${REPO_DIR}"/*) printf '<repo>/%s' "${path#"${REPO_DIR}/"}" ;;
+    *) printf '%s' "${path}" ;;
+  esac
+}
 
 set +e
 env DEVICE="${DEVICE}" RUN_ID="${RUN_ID}" "${RESTART_SMOKE}" 2>&1 |
@@ -44,8 +60,13 @@ ruby -rjson -e '
     "suite" => "external-signer-process-restart",
     "status" => ARGV.fetch(0),
     "exitCode" => Integer(ARGV.fetch(1)),
-    "commit" => ARGV.fetch(2),
-    "workingTreeDirty" => ARGV.fetch(3) == "true",
+    "releaseEligible" => false,
+    "evidenceId" => "rgb-sdk-flutter/external-signer-process-restart/#{ARGV.fetch(5)}/#{ARGV.fetch(2)}/#{ARGV.fetch(4).gsub(/[^A-Za-z0-9_.-]/, "_")}",
+    "repository" => {
+      "commit" => ARGV.fetch(2),
+      "shortCommit" => ARGV.fetch(2)[0, 12]
+    },
+    "workingTree" => {"dirty" => ARGV.fetch(3) == "true"},
     "device" => ARGV.fetch(4),
     "runId" => ARGV.fetch(5),
     "startedAt" => ARGV.fetch(6),
@@ -55,9 +76,11 @@ ruby -rjson -e '
       "electrsPort" => Integer(ARGV.fetch(9)),
       "rgbProxyPort" => Integer(ARGV.fetch(10))
     },
-    "logPath" => ARGV.fetch(11)
+    "logPath" => ARGV.fetch(11),
+    "logSha256" => ARGV.fetch(12),
+    "sanitization" => {"pathPolicy" => "repo-relative-labels"}
   }
-  File.write(ARGV.fetch(12), JSON.pretty_generate(report) + "\n")
+  File.write(ARGV.fetch(13), JSON.pretty_generate(report) + "\n")
 ' \
   "${STATUS}" \
   "${EXIT_CODE}" \
@@ -70,7 +93,8 @@ ruby -rjson -e '
   "${BITCOIND_RPC_PORT:-18444}" \
   "${ELECTRS_PORT:-50002}" \
   "${RGB_PROXY_PORT:-3003}" \
-  "${LOG_FILE}" \
+  "$(repo_label_path "${LOG_FILE}")" \
+  "$(sha256_file "${LOG_FILE}")" \
   "${REPORT_FILE}"
 
 echo "external signer restart report: ${REPORT_FILE}"

@@ -13,6 +13,7 @@ export 'src/crypto/message.dart';
 export 'src/crypto/signer.dart';
 export 'src/crypto/validation.dart';
 export 'src/errors/rgb_sdk_exception.dart';
+export 'src/errors/native_bridge_error_mapper.dart';
 export 'src/lsp/lsp_errors.dart';
 export 'src/lsp/lsp_types.dart';
 export 'src/lsp/utexo_lsp.dart';

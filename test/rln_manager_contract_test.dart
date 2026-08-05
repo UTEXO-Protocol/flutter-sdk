@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rgb_sdk_flutter/rgb_sdk_flutter.dart';
 import 'package:rgb_sdk_flutter/src/pigeon/rln_api.g.dart';
@@ -16,6 +18,10 @@ class _BindingHostApi extends RlnHostApi {
 
   void _record(String method, List<Object?> args) {
     calls.add(_Call(method, args));
+  }
+
+  RlnWireResponse _wireMap(Map<Object?, Object?> map) {
+    return RlnWireResponse(json: jsonEncode(map));
   }
 
   @override
@@ -95,13 +101,13 @@ class _BindingHostApi extends RlnHostApi {
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnNodeInfo(int nodeId) async {
+  Future<RlnWireResponse> rlnNodeInfo(int nodeId) async {
     _record('rlnNodeInfo', <Object?>[nodeId]);
     if (nodeInfoFailuresRemaining > 0) {
       nodeInfoFailuresRemaining -= 1;
       throw Exception('node not ready');
     }
-    return <Object?, Object?>{
+    return _wireMap(<Object?, Object?>{
       'pubkey': 'node-pubkey',
       'numChannels': 0,
       'numUsableChannels': 0,
@@ -118,7 +124,7 @@ class _BindingHostApi extends RlnHostApi {
       'channelAssetMaxAmount': 0,
       'networkNodes': 0,
       'networkChannels': 0,
-    };
+    });
   }
 
   @override

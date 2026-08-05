@@ -1,3 +1,6 @@
+import 'dart:convert';
+
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rgb_sdk_flutter/rgb_sdk_flutter.dart';
 import 'package:rgb_sdk_flutter/src/pigeon/rln_api.g.dart';
@@ -34,9 +37,17 @@ class _RecordingRlnHostApi extends RlnHostApi {
     return <Object?, Object?>{'method': method, 'ok': true};
   }
 
-  List<Map<Object?, Object?>> _list(String method) {
-    return <Map<Object?, Object?>>[
-      <Object?, Object?>{'method': method, 'ok': true},
+  RlnWireResponse _wire(String method) {
+    return _wireMap(_map(method));
+  }
+
+  RlnWireResponse _wireMap(Map<Object?, Object?> map) {
+    return RlnWireResponse(json: jsonEncode(map));
+  }
+
+  List<RlnWireResponse> _list(String method) {
+    return <RlnWireResponse>[
+      _wireMap(<Object?, Object?>{'method': method, 'ok': true}),
     ];
   }
 
@@ -215,19 +226,19 @@ class _RecordingRlnHostApi extends RlnHostApi {
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnNodeInfo(int nodeId) async {
+  Future<RlnWireResponse> rlnNodeInfo(int nodeId) async {
     _record('rlnNodeInfo', <Object?>[nodeId]);
-    return _map('rlnNodeInfo');
+    return _wire('rlnNodeInfo');
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnNetworkInfo(int nodeId) async {
+  Future<RlnWireResponse> rlnNetworkInfo(int nodeId) async {
     _record('rlnNetworkInfo', <Object?>[nodeId]);
-    return _map('rlnNetworkInfo');
+    return _wire('rlnNetworkInfo');
   }
 
   @override
-  Future<List<Map<Object?, Object?>>> rlnListPeers(int nodeId) async {
+  Future<List<RlnWireResponse>> rlnListPeers(int nodeId) async {
     _record('rlnListPeers', <Object?>[nodeId]);
     return _list('rlnListPeers');
   }
@@ -243,13 +254,13 @@ class _RecordingRlnHostApi extends RlnHostApi {
   }
 
   @override
-  Future<List<Map<Object?, Object?>>> rlnListChannels(int nodeId) async {
+  Future<List<RlnWireResponse>> rlnListChannels(int nodeId) async {
     _record('rlnListChannels', <Object?>[nodeId]);
     return _list('rlnListChannels');
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnOpenChannel(
+  Future<RlnWireResponse> rlnOpenChannel(
     int nodeId,
     String peerPubkeyAndOptAddr,
     int capacitySat,
@@ -279,7 +290,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
       pushAssetAmount,
       virtualOpenMode,
     ]);
-    return _map('rlnOpenChannel');
+    return _wire('rlnOpenChannel');
   }
 
   @override
@@ -293,49 +304,43 @@ class _RecordingRlnHostApi extends RlnHostApi {
   }
 
   @override
-  Future<List<Map<Object?, Object?>>> rlnListPayments(int nodeId) async {
+  Future<List<RlnWireResponse>> rlnListPayments(int nodeId) async {
     _record('rlnListPayments', <Object?>[nodeId]);
     return _list('rlnListPayments');
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnAddress(int nodeId) async {
+  Future<RlnWireResponse> rlnAddress(int nodeId) async {
     _record('rlnAddress', <Object?>[nodeId]);
-    return _map('rlnAddress');
+    return _wire('rlnAddress');
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnRotateAddress(int nodeId) async {
+  Future<RlnWireResponse> rlnRotateAddress(int nodeId) async {
     _record('rlnRotateAddress', <Object?>[nodeId]);
-    return _map('rlnRotateAddress');
+    return _wire('rlnRotateAddress');
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnSignMessage(
-    int nodeId,
-    String message,
-  ) async {
+  Future<RlnWireResponse> rlnSignMessage(int nodeId, String message) async {
     _record('rlnSignMessage', <Object?>[nodeId, message]);
-    return _map('rlnSignMessage');
+    return _wire('rlnSignMessage');
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnVerifyMessage(
+  Future<RlnWireResponse> rlnVerifyMessage(
     int nodeId,
     String message,
     String signature,
   ) async {
     _record('rlnVerifyMessage', <Object?>[nodeId, message, signature]);
-    return _map('rlnVerifyMessage');
+    return _wire('rlnVerifyMessage');
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnAssetBalance(
-    int nodeId,
-    String assetId,
-  ) async {
+  Future<RlnWireResponse> rlnAssetBalance(int nodeId, String assetId) async {
     _record('rlnAssetBalance', <Object?>[nodeId, assetId]);
-    return _map('rlnAssetBalance');
+    return _wire('rlnAssetBalance');
   }
 
   @override
@@ -344,18 +349,18 @@ class _RecordingRlnHostApi extends RlnHostApi {
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnBtcBalance(int nodeId, bool skipSync) async {
+  Future<RlnWireResponse> rlnBtcBalance(int nodeId, bool skipSync) async {
     _record('rlnBtcBalance', <Object?>[nodeId, skipSync]);
-    return _map('rlnBtcBalance');
+    return _wire('rlnBtcBalance');
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnCheckIndexerUrl(
+  Future<RlnWireResponse> rlnCheckIndexerUrl(
     int nodeId,
     String indexerUrl,
   ) async {
     _record('rlnCheckIndexerUrl', <Object?>[nodeId, indexerUrl]);
-    return _map('rlnCheckIndexerUrl');
+    return _wire('rlnCheckIndexerUrl');
   }
 
   @override
@@ -383,31 +388,28 @@ class _RecordingRlnHostApi extends RlnHostApi {
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnDecodeLnInvoice(
-    int nodeId,
-    String invoice,
-  ) async {
+  Future<RlnWireResponse> rlnDecodeLnInvoice(int nodeId, String invoice) async {
     _record('rlnDecodeLnInvoice', <Object?>[nodeId, invoice]);
-    return _map('rlnDecodeLnInvoice');
+    return _wire('rlnDecodeLnInvoice');
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnDecodeRgbInvoice(
+  Future<RlnWireResponse> rlnDecodeRgbInvoice(
     int nodeId,
     String invoice,
   ) async {
     _record('rlnDecodeRgbInvoice', <Object?>[nodeId, invoice]);
-    return _map('rlnDecodeRgbInvoice');
+    return _wire('rlnDecodeRgbInvoice');
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnEstimateFee(int nodeId, int blocks) async {
+  Future<RlnWireResponse> rlnEstimateFee(int nodeId, int blocks) async {
     _record('rlnEstimateFee', <Object?>[nodeId, blocks]);
-    return _map('rlnEstimateFee');
+    return _wire('rlnEstimateFee');
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnFailTransfers(
+  Future<RlnWireResponse> rlnFailTransfers(
     int nodeId,
     int? batchTransferIdx,
     bool noAssetOnly,
@@ -419,7 +421,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
       noAssetOnly,
       skipSync,
     ]);
-    return _map('rlnFailTransfers');
+    return _wire('rlnFailTransfers');
   }
 
   @override
@@ -429,25 +431,19 @@ class _RecordingRlnHostApi extends RlnHostApi {
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnGetPayment(
-    int nodeId,
-    String paymentHash,
-  ) async {
+  Future<RlnWireResponse> rlnGetPayment(int nodeId, String paymentHash) async {
     _record('rlnGetPayment', <Object?>[nodeId, paymentHash]);
-    return _map('rlnGetPayment');
+    return _wire('rlnGetPayment');
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnInvoiceStatus(
-    int nodeId,
-    String invoice,
-  ) async {
+  Future<RlnWireResponse> rlnInvoiceStatus(int nodeId, String invoice) async {
     _record('rlnInvoiceStatus', <Object?>[nodeId, invoice]);
-    return _map('rlnInvoiceStatus');
+    return _wire('rlnInvoiceStatus');
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnKeysend(
+  Future<RlnWireResponse> rlnKeysend(
     int nodeId,
     String destPubkey,
     int amtMsat,
@@ -461,20 +457,20 @@ class _RecordingRlnHostApi extends RlnHostApi {
       assetId,
       assetAmount,
     ]);
-    return _map('rlnKeysend');
+    return _wire('rlnKeysend');
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnListAssets(
+  Future<RlnWireResponse> rlnListAssets(
     int nodeId,
     List<String> filterAssetSchemas,
   ) async {
     _record('rlnListAssets', <Object?>[nodeId, filterAssetSchemas]);
-    return _map('rlnListAssets');
+    return _wire('rlnListAssets');
   }
 
   @override
-  Future<List<Map<Object?, Object?>>> rlnListTransactions(
+  Future<List<RlnWireResponse>> rlnListTransactions(
     int nodeId,
     bool skipSync,
   ) async {
@@ -483,7 +479,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
   }
 
   @override
-  Future<List<Map<Object?, Object?>>> rlnListTransactionsByTxid(
+  Future<List<RlnWireResponse>> rlnListTransactionsByTxid(
     int nodeId,
     String txid,
     bool skipSync,
@@ -493,7 +489,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
   }
 
   @override
-  Future<List<Map<Object?, Object?>>> rlnListTransfers(
+  Future<List<RlnWireResponse>> rlnListTransfers(
     int nodeId,
     String assetId,
   ) async {
@@ -502,7 +498,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
   }
 
   @override
-  Future<List<Map<Object?, Object?>>> rlnListTransfersByTxid(
+  Future<List<RlnWireResponse>> rlnListTransfersByTxid(
     int nodeId,
     String txid,
   ) async {
@@ -511,7 +507,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
   }
 
   @override
-  Future<List<Map<Object?, Object?>>> rlnListUnspents(
+  Future<List<RlnWireResponse>> rlnListUnspents(
     int nodeId,
     bool skipSync,
   ) async {
@@ -520,7 +516,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnLnInvoice(
+  Future<RlnWireResponse> rlnLnInvoice(
     int nodeId,
     int? amtMsat,
     int expirySec,
@@ -540,11 +536,11 @@ class _RecordingRlnHostApi extends RlnHostApi {
       minFinalCltvExpiryDelta,
       descriptionHash,
     ]);
-    return _map('rlnLnInvoice');
+    return _wire('rlnLnInvoice');
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnClaimHodlInvoice(
+  Future<RlnWireResponse> rlnClaimHodlInvoice(
     int nodeId,
     String paymentHash,
     String paymentPreimage,
@@ -554,7 +550,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
       paymentHash,
       paymentPreimage,
     ]);
-    return <Object?, Object?>{'changed': true};
+    return _wireMap(<Object?, Object?>{'changed': true});
   }
 
   @override
@@ -563,16 +559,13 @@ class _RecordingRlnHostApi extends RlnHostApi {
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnApayNew(
-    int nodeId,
-    String hostNodeId,
-  ) async {
+  Future<RlnWireResponse> rlnApayNew(int nodeId, String hostNodeId) async {
     _record('rlnApayNew', <Object?>[nodeId, hostNodeId]);
-    return _map('rlnApayNew');
+    return _wire('rlnApayNew');
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnApayNewWithAddress(
+  Future<RlnWireResponse> rlnApayNewWithAddress(
     int nodeId,
     String hostNodeId,
     String username,
@@ -584,7 +577,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
       username,
       domain,
     ]);
-    return _map('rlnApayNewWithAddress');
+    return _wire('rlnApayNewWithAddress');
   }
 
   @override
@@ -593,7 +586,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnRgbInvoice(
+  Future<RlnWireResponse> rlnRgbInvoice(
     int nodeId,
     String? assetId,
     int? assignmentAmount,
@@ -611,11 +604,11 @@ class _RecordingRlnHostApi extends RlnHostApi {
       witness,
       assignmentKind,
     ]);
-    return _map('rlnRgbInvoice');
+    return _wire('rlnRgbInvoice');
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnSendBtc(
+  Future<RlnWireResponse> rlnSendBtc(
     int nodeId,
     int amount,
     String address,
@@ -629,11 +622,11 @@ class _RecordingRlnHostApi extends RlnHostApi {
       feeRate,
       skipSync,
     ]);
-    return _map('rlnSendBtc');
+    return _wire('rlnSendBtc');
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnSendPayment(
+  Future<RlnWireResponse> rlnSendPayment(
     int nodeId,
     String invoice,
     int? amtMsat,
@@ -647,11 +640,11 @@ class _RecordingRlnHostApi extends RlnHostApi {
       assetId,
       assetAmount,
     ]);
-    return _map('rlnSendPayment');
+    return _wire('rlnSendPayment');
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnSendRgb(
+  Future<RlnWireResponse> rlnSendRgb(
     int nodeId,
     bool donation,
     double feeRate,
@@ -677,7 +670,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
       witnessAmountSat,
       witnessBlinding,
     ]);
-    return _map('rlnSendRgb');
+    return _wire('rlnSendRgb');
   }
 
   @override
@@ -691,7 +684,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
   }
 
   @override
-  Future<Object?> rlnIssueAssetNia(
+  Future<RlnWireResponse> rlnIssueAssetNia(
     int nodeId,
     String ticker,
     String name,
@@ -705,11 +698,11 @@ class _RecordingRlnHostApi extends RlnHostApi {
       precision,
       amounts,
     ]);
-    return _map('rlnIssueAssetNia');
+    return _wire('rlnIssueAssetNia');
   }
 
   @override
-  Future<Object?> rlnIssueAssetCfa(
+  Future<RlnWireResponse> rlnIssueAssetCfa(
     int nodeId,
     String name,
     String? details,
@@ -725,11 +718,11 @@ class _RecordingRlnHostApi extends RlnHostApi {
       amounts,
       fileDigest,
     ]);
-    return _map('rlnIssueAssetCfa');
+    return _wire('rlnIssueAssetCfa');
   }
 
   @override
-  Future<Object?> rlnIssueAssetIfa(
+  Future<RlnWireResponse> rlnIssueAssetIfa(
     int nodeId,
     String ticker,
     String name,
@@ -747,11 +740,11 @@ class _RecordingRlnHostApi extends RlnHostApi {
       inflationAmounts,
       rejectListUrl,
     ]);
-    return _map('rlnIssueAssetIfa');
+    return _wire('rlnIssueAssetIfa');
   }
 
   @override
-  Future<Map<Object?, Object?>> rlnInflate(
+  Future<RlnWireResponse> rlnInflate(
     int nodeId,
     String assetId,
     List<int> inflationAmounts,
@@ -765,11 +758,11 @@ class _RecordingRlnHostApi extends RlnHostApi {
       feeRate,
       minConfirmations,
     ]);
-    return _map('rlnInflate');
+    return _wire('rlnInflate');
   }
 
   @override
-  Future<Object?> rlnIssueAssetUda(
+  Future<RlnWireResponse> rlnIssueAssetUda(
     int nodeId,
     String ticker,
     String name,
@@ -787,7 +780,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
       mediaFileDigest,
       attachmentsFileDigests,
     ]);
-    return _map('rlnIssueAssetUda');
+    return _wire('rlnIssueAssetUda');
   }
 
   @override
@@ -799,6 +792,45 @@ class _RecordingRlnHostApi extends RlnHostApi {
   Future<int> rlnVssBackup(int nodeId) async {
     _record('rlnVssBackup', <Object?>[nodeId]);
     return 1;
+  }
+}
+
+class _ThrowingRlnHostApi extends _RecordingRlnHostApi {
+  @override
+  Future<RlnWireResponse> rlnNodeInfo(int nodeId) async {
+    throw PlatformException(
+      code: 'RlnError',
+      message: 'InvalidRequest: malformed node info request',
+      details: <String, Object?>{'operation': 'rlnNodeInfo'},
+    );
+  }
+}
+
+class _MalformedWireRlnHostApi extends _RecordingRlnHostApi {
+  @override
+  Future<RlnWireResponse> rlnSignMessage(int nodeId, String message) async {
+    return RlnWireResponse(json: '{not-json');
+  }
+
+  @override
+  Future<RlnWireResponse> rlnVerifyMessage(
+    int nodeId,
+    String message,
+    String signature,
+  ) async {
+    return RlnWireResponse(json: '["not", "an", "object"]');
+  }
+
+  @override
+  Future<List<RlnWireResponse>> rlnListTransactionsByTxid(
+    int nodeId,
+    String txid,
+    bool skipSync,
+  ) async {
+    return <RlnWireResponse>[
+      RlnWireResponse(json: '{"txid":"ok"}'),
+      RlnWireResponse(json: '42'),
+    ];
   }
 }
 
@@ -1598,6 +1630,66 @@ void main() {
       );
 
       expect(hostApi.calls, isEmpty);
+    });
+
+    test('maps PlatformException into typed SDK error with native cause', () {
+      final client = RlnClient(hostApi: _ThrowingRlnHostApi());
+
+      expect(
+        () => client.nodeInfo(nodeId),
+        throwsA(
+          isA<BadRequestError>().having(
+            (error) => error.cause,
+            'cause',
+            isA<NativeBridgeFailure>()
+                .having((cause) => cause.operation, 'operation', 'rlnNodeInfo')
+                .having((cause) => cause.nativeCode, 'nativeCode', 'RlnError'),
+          ),
+        ),
+      );
+    });
+
+    test('rejects malformed native wire responses', () async {
+      final client = RlnClient(hostApi: _MalformedWireRlnHostApi());
+
+      await expectLater(
+        client.signMessage(nodeId: nodeId, message: 'message'),
+        throwsA(
+          isA<NativeProtocolException>().having(
+            (error) => error.message,
+            'message',
+            contains('not valid JSON'),
+          ),
+        ),
+      );
+      await expectLater(
+        client.verifyMessage(
+          nodeId: nodeId,
+          message: 'message',
+          signature: 'signature',
+        ),
+        throwsA(
+          isA<NativeProtocolException>().having(
+            (error) => error.field,
+            'field',
+            'RlnWireResponse.json',
+          ),
+        ),
+      );
+      await expectLater(
+        client.listTransactionsByTxid(
+          nodeId: nodeId,
+          txid: 'txid',
+          skipSync: false,
+        ),
+        throwsA(
+          isA<NativeProtocolException>().having(
+            (error) => error.field,
+            'field',
+            'RlnWireResponse.json',
+          ),
+        ),
+      );
     });
 
     for (final contractCase in cases) {

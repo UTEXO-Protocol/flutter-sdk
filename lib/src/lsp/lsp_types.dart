@@ -394,10 +394,25 @@ class CreateHodlInvoiceParams {
 }
 
 class HodlInvoice {
-  const HodlInvoice({required this.bolt11, required this.paymentHash});
+  const HodlInvoice({
+    required this.bolt11,
+    required this.paymentHash,
+    this.amtMsat,
+    required this.expirySec,
+    this.assetId,
+    this.assetAmount,
+    this.minFinalCltvExpiryDelta,
+    this.descriptionHash,
+  });
 
   final String bolt11;
   final String paymentHash;
+  final int? amtMsat;
+  final int expirySec;
+  final String? assetId;
+  final int? assetAmount;
+  final int? minFinalCltvExpiryDelta;
+  final String? descriptionHash;
 }
 
 class HodlInvoiceResult {

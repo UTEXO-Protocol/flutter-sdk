@@ -25,6 +25,7 @@ void main() {
 
   _validateRnBaseline(rnRoot, baseline, errors);
   _validateLowLevelNativeMethods(root, rnRoot, errors);
+  _validateTypedPigeonWire(root, errors);
   _validateWalletMethods(root, rnRoot, errors);
   _validateRuntimeExports(root, rnRoot, manifest, errors);
   _validateScopedTypeStars(rnRoot, manifest, errors);
@@ -183,10 +184,16 @@ void _validateLowLevelNativeMethods(
   Directory rnRoot,
   List<String> errors,
 ) {
-  final rnMethods = _extractRnNativeRgbMethods(
+  final rnSignatures = _extractRnNativeRgbSignatures(
     File('${rnRoot.path}/src/binding/NativeRgb.ts'),
     errors,
   );
+  final pigeonSignatures = _extractPigeonHostApiSignatures(
+    File('${root.path}/pigeons/rln_api.dart'),
+    errors,
+  );
+  final rnMethods = rnSignatures.keys.toSet();
+  final pigeonMethods = pigeonSignatures.keys.toSet();
   final matrix = _readJsonObject(
     File('${root.path}/tool/test_matrix/rln_methods.json'),
     errors,
@@ -195,6 +202,15 @@ void _validateLowLevelNativeMethods(
 
   final missing = rnMethods.difference(flutterHostApis).toList()..sort();
   final stale = flutterHostApis.difference(rnMethods).toList()..sort();
+  final missingFromPigeon = rnMethods.difference(pigeonMethods).toList()
+    ..sort();
+  final stalePigeon =
+      pigeonMethods
+          .where((method) => method.startsWith('rln'))
+          .toSet()
+          .difference(rnMethods)
+          .toList()
+        ..sort();
 
   for (final method in missing) {
     errors.add('RN NativeRgb.$method is missing from rln_methods.json.');
@@ -202,20 +218,256 @@ void _validateLowLevelNativeMethods(
   for (final method in stale) {
     errors.add('rln_methods.json hostApi $method is not in RN NativeRgb.ts.');
   }
+  for (final method in missingFromPigeon) {
+    errors.add('RN NativeRgb.$method is missing from Pigeon RlnHostApi.');
+  }
+  for (final method in stalePigeon) {
+    errors.add('Pigeon RlnHostApi.$method is not in RN NativeRgb.ts.');
+  }
+
+  for (final method in rnMethods.intersection(pigeonMethods)) {
+    final rn = rnSignatures[method]!;
+    final pigeon = pigeonSignatures[method]!;
+    if (rn.returnType != pigeon.returnType) {
+      errors.add(
+        'NativeRgb.$method return mismatch. RN ${rn.returnType.label}, '
+        'Pigeon ${pigeon.returnType.label}.',
+      );
+    }
+    if (rn.parameters.length != pigeon.parameters.length) {
+      errors.add(
+        'NativeRgb.$method parameter count mismatch. RN '
+        '${rn.parameters.length}, Pigeon ${pigeon.parameters.length}.',
+      );
+      continue;
+    }
+    for (var index = 0; index < rn.parameters.length; index++) {
+      final rnParam = rn.parameters[index];
+      final pigeonParam = pigeon.parameters[index];
+      if (rnParam.name != pigeonParam.name) {
+        errors.add(
+          'NativeRgb.$method parameter ${index + 1} name mismatch. RN '
+          '${rnParam.name}, Pigeon ${pigeonParam.name}.',
+        );
+      }
+      if (rnParam.type != pigeonParam.type) {
+        errors.add(
+          'NativeRgb.$method parameter ${rnParam.name} type mismatch. RN '
+          '${rnParam.type.label}, Pigeon ${pigeonParam.type.label}.',
+        );
+      }
+    }
+  }
 }
 
-Set<String> _extractRnNativeRgbMethods(File file, List<String> errors) {
+Map<String, _MethodSignature> _extractRnNativeRgbSignatures(
+  File file,
+  List<String> errors,
+) {
   if (!file.existsSync()) {
     errors.add('Missing RN NativeRgb source: ${file.path}');
-    return <String>{};
+    return <String, _MethodSignature>{};
   }
-  final methods = <String>{};
-  final methodRegex = RegExp(r'^\s*(rln[A-Za-z0-9_]+)\s*\(');
-  for (final line in file.readAsLinesSync()) {
-    final match = methodRegex.firstMatch(line);
-    if (match != null) methods.add(match.group(1)!);
+  final source = file.readAsStringSync();
+  final methods = <String, _MethodSignature>{};
+  final methodRegex = RegExp(
+    r'^\s*(rln[A-Za-z0-9_]+)\s*\(([\s\S]*?)\)\s*:\s*Promise<([^>]+)>;',
+    multiLine: true,
+  );
+  for (final match in methodRegex.allMatches(source)) {
+    final name = match.group(1)!;
+    methods[name] = _MethodSignature(
+      name: name,
+      returnType: _TypeShape.fromRn(match.group(3)!.trim()),
+      parameters: _parseRnParameters(match.group(2)!),
+    );
   }
   return methods;
+}
+
+Map<String, _MethodSignature> _extractPigeonHostApiSignatures(
+  File file,
+  List<String> errors,
+) {
+  if (!file.existsSync()) {
+    errors.add('Missing Pigeon source: ${file.path}');
+    return <String, _MethodSignature>{};
+  }
+  final source = file.readAsStringSync();
+  final methods = <String, _MethodSignature>{};
+  final methodRegex = RegExp(
+    r'^\s*([A-Za-z0-9_<>, ?]+)\s+(rln[A-Za-z0-9_]+)\s*\(([\s\S]*?)\);',
+    multiLine: true,
+  );
+  for (final match in methodRegex.allMatches(source)) {
+    final name = match.group(2)!;
+    methods[name] = _MethodSignature(
+      name: name,
+      returnType: _TypeShape.fromDart(match.group(1)!.trim()),
+      parameters: _parseDartParameters(match.group(3)!),
+    );
+  }
+  return methods;
+}
+
+List<_ParameterShape> _parseRnParameters(String source) {
+  return _splitParameters(source)
+      .map((raw) {
+        final match = RegExp(
+          r'^\s*([A-Za-z_][A-Za-z0-9_]*)(\?)?\s*:\s*(.+?)\s*,?\s*$',
+        ).firstMatch(raw);
+        if (match == null) return null;
+        final optional = match.group(2) != null;
+        final typeSource = match.group(3)!.trim();
+        return _ParameterShape(
+          name: match.group(1)!,
+          type: _TypeShape.fromRn(optional ? '$typeSource | null' : typeSource),
+        );
+      })
+      .whereType<_ParameterShape>()
+      .toList(growable: false);
+}
+
+List<_ParameterShape> _parseDartParameters(String source) {
+  return _splitParameters(source)
+      .map((raw) {
+        final match = RegExp(
+          r'^\s*([A-Za-z0-9_<>, ?]+)\s+([A-Za-z_][A-Za-z0-9_]*)\s*,?\s*$',
+        ).firstMatch(raw);
+        if (match == null) return null;
+        return _ParameterShape(
+          name: match.group(2)!,
+          type: _TypeShape.fromDart(match.group(1)!.trim()),
+        );
+      })
+      .whereType<_ParameterShape>()
+      .toList(growable: false);
+}
+
+List<String> _splitParameters(String source) {
+  return source
+      .split(',')
+      .map((part) => part.trim())
+      .where((part) => part.isNotEmpty)
+      .toList(growable: false);
+}
+
+void _validateTypedPigeonWire(Directory root, List<String> errors) {
+  final pigeon = File('${root.path}/pigeons/rln_api.dart');
+  if (!pigeon.existsSync()) {
+    errors.add('Missing Pigeon source: ${pigeon.path}');
+    return;
+  }
+
+  final source = pigeon.readAsStringSync();
+  if (!source.contains('class RlnWireResponse')) {
+    errors.add('Pigeon source must define typed RlnWireResponse wire DTO.');
+  }
+  for (final forbidden in <String>[
+    'Map<Object?, Object?>',
+    'List<Map<Object?, Object?>>',
+  ]) {
+    if (source.contains(forbidden)) {
+      errors.add(
+        'Pigeon source still exposes broad $forbidden; use RlnWireResponse '
+        'and strict Dart decoding at the client boundary.',
+      );
+    }
+  }
+}
+
+final class _MethodSignature {
+  const _MethodSignature({
+    required this.name,
+    required this.returnType,
+    required this.parameters,
+  });
+
+  final String name;
+  final _TypeShape returnType;
+  final List<_ParameterShape> parameters;
+}
+
+final class _ParameterShape {
+  const _ParameterShape({required this.name, required this.type});
+
+  final String name;
+  final _TypeShape type;
+}
+
+final class _TypeShape {
+  const _TypeShape(this.kind, {this.nullable = false});
+
+  factory _TypeShape.fromRn(String source) {
+    final normalized = source.replaceAll(RegExp(r'\s+'), ' ').trim();
+    final nullable =
+        normalized.contains('null') || normalized.contains('undefined');
+    final nonNull = normalized
+        .replaceAll(RegExp(r'\s*\|\s*null'), '')
+        .replaceAll(RegExp(r'\s*\|\s*undefined'), '')
+        .replaceAll('?', '')
+        .trim();
+    return _TypeShape(_rnKind(nonNull), nullable: nullable);
+  }
+
+  factory _TypeShape.fromDart(String source) {
+    final normalized = source.replaceAll(RegExp(r'\s+'), ' ').trim();
+    if (normalized == 'Object?') {
+      return const _TypeShape('map');
+    }
+    final nullable = normalized.endsWith('?');
+    final nonNull = nullable
+        ? normalized.substring(0, normalized.length - 1)
+        : normalized;
+    return _TypeShape(_dartKind(nonNull), nullable: nullable);
+  }
+
+  final String kind;
+  final bool nullable;
+
+  String get label => nullable ? '$kind?' : kind;
+
+  @override
+  bool operator ==(Object other) {
+    return other is _TypeShape &&
+        other.kind == kind &&
+        other.nullable == nullable;
+  }
+
+  @override
+  int get hashCode => Object.hash(kind, nullable);
+
+  static String _rnKind(String source) {
+    return switch (source) {
+      'string' => 'string',
+      'number' => 'number',
+      'boolean' => 'bool',
+      'void' => 'void',
+      'object' => 'map',
+      'object[]' => 'list-map',
+      'string[]' => 'list-string',
+      'number[]' => 'list-number',
+      'any' => 'map',
+      _ => source,
+    };
+  }
+
+  static String _dartKind(String source) {
+    return switch (source) {
+      'String' => 'string',
+      'int' || 'double' => 'number',
+      'bool' => 'bool',
+      'void' => 'void',
+      'Map<Object?, Object?>' => 'map',
+      'Object' => 'map',
+      'RlnWireResponse' => 'map',
+      'List<Map<Object?, Object?>>' => 'list-map',
+      'List<RlnWireResponse>' => 'list-map',
+      'List<String>' => 'list-string',
+      'List<int>' => 'list-number',
+      _ => source,
+    };
+  }
 }
 
 void _validateWalletMethods(

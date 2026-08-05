@@ -1,5 +1,23 @@
+import '../errors/rgb_sdk_exception.dart';
+
 /// Raw platform map returned by the low-level RLN bridge.
 typedef RlnMap = Map<Object?, Object?>;
+
+/// Largest integer accepted as an input over the current Pigeon bridge.
+///
+/// RLN native APIs use unsigned integer types in many request structs, but
+/// Pigeon transports Dart `int` values to Swift/Kotlin as signed 64-bit
+/// integers. Inputs above this value cannot be represented by the generated
+/// bridge and must be exposed through a future string/typed-integer transport
+/// before the SDK claims larger request ranges.
+const int rlnPigeonMaxSignedInt64 = 9223372036854775807;
+
+/// Largest unsigned 64-bit value that native RLN may return on the wire.
+///
+/// Native outputs greater than [rlnPigeonMaxSignedInt64] are serialized as
+/// decimal strings by the Swift/Kotlin bridge, but current public Dart models
+/// expose signed `int` values and reject larger numbers at decode time.
+const String rlnMaxUnsigned64Decimal = '18446744073709551615';
 
 /// Native RGB assignment type accepted by RLN invoices.
 enum RlnAssignmentKind {
@@ -14,16 +32,37 @@ enum RlnAssignmentKind {
   final String wireValue;
 }
 
-int? _intOrNull(Object? value) {
+int? _intOrNull(Object? value, [String field = 'native integer']) {
   if (value == null) return null;
   if (value is int) return value;
-  if (value is double) return value.toInt();
-  if (value is String) return int.tryParse(value);
+  if (value is double && value.isFinite && value % 1 == 0) {
+    return value.toInt();
+  }
+  if (value is String) {
+    final parsed = BigInt.tryParse(value);
+    if (parsed == null) return null;
+    if (parsed > BigInt.from(rlnPigeonMaxSignedInt64) ||
+        parsed < BigInt.from(-rlnPigeonMaxSignedInt64 - 1)) {
+      throw NativeProtocolException(
+        '$field exceeds the supported signed 64-bit integer range.',
+        field: field,
+      );
+    }
+    return parsed.toInt();
+  }
   return null;
 }
 
-int _intValue(Object? value, [int fallback = 0]) =>
-    _intOrNull(value) ?? fallback;
+int _requiredInt(RlnMap map, String key, String typeName) {
+  final value = _intOrNull(map[key]);
+  if (value == null) {
+    throw NativeProtocolException(
+      '$typeName.$key must be an integer.',
+      field: '$typeName.$key',
+    );
+  }
+  return value;
+}
 
 double? _doubleOrNull(Object? value) {
   if (value == null) return null;
@@ -33,16 +72,46 @@ double? _doubleOrNull(Object? value) {
   return null;
 }
 
-bool _boolValue(Object? value, [bool fallback = false]) {
-  if (value is bool) return value;
-  return fallback;
+double _requiredDouble(RlnMap map, String key, String typeName) {
+  final value = _doubleOrNull(map[key]);
+  if (value == null || value.isNaN || value.isInfinite) {
+    throw NativeProtocolException(
+      '$typeName.$key must be a finite number.',
+      field: '$typeName.$key',
+    );
+  }
+  return value;
 }
 
-String? _stringOrNull(Object? value) => value?.toString();
+bool _requiredBool(RlnMap map, String key, String typeName) {
+  final value = map[key];
+  if (value is bool) return value;
+  throw NativeProtocolException(
+    '$typeName.$key must be a boolean.',
+    field: '$typeName.$key',
+  );
+}
+
+String? _stringOrNull(Object? value) => value is String ? value : null;
+
+String _requiredString(RlnMap map, String key, String typeName) {
+  final value = _stringOrNull(map[key]);
+  if (value == null || value.isEmpty) {
+    throw NativeProtocolException(
+      '$typeName.$key must be a non-empty string.',
+      field: '$typeName.$key',
+    );
+  }
+  return value;
+}
 
 String _canonicalEnum(Object? value) {
   final raw = _stringOrNull(value);
-  if (raw == null || raw.isEmpty) return '';
+  if (raw == null || raw.isEmpty) {
+    throw const NativeProtocolException(
+      'Native enum must be a non-empty string.',
+    );
+  }
   if (RegExp(r'^[A-Z0-9_]+$').hasMatch(raw)) return raw;
   return raw
       .replaceAllMapped(
@@ -53,23 +122,74 @@ String _canonicalEnum(Object? value) {
 }
 
 String _uppercaseStatus(Object? value) {
-  return (_stringOrNull(value) ?? '').toUpperCase();
+  final raw = _stringOrNull(value);
+  if (raw == null || raw.isEmpty) {
+    throw const NativeProtocolException(
+      'Native status must be a non-empty string.',
+    );
+  }
+  return raw.toUpperCase();
 }
 
-RlnMap _map(Object? value) {
+String _pascalEnum(Object? value, String field) {
+  final raw = _stringOrNull(value);
+  if (raw == null || raw.isEmpty) {
+    throw NativeProtocolException(
+      '$field must be a non-empty string.',
+      field: field,
+    );
+  }
+  if (raw.contains('_')) {
+    return raw
+        .toLowerCase()
+        .split('_')
+        .where((part) => part.isNotEmpty)
+        .map((part) => part[0].toUpperCase() + part.substring(1))
+        .join();
+  }
+  return raw[0].toUpperCase() + raw.substring(1);
+}
+
+String _pascalStatus(Object? value, String field) => _pascalEnum(value, field);
+
+RlnMap _requiredMap(RlnMap map, String key, String typeName) {
+  final value = map[key];
   if (value is Map<Object?, Object?>) return value;
   if (value is Map) return Map<Object?, Object?>.from(value);
-  return const <Object?, Object?>{};
+  throw NativeProtocolException(
+    '$typeName.$key must be a map.',
+    field: '$typeName.$key',
+  );
 }
 
-List<RlnMap> _mapList(Object? value) {
-  if (value is! List) return const <RlnMap>[];
-  return value.map(_map).toList(growable: false);
+RlnMap _map(Object? value, String field) {
+  if (value is Map<Object?, Object?>) return value;
+  if (value is Map) return Map<Object?, Object?>.from(value);
+  throw NativeProtocolException('$field must be a map.', field: field);
 }
 
-List<String> _stringList(Object? value) {
-  if (value is! List) return const <String>[];
-  return value.map(_stringOrNull).whereType<String>().toList(growable: false);
+List<RlnMap> _mapList(Object? value, String field, {bool required = false}) {
+  if (value == null && !required) return const <RlnMap>[];
+  if (value is! List) {
+    throw NativeProtocolException('$field must be a list.', field: field);
+  }
+  return value.map((entry) => _map(entry, '$field[]')).toList(growable: false);
+}
+
+List<String> _stringList(Object? value, String field, {bool required = false}) {
+  if (value == null && !required) return const <String>[];
+  if (value is! List) {
+    throw NativeProtocolException('$field must be a list.', field: field);
+  }
+  return value
+      .map((entry) {
+        if (entry is String) return entry;
+        throw NativeProtocolException(
+          '$field entries must be strings.',
+          field: field,
+        );
+      })
+      .toList(growable: false);
 }
 
 /// Vanilla and colored xpubs for the wallet accounts.
@@ -85,7 +205,7 @@ class RlnAddress {
   const RlnAddress({required this.address});
 
   factory RlnAddress.fromMap(RlnMap map) {
-    return RlnAddress(address: _stringOrNull(map['address']) ?? '');
+    return RlnAddress(address: _requiredString(map, 'address', 'RlnAddress'));
   }
 
   final String address;
@@ -97,7 +217,11 @@ class RlnSignMessageResult {
 
   factory RlnSignMessageResult.fromMap(RlnMap map) {
     return RlnSignMessageResult(
-      signedMessage: _stringOrNull(map['signedMessage']) ?? '',
+      signedMessage: _requiredString(
+        map,
+        'signedMessage',
+        'RlnSignMessageResult',
+      ),
     );
   }
 
@@ -109,7 +233,9 @@ class RlnVerifyMessageResult {
   const RlnVerifyMessageResult({required this.valid});
 
   factory RlnVerifyMessageResult.fromMap(RlnMap map) {
-    return RlnVerifyMessageResult(valid: _boolValue(map['valid']));
+    return RlnVerifyMessageResult(
+      valid: _requiredBool(map, 'valid', 'RlnVerifyMessageResult'),
+    );
   }
 
   final bool valid;
@@ -120,7 +246,9 @@ class RlnInflateResult {
   const RlnInflateResult({required this.txid});
 
   factory RlnInflateResult.fromMap(RlnMap map) {
-    return RlnInflateResult(txid: _stringOrNull(map['txid']) ?? '');
+    return RlnInflateResult(
+      txid: _requiredString(map, 'txid', 'RlnInflateResult'),
+    );
   }
 
   final String txid;
@@ -133,43 +261,43 @@ class RlnNodeInfo {
     required this.numChannels,
     required this.numUsableChannels,
     required this.localBalanceSat,
-    required this.eventualCloseFeesSat,
-    required this.pendingOutboundPaymentsSat,
+    this.eventualCloseFeesSat,
+    this.pendingOutboundPaymentsSat,
     required this.numPeers,
     this.accountXpubVanilla,
     this.accountXpubColored,
-    required this.maxMediaUploadSizeMb,
-    required this.rgbHtlcMinMsat,
-    required this.rgbChannelCapacityMinSat,
-    required this.channelCapacityMinSat,
-    required this.channelCapacityMaxSat,
-    required this.channelAssetMinAmount,
-    required this.channelAssetMaxAmount,
-    required this.networkNodes,
-    required this.networkChannels,
+    this.maxMediaUploadSizeMb,
+    this.rgbHtlcMinMsat,
+    this.rgbChannelCapacityMinSat,
+    this.channelCapacityMinSat,
+    this.channelCapacityMaxSat,
+    this.channelAssetMinAmount,
+    this.channelAssetMaxAmount,
+    this.networkNodes,
+    this.networkChannels,
     this.latestRgsSnapshotTimestamp,
   });
 
   factory RlnNodeInfo.fromMap(RlnMap map) {
     return RlnNodeInfo(
-      pubkey: _stringOrNull(map['pubkey']) ?? '',
-      numChannels: _intValue(map['numChannels']),
-      numUsableChannels: _intValue(map['numUsableChannels']),
-      localBalanceSat: _intValue(map['localBalanceSat']),
-      eventualCloseFeesSat: _intValue(map['eventualCloseFeesSat']),
-      pendingOutboundPaymentsSat: _intValue(map['pendingOutboundPaymentsSat']),
-      numPeers: _intValue(map['numPeers']),
+      pubkey: _requiredString(map, 'pubkey', 'RlnNodeInfo'),
+      numChannels: _requiredInt(map, 'numChannels', 'RlnNodeInfo'),
+      numUsableChannels: _requiredInt(map, 'numUsableChannels', 'RlnNodeInfo'),
+      localBalanceSat: _requiredInt(map, 'localBalanceSat', 'RlnNodeInfo'),
+      eventualCloseFeesSat: _intOrNull(map['eventualCloseFeesSat']),
+      pendingOutboundPaymentsSat: _intOrNull(map['pendingOutboundPaymentsSat']),
+      numPeers: _requiredInt(map, 'numPeers', 'RlnNodeInfo'),
       accountXpubVanilla: _stringOrNull(map['accountXpubVanilla']),
       accountXpubColored: _stringOrNull(map['accountXpubColored']),
-      maxMediaUploadSizeMb: _intValue(map['maxMediaUploadSizeMb']),
-      rgbHtlcMinMsat: _intValue(map['rgbHtlcMinMsat']),
-      rgbChannelCapacityMinSat: _intValue(map['rgbChannelCapacityMinSat']),
-      channelCapacityMinSat: _intValue(map['channelCapacityMinSat']),
-      channelCapacityMaxSat: _intValue(map['channelCapacityMaxSat']),
-      channelAssetMinAmount: _intValue(map['channelAssetMinAmount']),
-      channelAssetMaxAmount: _intValue(map['channelAssetMaxAmount']),
-      networkNodes: _intValue(map['networkNodes']),
-      networkChannels: _intValue(map['networkChannels']),
+      maxMediaUploadSizeMb: _intOrNull(map['maxMediaUploadSizeMb']),
+      rgbHtlcMinMsat: _intOrNull(map['rgbHtlcMinMsat']),
+      rgbChannelCapacityMinSat: _intOrNull(map['rgbChannelCapacityMinSat']),
+      channelCapacityMinSat: _intOrNull(map['channelCapacityMinSat']),
+      channelCapacityMaxSat: _intOrNull(map['channelCapacityMaxSat']),
+      channelAssetMinAmount: _intOrNull(map['channelAssetMinAmount']),
+      channelAssetMaxAmount: _intOrNull(map['channelAssetMaxAmount']),
+      networkNodes: _intOrNull(map['networkNodes']),
+      networkChannels: _intOrNull(map['networkChannels']),
       latestRgsSnapshotTimestamp: _intOrNull(map['latestRgsSnapshotTimestamp']),
     );
   }
@@ -178,20 +306,20 @@ class RlnNodeInfo {
   final int numChannels;
   final int numUsableChannels;
   final int localBalanceSat;
-  final int eventualCloseFeesSat;
-  final int pendingOutboundPaymentsSat;
+  final int? eventualCloseFeesSat;
+  final int? pendingOutboundPaymentsSat;
   final int numPeers;
   final String? accountXpubVanilla;
   final String? accountXpubColored;
-  final int maxMediaUploadSizeMb;
-  final int rgbHtlcMinMsat;
-  final int rgbChannelCapacityMinSat;
-  final int channelCapacityMinSat;
-  final int channelCapacityMaxSat;
-  final int channelAssetMinAmount;
-  final int channelAssetMaxAmount;
-  final int networkNodes;
-  final int networkChannels;
+  final int? maxMediaUploadSizeMb;
+  final int? rgbHtlcMinMsat;
+  final int? rgbChannelCapacityMinSat;
+  final int? channelCapacityMinSat;
+  final int? channelCapacityMaxSat;
+  final int? channelAssetMinAmount;
+  final int? channelAssetMaxAmount;
+  final int? networkNodes;
+  final int? networkChannels;
   final int? latestRgsSnapshotTimestamp;
 }
 
@@ -201,8 +329,8 @@ class RlnNetworkInfo {
 
   factory RlnNetworkInfo.fromMap(RlnMap map) {
     return RlnNetworkInfo(
-      network: _stringOrNull(map['network']) ?? '',
-      height: _intValue(map['height']),
+      network: _requiredString(map, 'network', 'RlnNetworkInfo'),
+      height: _requiredInt(map, 'height', 'RlnNetworkInfo'),
     );
   }
 
@@ -220,9 +348,9 @@ class RlnBalance {
 
   factory RlnBalance.fromMap(RlnMap map) {
     return RlnBalance(
-      settled: _intValue(map['settled']),
-      future: _intValue(map['future']),
-      spendable: _intValue(map['spendable']),
+      settled: _requiredInt(map, 'settled', 'RlnBalance'),
+      future: _requiredInt(map, 'future', 'RlnBalance'),
+      spendable: _requiredInt(map, 'spendable', 'RlnBalance'),
     );
   }
 
@@ -237,8 +365,12 @@ class RlnBtcBalance {
 
   factory RlnBtcBalance.fromMap(RlnMap map) {
     return RlnBtcBalance(
-      vanilla: RlnBalance.fromMap(_map(map['vanilla'])),
-      colored: RlnBalance.fromMap(_map(map['colored'])),
+      vanilla: RlnBalance.fromMap(
+        _requiredMap(map, 'vanilla', 'RlnBtcBalance'),
+      ),
+      colored: RlnBalance.fromMap(
+        _requiredMap(map, 'colored', 'RlnBtcBalance'),
+      ),
     );
   }
 
@@ -258,11 +390,11 @@ class RlnAssetBalance extends RlnBalance {
 
   factory RlnAssetBalance.fromMap(RlnMap map) {
     return RlnAssetBalance(
-      settled: _intValue(map['settled']),
-      future: _intValue(map['future']),
-      spendable: _intValue(map['spendable']),
-      offchainOutbound: _intValue(map['offchainOutbound']),
-      offchainInbound: _intValue(map['offchainInbound']),
+      settled: _requiredInt(map, 'settled', 'RlnAssetBalance'),
+      future: _requiredInt(map, 'future', 'RlnAssetBalance'),
+      spendable: _requiredInt(map, 'spendable', 'RlnAssetBalance'),
+      offchainOutbound: _intOrNull(map['offchainOutbound']) ?? 0,
+      offchainInbound: _intOrNull(map['offchainInbound']) ?? 0,
     );
   }
 
@@ -272,19 +404,23 @@ class RlnAssetBalance extends RlnBalance {
 
 /// Media metadata attached to RGB assets or tokens.
 class RlnMedia {
-  const RlnMedia({this.filePath, this.digest, this.mime});
+  const RlnMedia({
+    required this.filePath,
+    required this.digest,
+    required this.mime,
+  });
 
   factory RlnMedia.fromMap(RlnMap map) {
     return RlnMedia(
-      filePath: _stringOrNull(map['filePath']),
-      digest: _stringOrNull(map['digest']),
-      mime: _stringOrNull(map['mime']),
+      filePath: _requiredString(map, 'filePath', 'RlnMedia'),
+      digest: _requiredString(map, 'digest', 'RlnMedia'),
+      mime: _requiredString(map, 'mime', 'RlnMedia'),
     );
   }
 
-  final String? filePath;
-  final String? digest;
-  final String? mime;
+  final String filePath;
+  final String digest;
+  final String mime;
 }
 
 class RlnTokenLight {
@@ -301,16 +437,19 @@ class RlnTokenLight {
 
   factory RlnTokenLight.fromMap(RlnMap map) {
     return RlnTokenLight(
-      index: _intValue(map['index']),
+      index: _requiredInt(map, 'index', 'RlnTokenLight'),
       ticker: _stringOrNull(map['ticker']),
       name: _stringOrNull(map['name']),
       details: _stringOrNull(map['details']),
-      embeddedMedia: _boolValue(map['embeddedMedia']),
-      media: map['media'] == null ? null : RlnMedia.fromMap(_map(map['media'])),
+      embeddedMedia: _requiredBool(map, 'embeddedMedia', 'RlnTokenLight'),
+      media: map['media'] == null
+          ? null
+          : RlnMedia.fromMap(_map(map['media'], 'RlnTokenLight.media')),
       attachments: _mapList(
         map['attachments'],
+        'RlnTokenLight.attachments',
       ).map(RlnMediaAttachment.fromMap).toList(growable: false),
-      reserves: _boolValue(map['reserves']),
+      reserves: _requiredBool(map, 'reserves', 'RlnTokenLight'),
     );
   }
 
@@ -329,8 +468,10 @@ class RlnMediaAttachment {
 
   factory RlnMediaAttachment.fromMap(RlnMap map) {
     return RlnMediaAttachment(
-      key: _intValue(map['key']),
-      media: map['media'] == null ? null : RlnMedia.fromMap(_map(map['media'])),
+      key: _requiredInt(map, 'key', 'RlnMediaAttachment'),
+      media: map['media'] == null
+          ? null
+          : RlnMedia.fromMap(_map(map['media'], 'RlnMediaAttachment.media')),
     );
   }
 
@@ -376,16 +517,20 @@ class RlnAssetNia extends RlnAsset {
 
   factory RlnAssetNia.fromMap(RlnMap map) {
     return RlnAssetNia(
-      assetId: _stringOrNull(map['assetId']) ?? '',
-      ticker: _stringOrNull(map['ticker']) ?? '',
-      name: _stringOrNull(map['name']) ?? '',
+      assetId: _requiredString(map, 'assetId', 'RlnAssetNia'),
+      ticker: _requiredString(map, 'ticker', 'RlnAssetNia'),
+      name: _requiredString(map, 'name', 'RlnAssetNia'),
       details: _stringOrNull(map['details']),
-      precision: _intValue(map['precision']),
-      issuedSupply: _intValue(map['issuedSupply']),
-      timestamp: _intValue(map['timestamp']),
-      addedAt: _intValue(map['addedAt']),
-      balance: RlnAssetBalance.fromMap(_map(map['balance'])),
-      media: map['media'] == null ? null : RlnMedia.fromMap(_map(map['media'])),
+      precision: _requiredInt(map, 'precision', 'RlnAssetNia'),
+      issuedSupply: _requiredInt(map, 'issuedSupply', 'RlnAssetNia'),
+      timestamp: _requiredInt(map, 'timestamp', 'RlnAssetNia'),
+      addedAt: _requiredInt(map, 'addedAt', 'RlnAssetNia'),
+      balance: RlnAssetBalance.fromMap(
+        _requiredMap(map, 'balance', 'RlnAssetNia'),
+      ),
+      media: map['media'] == null
+          ? null
+          : RlnMedia.fromMap(_map(map['media'], 'RlnAssetNia.media')),
     );
   }
 
@@ -410,15 +555,19 @@ class RlnAssetCfa extends RlnAsset {
 
   factory RlnAssetCfa.fromMap(RlnMap map) {
     return RlnAssetCfa(
-      assetId: _stringOrNull(map['assetId']) ?? '',
-      name: _stringOrNull(map['name']) ?? '',
+      assetId: _requiredString(map, 'assetId', 'RlnAssetCfa'),
+      name: _requiredString(map, 'name', 'RlnAssetCfa'),
       details: _stringOrNull(map['details']),
-      precision: _intValue(map['precision']),
-      issuedSupply: _intValue(map['issuedSupply']),
-      timestamp: _intValue(map['timestamp']),
-      addedAt: _intValue(map['addedAt']),
-      balance: RlnAssetBalance.fromMap(_map(map['balance'])),
-      media: map['media'] == null ? null : RlnMedia.fromMap(_map(map['media'])),
+      precision: _requiredInt(map, 'precision', 'RlnAssetCfa'),
+      issuedSupply: _requiredInt(map, 'issuedSupply', 'RlnAssetCfa'),
+      timestamp: _requiredInt(map, 'timestamp', 'RlnAssetCfa'),
+      addedAt: _requiredInt(map, 'addedAt', 'RlnAssetCfa'),
+      balance: RlnAssetBalance.fromMap(
+        _requiredMap(map, 'balance', 'RlnAssetCfa'),
+      ),
+      media: map['media'] == null
+          ? null
+          : RlnMedia.fromMap(_map(map['media'], 'RlnAssetCfa.media')),
     );
   }
 
@@ -446,18 +595,26 @@ class RlnAssetIfa extends RlnAsset {
 
   factory RlnAssetIfa.fromMap(RlnMap map) {
     return RlnAssetIfa(
-      assetId: _stringOrNull(map['assetId']) ?? '',
-      ticker: _stringOrNull(map['ticker']) ?? '',
-      name: _stringOrNull(map['name']) ?? '',
+      assetId: _requiredString(map, 'assetId', 'RlnAssetIfa'),
+      ticker: _requiredString(map, 'ticker', 'RlnAssetIfa'),
+      name: _requiredString(map, 'name', 'RlnAssetIfa'),
       details: _stringOrNull(map['details']),
-      precision: _intValue(map['precision']),
-      initialSupply: _intValue(map['initialSupply']),
-      maxSupply: _intValue(map['maxSupply']),
-      knownCirculatingSupply: _intValue(map['knownCirculatingSupply']),
-      timestamp: _intValue(map['timestamp']),
-      addedAt: _intValue(map['addedAt']),
-      balance: RlnAssetBalance.fromMap(_map(map['balance'])),
-      media: map['media'] == null ? null : RlnMedia.fromMap(_map(map['media'])),
+      precision: _requiredInt(map, 'precision', 'RlnAssetIfa'),
+      initialSupply: _requiredInt(map, 'initialSupply', 'RlnAssetIfa'),
+      maxSupply: _requiredInt(map, 'maxSupply', 'RlnAssetIfa'),
+      knownCirculatingSupply: _requiredInt(
+        map,
+        'knownCirculatingSupply',
+        'RlnAssetIfa',
+      ),
+      timestamp: _requiredInt(map, 'timestamp', 'RlnAssetIfa'),
+      addedAt: _requiredInt(map, 'addedAt', 'RlnAssetIfa'),
+      balance: RlnAssetBalance.fromMap(
+        _requiredMap(map, 'balance', 'RlnAssetIfa'),
+      ),
+      media: map['media'] == null
+          ? null
+          : RlnMedia.fromMap(_map(map['media'], 'RlnAssetIfa.media')),
       rejectListUrl: _stringOrNull(map['rejectListUrl']),
     );
   }
@@ -486,17 +643,19 @@ class RlnAssetUda extends RlnAsset {
 
   factory RlnAssetUda.fromMap(RlnMap map) {
     return RlnAssetUda(
-      assetId: _stringOrNull(map['assetId']) ?? '',
-      ticker: _stringOrNull(map['ticker']) ?? '',
-      name: _stringOrNull(map['name']) ?? '',
+      assetId: _requiredString(map, 'assetId', 'RlnAssetUda'),
+      ticker: _requiredString(map, 'ticker', 'RlnAssetUda'),
+      name: _requiredString(map, 'name', 'RlnAssetUda'),
       details: _stringOrNull(map['details']),
-      precision: _intValue(map['precision']),
-      timestamp: _intValue(map['timestamp']),
-      addedAt: _intValue(map['addedAt']),
-      balance: RlnAssetBalance.fromMap(_map(map['balance'])),
+      precision: _requiredInt(map, 'precision', 'RlnAssetUda'),
+      timestamp: _requiredInt(map, 'timestamp', 'RlnAssetUda'),
+      addedAt: _requiredInt(map, 'addedAt', 'RlnAssetUda'),
+      balance: RlnAssetBalance.fromMap(
+        _requiredMap(map, 'balance', 'RlnAssetUda'),
+      ),
       token: map['token'] == null
           ? null
-          : RlnTokenLight.fromMap(_map(map['token'])),
+          : RlnTokenLight.fromMap(_map(map['token'], 'RlnAssetUda.token')),
     );
   }
 
@@ -517,15 +676,19 @@ class RlnAssets {
     return RlnAssets(
       nia: _mapList(
         map['nia'],
+        'RlnAssets.nia',
       ).map(RlnAssetNia.fromMap).toList(growable: false),
       uda: _mapList(
         map['uda'],
+        'RlnAssets.uda',
       ).map(RlnAssetUda.fromMap).toList(growable: false),
       cfa: _mapList(
         map['cfa'],
+        'RlnAssets.cfa',
       ).map(RlnAssetCfa.fromMap).toList(growable: false),
       ifa: _mapList(
         map['ifa'],
+        'RlnAssets.ifa',
       ).map(RlnAssetIfa.fromMap).toList(growable: false),
     );
   }
@@ -554,15 +717,15 @@ class RlnInvoice {
 
   factory RlnInvoice.fromMap(RlnMap map) {
     return RlnInvoice(
-      invoice: _stringOrNull(map['invoice']) ?? '',
-      recipientId: _stringOrNull(map['recipientId']) ?? '',
+      invoice: _requiredString(map, 'invoice', 'RlnInvoice'),
+      recipientId: _stringOrNull(map['recipientId']),
       expirationTimestamp: _intOrNull(map['expirationTimestamp']),
-      batchTransferIdx: _intValue(map['batchTransferIdx']),
+      batchTransferIdx: _requiredInt(map, 'batchTransferIdx', 'RlnInvoice'),
     );
   }
 
   final String invoice;
-  final String recipientId;
+  final String? recipientId;
   final int? expirationTimestamp;
   final int batchTransferIdx;
 }
@@ -582,14 +745,22 @@ class RlnDecodedRgbInvoice {
 
   factory RlnDecodedRgbInvoice.fromMap(RlnMap map) {
     return RlnDecodedRgbInvoice(
-      recipientId: _stringOrNull(map['recipientId']) ?? '',
-      recipientType: _stringOrNull(map['recipientType']) ?? '',
+      recipientId: _requiredString(map, 'recipientId', 'RlnDecodedRgbInvoice'),
+      recipientType: _requiredString(
+        map,
+        'recipientType',
+        'RlnDecodedRgbInvoice',
+      ),
       assetSchema: _stringOrNull(map['assetSchema']),
       assetId: _stringOrNull(map['assetId']),
-      assignment: _stringOrNull(map['assignment']) ?? '',
-      network: _stringOrNull(map['network']) ?? '',
+      assignment: _requiredString(map, 'assignment', 'RlnDecodedRgbInvoice'),
+      network: _requiredString(map, 'network', 'RlnDecodedRgbInvoice'),
       expirationTimestamp: _intOrNull(map['expirationTimestamp']),
-      transportEndpoints: _stringList(map['transportEndpoints']),
+      transportEndpoints: _stringList(
+        map['transportEndpoints'],
+        'RlnDecodedRgbInvoice.transportEndpoints',
+        required: true,
+      ),
     );
   }
 
@@ -615,8 +786,8 @@ class RlnSendResult {
 
   factory RlnSendResult.fromMap(RlnMap map) {
     return RlnSendResult(
-      txid: _stringOrNull(map['txid']) ?? '',
-      batchTransferIdx: _intValue(map['batchTransferIdx']),
+      txid: _requiredString(map, 'txid', 'RlnSendResult'),
+      batchTransferIdx: _requiredInt(map, 'batchTransferIdx', 'RlnSendResult'),
     );
   }
 
@@ -629,8 +800,8 @@ class RlnBlockTime {
 
   factory RlnBlockTime.fromMap(RlnMap map) {
     return RlnBlockTime(
-      height: _intValue(map['height']),
-      timestamp: _intValue(map['timestamp']),
+      height: _requiredInt(map, 'height', 'RlnBlockTime'),
+      timestamp: _requiredInt(map, 'timestamp', 'RlnBlockTime'),
     );
   }
 
@@ -652,13 +823,15 @@ class RlnTransaction {
   factory RlnTransaction.fromMap(RlnMap map) {
     return RlnTransaction(
       transactionType: _canonicalEnum(map['transactionType']),
-      txid: _stringOrNull(map['txid']) ?? '',
-      received: _intValue(map['received']),
-      sent: _intValue(map['sent']),
-      fee: _intValue(map['fee']),
+      txid: _requiredString(map, 'txid', 'RlnTransaction'),
+      received: _intOrNull(map['received']) ?? 0,
+      sent: _intOrNull(map['sent']) ?? 0,
+      fee: _intOrNull(map['fee']) ?? 0,
       confirmationTime: map['confirmationTime'] == null
           ? null
-          : RlnBlockTime.fromMap(_map(map['confirmationTime'])),
+          : RlnBlockTime.fromMap(
+              _map(map['confirmationTime'], 'RlnTransaction.confirmationTime'),
+            ),
     );
   }
 
@@ -679,9 +852,17 @@ class RlnTransferTransportEndpoint {
 
   factory RlnTransferTransportEndpoint.fromMap(RlnMap map) {
     return RlnTransferTransportEndpoint(
-      endpoint: _stringOrNull(map['endpoint']) ?? '',
-      transportType: _stringOrNull(map['transportType']) ?? '',
-      used: _boolValue(map['used']),
+      endpoint: _requiredString(
+        map,
+        'endpoint',
+        'RlnTransferTransportEndpoint',
+      ),
+      transportType: _requiredString(
+        map,
+        'transportType',
+        'RlnTransferTransportEndpoint',
+      ),
+      used: _requiredBool(map, 'used', 'RlnTransferTransportEndpoint'),
     );
   }
 
@@ -706,17 +887,18 @@ class RlnTransfer {
     this.changeUtxo,
     this.expiration,
     required this.transportEndpoints,
+    this.batchTransferIdx,
   });
 
   factory RlnTransfer.fromMap(RlnMap map) {
     return RlnTransfer(
-      idx: _intValue(map['idx']),
-      createdAt: _intValue(map['createdAt']),
-      updatedAt: _intValue(map['updatedAt']),
-      status: _stringOrNull(map['status']) ?? '',
+      idx: _requiredInt(map, 'idx', 'RlnTransfer'),
+      createdAt: _intOrNull(map['createdAt']),
+      updatedAt: _intOrNull(map['updatedAt']),
+      status: _requiredString(map, 'status', 'RlnTransfer'),
       requestedAssignment: _stringOrNull(map['requestedAssignment']),
-      assignments: _stringList(map['assignments']),
-      kind: _stringOrNull(map['kind']) ?? '',
+      assignments: _stringList(map['assignments'], 'RlnTransfer.assignments'),
+      kind: _stringOrNull(map['kind']),
       txid: _stringOrNull(map['txid']),
       recipientId: _stringOrNull(map['recipientId']),
       receiveUtxo: _stringOrNull(map['receiveUtxo']),
@@ -724,23 +906,26 @@ class RlnTransfer {
       expiration: _intOrNull(map['expiration']),
       transportEndpoints: _mapList(
         map['transportEndpoints'],
+        'RlnTransfer.transportEndpoints',
       ).map(RlnTransferTransportEndpoint.fromMap).toList(growable: false),
+      batchTransferIdx: _intOrNull(map['batchTransferIdx']),
     );
   }
 
   final int idx;
-  final int createdAt;
-  final int updatedAt;
+  final int? createdAt;
+  final int? updatedAt;
   final String status;
   final String? requestedAssignment;
   final List<String> assignments;
-  final String kind;
+  final String? kind;
   final String? txid;
   final String? recipientId;
   final String? receiveUtxo;
   final String? changeUtxo;
   final int? expiration;
   final List<RlnTransferTransportEndpoint> transportEndpoints;
+  final int? batchTransferIdx;
 }
 
 class RlnRgbAllocation {
@@ -753,8 +938,8 @@ class RlnRgbAllocation {
   factory RlnRgbAllocation.fromMap(RlnMap map) {
     return RlnRgbAllocation(
       assetId: _stringOrNull(map['assetId']),
-      assignment: _stringOrNull(map['assignment']) ?? '',
-      settled: _boolValue(map['settled']),
+      assignment: _requiredString(map, 'assignment', 'RlnRgbAllocation'),
+      settled: _requiredBool(map, 'settled', 'RlnRgbAllocation'),
     );
   }
 
@@ -772,9 +957,9 @@ class RlnUtxo {
 
   factory RlnUtxo.fromMap(RlnMap map) {
     return RlnUtxo(
-      outpoint: _stringOrNull(map['outpoint']) ?? '',
-      btcAmount: _intValue(map['btcAmount']),
-      colorable: _boolValue(map['colorable']),
+      outpoint: _requiredString(map, 'outpoint', 'RlnUtxo'),
+      btcAmount: _requiredInt(map, 'btcAmount', 'RlnUtxo'),
+      colorable: _requiredBool(map, 'colorable', 'RlnUtxo'),
     );
   }
 
@@ -785,19 +970,26 @@ class RlnUtxo {
 
 /// Wallet UTXO and RGB allocations.
 class RlnUnspent {
-  const RlnUnspent({required this.utxo, required this.rgbAllocations});
+  const RlnUnspent({
+    required this.utxo,
+    required this.rgbAllocations,
+    this.pendingBlinded = 0,
+  });
 
   factory RlnUnspent.fromMap(RlnMap map) {
     return RlnUnspent(
-      utxo: RlnUtxo.fromMap(_map(map['utxo'])),
+      utxo: RlnUtxo.fromMap(_requiredMap(map, 'utxo', 'RlnUnspent')),
       rgbAllocations: _mapList(
         map['rgbAllocations'],
+        'RlnUnspent.rgbAllocations',
       ).map(RlnRgbAllocation.fromMap).toList(growable: false),
+      pendingBlinded: _intOrNull(map['pendingBlinded']) ?? 0,
     );
   }
 
   final RlnUtxo utxo;
   final List<RlnRgbAllocation> rgbAllocations;
+  final int pendingBlinded;
 }
 
 /// Decoded BOLT11 invoice.
@@ -817,14 +1009,18 @@ class RlnDecodedLnInvoice {
   factory RlnDecodedLnInvoice.fromMap(RlnMap map) {
     return RlnDecodedLnInvoice(
       amtMsat: _intOrNull(map['amtMsat']),
-      expirySec: _intValue(map['expirySec']),
-      timestamp: _intValue(map['timestamp']),
+      expirySec: _requiredInt(map, 'expirySec', 'RlnDecodedLnInvoice'),
+      timestamp: _requiredInt(map, 'timestamp', 'RlnDecodedLnInvoice'),
       assetId: _stringOrNull(map['assetId']),
       assetAmount: _intOrNull(map['assetAmount']),
-      paymentHash: _stringOrNull(map['paymentHash']) ?? '',
-      paymentSecret: _stringOrNull(map['paymentSecret']) ?? '',
+      paymentHash: _requiredString(map, 'paymentHash', 'RlnDecodedLnInvoice'),
+      paymentSecret: _requiredString(
+        map,
+        'paymentSecret',
+        'RlnDecodedLnInvoice',
+      ),
       payeePubkey: _stringOrNull(map['payeePubkey']),
-      network: _stringOrNull(map['network']) ?? '',
+      network: _requiredString(map, 'network', 'RlnDecodedLnInvoice'),
     );
   }
 
@@ -844,7 +1040,9 @@ class RlnLnInvoice {
   const RlnLnInvoice({required this.invoice});
 
   factory RlnLnInvoice.fromMap(RlnMap map) {
-    return RlnLnInvoice(invoice: _stringOrNull(map['invoice']) ?? '');
+    return RlnLnInvoice(
+      invoice: _requiredString(map, 'invoice', 'RlnLnInvoice'),
+    );
   }
 
   final String invoice;
@@ -866,7 +1064,7 @@ class RlnPaymentResult {
       paymentHash: _stringOrNull(map['paymentHash']),
       paymentSecret: _stringOrNull(map['paymentSecret']),
       paymentPreimage: _stringOrNull(map['paymentPreimage']),
-      status: _uppercaseStatus(map['status']),
+      status: _pascalStatus(map['status'], 'RlnPaymentResult.status'),
     );
   }
 
@@ -884,8 +1082,8 @@ class RlnPayment {
     this.assetAmount,
     this.assetId,
     required this.paymentHash,
-    required this.paymentType,
-    required this.status,
+    this.paymentType,
+    this.status,
     required this.createdAt,
     required this.updatedAt,
     this.payeePubkey,
@@ -897,11 +1095,15 @@ class RlnPayment {
       amtMsat: _intOrNull(map['amtMsat']),
       assetAmount: _intOrNull(map['assetAmount']),
       assetId: _stringOrNull(map['assetId']),
-      paymentHash: _stringOrNull(map['paymentHash']) ?? '',
-      paymentType: _canonicalEnum(map['paymentType']),
-      status: _uppercaseStatus(map['status']),
-      createdAt: _intValue(map['createdAt']),
-      updatedAt: _intValue(map['updatedAt']),
+      paymentHash: _requiredString(map, 'paymentHash', 'RlnPayment'),
+      paymentType: map['paymentType'] == null
+          ? null
+          : _pascalEnum(map['paymentType'], 'RlnPayment.paymentType'),
+      status: map['status'] == null
+          ? null
+          : _pascalStatus(map['status'], 'RlnPayment.status'),
+      createdAt: _requiredInt(map, 'createdAt', 'RlnPayment'),
+      updatedAt: _requiredInt(map, 'updatedAt', 'RlnPayment'),
       payeePubkey: _stringOrNull(map['payeePubkey']),
       preimage:
           _stringOrNull(map['preimage']) ??
@@ -914,8 +1116,8 @@ class RlnPayment {
   final int? assetAmount;
   final String? assetId;
   final String paymentHash;
-  final String paymentType;
-  final String status;
+  final String? paymentType;
+  final String? status;
   final int createdAt;
   final int updatedAt;
   final String? payeePubkey;
@@ -948,20 +1150,22 @@ class RlnChannel {
 
   factory RlnChannel.fromMap(RlnMap map) {
     return RlnChannel(
-      channelId: _stringOrNull(map['channelId']) ?? '',
-      peerPubkey: _stringOrNull(map['peerPubkey']) ?? '',
-      status: _canonicalEnum(map['status']),
-      ready: _boolValue(map['ready']),
-      capacitySat: _intValue(map['capacitySat']),
-      localBalanceSat: _intValue(map['localBalanceSat']),
-      outboundBalanceMsat: _intValue(map['outboundBalanceMsat']),
-      inboundBalanceMsat: _intValue(map['inboundBalanceMsat']),
+      channelId: _requiredString(map, 'channelId', 'RlnChannel'),
+      peerPubkey: _requiredString(map, 'peerPubkey', 'RlnChannel'),
+      status: map['status'] == null ? null : _canonicalEnum(map['status']),
+      ready: _requiredBool(map, 'ready', 'RlnChannel'),
+      capacitySat: _requiredInt(map, 'capacitySat', 'RlnChannel'),
+      localBalanceSat: _intOrNull(map['localBalanceSat']),
+      outboundBalanceMsat: _intOrNull(map['outboundBalanceMsat']),
+      inboundBalanceMsat: _intOrNull(map['inboundBalanceMsat']),
       nextOutboundHtlcLimitMsat: _intOrNull(map['nextOutboundHtlcLimitMsat']),
       nextOutboundHtlcMinimumMsat: _intOrNull(
         map['nextOutboundHtlcMinimumMsat'],
       ),
-      isUsable: _boolValue(map['isUsable']),
-      public: _boolValue(map['public']),
+      isUsable: map['isUsable'] == null
+          ? null
+          : _requiredBool(map, 'isUsable', 'RlnChannel'),
+      public: _requiredBool(map, 'public', 'RlnChannel'),
       fundingTxid: _stringOrNull(map['fundingTxid']),
       peerAlias: _stringOrNull(map['peerAlias']),
       shortChannelId: _intOrNull(map['shortChannelId']),
@@ -974,15 +1178,15 @@ class RlnChannel {
 
   final String channelId;
   final String peerPubkey;
-  final String status;
+  final String? status;
   final bool ready;
   final int capacitySat;
-  final int localBalanceSat;
-  final int outboundBalanceMsat;
-  final int inboundBalanceMsat;
+  final int? localBalanceSat;
+  final int? outboundBalanceMsat;
+  final int? inboundBalanceMsat;
   final int? nextOutboundHtlcLimitMsat;
   final int? nextOutboundHtlcMinimumMsat;
-  final bool isUsable;
+  final bool? isUsable;
   final bool public;
   final String? fundingTxid;
   final String? peerAlias;
@@ -998,7 +1202,7 @@ class RlnPeer {
   const RlnPeer({required this.pubkey});
 
   factory RlnPeer.fromMap(RlnMap map) {
-    return RlnPeer(pubkey: _stringOrNull(map['pubkey']) ?? '');
+    return RlnPeer(pubkey: _requiredString(map, 'pubkey', 'RlnPeer'));
   }
 
   final String pubkey;
@@ -1009,7 +1213,7 @@ class RlnFeeRate {
   const RlnFeeRate({required this.feeRate});
 
   factory RlnFeeRate.fromMap(RlnMap map) {
-    return RlnFeeRate(feeRate: _doubleOrNull(map['feeRate']) ?? 0);
+    return RlnFeeRate(feeRate: _requiredDouble(map, 'feeRate', 'RlnFeeRate'));
   }
 
   final double feeRate;
@@ -1021,7 +1225,11 @@ class RlnIndexerCheck {
 
   factory RlnIndexerCheck.fromMap(RlnMap map) {
     return RlnIndexerCheck(
-      indexerProtocol: _stringOrNull(map['indexerProtocol']) ?? '',
+      indexerProtocol: _requiredString(
+        map,
+        'indexerProtocol',
+        'RlnIndexerCheck',
+      ),
     );
   }
 
@@ -1045,7 +1253,11 @@ class RlnOpenChannelResult {
 
   factory RlnOpenChannelResult.fromMap(RlnMap map) {
     return RlnOpenChannelResult(
-      temporaryChannelId: _stringOrNull(map['temporaryChannelId']) ?? '',
+      temporaryChannelId: _requiredString(
+        map,
+        'temporaryChannelId',
+        'RlnOpenChannelResult',
+      ),
     );
   }
 

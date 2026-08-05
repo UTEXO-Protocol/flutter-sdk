@@ -108,6 +108,120 @@ final class RunnerTests: XCTestCase {
     }
   }
 
+  func testBridgeRejectsFractionalFeeRateBeforeNativeNodeLookup() {
+    XCTAssertThrowsError(
+      try plugin.rlnSendBtc(
+        nodeId: 9_999,
+        amount: 1,
+        address: "bcrt1destination",
+        feeRate: 1.5,
+        skipSync: false
+      )
+    ) { error in
+      let pigeon = expectPigeonError(error)
+      assertInvalidArgument(error, operation: "rlnSendBtc", field: "feeRate")
+      XCTAssertTrue((pigeon.message ?? "").contains("integer fee rate"))
+    }
+  }
+
+  func testBridgeRejectsGroupTwoNumericBoundaryFieldsBeforeNativeNodeLookup() {
+    XCTAssertThrowsError(
+      try plugin.rlnOpenChannel(
+        nodeId: 9_999,
+        peerPubkeyAndOptAddr: "peer@127.0.0.1:9735",
+        capacitySat: -1,
+        pushMsat: 0,
+        publicChannel: false,
+        withAnchors: true,
+        feeBaseMsat: nil,
+        feeProportionalMillionths: nil,
+        temporaryChannelId: nil,
+        assetId: nil,
+        assetAmount: nil,
+        pushAssetAmount: nil,
+        virtualOpenMode: nil
+      )
+    ) { error in
+      assertInvalidArgument(error, operation: "rlnOpenChannel", field: "capacitySat")
+    }
+
+    XCTAssertThrowsError(
+      try plugin.rlnLnInvoice(
+        nodeId: 9_999,
+        amtMsat: nil,
+        expirySec: -1,
+        assetId: nil,
+        assetAmount: nil,
+        paymentHash: nil,
+        minFinalCltvExpiryDelta: nil,
+        descriptionHash: "description-hash"
+      )
+    ) { error in
+      assertInvalidArgument(error, operation: "rlnLnInvoice", field: "expirySec")
+    }
+
+    XCTAssertThrowsError(
+      try plugin.rlnSendPayment(
+        nodeId: 9_999,
+        invoice: "lnbc1invoice",
+        amtMsat: -1,
+        assetId: nil,
+        assetAmount: nil
+      )
+    ) { error in
+      assertInvalidArgument(error, operation: "rlnSendPayment", field: "amtMsat")
+    }
+
+    XCTAssertThrowsError(
+      try plugin.rlnInflate(
+        nodeId: 9_999,
+        assetId: "asset",
+        inflationAmounts: [-1],
+        feeRate: 1.0,
+        minConfirmations: 1
+      )
+    ) { error in
+      assertInvalidArgument(error, operation: "rlnInflate", field: "inflationAmounts[0]")
+    }
+  }
+
+  func testRgbInvoiceRejectsUnknownAssignmentKindBeforeNativeNodeLookup() {
+    XCTAssertThrowsError(
+      try plugin.rlnRgbInvoice(
+        nodeId: 9_999,
+        assetId: "asset",
+        assignmentAmount: 1,
+        durationSeconds: nil,
+        minConfirmations: 1,
+        witness: false,
+        assignmentKind: "Mystery"
+      )
+    ) { error in
+      let pigeon = expectPigeonError(error)
+      assertInvalidArgument(error, operation: "rlnRgbInvoice", field: "assignmentKind")
+      XCTAssertTrue((pigeon.message ?? "").contains("Unknown assignmentKind"))
+    }
+  }
+
+  func testBridgeReportsUnknownNodeForGroupTwoMethodFamilies() {
+    let cases: [(String, () throws -> Void)] = [
+      ("rlnRotateAddress", { _ = try self.plugin.rlnRotateAddress(nodeId: 9_999) }),
+      ("rlnSignMessage", { _ = try self.plugin.rlnSignMessage(nodeId: 9_999, message: "message") }),
+      ("rlnVerifyMessage", { _ = try self.plugin.rlnVerifyMessage(nodeId: 9_999, message: "message", signature: "signature") }),
+      ("rlnListTransactionsByTxid", { _ = try self.plugin.rlnListTransactionsByTxid(nodeId: 9_999, txid: "txid", skipSync: false) }),
+      ("rlnListTransfersByTxid", { _ = try self.plugin.rlnListTransfersByTxid(nodeId: 9_999, txid: "txid") }),
+    ]
+
+    for (operation, call) in cases {
+      XCTAssertThrowsError(try call()) { error in
+        let pigeon = expectPigeonError(error)
+        let details = expectDetails(pigeon)
+        XCTAssertEqual(details["operation"] as? String, operation)
+        XCTAssertTrue((pigeon.message ?? "").contains("not found"))
+      }
+    }
+  }
+
   func testCreatesDiskBackedNativeExternalSigner() throws {
     let storageDirPath = uniquePath("native-signer")
     defer {
@@ -250,12 +364,16 @@ final class RunnerTests: XCTestCase {
     }
   }
 
-  private func assertInvalidArgument(_ error: Error, field: String) {
+  private func assertInvalidArgument(
+    _ error: Error,
+    operation: String = "rlnCreateNode",
+    field: String
+  ) {
     let pigeon = expectPigeonError(error)
     XCTAssertEqual(pigeon.code, "invalidArgument")
 
     let details = expectDetails(pigeon)
-    XCTAssertEqual(details["operation"] as? String, "rlnCreateNode")
+    XCTAssertEqual(details["operation"] as? String, operation)
     XCTAssertEqual(details["field"] as? String, field)
   }
 

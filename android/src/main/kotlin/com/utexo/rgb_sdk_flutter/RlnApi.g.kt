@@ -241,12 +241,51 @@ data class RlnNativeArtifactInfo (
     return result
   }
 }
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class RlnWireResponse (
+  val json: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): RlnWireResponse {
+      val json = pigeonVar_list[0] as String
+      return RlnWireResponse(json)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      json,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as RlnWireResponse
+    return RlnApiPigeonUtils.deepEquals(this.json, other.json)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + RlnApiPigeonUtils.deepHash(this.json)
+    return result
+  }
+}
 private open class RlnApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
       129.toByte() -> {
         return (readValue(buffer) as? List<Any?>)?.let {
           RlnNativeArtifactInfo.fromList(it)
+        }
+      }
+      130.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          RlnWireResponse.fromList(it)
         }
       }
       else -> super.readValueOfType(type, buffer)
@@ -256,6 +295,10 @@ private open class RlnApiPigeonCodec : StandardMessageCodec() {
     when (value) {
       is RlnNativeArtifactInfo -> {
         stream.write(129)
+        writeValue(stream, value.toList())
+      }
+      is RlnWireResponse -> {
+        stream.write(130)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -276,56 +319,56 @@ interface RlnHostApi {
   fun rlnInitNodeWithExternalSigner(nodeId: Long, nodePublicKeyHex: String, accountXpubVanilla: String, accountXpubColored: String, masterFingerprint: String, protocolVersion: String, apiLevel: Long)
   fun rlnUnlockNode(nodeId: Long, password: String, bitcoindRpcUsername: String?, bitcoindRpcPassword: String?, bitcoindRpcHost: String?, bitcoindRpcPort: Long?, indexerUrl: String?, proxyEndpoint: String?, announceAddresses: List<String>, announceAlias: String?, gossipRgsServerUrl: String?)
   fun rlnDestroyNode(nodeId: Long)
-  fun rlnNodeInfo(nodeId: Long): Map<Any?, Any?>
-  fun rlnNetworkInfo(nodeId: Long): Map<Any?, Any?>
-  fun rlnListPeers(nodeId: Long): List<Map<Any?, Any?>>
+  fun rlnNodeInfo(nodeId: Long): RlnWireResponse
+  fun rlnNetworkInfo(nodeId: Long): RlnWireResponse
+  fun rlnListPeers(nodeId: Long): List<RlnWireResponse>
   fun rlnConnectPeer(nodeId: Long, peerPubkeyAndAddr: String)
   fun rlnDisconnectPeer(nodeId: Long, peerPubkey: String)
-  fun rlnListChannels(nodeId: Long): List<Map<Any?, Any?>>
-  fun rlnOpenChannel(nodeId: Long, peerPubkeyAndOptAddr: String, capacitySat: Long, pushMsat: Long, publicChannel: Boolean, withAnchors: Boolean, feeBaseMsat: Long?, feeProportionalMillionths: Long?, temporaryChannelId: String?, assetId: String?, assetAmount: Long?, pushAssetAmount: Long?, virtualOpenMode: String?): Map<Any?, Any?>
+  fun rlnListChannels(nodeId: Long): List<RlnWireResponse>
+  fun rlnOpenChannel(nodeId: Long, peerPubkeyAndOptAddr: String, capacitySat: Long, pushMsat: Long, publicChannel: Boolean, withAnchors: Boolean, feeBaseMsat: Long?, feeProportionalMillionths: Long?, temporaryChannelId: String?, assetId: String?, assetAmount: Long?, pushAssetAmount: Long?, virtualOpenMode: String?): RlnWireResponse
   fun rlnCloseChannel(nodeId: Long, channelId: String, peerPubkey: String, force: Boolean)
-  fun rlnListPayments(nodeId: Long): List<Map<Any?, Any?>>
-  fun rlnAddress(nodeId: Long): Map<Any?, Any?>
-  fun rlnRotateAddress(nodeId: Long): Map<Any?, Any?>
-  fun rlnSignMessage(nodeId: Long, message: String): Map<Any?, Any?>
-  fun rlnVerifyMessage(nodeId: Long, message: String, signature: String): Map<Any?, Any?>
-  fun rlnAssetBalance(nodeId: Long, assetId: String): Map<Any?, Any?>
+  fun rlnListPayments(nodeId: Long): List<RlnWireResponse>
+  fun rlnAddress(nodeId: Long): RlnWireResponse
+  fun rlnRotateAddress(nodeId: Long): RlnWireResponse
+  fun rlnSignMessage(nodeId: Long, message: String): RlnWireResponse
+  fun rlnVerifyMessage(nodeId: Long, message: String, signature: String): RlnWireResponse
+  fun rlnAssetBalance(nodeId: Long, assetId: String): RlnWireResponse
   fun rlnBackup(nodeId: Long, backupPath: String, password: String)
-  fun rlnBtcBalance(nodeId: Long, skipSync: Boolean): Map<Any?, Any?>
-  fun rlnCheckIndexerUrl(nodeId: Long, indexerUrl: String): Map<Any?, Any?>
+  fun rlnBtcBalance(nodeId: Long, skipSync: Boolean): RlnWireResponse
+  fun rlnCheckIndexerUrl(nodeId: Long, indexerUrl: String): RlnWireResponse
   fun rlnCheckProxyEndpoint(nodeId: Long, proxyEndpoint: String)
   fun rlnCreateUtxos(nodeId: Long, upTo: Boolean, num: Long?, size: Long?, feeRate: Double, skipSync: Boolean)
-  fun rlnDecodeLnInvoice(nodeId: Long, invoice: String): Map<Any?, Any?>
-  fun rlnDecodeRgbInvoice(nodeId: Long, invoice: String): Map<Any?, Any?>
-  fun rlnEstimateFee(nodeId: Long, blocks: Long): Map<Any?, Any?>
-  fun rlnFailTransfers(nodeId: Long, batchTransferIdx: Long?, noAssetOnly: Boolean, skipSync: Boolean): Map<Any?, Any?>
+  fun rlnDecodeLnInvoice(nodeId: Long, invoice: String): RlnWireResponse
+  fun rlnDecodeRgbInvoice(nodeId: Long, invoice: String): RlnWireResponse
+  fun rlnEstimateFee(nodeId: Long, blocks: Long): RlnWireResponse
+  fun rlnFailTransfers(nodeId: Long, batchTransferIdx: Long?, noAssetOnly: Boolean, skipSync: Boolean): RlnWireResponse
   fun rlnGetChannelId(nodeId: Long, temporaryChannelId: String): String
-  fun rlnGetPayment(nodeId: Long, paymentHash: String): Map<Any?, Any?>
-  fun rlnInvoiceStatus(nodeId: Long, invoice: String): Map<Any?, Any?>
-  fun rlnKeysend(nodeId: Long, destPubkey: String, amtMsat: Long, assetId: String?, assetAmount: Long?): Map<Any?, Any?>
-  fun rlnListAssets(nodeId: Long, filterAssetSchemas: List<String>): Map<Any?, Any?>
-  fun rlnListTransactions(nodeId: Long, skipSync: Boolean): List<Map<Any?, Any?>>
-  fun rlnListTransactionsByTxid(nodeId: Long, txid: String, skipSync: Boolean): List<Map<Any?, Any?>>
-  fun rlnListTransfers(nodeId: Long, assetId: String): List<Map<Any?, Any?>>
-  fun rlnListTransfersByTxid(nodeId: Long, txid: String): List<Map<Any?, Any?>>
-  fun rlnListUnspents(nodeId: Long, skipSync: Boolean): List<Map<Any?, Any?>>
-  fun rlnLnInvoice(nodeId: Long, amtMsat: Long?, expirySec: Long, assetId: String?, assetAmount: Long?, paymentHash: String?, minFinalCltvExpiryDelta: Long?, descriptionHash: String?): Map<Any?, Any?>
-  fun rlnClaimHodlInvoice(nodeId: Long, paymentHash: String, paymentPreimage: String): Map<Any?, Any?>
+  fun rlnGetPayment(nodeId: Long, paymentHash: String): RlnWireResponse
+  fun rlnInvoiceStatus(nodeId: Long, invoice: String): RlnWireResponse
+  fun rlnKeysend(nodeId: Long, destPubkey: String, amtMsat: Long, assetId: String?, assetAmount: Long?): RlnWireResponse
+  fun rlnListAssets(nodeId: Long, filterAssetSchemas: List<String>): RlnWireResponse
+  fun rlnListTransactions(nodeId: Long, skipSync: Boolean): List<RlnWireResponse>
+  fun rlnListTransactionsByTxid(nodeId: Long, txid: String, skipSync: Boolean): List<RlnWireResponse>
+  fun rlnListTransfers(nodeId: Long, assetId: String): List<RlnWireResponse>
+  fun rlnListTransfersByTxid(nodeId: Long, txid: String): List<RlnWireResponse>
+  fun rlnListUnspents(nodeId: Long, skipSync: Boolean): List<RlnWireResponse>
+  fun rlnLnInvoice(nodeId: Long, amtMsat: Long?, expirySec: Long, assetId: String?, assetAmount: Long?, paymentHash: String?, minFinalCltvExpiryDelta: Long?, descriptionHash: String?): RlnWireResponse
+  fun rlnClaimHodlInvoice(nodeId: Long, paymentHash: String, paymentPreimage: String): RlnWireResponse
   fun rlnCancelHodlInvoice(nodeId: Long, paymentHash: String)
-  fun rlnApayNew(nodeId: Long, hostNodeId: String): Map<Any?, Any?>
-  fun rlnApayNewWithAddress(nodeId: Long, hostNodeId: String, username: String, domain: String): Map<Any?, Any?>
+  fun rlnApayNew(nodeId: Long, hostNodeId: String): RlnWireResponse
+  fun rlnApayNewWithAddress(nodeId: Long, hostNodeId: String, username: String, domain: String): RlnWireResponse
   fun rlnRefreshTransfers(nodeId: Long, skipSync: Boolean)
-  fun rlnRgbInvoice(nodeId: Long, assetId: String?, assignmentAmount: Long?, durationSeconds: Long?, minConfirmations: Long, witness: Boolean, assignmentKind: String?): Map<Any?, Any?>
-  fun rlnSendBtc(nodeId: Long, amount: Long, address: String, feeRate: Double, skipSync: Boolean): Map<Any?, Any?>
-  fun rlnSendPayment(nodeId: Long, invoice: String, amtMsat: Long?, assetId: String?, assetAmount: Long?): Map<Any?, Any?>
-  fun rlnSendRgb(nodeId: Long, donation: Boolean, feeRate: Double, minConfirmations: Long, skipSync: Boolean, assetId: String, recipientId: String, amount: Long, transportEndpoints: List<String>, witnessAmountSat: Long?, witnessBlinding: Long?): Map<Any?, Any?>
+  fun rlnRgbInvoice(nodeId: Long, assetId: String?, assignmentAmount: Long?, durationSeconds: Long?, minConfirmations: Long, witness: Boolean, assignmentKind: String?): RlnWireResponse
+  fun rlnSendBtc(nodeId: Long, amount: Long, address: String, feeRate: Double, skipSync: Boolean): RlnWireResponse
+  fun rlnSendPayment(nodeId: Long, invoice: String, amtMsat: Long?, assetId: String?, assetAmount: Long?): RlnWireResponse
+  fun rlnSendRgb(nodeId: Long, donation: Boolean, feeRate: Double, minConfirmations: Long, skipSync: Boolean, assetId: String, recipientId: String, amount: Long, transportEndpoints: List<String>, witnessAmountSat: Long?, witnessBlinding: Long?): RlnWireResponse
   fun rlnShutdown(nodeId: Long)
   fun rlnSync(nodeId: Long)
-  fun rlnIssueAssetNia(nodeId: Long, ticker: String, name: String, precision: Long, amounts: List<Long>): Any?
-  fun rlnIssueAssetCfa(nodeId: Long, name: String, details: String?, precision: Long, amounts: List<Long>, fileDigest: String?): Any?
-  fun rlnIssueAssetIfa(nodeId: Long, ticker: String, name: String, precision: Long, amounts: List<Long>, inflationAmounts: List<Long>, rejectListUrl: String?): Any?
-  fun rlnInflate(nodeId: Long, assetId: String, inflationAmounts: List<Long>, feeRate: Double, minConfirmations: Long): Map<Any?, Any?>
-  fun rlnIssueAssetUda(nodeId: Long, ticker: String, name: String, details: String?, precision: Long, mediaFileDigest: String?, attachmentsFileDigests: List<String>): Any?
+  fun rlnIssueAssetNia(nodeId: Long, ticker: String, name: String, precision: Long, amounts: List<Long>): RlnWireResponse
+  fun rlnIssueAssetCfa(nodeId: Long, name: String, details: String?, precision: Long, amounts: List<Long>, fileDigest: String?): RlnWireResponse
+  fun rlnIssueAssetIfa(nodeId: Long, ticker: String, name: String, precision: Long, amounts: List<Long>, inflationAmounts: List<Long>, rejectListUrl: String?): RlnWireResponse
+  fun rlnInflate(nodeId: Long, assetId: String, inflationAmounts: List<Long>, feeRate: Double, minConfirmations: Long): RlnWireResponse
+  fun rlnIssueAssetUda(nodeId: Long, ticker: String, name: String, details: String?, precision: Long, mediaFileDigest: String?, attachmentsFileDigests: List<String>): RlnWireResponse
   fun rlnVssBackup(nodeId: Long): Long
   fun rlnVssClearFence(nodeId: Long, password: String)
 
@@ -338,8 +381,9 @@ interface RlnHostApi {
     @JvmOverloads
     fun setUp(binaryMessenger: BinaryMessenger, api: RlnHostApi?, messageChannelSuffix: String = "") {
       val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
+      val taskQueue = binaryMessenger.makeBackgroundTaskQueue()
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.getNativeArtifactInfo$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.getNativeArtifactInfo$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { _, reply ->
             val wrapped: List<Any?> = try {
@@ -354,7 +398,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCreateNode$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCreateNode$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -383,7 +427,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInitNode$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInitNode$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -402,7 +446,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCreateNativeExternalSigner$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCreateNativeExternalSigner$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -422,7 +466,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInitNodeWithNativeExternalSigner$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInitNodeWithNativeExternalSigner$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -441,7 +485,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnAttachNativeExternalSigner$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnAttachNativeExternalSigner$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -460,7 +504,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnUnlockNodeWithNativeExternalSigner$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnUnlockNodeWithNativeExternalSigner$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -488,7 +532,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDestroyNativeExternalSigner$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDestroyNativeExternalSigner$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -506,7 +550,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInitNodeWithExternalSigner$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInitNodeWithExternalSigner$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -530,7 +574,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnUnlockNode$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnUnlockNode$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -558,7 +602,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDestroyNode$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDestroyNode$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -576,7 +620,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnNodeInfo$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnNodeInfo$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -593,7 +637,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnNetworkInfo$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnNetworkInfo$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -610,7 +654,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListPeers$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListPeers$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -627,7 +671,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnConnectPeer$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnConnectPeer$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -646,7 +690,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDisconnectPeer$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDisconnectPeer$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -665,7 +709,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListChannels$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListChannels$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -682,7 +726,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnOpenChannel$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnOpenChannel$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -711,7 +755,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCloseChannel$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCloseChannel$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -732,7 +776,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListPayments$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListPayments$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -749,7 +793,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnAddress$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnAddress$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -766,7 +810,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnRotateAddress$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnRotateAddress$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -783,7 +827,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSignMessage$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSignMessage$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -801,7 +845,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVerifyMessage$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVerifyMessage$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -820,7 +864,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnAssetBalance$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnAssetBalance$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -838,7 +882,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBackup$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBackup$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -858,7 +902,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBtcBalance$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBtcBalance$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -876,7 +920,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCheckIndexerUrl$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCheckIndexerUrl$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -894,7 +938,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCheckProxyEndpoint$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCheckProxyEndpoint$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -913,7 +957,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCreateUtxos$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCreateUtxos$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -936,7 +980,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDecodeLnInvoice$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDecodeLnInvoice$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -954,7 +998,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDecodeRgbInvoice$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDecodeRgbInvoice$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -972,7 +1016,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnEstimateFee$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnEstimateFee$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -990,7 +1034,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnFailTransfers$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnFailTransfers$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1010,7 +1054,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnGetChannelId$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnGetChannelId$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1028,7 +1072,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnGetPayment$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnGetPayment$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1046,7 +1090,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInvoiceStatus$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInvoiceStatus$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1064,7 +1108,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnKeysend$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnKeysend$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1085,7 +1129,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListAssets$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListAssets$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1103,7 +1147,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransactions$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransactions$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1121,7 +1165,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransactionsByTxid$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransactionsByTxid$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1140,7 +1184,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransfers$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransfers$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1158,7 +1202,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransfersByTxid$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransfersByTxid$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1176,7 +1220,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListUnspents$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListUnspents$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1194,7 +1238,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnLnInvoice$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnLnInvoice$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1218,7 +1262,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnClaimHodlInvoice$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnClaimHodlInvoice$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1237,7 +1281,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCancelHodlInvoice$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCancelHodlInvoice$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1256,7 +1300,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnApayNew$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnApayNew$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1274,7 +1318,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnApayNewWithAddress$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnApayNewWithAddress$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1294,7 +1338,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnRefreshTransfers$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnRefreshTransfers$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1313,7 +1357,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnRgbInvoice$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnRgbInvoice$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1336,7 +1380,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSendBtc$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSendBtc$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1357,7 +1401,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSendPayment$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSendPayment$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1378,7 +1422,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSendRgb$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSendRgb$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1405,7 +1449,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnShutdown$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnShutdown$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1423,7 +1467,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSync$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSync$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1441,7 +1485,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetNia$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetNia$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1462,7 +1506,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetCfa$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetCfa$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1484,7 +1528,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetIfa$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetIfa$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1507,7 +1551,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInflate$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInflate$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1528,7 +1572,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetUda$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetUda$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1551,7 +1595,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVssBackup$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVssBackup$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>
@@ -1568,7 +1612,7 @@ interface RlnHostApi {
         }
       }
       run {
-        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVssClearFence$separatedMessageChannelSuffix", codec)
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVssClearFence$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
           channel.setMessageHandler { message, reply ->
             val args = message as List<Any?>

@@ -485,7 +485,8 @@ Future<void> _waitForUsableChannelPair(
 bool _hasUsableRgbChannel(List<RlnChannel> channels, String assetId) {
   return channels.any(
     (channel) =>
-        channel.assetId == assetId && (channel.ready || channel.isUsable),
+        channel.assetId == assetId &&
+        (channel.ready || channel.isUsable == true),
   );
 }
 

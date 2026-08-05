@@ -18,7 +18,7 @@ val baselineJavaVersion =
     (androidBuildRequirements["javaLanguageVersion"] as Number).toInt()
 
 group = "com.utexo.rgb_sdk_flutter"
-version = "1.0-SNAPSHOT"
+version = "0.1.0"
 
 buildscript {
     val baseline =

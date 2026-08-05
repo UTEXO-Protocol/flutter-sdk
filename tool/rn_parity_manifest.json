@@ -52,7 +52,12 @@
     "toUnitsNumber": "toUnitsNumber",
     "fromUnitsNumber": "fromUnitsNumber",
     "DEFAULT_TRANSPORT_ENDPOINTS": "DEFAULT_TRANSPORT_ENDPOINTS",
-    "DEFAULT_INDEXER_URLS": "DEFAULT_INDEXER_URLS"
+    "DEFAULT_INDEXER_URLS": "DEFAULT_INDEXER_URLS",
+    "isUmaAddress": "isUmaAddress",
+    "normalizeLightningAddress": "normalizeLightningAddress",
+    "parseLightningAddress": "parseLightningAddress",
+    "UMA_PREFIX": "UMA_PREFIX",
+    "UMA_MAX_USERNAME_LENGTH": "UMA_MAX_USERNAME_LENGTH"
   },
   "scopedOutRuntimeExports": {},
   "scopedOutTypeStars": {

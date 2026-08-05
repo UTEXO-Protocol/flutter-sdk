@@ -84,6 +84,15 @@ Uint8List _hexToBytes(String hex) {
   return result;
 }
 
+/// Best-effort scrubbing for secret byte buffers owned by this package.
+///
+/// Dart cannot guarantee zeroization for immutable strings, BIP32 internals, or
+/// VM copies. Use this only to shorten the lifetime of mutable byte buffers that
+/// the SDK explicitly created or defensively copied.
+void wipeSecretBytes(Uint8List bytes) {
+  bytes.fillRange(0, bytes.length, 0);
+}
+
 Uint8List normalizeSeedInput(Object seed, [String field = 'seed']) {
   if (seed is String) {
     final trimmed = seed.trim();
@@ -193,13 +202,15 @@ Future<GeneratedKeys> deriveKeysFromMnemonic(
 ) async {
   validateBip39Mnemonic(mnemonic);
   final network = normalizeNetwork(bitcoinNetwork);
+  final seed = bip39.mnemonicToSeed(mnemonic.trim());
   try {
-    final seed = bip39.mnemonicToSeed(mnemonic.trim());
     final root = rootNodeFromSeed(seed, network);
     return _buildGeneratedKeysFromRoot(root, network, mnemonic.trim());
   } catch (error) {
     if (error is RgbSdkException) rethrow;
     throw CryptoError('Failed to derive keys from mnemonic', cause: error);
+  } finally {
+    wipeSecretBytes(seed);
   }
 }
 
@@ -208,12 +219,15 @@ Future<GeneratedKeys> deriveKeysFromSeed(
   Object seed,
 ) async {
   final network = normalizeNetwork(bitcoinNetwork);
+  final normalizedSeed = normalizeSeedInput(seed);
   try {
-    final root = rootNodeFromSeed(normalizeSeedInput(seed), network);
+    final root = rootNodeFromSeed(normalizedSeed, network);
     return _buildGeneratedKeysFromRoot(root, network, '');
   } catch (error) {
     if (error is RgbSdkException) rethrow;
     throw CryptoError('Failed to derive keys from seed', cause: error);
+  } finally {
+    wipeSecretBytes(normalizedSeed);
   }
 }
 
@@ -248,14 +262,14 @@ Future<String> getXprivFromMnemonic(
 ) async {
   validateBip39Mnemonic(mnemonic);
   final network = normalizeNetwork(bitcoinNetwork);
+  final seed = bip39.mnemonicToSeed(mnemonic.trim());
   try {
-    return rootNodeFromSeed(
-      bip39.mnemonicToSeed(mnemonic.trim()),
-      network,
-    ).toBase58();
+    return rootNodeFromSeed(seed, network).toBase58();
   } catch (error) {
     if (error is RgbSdkException) rethrow;
     throw CryptoError('Failed to derive xpriv from mnemonic', cause: error);
+  } finally {
+    wipeSecretBytes(seed);
   }
 }
 

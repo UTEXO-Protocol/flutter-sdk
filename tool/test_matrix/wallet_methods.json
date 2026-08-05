@@ -3,114 +3,812 @@
   "api": "UtexoWallet",
   "source": "lib/src/wallet/utexo_wallet.dart",
   "methods": [
-    {"id": "init", "group": "lifecycle", "support": "supported", "fixture": "unfunded_lifecycle", "contract": "covered"},
-    {"id": "initialize", "group": "lifecycle", "support": "supported", "fixture": "unit_alias", "contract": "covered"},
-    {"id": "unlock", "group": "lifecycle", "support": "supported", "fixture": "unfunded_lifecycle", "contract": "covered"},
-    {"id": "reinit", "group": "lifecycle", "support": "supported", "fixture": "restart_persistence", "contract": "covered"},
-    {"id": "shutdown", "group": "lifecycle", "support": "supported", "fixture": "unfunded_lifecycle", "contract": "covered"},
-    {"id": "destroy", "group": "lifecycle", "support": "supported", "fixture": "unfunded_lifecycle", "contract": "covered"},
-    {"id": "dispose", "group": "lifecycle", "support": "supported", "fixture": "unit_alias", "contract": "covered"},
-    {"id": "isDisposed", "group": "lifecycle", "support": "supported", "fixture": "unit_contract", "contract": "covered"},
-    {"id": "nodeInfo", "group": "read", "support": "supported", "fixture": "unfunded_read", "contract": "covered"},
-    {"id": "getNodeInfo", "group": "read", "support": "supported", "fixture": "unit_alias", "contract": "covered"},
-    {"id": "networkInfo", "group": "read", "support": "supported", "fixture": "unfunded_read", "contract": "covered"},
-    {"id": "getNetworkInfo", "group": "read", "support": "supported", "fixture": "unit_alias", "contract": "covered"},
-    {"id": "getXpub", "group": "read", "support": "supported", "fixture": "unit_contract", "contract": "covered"},
-    {"id": "getNetwork", "group": "read", "support": "supported", "fixture": "unit_contract", "contract": "covered"},
-    {"id": "getBtcBalance", "group": "bitcoin", "support": "supported", "fixture": "unfunded_read", "contract": "covered"},
-    {"id": "getBtcBalanceCore", "group": "bitcoin", "support": "supported", "fixture": "unit_mapper", "contract": "covered"},
-    {"id": "getAddress", "group": "bitcoin", "support": "supported", "fixture": "unfunded_read", "contract": "covered"},
-    {"id": "listUnspents", "group": "bitcoin", "support": "supported", "fixture": "funded_btc", "contract": "covered"},
-    {"id": "listUnspentsCore", "group": "bitcoin", "support": "supported", "fixture": "unit_mapper", "contract": "covered"},
-    {"id": "createUtxos", "group": "bitcoin", "support": "supported", "fixture": "funded_btc", "contract": "covered"},
-    {"id": "listAssets", "group": "rgb", "support": "supported", "fixture": "unfunded_read", "contract": "covered"},
-    {"id": "listAssetsCore", "group": "rgb", "support": "supported", "fixture": "unit_mapper", "contract": "covered"},
-    {"id": "getAssetBalance", "group": "rgb", "support": "supported", "fixture": "funded_rgb", "contract": "covered"},
-    {"id": "getAssetBalanceCore", "group": "rgb", "support": "supported", "fixture": "unit_mapper", "contract": "covered"},
-    {"id": "rotateVanillaAddress", "group": "bitcoin", "support": "supported", "fixture": "unfunded_read", "contract": "covered"},
-    {"id": "rotateColoredAddress", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "issueAssetNia", "group": "rgb", "support": "supported", "fixture": "funded_rgb", "contract": "covered"},
-    {"id": "issueAssetCfa", "group": "rgb", "support": "supported", "fixture": "funded_rgb_asset_types", "contract": "covered"},
-    {"id": "issueAssetIfa", "group": "rgb", "support": "supported", "fixture": "funded_rgb_asset_types", "contract": "covered"},
-    {"id": "issueAssetUda", "group": "rgb", "support": "supported", "fixture": "funded_rgb_asset_types", "contract": "covered"},
-    {"id": "blindReceive", "group": "rgb", "support": "supported", "fixture": "funded_rgb", "contract": "covered"},
-    {"id": "blindReceiveCore", "group": "rgb", "support": "supported", "fixture": "unit_mapper", "contract": "covered"},
-    {"id": "witnessReceive", "group": "rgb", "support": "supported", "fixture": "funded_rgb", "contract": "covered"},
-    {"id": "witnessReceiveCore", "group": "rgb", "support": "supported", "fixture": "unit_mapper", "contract": "covered"},
-    {"id": "decodeRgbInvoice", "group": "rgb", "support": "supported", "fixture": "funded_rgb", "contract": "covered"},
-    {"id": "decodeRGBInvoice", "group": "rgb", "support": "supported", "fixture": "unit_alias", "contract": "covered"},
-    {"id": "decodeRGBInvoiceCore", "group": "rgb", "support": "supported", "fixture": "unit_mapper", "contract": "covered"},
-    {"id": "send", "group": "rgb", "support": "supported", "fixture": "funded_rgb", "contract": "covered", "limitations": ["RgbSendRequest.skipSync=true is rejected before native execution because the pinned 0.9.0-beta.3 RLN SendRgbRequest has no skipSync field."]},
-    {"id": "inflateBegin", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "inflateEnd", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "inflate", "group": "rgb", "support": "supported", "fixture": "funded_rgb_asset_types", "contract": "covered"},
-    {"id": "sendBtc", "group": "bitcoin", "support": "supported", "fixture": "funded_btc", "contract": "covered"},
-    {"id": "listTransactions", "group": "bitcoin", "support": "supported", "fixture": "funded_btc", "contract": "covered"},
-    {"id": "listTransactionsByTxid", "group": "bitcoin", "support": "supported", "fixture": "funded_btc", "contract": "covered"},
-    {"id": "listTransactionsCore", "group": "bitcoin", "support": "supported", "fixture": "unit_mapper", "contract": "covered"},
-    {"id": "listTransfers", "group": "rgb", "support": "supported", "fixture": "funded_rgb", "contract": "covered"},
-    {"id": "listTransfersByTxid", "group": "rgb", "support": "supported", "fixture": "funded_rgb", "contract": "covered"},
-    {"id": "listTransfersCore", "group": "rgb", "support": "supported", "fixture": "unit_mapper", "contract": "covered"},
-    {"id": "failTransfers", "group": "rgb", "support": "supported", "fixture": "unfunded_negative", "contract": "covered"},
-    {"id": "refreshWallet", "group": "rgb", "support": "supported", "fixture": "unfunded_read", "contract": "covered"},
-    {"id": "syncWallet", "group": "lifecycle", "support": "supported", "fixture": "unfunded_lifecycle", "contract": "covered"},
-    {"id": "estimateFeeRate", "group": "bitcoin", "support": "supported", "fixture": "unfunded_read", "contract": "covered"},
-    {"id": "rlnEstimateFeeRate", "group": "bitcoin", "support": "supported", "fixture": "unit_alias", "contract": "covered"},
-    {"id": "checkIndexerUrl", "group": "health", "support": "supported", "fixture": "unfunded_read", "contract": "covered"},
-    {"id": "checkProxyEndpoint", "group": "health", "support": "supported", "fixture": "unfunded_read", "contract": "covered"},
-    {"id": "estimateFee", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "createBackup", "group": "backup", "support": "native-blocked", "fixture": "native_blocked", "contract": "covered"},
-    {"id": "createLightningInvoice", "group": "lightning", "support": "supported", "fixture": "funded_lightning", "contract": "covered"},
-    {"id": "createRlnLightningInvoice", "group": "lightning", "support": "supported", "fixture": "funded_lightning", "contract": "covered"},
-    {"id": "createHodlInvoice", "group": "lightning", "support": "supported", "fixture": "funded_lightning_hodl", "contract": "implemented"},
-    {"id": "claimHodlInvoice", "group": "lightning", "support": "supported", "fixture": "funded_lightning_hodl", "contract": "implemented"},
-    {"id": "cancelHodlInvoice", "group": "lightning", "support": "supported", "fixture": "funded_lightning_hodl", "contract": "implemented"},
-    {"id": "listPaymentsRaw", "group": "lightning", "support": "supported", "fixture": "unfunded_read", "contract": "implemented"},
-    {"id": "apayNew", "group": "lightning", "support": "supported", "fixture": "lsp_apay", "contract": "implemented"},
-    {"id": "apayNewWithAddress", "group": "lightning", "support": "supported", "fixture": "lsp_apay", "contract": "implemented"},
-    {"id": "createLsp", "group": "lsp", "support": "supported", "fixture": "lsp_http", "contract": "implemented"},
-    {"id": "getLspConfig", "group": "lsp", "support": "supported", "fixture": "unit_contract", "contract": "covered"},
-    {"id": "decodeLnInvoice", "group": "lightning", "support": "supported", "fixture": "funded_lightning", "contract": "covered"},
-    {"id": "payLightningInvoice", "group": "lightning", "support": "supported", "fixture": "funded_lightning", "contract": "covered"},
-    {"id": "payRlnLightningInvoice", "group": "lightning", "support": "supported", "fixture": "funded_lightning", "contract": "covered"},
-    {"id": "payLightningInvoiceBegin", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "payLightningInvoiceEnd", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "getLightningSendFeeEstimate", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "getLightningReceiveRequest", "group": "lightning", "support": "supported", "fixture": "unit_mapper", "contract": "covered"},
-    {"id": "getLightningSendRequest", "group": "lightning", "support": "supported", "fixture": "unit_mapper", "contract": "covered"},
-    {"id": "invoiceStatus", "group": "lightning", "support": "supported", "fixture": "funded_lightning", "contract": "covered"},
-    {"id": "listPayments", "group": "lightning", "support": "supported", "fixture": "unfunded_read", "contract": "covered"},
-    {"id": "listLightningPayments", "group": "lightning", "support": "supported", "fixture": "unit_mapper", "contract": "covered"},
-    {"id": "onchainReceive", "group": "rgb", "support": "supported", "fixture": "funded_rgb", "contract": "covered"},
-    {"id": "onchainSend", "group": "rgb", "support": "supported", "fixture": "funded_rgb", "contract": "covered", "limitations": ["skipSync=true is rejected through the shared RGB send path because the pinned 0.9.0-beta.3 RLN SendRgbRequest has no skipSync field."]},
-    {"id": "onchainSendBegin", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "onchainSendEnd", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "getOnchainSendStatus", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "listOnchainTransfers", "group": "rgb", "support": "supported", "fixture": "funded_rgb", "contract": "covered"},
-    {"id": "connectPeer", "group": "peer", "support": "supported", "fixture": "funded_channels", "contract": "covered"},
-    {"id": "disconnectPeer", "group": "peer", "support": "supported", "fixture": "funded_channels", "contract": "covered"},
-    {"id": "listPeers", "group": "peer", "support": "supported", "fixture": "unfunded_read", "contract": "covered"},
-    {"id": "listChannels", "group": "channel", "support": "supported", "fixture": "unfunded_read", "contract": "covered"},
-    {"id": "openChannel", "group": "channel", "support": "supported", "fixture": "funded_channels", "contract": "covered"},
-    {"id": "closeChannel", "group": "channel", "support": "supported", "fixture": "funded_channels", "contract": "covered"},
-    {"id": "getChannelId", "group": "channel", "support": "supported", "fixture": "funded_channels", "contract": "covered"},
-    {"id": "keysend", "group": "lightning", "support": "supported", "fixture": "funded_lightning", "contract": "covered"},
-    {"id": "getPayment", "group": "lightning", "support": "supported", "fixture": "funded_lightning", "contract": "covered"},
-    {"id": "goOnline", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "createUtxosBegin", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "createUtxosEnd", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "sendBegin", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "sendEnd", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "sendBtcBegin", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "sendBtcEnd", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "signPsbt", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "signMessage", "group": "signing", "support": "supported", "fixture": "unit_contract", "contract": "covered"},
-    {"id": "verifyMessage", "group": "signing", "support": "supported", "fixture": "unit_contract", "contract": "covered"},
-    {"id": "backupNow", "group": "vss", "support": "supported", "fixture": "vss_recovery", "contract": "covered"},
-    {"id": "configureVssBackup", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "disableVssAutoBackup", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "vssBackup", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "vssBackupInfo", "group": "unsupported", "support": "unsupported-parity", "fixture": "expected_failure", "contract": "covered"},
-    {"id": "vssClearFence", "group": "vss", "support": "supported", "fixture": "vss_recovery", "contract": "implemented"}
+    {
+      "id": "init",
+      "group": "lifecycle",
+      "support": "supported",
+      "fixture": "unfunded_lifecycle",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.init",
+      "evidenceBucket": "unfunded_lifecycle"
+    },
+    {
+      "id": "initialize",
+      "group": "lifecycle",
+      "support": "supported",
+      "fixture": "unit_alias",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.initialize",
+      "evidenceBucket": "unit_alias"
+    },
+    {
+      "id": "unlock",
+      "group": "lifecycle",
+      "support": "supported",
+      "fixture": "unfunded_lifecycle",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.unlock",
+      "evidenceBucket": "unfunded_lifecycle"
+    },
+    {
+      "id": "reinit",
+      "group": "lifecycle",
+      "support": "supported",
+      "fixture": "restart_persistence",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.reinit",
+      "evidenceBucket": "restart_persistence"
+    },
+    {
+      "id": "shutdown",
+      "group": "lifecycle",
+      "support": "supported",
+      "fixture": "unfunded_lifecycle",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.shutdown",
+      "evidenceBucket": "unfunded_lifecycle"
+    },
+    {
+      "id": "destroy",
+      "group": "lifecycle",
+      "support": "supported",
+      "fixture": "unfunded_lifecycle",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.destroy",
+      "evidenceBucket": "unfunded_lifecycle"
+    },
+    {
+      "id": "dispose",
+      "group": "lifecycle",
+      "support": "supported",
+      "fixture": "unit_alias",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.dispose",
+      "evidenceBucket": "unit_alias"
+    },
+    {
+      "id": "isDisposed",
+      "group": "lifecycle",
+      "support": "supported",
+      "fixture": "unit_contract",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.isDisposed",
+      "evidenceBucket": "unit_contract"
+    },
+    {
+      "id": "nodeInfo",
+      "group": "read",
+      "support": "supported",
+      "fixture": "unfunded_read",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.nodeInfo",
+      "evidenceBucket": "unfunded_read"
+    },
+    {
+      "id": "getNodeInfo",
+      "group": "read",
+      "support": "supported",
+      "fixture": "unit_alias",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.getNodeInfo",
+      "evidenceBucket": "unit_alias"
+    },
+    {
+      "id": "networkInfo",
+      "group": "read",
+      "support": "supported",
+      "fixture": "unfunded_read",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.networkInfo",
+      "evidenceBucket": "unfunded_read"
+    },
+    {
+      "id": "getNetworkInfo",
+      "group": "read",
+      "support": "supported",
+      "fixture": "unit_alias",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.getNetworkInfo",
+      "evidenceBucket": "unit_alias"
+    },
+    {
+      "id": "getXpub",
+      "group": "read",
+      "support": "supported",
+      "fixture": "unit_contract",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.getXpub",
+      "evidenceBucket": "unit_contract"
+    },
+    {
+      "id": "getNetwork",
+      "group": "read",
+      "support": "supported",
+      "fixture": "unit_contract",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.getNetwork",
+      "evidenceBucket": "unit_contract"
+    },
+    {
+      "id": "getBtcBalance",
+      "group": "bitcoin",
+      "support": "supported",
+      "fixture": "unfunded_read",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.getBtcBalance",
+      "evidenceBucket": "unfunded_read"
+    },
+    {
+      "id": "getBtcBalanceCore",
+      "group": "bitcoin",
+      "support": "supported",
+      "fixture": "unit_mapper",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.getBtcBalanceCore",
+      "evidenceBucket": "unit_mapper"
+    },
+    {
+      "id": "getAddress",
+      "group": "bitcoin",
+      "support": "supported",
+      "fixture": "unfunded_read",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.getAddress",
+      "evidenceBucket": "unfunded_read"
+    },
+    {
+      "id": "listUnspents",
+      "group": "bitcoin",
+      "support": "supported",
+      "fixture": "funded_btc",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.listUnspents",
+      "evidenceBucket": "funded_btc"
+    },
+    {
+      "id": "listUnspentsCore",
+      "group": "bitcoin",
+      "support": "supported",
+      "fixture": "unit_mapper",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.listUnspentsCore",
+      "evidenceBucket": "unit_mapper"
+    },
+    {
+      "id": "createUtxos",
+      "group": "bitcoin",
+      "support": "supported",
+      "fixture": "funded_btc",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.createUtxos",
+      "evidenceBucket": "funded_btc"
+    },
+    {
+      "id": "listAssets",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "unfunded_read",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.listAssets",
+      "evidenceBucket": "unfunded_read"
+    },
+    {
+      "id": "listAssetsCore",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "unit_mapper",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.listAssetsCore",
+      "evidenceBucket": "unit_mapper"
+    },
+    {
+      "id": "getAssetBalance",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "funded_rgb",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.getAssetBalance",
+      "evidenceBucket": "funded_rgb"
+    },
+    {
+      "id": "getAssetBalanceCore",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "unit_mapper",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.getAssetBalanceCore",
+      "evidenceBucket": "unit_mapper"
+    },
+    {
+      "id": "rotateVanillaAddress",
+      "group": "bitcoin",
+      "support": "supported",
+      "fixture": "unfunded_read",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.rotateVanillaAddress",
+      "evidenceBucket": "unfunded_read"
+    },
+    {
+      "id": "issueAssetNia",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "funded_rgb",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.issueAssetNia",
+      "evidenceBucket": "funded_rgb"
+    },
+    {
+      "id": "issueAssetIfa",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "funded_rgb_asset_types",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.issueAssetIfa",
+      "evidenceBucket": "funded_rgb_asset_types"
+    },
+    {
+      "id": "blindReceive",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "funded_rgb",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.blindReceive",
+      "evidenceBucket": "funded_rgb"
+    },
+    {
+      "id": "blindReceiveCore",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "unit_mapper",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.blindReceiveCore",
+      "evidenceBucket": "unit_mapper"
+    },
+    {
+      "id": "witnessReceive",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "funded_rgb",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.witnessReceive",
+      "evidenceBucket": "funded_rgb"
+    },
+    {
+      "id": "witnessReceiveCore",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "unit_mapper",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.witnessReceiveCore",
+      "evidenceBucket": "unit_mapper"
+    },
+    {
+      "id": "decodeRgbInvoice",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "funded_rgb",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.decodeRgbInvoice",
+      "evidenceBucket": "funded_rgb"
+    },
+    {
+      "id": "decodeRGBInvoice",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "unit_alias",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.decodeRGBInvoice",
+      "evidenceBucket": "unit_alias"
+    },
+    {
+      "id": "decodeRGBInvoiceCore",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "unit_mapper",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.decodeRGBInvoiceCore",
+      "evidenceBucket": "unit_mapper"
+    },
+    {
+      "id": "send",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "funded_rgb",
+      "contract": "covered",
+      "limitations": [
+        "RgbSendRequest.skipSync=true is rejected before native execution because the current pinned RLN SendRgbRequest has no skipSync field."
+      ],
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.send",
+      "evidenceBucket": "funded_rgb"
+    },
+    {
+      "id": "inflate",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "funded_rgb_asset_types",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.inflate",
+      "evidenceBucket": "funded_rgb_asset_types"
+    },
+    {
+      "id": "sendBtc",
+      "group": "bitcoin",
+      "support": "supported",
+      "fixture": "funded_btc",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.sendBtc",
+      "evidenceBucket": "funded_btc"
+    },
+    {
+      "id": "listTransactions",
+      "group": "bitcoin",
+      "support": "supported",
+      "fixture": "funded_btc",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.listTransactions",
+      "evidenceBucket": "funded_btc"
+    },
+    {
+      "id": "listTransactionsByTxid",
+      "group": "bitcoin",
+      "support": "supported",
+      "fixture": "funded_btc",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.listTransactionsByTxid",
+      "evidenceBucket": "funded_btc"
+    },
+    {
+      "id": "listTransactionsCore",
+      "group": "bitcoin",
+      "support": "supported",
+      "fixture": "unit_mapper",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.listTransactionsCore",
+      "evidenceBucket": "unit_mapper"
+    },
+    {
+      "id": "listTransfers",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "funded_rgb",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.listTransfers",
+      "evidenceBucket": "funded_rgb"
+    },
+    {
+      "id": "listTransfersByTxid",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "funded_rgb",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.listTransfersByTxid",
+      "evidenceBucket": "funded_rgb"
+    },
+    {
+      "id": "listTransfersCore",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "unit_mapper",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.listTransfersCore",
+      "evidenceBucket": "unit_mapper"
+    },
+    {
+      "id": "failTransfers",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "unfunded_negative",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.failTransfers",
+      "evidenceBucket": "unfunded_negative"
+    },
+    {
+      "id": "refreshWallet",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "unfunded_read",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.refreshWallet",
+      "evidenceBucket": "unfunded_read"
+    },
+    {
+      "id": "syncWallet",
+      "group": "lifecycle",
+      "support": "supported",
+      "fixture": "unfunded_lifecycle",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.syncWallet",
+      "evidenceBucket": "unfunded_lifecycle"
+    },
+    {
+      "id": "estimateFeeRate",
+      "group": "bitcoin",
+      "support": "supported",
+      "fixture": "unfunded_read",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.estimateFeeRate",
+      "evidenceBucket": "unfunded_read"
+    },
+    {
+      "id": "estimateFeeRateValue",
+      "group": "bitcoin",
+      "support": "supported",
+      "fixture": "unit_alias",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.estimateFeeRateValue",
+      "evidenceBucket": "unit_alias"
+    },
+    {
+      "id": "rlnEstimateFeeRate",
+      "group": "bitcoin",
+      "support": "supported",
+      "fixture": "unit_alias",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.rlnEstimateFeeRate",
+      "evidenceBucket": "unit_alias"
+    },
+    {
+      "id": "checkIndexerUrl",
+      "group": "health",
+      "support": "supported",
+      "fixture": "unfunded_read",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.checkIndexerUrl",
+      "evidenceBucket": "unfunded_read"
+    },
+    {
+      "id": "checkProxyEndpoint",
+      "group": "health",
+      "support": "supported",
+      "fixture": "unfunded_read",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.checkProxyEndpoint",
+      "evidenceBucket": "unfunded_read"
+    },
+    {
+      "id": "createBackup",
+      "group": "backup",
+      "support": "native-blocked",
+      "fixture": "native_blocked",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.createBackup",
+      "evidenceBucket": "native_blocked"
+    },
+    {
+      "id": "createLightningInvoice",
+      "group": "lightning",
+      "support": "supported",
+      "fixture": "funded_lightning",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.createLightningInvoice",
+      "evidenceBucket": "funded_lightning"
+    },
+    {
+      "id": "createRlnLightningInvoice",
+      "group": "lightning",
+      "support": "supported",
+      "fixture": "funded_lightning",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.createRlnLightningInvoice",
+      "evidenceBucket": "funded_lightning"
+    },
+    {
+      "id": "createHodlInvoice",
+      "group": "lightning",
+      "support": "supported",
+      "fixture": "funded_lightning_hodl",
+      "contract": "implemented",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.createHodlInvoice",
+      "evidenceBucket": "funded_lightning_hodl"
+    },
+    {
+      "id": "claimHodlInvoice",
+      "group": "lightning",
+      "support": "supported",
+      "fixture": "funded_lightning_hodl",
+      "contract": "implemented",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.claimHodlInvoice",
+      "evidenceBucket": "funded_lightning_hodl"
+    },
+    {
+      "id": "cancelHodlInvoice",
+      "group": "lightning",
+      "support": "supported",
+      "fixture": "funded_lightning_hodl",
+      "contract": "implemented",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.cancelHodlInvoice",
+      "evidenceBucket": "funded_lightning_hodl"
+    },
+    {
+      "id": "listPaymentsRaw",
+      "group": "lightning",
+      "support": "supported",
+      "fixture": "unfunded_read",
+      "contract": "implemented",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.listPaymentsRaw",
+      "evidenceBucket": "unfunded_read"
+    },
+    {
+      "id": "apayNew",
+      "group": "lightning",
+      "support": "supported",
+      "fixture": "lsp_apay",
+      "contract": "implemented",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.apayNew",
+      "evidenceBucket": "lsp_apay"
+    },
+    {
+      "id": "apayNewWithAddress",
+      "group": "lightning",
+      "support": "supported",
+      "fixture": "lsp_apay",
+      "contract": "implemented",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.apayNewWithAddress",
+      "evidenceBucket": "lsp_apay"
+    },
+    {
+      "id": "createLsp",
+      "group": "lsp",
+      "support": "supported",
+      "fixture": "lsp_http",
+      "contract": "implemented",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.createLsp",
+      "evidenceBucket": "lsp_http"
+    },
+    {
+      "id": "getLspConfig",
+      "group": "lsp",
+      "support": "supported",
+      "fixture": "unit_contract",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.getLspConfig",
+      "evidenceBucket": "unit_contract"
+    },
+    {
+      "id": "decodeLnInvoice",
+      "group": "lightning",
+      "support": "supported",
+      "fixture": "funded_lightning",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.decodeLnInvoice",
+      "evidenceBucket": "funded_lightning"
+    },
+    {
+      "id": "payLightningInvoice",
+      "group": "lightning",
+      "support": "supported",
+      "fixture": "funded_lightning",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.payLightningInvoice",
+      "evidenceBucket": "funded_lightning"
+    },
+    {
+      "id": "payRlnLightningInvoice",
+      "group": "lightning",
+      "support": "supported",
+      "fixture": "funded_lightning",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.payRlnLightningInvoice",
+      "evidenceBucket": "funded_lightning"
+    },
+    {
+      "id": "getLightningReceiveRequest",
+      "group": "lightning",
+      "support": "supported",
+      "fixture": "unit_mapper",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.getLightningReceiveRequest",
+      "evidenceBucket": "unit_mapper"
+    },
+    {
+      "id": "getLightningSendRequest",
+      "group": "lightning",
+      "support": "supported",
+      "fixture": "unit_mapper",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.getLightningSendRequest",
+      "evidenceBucket": "unit_mapper"
+    },
+    {
+      "id": "invoiceStatus",
+      "group": "lightning",
+      "support": "supported",
+      "fixture": "funded_lightning",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.invoiceStatus",
+      "evidenceBucket": "funded_lightning"
+    },
+    {
+      "id": "listPayments",
+      "group": "lightning",
+      "support": "supported",
+      "fixture": "unfunded_read",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.listPayments",
+      "evidenceBucket": "unfunded_read"
+    },
+    {
+      "id": "listLightningPayments",
+      "group": "lightning",
+      "support": "supported",
+      "fixture": "unit_mapper",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.listLightningPayments",
+      "evidenceBucket": "unit_mapper"
+    },
+    {
+      "id": "onchainReceive",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "funded_rgb",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.onchainReceive",
+      "evidenceBucket": "funded_rgb"
+    },
+    {
+      "id": "onchainSend",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "funded_rgb",
+      "contract": "covered",
+      "limitations": [
+        "skipSync=true is rejected through the shared RGB send path because the current pinned RLN SendRgbRequest has no skipSync field."
+      ],
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.onchainSend",
+      "evidenceBucket": "funded_rgb"
+    },
+    {
+      "id": "listOnchainTransfers",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "funded_rgb",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.listOnchainTransfers",
+      "evidenceBucket": "funded_rgb"
+    },
+    {
+      "id": "connectPeer",
+      "group": "peer",
+      "support": "supported",
+      "fixture": "funded_channels",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.connectPeer",
+      "evidenceBucket": "funded_channels"
+    },
+    {
+      "id": "disconnectPeer",
+      "group": "peer",
+      "support": "supported",
+      "fixture": "funded_channels",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.disconnectPeer",
+      "evidenceBucket": "funded_channels"
+    },
+    {
+      "id": "listPeers",
+      "group": "peer",
+      "support": "supported",
+      "fixture": "unfunded_read",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.listPeers",
+      "evidenceBucket": "unfunded_read"
+    },
+    {
+      "id": "listChannels",
+      "group": "channel",
+      "support": "supported",
+      "fixture": "unfunded_read",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.listChannels",
+      "evidenceBucket": "unfunded_read"
+    },
+    {
+      "id": "listLightningChannels",
+      "group": "channel",
+      "support": "supported",
+      "fixture": "unit_contract",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.listLightningChannels",
+      "evidenceBucket": "unit_contract"
+    },
+    {
+      "id": "openChannel",
+      "group": "channel",
+      "support": "supported",
+      "fixture": "funded_channels",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.openChannel",
+      "evidenceBucket": "funded_channels"
+    },
+    {
+      "id": "closeChannel",
+      "group": "channel",
+      "support": "supported",
+      "fixture": "funded_channels",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.closeChannel",
+      "evidenceBucket": "funded_channels"
+    },
+    {
+      "id": "getChannelId",
+      "group": "channel",
+      "support": "supported",
+      "fixture": "funded_channels",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.getChannelId",
+      "evidenceBucket": "funded_channels"
+    },
+    {
+      "id": "keysend",
+      "group": "lightning",
+      "support": "supported",
+      "fixture": "funded_lightning",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.keysend",
+      "evidenceBucket": "funded_lightning"
+    },
+    {
+      "id": "getPayment",
+      "group": "lightning",
+      "support": "supported",
+      "fixture": "funded_lightning",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.getPayment",
+      "evidenceBucket": "funded_lightning"
+    },
+    {
+      "id": "signMessage",
+      "group": "signing",
+      "support": "supported",
+      "fixture": "unit_contract",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.signMessage",
+      "evidenceBucket": "unit_contract"
+    },
+    {
+      "id": "verifyMessage",
+      "group": "signing",
+      "support": "supported",
+      "fixture": "unit_contract",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.verifyMessage",
+      "evidenceBucket": "unit_contract"
+    },
+    {
+      "id": "vssClearFence",
+      "group": "vss",
+      "support": "supported",
+      "fixture": "vss_recovery",
+      "contract": "implemented",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.vssClearFence",
+      "evidenceBucket": "vss_recovery"
+    },
+    {
+      "id": "getLightningReceiveStatus",
+      "group": "lightning",
+      "support": "supported",
+      "fixture": "unit_status",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.getLightningReceiveStatus",
+      "evidenceBucket": "unit_status"
+    },
+    {
+      "id": "getLightningSendStatus",
+      "group": "lightning",
+      "support": "supported",
+      "fixture": "unit_status",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.getLightningSendStatus",
+      "evidenceBucket": "unit_status"
+    },
+    {
+      "id": "backupNow",
+      "group": "vss",
+      "support": "supported",
+      "fixture": "vss_recovery",
+      "contract": "implemented",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.backupNow",
+      "evidenceBucket": "vss_recovery"
+    }
   ]
 }

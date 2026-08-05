@@ -34,10 +34,25 @@ void main() {
     'tool/test_matrix/core_exports.json',
     errors,
   );
+  final evidenceCatalog = _readEvidenceCatalog(
+    root,
+    'tool/test_matrix/evidence_catalog.json',
+    errors,
+  );
 
-  _validateMatrixShape('rln_methods.json', rlnMatrix, errors);
-  _validateMatrixShape('wallet_methods.json', walletMatrix, errors);
-  _validateMatrixShape('core_exports.json', coreMatrix, errors);
+  _validateMatrixShape('rln_methods.json', rlnMatrix, evidenceCatalog, errors);
+  _validateMatrixShape(
+    'wallet_methods.json',
+    walletMatrix,
+    evidenceCatalog,
+    errors,
+  );
+  _validateMatrixShape(
+    'core_exports.json',
+    coreMatrix,
+    evidenceCatalog,
+    errors,
+  );
 
   _validateSourceCoverage(
     name: 'RlnClient',
@@ -92,9 +107,26 @@ Map<String, Object?> _readMatrix(
   return <String, Object?>{};
 }
 
+Map<String, Object?> _readEvidenceCatalog(
+  Directory root,
+  String relativePath,
+  List<String> errors,
+) {
+  final catalog = _readMatrix(root, relativePath, errors);
+  if (catalog.isEmpty) return <String, Object?>{};
+  if (catalog['schemaVersion'] != 1) {
+    errors.add('$relativePath must have schemaVersion 1.');
+  }
+  final buckets = catalog['buckets'];
+  if (buckets is Map<String, Object?>) return buckets;
+  errors.add('$relativePath must contain a buckets object.');
+  return <String, Object?>{};
+}
+
 void _validateMatrixShape(
   String name,
   Map<String, Object?> matrix,
+  Map<String, Object?> evidenceCatalog,
   List<String> errors,
 ) {
   final methods = matrix['methods'];
@@ -120,9 +152,58 @@ void _validateMatrixShape(
     if (!seen.add(id)) {
       errors.add('$name contains duplicate method id: $id');
     }
-    for (final field in <String>['group', 'support', 'fixture', 'contract']) {
+    for (final field in <String>[
+      'group',
+      'support',
+      'fixture',
+      'contract',
+      'implementation',
+      'evidenceBucket',
+    ]) {
       if (raw[field] is! String || (raw[field] as String).isEmpty) {
         errors.add('$name/$id is missing required string field: $field');
+      }
+    }
+    final implementation = raw['implementation'];
+    if (implementation is String &&
+        !implementation.contains('::') &&
+        implementation != 'native-artifact') {
+      errors.add(
+        '$name/$id implementation must name a concrete symbol, for example '
+        'path/to/file.dart::Class.method.',
+      );
+    }
+    final evidenceBucket = raw['evidenceBucket'];
+    final fixture = raw['fixture'];
+    if (evidenceBucket is String &&
+        fixture is String &&
+        evidenceBucket != fixture) {
+      errors.add(
+        '$name/$id evidenceBucket must match fixture until executable test IDs '
+        'replace fixture buckets.',
+      );
+    }
+    if (evidenceBucket is String) {
+      final evidence = evidenceCatalog[evidenceBucket];
+      if (evidence is! Map<String, Object?>) {
+        errors.add('$name/$id has uncataloged evidenceBucket: $evidenceBucket');
+      } else {
+        final testIds = evidence['testIds'];
+        final assertions = evidence['assertions'];
+        final claimLevel = evidence['claimLevel'];
+        if (claimLevel is! String || claimLevel.isEmpty) {
+          errors.add(
+            '$name/$id evidenceBucket $evidenceBucket lacks claimLevel.',
+          );
+        }
+        if (testIds is! List<Object?> || testIds.isEmpty) {
+          errors.add('$name/$id evidenceBucket $evidenceBucket lacks testIds.');
+        }
+        if (assertions is! List<Object?> || assertions.isEmpty) {
+          errors.add(
+            '$name/$id evidenceBucket $evidenceBucket lacks assertions.',
+          );
+        }
       }
     }
     final support = raw['support'];
@@ -221,7 +302,8 @@ Set<String> _extractPublicClassMethods(String relativePath, String className) {
         trimmed.startsWith('var ') ||
         trimmed.startsWith('factory ') ||
         trimmed.startsWith('static ') ||
-        trimmed.startsWith('get ')) {
+        trimmed.startsWith('get ') ||
+        trimmed.contains(' Function(')) {
       continue;
     }
 

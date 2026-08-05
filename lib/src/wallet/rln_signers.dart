@@ -32,19 +32,22 @@ class RlnMnemonicKeyMaterial extends RlnKeyMaterial {
 }
 
 class RlnSeedBytesKeyMaterial extends RlnKeyMaterial {
-  const RlnSeedBytesKeyMaterial(this.seedBytes);
+  RlnSeedBytesKeyMaterial(Uint8List seedBytes)
+    : _seedBytes = Uint8List.fromList(seedBytes);
 
-  final Uint8List seedBytes;
+  final Uint8List _seedBytes;
+
+  Uint8List get seedBytes => Uint8List.fromList(_seedBytes);
 
   @override
   String toSeedHex32() {
-    if (seedBytes.length < 32) {
+    if (_seedBytes.length < 32) {
       throw const WalletValidationException(
         'seedBytes must contain at least 32 bytes.',
         field: 'seedBytes',
       );
     }
-    final bytes = seedBytes.take(32);
+    final bytes = _seedBytes.take(32);
     return bytes.map((byte) => byte.toRadixString(16).padLeft(2, '0')).join();
   }
 }
@@ -104,8 +107,15 @@ class PasswordRlnSigner extends RlnSigner {
     : _password = password,
       _mnemonic = mnemonic;
 
-  final String _password;
+  String? _password;
   String? _mnemonic;
+
+  void provideSecrets({required String password, String? mnemonic}) {
+    _password = password;
+    if (mnemonic != null) {
+      _mnemonic = mnemonic;
+    }
+  }
 
   @override
   Future<void> initNode({
@@ -113,9 +123,10 @@ class PasswordRlnSigner extends RlnSigner {
     required int nodeId,
     required String storageDirPath,
   }) async {
+    final password = _requirePassword();
     await client.initNode(
       nodeId: nodeId,
-      password: _password,
+      password: password,
       mnemonic: _mnemonic,
     );
     _mnemonic = null;
@@ -127,20 +138,37 @@ class PasswordRlnSigner extends RlnSigner {
     required int nodeId,
     required UtexoUnlockConfig config,
     required String storageDirPath,
-  }) {
-    return client.unlockNode(
-      nodeId: nodeId,
-      password: _password,
-      bitcoindRpcUsername: config.bitcoindRpcUsername,
-      bitcoindRpcPassword: config.bitcoindRpcPassword,
-      bitcoindRpcHost: config.bitcoindRpcHost,
-      bitcoindRpcPort: config.bitcoindRpcPort,
-      indexerUrl: config.indexerUrl,
-      proxyEndpoint: config.proxyEndpoint,
-      announceAddresses: config.announceAddresses,
-      announceAlias: config.announceAlias,
-      gossipRgsServerUrl: config.gossipRgsServerUrl,
-    );
+  }) async {
+    final password = _requirePassword();
+    try {
+      await client.unlockNode(
+        nodeId: nodeId,
+        password: password,
+        bitcoindRpcUsername: config.bitcoindRpcUsername,
+        bitcoindRpcPassword: config.bitcoindRpcPassword,
+        bitcoindRpcHost: config.bitcoindRpcHost,
+        bitcoindRpcPort: config.bitcoindRpcPort,
+        indexerUrl: config.indexerUrl,
+        proxyEndpoint: config.proxyEndpoint,
+        announceAddresses: config.announceAddresses,
+        announceAlias: config.announceAlias,
+        gossipRgsServerUrl: config.gossipRgsServerUrl,
+      );
+    } finally {
+      _password = null;
+      _mnemonic = null;
+    }
+  }
+
+  String _requirePassword() {
+    final password = _password;
+    if (password == null || password.isEmpty) {
+      throw const WalletValidationException(
+        'password is required because the previous password was consumed.',
+        field: 'password',
+      );
+    }
+    return password;
   }
 }
 
@@ -153,7 +181,7 @@ class NativeExternalRlnSigner extends RlnSigner {
   }) : _seedHex = keys.toSeedHex32(),
        network = normalizeNativeRlnNetwork(network);
 
-  final String _seedHex;
+  String? _seedHex;
   final String network;
   final bool permissivePolicy;
   int? _signerId;
@@ -252,12 +280,23 @@ class NativeExternalRlnSigner extends RlnSigner {
   Future<int> _createSigner(RlnClient client, String storageDirPath) async {
     _ensureNoOrphanedSigner();
     _bindStorageDirPath(storageDirPath);
-    return client.createNativeExternalSigner(
-      seedHex: _seedHex,
-      network: network,
-      permissivePolicy: permissivePolicy,
-      storageDirPath: storageDirPath,
-    );
+    final seedHex = _seedHex;
+    if (seedHex == null) {
+      throw const WalletException(
+        'Native external signer seed material has already been consumed. '
+        'Create a new NativeExternalRlnSigner to retry.',
+      );
+    }
+    try {
+      return await client.createNativeExternalSigner(
+        seedHex: seedHex,
+        network: network,
+        permissivePolicy: permissivePolicy,
+        storageDirPath: storageDirPath,
+      );
+    } finally {
+      _seedHex = null;
+    }
   }
 
   void _bindStorageDirPath(String storageDirPath) {

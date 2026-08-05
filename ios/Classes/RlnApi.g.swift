@@ -225,11 +225,44 @@ struct RlnNativeArtifactInfo: Hashable {
   }
 }
 
+/// Generated class from Pigeon that represents data sent in messages.
+struct RlnWireResponse: Hashable {
+  var json: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> RlnWireResponse? {
+    let json = pigeonVar_list[0] as! String
+
+    return RlnWireResponse(
+      json: json
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      json
+    ]
+  }
+  static func == (lhs: RlnWireResponse, rhs: RlnWireResponse) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsRlnApi(lhs.json, rhs.json)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("RlnWireResponse")
+    deepHashRlnApi(value: json, hasher: &hasher)
+  }
+}
+
 private class RlnApiPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
     case 129:
       return RlnNativeArtifactInfo.fromList(self.readValue() as! [Any?])
+    case 130:
+      return RlnWireResponse.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -240,6 +273,9 @@ private class RlnApiPigeonCodecWriter: FlutterStandardWriter {
   override func writeValue(_ value: Any) {
     if let value = value as? RlnNativeArtifactInfo {
       super.writeByte(129)
+      super.writeValue(value.toList())
+    } else if let value = value as? RlnWireResponse {
+      super.writeByte(130)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -274,56 +310,56 @@ protocol RlnHostApi {
   func rlnInitNodeWithExternalSigner(nodeId: Int64, nodePublicKeyHex: String, accountXpubVanilla: String, accountXpubColored: String, masterFingerprint: String, protocolVersion: String, apiLevel: Int64) throws
   func rlnUnlockNode(nodeId: Int64, password: String, bitcoindRpcUsername: String?, bitcoindRpcPassword: String?, bitcoindRpcHost: String?, bitcoindRpcPort: Int64?, indexerUrl: String?, proxyEndpoint: String?, announceAddresses: [String], announceAlias: String?, gossipRgsServerUrl: String?) throws
   func rlnDestroyNode(nodeId: Int64) throws
-  func rlnNodeInfo(nodeId: Int64) throws -> [AnyHashable?: Any?]
-  func rlnNetworkInfo(nodeId: Int64) throws -> [AnyHashable?: Any?]
-  func rlnListPeers(nodeId: Int64) throws -> [[AnyHashable?: Any?]]
+  func rlnNodeInfo(nodeId: Int64) throws -> RlnWireResponse
+  func rlnNetworkInfo(nodeId: Int64) throws -> RlnWireResponse
+  func rlnListPeers(nodeId: Int64) throws -> [RlnWireResponse]
   func rlnConnectPeer(nodeId: Int64, peerPubkeyAndAddr: String) throws
   func rlnDisconnectPeer(nodeId: Int64, peerPubkey: String) throws
-  func rlnListChannels(nodeId: Int64) throws -> [[AnyHashable?: Any?]]
-  func rlnOpenChannel(nodeId: Int64, peerPubkeyAndOptAddr: String, capacitySat: Int64, pushMsat: Int64, publicChannel: Bool, withAnchors: Bool, feeBaseMsat: Int64?, feeProportionalMillionths: Int64?, temporaryChannelId: String?, assetId: String?, assetAmount: Int64?, pushAssetAmount: Int64?, virtualOpenMode: String?) throws -> [AnyHashable?: Any?]
+  func rlnListChannels(nodeId: Int64) throws -> [RlnWireResponse]
+  func rlnOpenChannel(nodeId: Int64, peerPubkeyAndOptAddr: String, capacitySat: Int64, pushMsat: Int64, publicChannel: Bool, withAnchors: Bool, feeBaseMsat: Int64?, feeProportionalMillionths: Int64?, temporaryChannelId: String?, assetId: String?, assetAmount: Int64?, pushAssetAmount: Int64?, virtualOpenMode: String?) throws -> RlnWireResponse
   func rlnCloseChannel(nodeId: Int64, channelId: String, peerPubkey: String, force: Bool) throws
-  func rlnListPayments(nodeId: Int64) throws -> [[AnyHashable?: Any?]]
-  func rlnAddress(nodeId: Int64) throws -> [AnyHashable?: Any?]
-  func rlnRotateAddress(nodeId: Int64) throws -> [AnyHashable?: Any?]
-  func rlnSignMessage(nodeId: Int64, message: String) throws -> [AnyHashable?: Any?]
-  func rlnVerifyMessage(nodeId: Int64, message: String, signature: String) throws -> [AnyHashable?: Any?]
-  func rlnAssetBalance(nodeId: Int64, assetId: String) throws -> [AnyHashable?: Any?]
+  func rlnListPayments(nodeId: Int64) throws -> [RlnWireResponse]
+  func rlnAddress(nodeId: Int64) throws -> RlnWireResponse
+  func rlnRotateAddress(nodeId: Int64) throws -> RlnWireResponse
+  func rlnSignMessage(nodeId: Int64, message: String) throws -> RlnWireResponse
+  func rlnVerifyMessage(nodeId: Int64, message: String, signature: String) throws -> RlnWireResponse
+  func rlnAssetBalance(nodeId: Int64, assetId: String) throws -> RlnWireResponse
   func rlnBackup(nodeId: Int64, backupPath: String, password: String) throws
-  func rlnBtcBalance(nodeId: Int64, skipSync: Bool) throws -> [AnyHashable?: Any?]
-  func rlnCheckIndexerUrl(nodeId: Int64, indexerUrl: String) throws -> [AnyHashable?: Any?]
+  func rlnBtcBalance(nodeId: Int64, skipSync: Bool) throws -> RlnWireResponse
+  func rlnCheckIndexerUrl(nodeId: Int64, indexerUrl: String) throws -> RlnWireResponse
   func rlnCheckProxyEndpoint(nodeId: Int64, proxyEndpoint: String) throws
   func rlnCreateUtxos(nodeId: Int64, upTo: Bool, num: Int64?, size: Int64?, feeRate: Double, skipSync: Bool) throws
-  func rlnDecodeLnInvoice(nodeId: Int64, invoice: String) throws -> [AnyHashable?: Any?]
-  func rlnDecodeRgbInvoice(nodeId: Int64, invoice: String) throws -> [AnyHashable?: Any?]
-  func rlnEstimateFee(nodeId: Int64, blocks: Int64) throws -> [AnyHashable?: Any?]
-  func rlnFailTransfers(nodeId: Int64, batchTransferIdx: Int64?, noAssetOnly: Bool, skipSync: Bool) throws -> [AnyHashable?: Any?]
+  func rlnDecodeLnInvoice(nodeId: Int64, invoice: String) throws -> RlnWireResponse
+  func rlnDecodeRgbInvoice(nodeId: Int64, invoice: String) throws -> RlnWireResponse
+  func rlnEstimateFee(nodeId: Int64, blocks: Int64) throws -> RlnWireResponse
+  func rlnFailTransfers(nodeId: Int64, batchTransferIdx: Int64?, noAssetOnly: Bool, skipSync: Bool) throws -> RlnWireResponse
   func rlnGetChannelId(nodeId: Int64, temporaryChannelId: String) throws -> String
-  func rlnGetPayment(nodeId: Int64, paymentHash: String) throws -> [AnyHashable?: Any?]
-  func rlnInvoiceStatus(nodeId: Int64, invoice: String) throws -> [AnyHashable?: Any?]
-  func rlnKeysend(nodeId: Int64, destPubkey: String, amtMsat: Int64, assetId: String?, assetAmount: Int64?) throws -> [AnyHashable?: Any?]
-  func rlnListAssets(nodeId: Int64, filterAssetSchemas: [String]) throws -> [AnyHashable?: Any?]
-  func rlnListTransactions(nodeId: Int64, skipSync: Bool) throws -> [[AnyHashable?: Any?]]
-  func rlnListTransactionsByTxid(nodeId: Int64, txid: String, skipSync: Bool) throws -> [[AnyHashable?: Any?]]
-  func rlnListTransfers(nodeId: Int64, assetId: String) throws -> [[AnyHashable?: Any?]]
-  func rlnListTransfersByTxid(nodeId: Int64, txid: String) throws -> [[AnyHashable?: Any?]]
-  func rlnListUnspents(nodeId: Int64, skipSync: Bool) throws -> [[AnyHashable?: Any?]]
-  func rlnLnInvoice(nodeId: Int64, amtMsat: Int64?, expirySec: Int64, assetId: String?, assetAmount: Int64?, paymentHash: String?, minFinalCltvExpiryDelta: Int64?, descriptionHash: String?) throws -> [AnyHashable?: Any?]
-  func rlnClaimHodlInvoice(nodeId: Int64, paymentHash: String, paymentPreimage: String) throws -> [AnyHashable?: Any?]
+  func rlnGetPayment(nodeId: Int64, paymentHash: String) throws -> RlnWireResponse
+  func rlnInvoiceStatus(nodeId: Int64, invoice: String) throws -> RlnWireResponse
+  func rlnKeysend(nodeId: Int64, destPubkey: String, amtMsat: Int64, assetId: String?, assetAmount: Int64?) throws -> RlnWireResponse
+  func rlnListAssets(nodeId: Int64, filterAssetSchemas: [String]) throws -> RlnWireResponse
+  func rlnListTransactions(nodeId: Int64, skipSync: Bool) throws -> [RlnWireResponse]
+  func rlnListTransactionsByTxid(nodeId: Int64, txid: String, skipSync: Bool) throws -> [RlnWireResponse]
+  func rlnListTransfers(nodeId: Int64, assetId: String) throws -> [RlnWireResponse]
+  func rlnListTransfersByTxid(nodeId: Int64, txid: String) throws -> [RlnWireResponse]
+  func rlnListUnspents(nodeId: Int64, skipSync: Bool) throws -> [RlnWireResponse]
+  func rlnLnInvoice(nodeId: Int64, amtMsat: Int64?, expirySec: Int64, assetId: String?, assetAmount: Int64?, paymentHash: String?, minFinalCltvExpiryDelta: Int64?, descriptionHash: String?) throws -> RlnWireResponse
+  func rlnClaimHodlInvoice(nodeId: Int64, paymentHash: String, paymentPreimage: String) throws -> RlnWireResponse
   func rlnCancelHodlInvoice(nodeId: Int64, paymentHash: String) throws
-  func rlnApayNew(nodeId: Int64, hostNodeId: String) throws -> [AnyHashable?: Any?]
-  func rlnApayNewWithAddress(nodeId: Int64, hostNodeId: String, username: String, domain: String) throws -> [AnyHashable?: Any?]
+  func rlnApayNew(nodeId: Int64, hostNodeId: String) throws -> RlnWireResponse
+  func rlnApayNewWithAddress(nodeId: Int64, hostNodeId: String, username: String, domain: String) throws -> RlnWireResponse
   func rlnRefreshTransfers(nodeId: Int64, skipSync: Bool) throws
-  func rlnRgbInvoice(nodeId: Int64, assetId: String?, assignmentAmount: Int64?, durationSeconds: Int64?, minConfirmations: Int64, witness: Bool, assignmentKind: String?) throws -> [AnyHashable?: Any?]
-  func rlnSendBtc(nodeId: Int64, amount: Int64, address: String, feeRate: Double, skipSync: Bool) throws -> [AnyHashable?: Any?]
-  func rlnSendPayment(nodeId: Int64, invoice: String, amtMsat: Int64?, assetId: String?, assetAmount: Int64?) throws -> [AnyHashable?: Any?]
-  func rlnSendRgb(nodeId: Int64, donation: Bool, feeRate: Double, minConfirmations: Int64, skipSync: Bool, assetId: String, recipientId: String, amount: Int64, transportEndpoints: [String], witnessAmountSat: Int64?, witnessBlinding: Int64?) throws -> [AnyHashable?: Any?]
+  func rlnRgbInvoice(nodeId: Int64, assetId: String?, assignmentAmount: Int64?, durationSeconds: Int64?, minConfirmations: Int64, witness: Bool, assignmentKind: String?) throws -> RlnWireResponse
+  func rlnSendBtc(nodeId: Int64, amount: Int64, address: String, feeRate: Double, skipSync: Bool) throws -> RlnWireResponse
+  func rlnSendPayment(nodeId: Int64, invoice: String, amtMsat: Int64?, assetId: String?, assetAmount: Int64?) throws -> RlnWireResponse
+  func rlnSendRgb(nodeId: Int64, donation: Bool, feeRate: Double, minConfirmations: Int64, skipSync: Bool, assetId: String, recipientId: String, amount: Int64, transportEndpoints: [String], witnessAmountSat: Int64?, witnessBlinding: Int64?) throws -> RlnWireResponse
   func rlnShutdown(nodeId: Int64) throws
   func rlnSync(nodeId: Int64) throws
-  func rlnIssueAssetNia(nodeId: Int64, ticker: String, name: String, precision: Int64, amounts: [Int64]) throws -> Any?
-  func rlnIssueAssetCfa(nodeId: Int64, name: String, details: String?, precision: Int64, amounts: [Int64], fileDigest: String?) throws -> Any?
-  func rlnIssueAssetIfa(nodeId: Int64, ticker: String, name: String, precision: Int64, amounts: [Int64], inflationAmounts: [Int64], rejectListUrl: String?) throws -> Any?
-  func rlnInflate(nodeId: Int64, assetId: String, inflationAmounts: [Int64], feeRate: Double, minConfirmations: Int64) throws -> [AnyHashable?: Any?]
-  func rlnIssueAssetUda(nodeId: Int64, ticker: String, name: String, details: String?, precision: Int64, mediaFileDigest: String?, attachmentsFileDigests: [String]) throws -> Any?
+  func rlnIssueAssetNia(nodeId: Int64, ticker: String, name: String, precision: Int64, amounts: [Int64]) throws -> RlnWireResponse
+  func rlnIssueAssetCfa(nodeId: Int64, name: String, details: String?, precision: Int64, amounts: [Int64], fileDigest: String?) throws -> RlnWireResponse
+  func rlnIssueAssetIfa(nodeId: Int64, ticker: String, name: String, precision: Int64, amounts: [Int64], inflationAmounts: [Int64], rejectListUrl: String?) throws -> RlnWireResponse
+  func rlnInflate(nodeId: Int64, assetId: String, inflationAmounts: [Int64], feeRate: Double, minConfirmations: Int64) throws -> RlnWireResponse
+  func rlnIssueAssetUda(nodeId: Int64, ticker: String, name: String, details: String?, precision: Int64, mediaFileDigest: String?, attachmentsFileDigests: [String]) throws -> RlnWireResponse
   func rlnVssBackup(nodeId: Int64) throws -> Int64
   func rlnVssClearFence(nodeId: Int64, password: String) throws
 }
@@ -334,7 +370,14 @@ class RlnHostApiSetup {
   /// Sets up an instance of `RlnHostApi` to handle messages through the `binaryMessenger`.
   static func setUp(binaryMessenger: FlutterBinaryMessenger, api: RlnHostApi?, messageChannelSuffix: String = "") {
     let channelSuffix = messageChannelSuffix.count > 0 ? ".\(messageChannelSuffix)" : ""
-    let getNativeArtifactInfoChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.getNativeArtifactInfo\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    #if os(iOS)
+      let taskQueue = binaryMessenger.makeBackgroundTaskQueue?()
+    #else
+      let taskQueue: FlutterTaskQueue? = nil
+    #endif
+    let getNativeArtifactInfoChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.getNativeArtifactInfo\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.getNativeArtifactInfo\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       getNativeArtifactInfoChannel.setMessageHandler { _, reply in
         do {
@@ -347,7 +390,9 @@ class RlnHostApiSetup {
     } else {
       getNativeArtifactInfoChannel.setMessageHandler(nil)
     }
-    let rlnCreateNodeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCreateNode\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnCreateNodeChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCreateNode\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCreateNode\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnCreateNodeChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -374,7 +419,9 @@ class RlnHostApiSetup {
     } else {
       rlnCreateNodeChannel.setMessageHandler(nil)
     }
-    let rlnInitNodeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInitNode\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnInitNodeChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInitNode\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInitNode\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnInitNodeChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -391,7 +438,9 @@ class RlnHostApiSetup {
     } else {
       rlnInitNodeChannel.setMessageHandler(nil)
     }
-    let rlnCreateNativeExternalSignerChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCreateNativeExternalSigner\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnCreateNativeExternalSignerChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCreateNativeExternalSigner\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCreateNativeExternalSigner\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnCreateNativeExternalSignerChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -409,7 +458,9 @@ class RlnHostApiSetup {
     } else {
       rlnCreateNativeExternalSignerChannel.setMessageHandler(nil)
     }
-    let rlnInitNodeWithNativeExternalSignerChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInitNodeWithNativeExternalSigner\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnInitNodeWithNativeExternalSignerChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInitNodeWithNativeExternalSigner\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInitNodeWithNativeExternalSigner\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnInitNodeWithNativeExternalSignerChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -425,7 +476,9 @@ class RlnHostApiSetup {
     } else {
       rlnInitNodeWithNativeExternalSignerChannel.setMessageHandler(nil)
     }
-    let rlnAttachNativeExternalSignerChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnAttachNativeExternalSigner\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnAttachNativeExternalSignerChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnAttachNativeExternalSigner\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnAttachNativeExternalSigner\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnAttachNativeExternalSignerChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -441,7 +494,9 @@ class RlnHostApiSetup {
     } else {
       rlnAttachNativeExternalSignerChannel.setMessageHandler(nil)
     }
-    let rlnUnlockNodeWithNativeExternalSignerChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnUnlockNodeWithNativeExternalSigner\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnUnlockNodeWithNativeExternalSignerChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnUnlockNodeWithNativeExternalSigner\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnUnlockNodeWithNativeExternalSigner\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnUnlockNodeWithNativeExternalSignerChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -466,7 +521,9 @@ class RlnHostApiSetup {
     } else {
       rlnUnlockNodeWithNativeExternalSignerChannel.setMessageHandler(nil)
     }
-    let rlnDestroyNativeExternalSignerChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDestroyNativeExternalSigner\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnDestroyNativeExternalSignerChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDestroyNativeExternalSigner\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDestroyNativeExternalSigner\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnDestroyNativeExternalSignerChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -481,7 +538,9 @@ class RlnHostApiSetup {
     } else {
       rlnDestroyNativeExternalSignerChannel.setMessageHandler(nil)
     }
-    let rlnInitNodeWithExternalSignerChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInitNodeWithExternalSigner\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnInitNodeWithExternalSignerChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInitNodeWithExternalSigner\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInitNodeWithExternalSigner\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnInitNodeWithExternalSignerChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -502,7 +561,9 @@ class RlnHostApiSetup {
     } else {
       rlnInitNodeWithExternalSignerChannel.setMessageHandler(nil)
     }
-    let rlnUnlockNodeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnUnlockNode\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnUnlockNodeChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnUnlockNode\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnUnlockNode\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnUnlockNodeChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -527,7 +588,9 @@ class RlnHostApiSetup {
     } else {
       rlnUnlockNodeChannel.setMessageHandler(nil)
     }
-    let rlnDestroyNodeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDestroyNode\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnDestroyNodeChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDestroyNode\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDestroyNode\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnDestroyNodeChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -542,7 +605,9 @@ class RlnHostApiSetup {
     } else {
       rlnDestroyNodeChannel.setMessageHandler(nil)
     }
-    let rlnNodeInfoChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnNodeInfo\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnNodeInfoChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnNodeInfo\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnNodeInfo\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnNodeInfoChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -557,7 +622,9 @@ class RlnHostApiSetup {
     } else {
       rlnNodeInfoChannel.setMessageHandler(nil)
     }
-    let rlnNetworkInfoChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnNetworkInfo\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnNetworkInfoChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnNetworkInfo\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnNetworkInfo\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnNetworkInfoChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -572,7 +639,9 @@ class RlnHostApiSetup {
     } else {
       rlnNetworkInfoChannel.setMessageHandler(nil)
     }
-    let rlnListPeersChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListPeers\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnListPeersChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListPeers\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListPeers\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnListPeersChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -587,7 +656,9 @@ class RlnHostApiSetup {
     } else {
       rlnListPeersChannel.setMessageHandler(nil)
     }
-    let rlnConnectPeerChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnConnectPeer\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnConnectPeerChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnConnectPeer\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnConnectPeer\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnConnectPeerChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -603,7 +674,9 @@ class RlnHostApiSetup {
     } else {
       rlnConnectPeerChannel.setMessageHandler(nil)
     }
-    let rlnDisconnectPeerChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDisconnectPeer\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnDisconnectPeerChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDisconnectPeer\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDisconnectPeer\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnDisconnectPeerChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -619,7 +692,9 @@ class RlnHostApiSetup {
     } else {
       rlnDisconnectPeerChannel.setMessageHandler(nil)
     }
-    let rlnListChannelsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListChannels\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnListChannelsChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListChannels\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListChannels\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnListChannelsChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -634,7 +709,9 @@ class RlnHostApiSetup {
     } else {
       rlnListChannelsChannel.setMessageHandler(nil)
     }
-    let rlnOpenChannelChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnOpenChannel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnOpenChannelChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnOpenChannel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnOpenChannel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnOpenChannelChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -661,7 +738,9 @@ class RlnHostApiSetup {
     } else {
       rlnOpenChannelChannel.setMessageHandler(nil)
     }
-    let rlnCloseChannelChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCloseChannel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnCloseChannelChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCloseChannel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCloseChannel\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnCloseChannelChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -679,7 +758,9 @@ class RlnHostApiSetup {
     } else {
       rlnCloseChannelChannel.setMessageHandler(nil)
     }
-    let rlnListPaymentsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListPayments\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnListPaymentsChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListPayments\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListPayments\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnListPaymentsChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -694,7 +775,9 @@ class RlnHostApiSetup {
     } else {
       rlnListPaymentsChannel.setMessageHandler(nil)
     }
-    let rlnAddressChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnAddress\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnAddressChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnAddress\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnAddress\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnAddressChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -709,7 +792,9 @@ class RlnHostApiSetup {
     } else {
       rlnAddressChannel.setMessageHandler(nil)
     }
-    let rlnRotateAddressChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnRotateAddress\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnRotateAddressChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnRotateAddress\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnRotateAddress\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnRotateAddressChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -724,7 +809,9 @@ class RlnHostApiSetup {
     } else {
       rlnRotateAddressChannel.setMessageHandler(nil)
     }
-    let rlnSignMessageChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSignMessage\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnSignMessageChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSignMessage\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSignMessage\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnSignMessageChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -740,7 +827,9 @@ class RlnHostApiSetup {
     } else {
       rlnSignMessageChannel.setMessageHandler(nil)
     }
-    let rlnVerifyMessageChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVerifyMessage\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnVerifyMessageChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVerifyMessage\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVerifyMessage\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnVerifyMessageChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -757,7 +846,9 @@ class RlnHostApiSetup {
     } else {
       rlnVerifyMessageChannel.setMessageHandler(nil)
     }
-    let rlnAssetBalanceChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnAssetBalance\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnAssetBalanceChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnAssetBalance\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnAssetBalance\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnAssetBalanceChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -773,7 +864,9 @@ class RlnHostApiSetup {
     } else {
       rlnAssetBalanceChannel.setMessageHandler(nil)
     }
-    let rlnBackupChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBackup\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnBackupChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBackup\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBackup\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnBackupChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -790,7 +883,9 @@ class RlnHostApiSetup {
     } else {
       rlnBackupChannel.setMessageHandler(nil)
     }
-    let rlnBtcBalanceChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBtcBalance\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnBtcBalanceChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBtcBalance\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBtcBalance\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnBtcBalanceChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -806,7 +901,9 @@ class RlnHostApiSetup {
     } else {
       rlnBtcBalanceChannel.setMessageHandler(nil)
     }
-    let rlnCheckIndexerUrlChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCheckIndexerUrl\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnCheckIndexerUrlChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCheckIndexerUrl\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCheckIndexerUrl\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnCheckIndexerUrlChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -822,7 +919,9 @@ class RlnHostApiSetup {
     } else {
       rlnCheckIndexerUrlChannel.setMessageHandler(nil)
     }
-    let rlnCheckProxyEndpointChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCheckProxyEndpoint\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnCheckProxyEndpointChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCheckProxyEndpoint\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCheckProxyEndpoint\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnCheckProxyEndpointChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -838,7 +937,9 @@ class RlnHostApiSetup {
     } else {
       rlnCheckProxyEndpointChannel.setMessageHandler(nil)
     }
-    let rlnCreateUtxosChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCreateUtxos\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnCreateUtxosChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCreateUtxos\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCreateUtxos\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnCreateUtxosChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -858,7 +959,9 @@ class RlnHostApiSetup {
     } else {
       rlnCreateUtxosChannel.setMessageHandler(nil)
     }
-    let rlnDecodeLnInvoiceChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDecodeLnInvoice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnDecodeLnInvoiceChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDecodeLnInvoice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDecodeLnInvoice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnDecodeLnInvoiceChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -874,7 +977,9 @@ class RlnHostApiSetup {
     } else {
       rlnDecodeLnInvoiceChannel.setMessageHandler(nil)
     }
-    let rlnDecodeRgbInvoiceChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDecodeRgbInvoice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnDecodeRgbInvoiceChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDecodeRgbInvoice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnDecodeRgbInvoice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnDecodeRgbInvoiceChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -890,7 +995,9 @@ class RlnHostApiSetup {
     } else {
       rlnDecodeRgbInvoiceChannel.setMessageHandler(nil)
     }
-    let rlnEstimateFeeChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnEstimateFee\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnEstimateFeeChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnEstimateFee\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnEstimateFee\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnEstimateFeeChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -906,7 +1013,9 @@ class RlnHostApiSetup {
     } else {
       rlnEstimateFeeChannel.setMessageHandler(nil)
     }
-    let rlnFailTransfersChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnFailTransfers\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnFailTransfersChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnFailTransfers\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnFailTransfers\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnFailTransfersChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -924,7 +1033,9 @@ class RlnHostApiSetup {
     } else {
       rlnFailTransfersChannel.setMessageHandler(nil)
     }
-    let rlnGetChannelIdChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnGetChannelId\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnGetChannelIdChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnGetChannelId\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnGetChannelId\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnGetChannelIdChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -940,7 +1051,9 @@ class RlnHostApiSetup {
     } else {
       rlnGetChannelIdChannel.setMessageHandler(nil)
     }
-    let rlnGetPaymentChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnGetPayment\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnGetPaymentChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnGetPayment\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnGetPayment\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnGetPaymentChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -956,7 +1069,9 @@ class RlnHostApiSetup {
     } else {
       rlnGetPaymentChannel.setMessageHandler(nil)
     }
-    let rlnInvoiceStatusChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInvoiceStatus\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnInvoiceStatusChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInvoiceStatus\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInvoiceStatus\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnInvoiceStatusChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -972,7 +1087,9 @@ class RlnHostApiSetup {
     } else {
       rlnInvoiceStatusChannel.setMessageHandler(nil)
     }
-    let rlnKeysendChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnKeysend\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnKeysendChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnKeysend\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnKeysend\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnKeysendChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -991,7 +1108,9 @@ class RlnHostApiSetup {
     } else {
       rlnKeysendChannel.setMessageHandler(nil)
     }
-    let rlnListAssetsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListAssets\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnListAssetsChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListAssets\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListAssets\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnListAssetsChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1007,7 +1126,9 @@ class RlnHostApiSetup {
     } else {
       rlnListAssetsChannel.setMessageHandler(nil)
     }
-    let rlnListTransactionsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransactions\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnListTransactionsChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransactions\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransactions\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnListTransactionsChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1023,7 +1144,9 @@ class RlnHostApiSetup {
     } else {
       rlnListTransactionsChannel.setMessageHandler(nil)
     }
-    let rlnListTransactionsByTxidChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransactionsByTxid\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnListTransactionsByTxidChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransactionsByTxid\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransactionsByTxid\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnListTransactionsByTxidChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1040,7 +1163,9 @@ class RlnHostApiSetup {
     } else {
       rlnListTransactionsByTxidChannel.setMessageHandler(nil)
     }
-    let rlnListTransfersChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransfers\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnListTransfersChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransfers\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransfers\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnListTransfersChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1056,7 +1181,9 @@ class RlnHostApiSetup {
     } else {
       rlnListTransfersChannel.setMessageHandler(nil)
     }
-    let rlnListTransfersByTxidChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransfersByTxid\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnListTransfersByTxidChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransfersByTxid\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListTransfersByTxid\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnListTransfersByTxidChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1072,7 +1199,9 @@ class RlnHostApiSetup {
     } else {
       rlnListTransfersByTxidChannel.setMessageHandler(nil)
     }
-    let rlnListUnspentsChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListUnspents\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnListUnspentsChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListUnspents\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnListUnspents\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnListUnspentsChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1088,7 +1217,9 @@ class RlnHostApiSetup {
     } else {
       rlnListUnspentsChannel.setMessageHandler(nil)
     }
-    let rlnLnInvoiceChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnLnInvoice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnLnInvoiceChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnLnInvoice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnLnInvoice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnLnInvoiceChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1110,7 +1241,9 @@ class RlnHostApiSetup {
     } else {
       rlnLnInvoiceChannel.setMessageHandler(nil)
     }
-    let rlnClaimHodlInvoiceChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnClaimHodlInvoice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnClaimHodlInvoiceChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnClaimHodlInvoice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnClaimHodlInvoice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnClaimHodlInvoiceChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1127,7 +1260,9 @@ class RlnHostApiSetup {
     } else {
       rlnClaimHodlInvoiceChannel.setMessageHandler(nil)
     }
-    let rlnCancelHodlInvoiceChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCancelHodlInvoice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnCancelHodlInvoiceChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCancelHodlInvoice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnCancelHodlInvoice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnCancelHodlInvoiceChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1143,7 +1278,9 @@ class RlnHostApiSetup {
     } else {
       rlnCancelHodlInvoiceChannel.setMessageHandler(nil)
     }
-    let rlnApayNewChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnApayNew\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnApayNewChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnApayNew\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnApayNew\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnApayNewChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1159,7 +1296,9 @@ class RlnHostApiSetup {
     } else {
       rlnApayNewChannel.setMessageHandler(nil)
     }
-    let rlnApayNewWithAddressChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnApayNewWithAddress\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnApayNewWithAddressChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnApayNewWithAddress\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnApayNewWithAddress\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnApayNewWithAddressChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1177,7 +1316,9 @@ class RlnHostApiSetup {
     } else {
       rlnApayNewWithAddressChannel.setMessageHandler(nil)
     }
-    let rlnRefreshTransfersChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnRefreshTransfers\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnRefreshTransfersChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnRefreshTransfers\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnRefreshTransfers\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnRefreshTransfersChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1193,7 +1334,9 @@ class RlnHostApiSetup {
     } else {
       rlnRefreshTransfersChannel.setMessageHandler(nil)
     }
-    let rlnRgbInvoiceChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnRgbInvoice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnRgbInvoiceChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnRgbInvoice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnRgbInvoice\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnRgbInvoiceChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1214,7 +1357,9 @@ class RlnHostApiSetup {
     } else {
       rlnRgbInvoiceChannel.setMessageHandler(nil)
     }
-    let rlnSendBtcChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSendBtc\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnSendBtcChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSendBtc\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSendBtc\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnSendBtcChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1233,7 +1378,9 @@ class RlnHostApiSetup {
     } else {
       rlnSendBtcChannel.setMessageHandler(nil)
     }
-    let rlnSendPaymentChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSendPayment\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnSendPaymentChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSendPayment\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSendPayment\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnSendPaymentChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1252,7 +1399,9 @@ class RlnHostApiSetup {
     } else {
       rlnSendPaymentChannel.setMessageHandler(nil)
     }
-    let rlnSendRgbChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSendRgb\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnSendRgbChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSendRgb\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSendRgb\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnSendRgbChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1277,7 +1426,9 @@ class RlnHostApiSetup {
     } else {
       rlnSendRgbChannel.setMessageHandler(nil)
     }
-    let rlnShutdownChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnShutdown\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnShutdownChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnShutdown\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnShutdown\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnShutdownChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1292,7 +1443,9 @@ class RlnHostApiSetup {
     } else {
       rlnShutdownChannel.setMessageHandler(nil)
     }
-    let rlnSyncChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSync\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnSyncChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSync\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnSync\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnSyncChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1307,7 +1460,9 @@ class RlnHostApiSetup {
     } else {
       rlnSyncChannel.setMessageHandler(nil)
     }
-    let rlnIssueAssetNiaChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetNia\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnIssueAssetNiaChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetNia\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetNia\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnIssueAssetNiaChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1326,7 +1481,9 @@ class RlnHostApiSetup {
     } else {
       rlnIssueAssetNiaChannel.setMessageHandler(nil)
     }
-    let rlnIssueAssetCfaChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetCfa\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnIssueAssetCfaChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetCfa\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetCfa\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnIssueAssetCfaChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1346,7 +1503,9 @@ class RlnHostApiSetup {
     } else {
       rlnIssueAssetCfaChannel.setMessageHandler(nil)
     }
-    let rlnIssueAssetIfaChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetIfa\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnIssueAssetIfaChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetIfa\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetIfa\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnIssueAssetIfaChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1367,7 +1526,9 @@ class RlnHostApiSetup {
     } else {
       rlnIssueAssetIfaChannel.setMessageHandler(nil)
     }
-    let rlnInflateChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInflate\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnInflateChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInflate\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnInflate\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnInflateChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1386,7 +1547,9 @@ class RlnHostApiSetup {
     } else {
       rlnInflateChannel.setMessageHandler(nil)
     }
-    let rlnIssueAssetUdaChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetUda\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnIssueAssetUdaChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetUda\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnIssueAssetUda\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnIssueAssetUdaChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1407,7 +1570,9 @@ class RlnHostApiSetup {
     } else {
       rlnIssueAssetUdaChannel.setMessageHandler(nil)
     }
-    let rlnVssBackupChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVssBackup\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnVssBackupChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVssBackup\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVssBackup\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnVssBackupChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]
@@ -1422,7 +1587,9 @@ class RlnHostApiSetup {
     } else {
       rlnVssBackupChannel.setMessageHandler(nil)
     }
-    let rlnVssClearFenceChannel = FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVssClearFence\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+    let rlnVssClearFenceChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVssClearFence\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnVssClearFence\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
     if let api = api {
       rlnVssClearFenceChannel.setMessageHandler { message, reply in
         let args = message as! [Any?]

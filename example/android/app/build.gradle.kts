@@ -26,6 +26,12 @@ android {
         versionName = flutter.versionName
     }
 
+    sourceSets {
+        getByName("main") {
+            java.srcDirs("src/main/kotlin")
+        }
+    }
+
     buildTypes {
         release {
             signingConfig = signingConfigs.getByName("debug")

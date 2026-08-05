@@ -1,6 +1,5 @@
-import 'package:flutter/services.dart';
-
 import '../client/rln_client.dart';
+import '../errors/native_bridge_error_mapper.dart';
 import '../errors/rgb_sdk_exception.dart';
 import '../lsp/lsp_types.dart';
 import '../lsp/utexo_lsp.dart';
@@ -74,6 +73,33 @@ class UtexoUnlockConfig {
   final String? gossipRgsServerUrl;
 }
 
+/// Capability flags for optional wallet feature groups.
+///
+/// These flags are derived from the public carriers. The current Flutter/RLN
+/// platform has no rgb-lib PSBT engine and no externally signed begin/end
+/// wallet flows, matching the current React Native contract.
+class WalletCapabilities {
+  const WalletCapabilities({
+    required this.psbtSigning,
+    required this.beginEndFlows,
+    this.rgbUtxoCreation = true,
+    this.rgbAssetIssuance = true,
+  });
+
+  final bool psbtSigning;
+  final bool beginEndFlows;
+  final bool rgbUtxoCreation;
+  final bool rgbAssetIssuance;
+}
+
+/// Optional PSBT feature group. It is absent while the pinned native/RN
+/// baseline has no production PSBT engine.
+abstract interface class PsbtWalletCarrier {}
+
+/// Optional begin/end wallet-flow feature group. It is absent while the pinned
+/// native/RN baseline has no externally signed begin/end flow.
+abstract interface class BeginEndWalletCarrier {}
+
 /// Request for a blinded or witness RGB invoice.
 class RgbInvoiceRequest {
   const RgbInvoiceRequest({
@@ -99,7 +125,7 @@ class RgbSendRequest {
     this.assetId,
     this.amount,
     this.donation = false,
-    this.feeRate = 1.5,
+    this.feeRate = 1,
     this.minConfirmations = 1,
     this.skipSync = false,
     this.witnessAmountSat,
@@ -122,7 +148,7 @@ class InflateAssetIfaRequest {
   const InflateAssetIfaRequest({
     required this.assetId,
     required this.inflationAmounts,
-    this.feeRate = 1.5,
+    this.feeRate = 1,
     this.minConfirmations = 1,
   });
 
@@ -138,6 +164,19 @@ class InflateAssetIfaRequest {
 /// comparing against [CoreTransferStatuses] constants instead of hard-coding
 /// status literals in app code.
 typedef CoreTransferStatus = String;
+typedef RlnInvoiceStatusValue = String;
+typedef RlnPaymentStatusValue = String;
+
+enum _WalletLifecycleState {
+  uninitialized,
+  initializing,
+  initialized,
+  unlocking,
+  unlocked,
+  shutDown,
+  destroying,
+  disposed,
+}
 
 /// Known RN-core transfer-status values.
 abstract final class CoreTransferStatuses {
@@ -145,6 +184,118 @@ abstract final class CoreTransferStatuses {
   static const CoreTransferStatus waitingConfirmations = 'WaitingConfirmations';
   static const CoreTransferStatus settled = 'Settled';
   static const CoreTransferStatus failed = 'Failed';
+}
+
+/// Canonical RLN invoice statuses from `@utexo/rgb-sdk-core`.
+abstract final class RlnInvoiceStatuses {
+  static const RlnInvoiceStatusValue pending = 'Pending';
+  static const RlnInvoiceStatusValue claimable = 'Claimable';
+  static const RlnInvoiceStatusValue claiming = 'Claiming';
+  static const RlnInvoiceStatusValue succeeded = 'Succeeded';
+  static const RlnInvoiceStatusValue cancelled = 'Cancelled';
+  static const RlnInvoiceStatusValue failed = 'Failed';
+  static const RlnInvoiceStatusValue expired = 'Expired';
+}
+
+/// Canonical RLN payment statuses from `@utexo/rgb-sdk-core`.
+abstract final class RlnPaymentStatuses {
+  static const RlnPaymentStatusValue pending = 'Pending';
+  static const RlnPaymentStatusValue claimable = 'Claimable';
+  static const RlnPaymentStatusValue claiming = 'Claiming';
+  static const RlnPaymentStatusValue succeeded = 'Succeeded';
+  static const RlnPaymentStatusValue cancelled = 'Cancelled';
+  static const RlnPaymentStatusValue failed = 'Failed';
+}
+
+const List<RlnInvoiceStatusValue> _invoiceStatusValues = <String>[
+  RlnInvoiceStatuses.pending,
+  RlnInvoiceStatuses.claimable,
+  RlnInvoiceStatuses.claiming,
+  RlnInvoiceStatuses.succeeded,
+  RlnInvoiceStatuses.cancelled,
+  RlnInvoiceStatuses.failed,
+  RlnInvoiceStatuses.expired,
+];
+
+const List<RlnPaymentStatusValue> _paymentStatusValues = <String>[
+  RlnPaymentStatuses.pending,
+  RlnPaymentStatuses.claimable,
+  RlnPaymentStatuses.claiming,
+  RlnPaymentStatuses.succeeded,
+  RlnPaymentStatuses.cancelled,
+  RlnPaymentStatuses.failed,
+];
+
+const Map<String, String> _statusAliases = <String, String>{
+  'paid': 'Succeeded',
+  'settled': 'Succeeded',
+  'success': 'Succeeded',
+  'canceled': 'Cancelled',
+};
+
+RlnInvoiceStatusValue normalizeInvoiceStatus(Object? raw) {
+  return _normalizeStatus(raw, _invoiceStatusValues, 'invoiceStatus');
+}
+
+RlnPaymentStatusValue normalizePaymentStatus(Object? raw) {
+  return _normalizeStatus(raw, _paymentStatusValues, 'paymentStatus');
+}
+
+RlnInvoiceStatusValue? tryNormalizeInvoiceStatus(Object? raw) {
+  try {
+    return normalizeInvoiceStatus(raw);
+  } catch (_) {
+    return null;
+  }
+}
+
+RlnPaymentStatusValue? tryNormalizePaymentStatus(Object? raw) {
+  try {
+    return normalizePaymentStatus(raw);
+  } catch (_) {
+    return null;
+  }
+}
+
+bool isTerminalPaymentStatus(String status) {
+  return status == RlnPaymentStatuses.succeeded ||
+      status == RlnPaymentStatuses.cancelled ||
+      status == RlnPaymentStatuses.failed ||
+      status == RlnInvoiceStatuses.expired;
+}
+
+bool isClaimablePaymentStatus(String status) {
+  return status == RlnPaymentStatuses.claimable ||
+      status == RlnPaymentStatuses.claiming;
+}
+
+String _normalizeStatus(Object? raw, List<String> allowed, String label) {
+  if (raw is! String || raw.trim().isEmpty) {
+    throw ValidationError(
+      '$label: expected a non-empty string, received $raw',
+      label,
+    );
+  }
+  final trimmed = raw.trim();
+  final aliased =
+      _statusAliases[trimmed.toLowerCase()] ?? _toPascalCase(trimmed);
+  for (final value in allowed) {
+    if (value == aliased) return value;
+  }
+  throw ValidationError(
+    '$label: unknown value "$raw" (expected one of ${allowed.join(', ')})',
+    label,
+  );
+}
+
+String _toPascalCase(String raw) {
+  return raw
+      .trim()
+      .toLowerCase()
+      .split(RegExp(r'[_\-\s]+'))
+      .where((part) => part.isNotEmpty)
+      .map((part) => part[0].toUpperCase() + part.substring(1))
+      .join();
 }
 
 /// RN-style Lightning payment list item.
@@ -206,9 +357,26 @@ class LightningSendRequest {
 
 /// RN-style on-chain receive response.
 class OnchainReceiveResponse {
-  const OnchainReceiveResponse({required this.invoice});
+  const OnchainReceiveResponse({
+    required this.invoice,
+    this.recipientId,
+    this.expirationTimestamp,
+    required this.batchTransferIdx,
+  });
+
+  factory OnchainReceiveResponse.fromRln(RlnInvoice invoice) {
+    return OnchainReceiveResponse(
+      invoice: invoice.invoice,
+      recipientId: invoice.recipientId,
+      expirationTimestamp: invoice.expirationTimestamp,
+      batchTransferIdx: invoice.batchTransferIdx,
+    );
+  }
 
   final String invoice;
+  final String? recipientId;
+  final int? expirationTimestamp;
+  final int batchTransferIdx;
 }
 
 /// RN-style on-chain send response.
@@ -250,123 +418,216 @@ class UtexoWallet {
 
   int? _nodeId;
   bool _nodeCreated = false;
-  bool _initialized = false;
-  bool _unlocked = false;
-  bool _shutdown = false;
-  bool _disposed = false;
+  _WalletLifecycleState _lifecycleState = _WalletLifecycleState.uninitialized;
+  Future<void>? _initInFlight;
+  Future<void>? _unlockInFlight;
+  Future<void> _lifecycleQueue = Future<void>.value();
   bool? _resolvedEnableVirtualChannelsV0;
   List<String>? _resolvedVirtualPeerPubkeys;
   String? _resolvedLspBaseUrl;
+  PsbtWalletCarrier? get psbt => null;
+  BeginEndWalletCarrier? get beginEnd => null;
 
   int get nodeId => _requireNode();
 
-  bool get isInitialized => _initialized;
-  bool get isUnlocked => _unlocked;
-  bool isDisposed() => _disposed;
+  bool get isInitialized =>
+      _lifecycleState == _WalletLifecycleState.initialized ||
+      _lifecycleState == _WalletLifecycleState.unlocking ||
+      _lifecycleState == _WalletLifecycleState.unlocked;
+  bool get isUnlocked => _lifecycleState == _WalletLifecycleState.unlocked;
+  bool get isShutdown => _lifecycleState == _WalletLifecycleState.shutDown;
+  bool isDisposed() => _lifecycleState == _WalletLifecycleState.disposed;
+  WalletCapabilities get capabilities {
+    final supportsExternalSignerRgbAssetFlows =
+        _signer is! NativeExternalRlnSigner;
+    return WalletCapabilities(
+      psbtSigning: psbt != null,
+      beginEndFlows: beginEnd != null,
+      rgbUtxoCreation: supportsExternalSignerRgbAssetFlows,
+      rgbAssetIssuance: supportsExternalSignerRgbAssetFlows,
+    );
+  }
 
   String getNetwork() {
     _ensureActive();
     return _config.network;
   }
 
-  Future<void> init({String? password, String? mnemonic}) async {
-    _ensureNotDisposed();
-    _validateConfig();
-    _nodeId ??= await _createNode();
-    _nodeCreated = true;
-    _shutdown = false;
-    final signer = _ensureSigner(password: password, mnemonic: mnemonic);
-    await signer.initNode(
-      client: _client,
-      nodeId: _nodeId!,
-      storageDirPath: _config.storageDirPath,
-    );
-    _initialized = true;
+  Future<void> init({String? password, String? mnemonic}) {
+    final inFlight = _initInFlight;
+    if (inFlight != null) return inFlight;
+    final future =
+        _withLifecycle(() async {
+          _ensureNotDisposed();
+          if (isInitialized) return;
+          if (_lifecycleState == _WalletLifecycleState.shutDown) {
+            throw const WalletException(
+              'Wallet is shut down. Call reinit() before regular use.',
+            );
+          }
+          _validateConfig();
+          final hadNode = _nodeId != null;
+          _lifecycleState = _WalletLifecycleState.initializing;
+          _nodeId ??= await _createNode();
+          _nodeCreated = true;
+          final signer = _ensureSigner(password: password, mnemonic: mnemonic);
+          try {
+            await signer.initNode(
+              client: _client,
+              nodeId: _nodeId!,
+              storageDirPath: _config.storageDirPath,
+            );
+          } catch (error) {
+            if (!hadNode &&
+                _nodeId != null &&
+                _signer is! NativeExternalRlnSigner) {
+              try {
+                await _client.destroyNode(_nodeId!);
+                _nodeId = null;
+                _nodeCreated = false;
+              } catch (_) {
+                // Preserve the original initialization failure.
+              }
+            }
+            _lifecycleState = _WalletLifecycleState.uninitialized;
+            rethrow;
+          }
+          _lifecycleState = _WalletLifecycleState.initialized;
+        }).whenComplete(() {
+          _initInFlight = null;
+        });
+    _initInFlight = future;
+    return future;
   }
 
   Future<void> initialize({String? password, String? mnemonic}) {
     return init(password: password, mnemonic: mnemonic);
   }
 
-  Future<void> unlock({
-    String? password,
-    required UtexoUnlockConfig config,
-  }) async {
-    _ensureInitialized();
-    final signer = _ensureSigner(password: password);
-    final resolvedConfig = _resolveUnlockConfig(config);
-    await signer.unlockNode(
-      client: _client,
-      nodeId: _nodeId!,
-      config: resolvedConfig,
-      storageDirPath: _config.storageDirPath,
-    );
-    _unlocked = true;
+  Future<void> unlock({String? password, required UtexoUnlockConfig config}) {
+    final inFlight = _unlockInFlight;
+    if (inFlight != null) return inFlight;
+    final future =
+        _withLifecycle(() async {
+          _ensureInitialized();
+          if (isUnlocked) return;
+          final signer = _ensureSigner(password: password);
+          final resolvedConfig = _resolveUnlockConfig(config);
+          _lifecycleState = _WalletLifecycleState.unlocking;
+          try {
+            await signer.unlockNode(
+              client: _client,
+              nodeId: _nodeId!,
+              config: resolvedConfig,
+              storageDirPath: _config.storageDirPath,
+            );
+          } catch (_) {
+            _lifecycleState = _WalletLifecycleState.initialized;
+            rethrow;
+          }
+          _lifecycleState = _WalletLifecycleState.unlocked;
+        }).whenComplete(() {
+          _unlockInFlight = null;
+        });
+    _unlockInFlight = future;
+    return future;
   }
 
   Future<void> reinit({
     String? password,
     String? mnemonic,
     UtexoUnlockConfig? unlockConfig,
-  }) async {
-    _ensureNotDisposed();
-    _validateConfig();
-    final existingNodeId = _nodeId;
-    if (existingNodeId != null && !_shutdown) {
-      await _client.shutdown(existingNodeId);
-      _shutdown = true;
-      _unlocked = false;
-    }
-    final restartedNodeId = await _createNode();
-    _nodeId = restartedNodeId;
-    _nodeCreated = true;
-    _initialized = true;
-    _unlocked = false;
-    _shutdown = false;
-    _disposed = false;
-    if (unlockConfig != null) {
-      final signer = _ensureSigner(password: password, mnemonic: mnemonic);
-      final resolvedConfig = _resolveUnlockConfig(unlockConfig);
-      await signer.unlockNode(
-        client: _client,
-        nodeId: _nodeId!,
-        config: resolvedConfig,
-        storageDirPath: _config.storageDirPath,
-      );
-      _unlocked = true;
-    }
+  }) {
+    return _withLifecycle(() async {
+      _ensureNotDisposed();
+      _validateConfig();
+      final existingNodeId = _nodeId;
+      if (existingNodeId != null &&
+          _lifecycleState != _WalletLifecycleState.shutDown) {
+        await _client.shutdown(existingNodeId);
+      }
+      _lifecycleState = _WalletLifecycleState.initializing;
+      final restartedNodeId = await _createNode();
+      _nodeId = restartedNodeId;
+      _nodeCreated = true;
+      _lifecycleState = _WalletLifecycleState.initialized;
+      if (unlockConfig != null) {
+        final signer = _ensureSigner(password: password, mnemonic: mnemonic);
+        final resolvedConfig = _resolveUnlockConfig(unlockConfig);
+        _lifecycleState = _WalletLifecycleState.unlocking;
+        try {
+          await signer.unlockNode(
+            client: _client,
+            nodeId: _nodeId!,
+            config: resolvedConfig,
+            storageDirPath: _config.storageDirPath,
+          );
+        } catch (_) {
+          _lifecycleState = _WalletLifecycleState.initialized;
+          rethrow;
+        }
+        _lifecycleState = _WalletLifecycleState.unlocked;
+      }
+    });
   }
 
-  Future<void> shutdown() async {
-    final id = _nodeId;
-    if (id == null || _disposed || _shutdown) return;
-    await _client.shutdown(id);
-    _unlocked = false;
-    _shutdown = true;
+  Future<void> shutdown() {
+    return _withLifecycle(() async {
+      final id = _nodeId;
+      if (id == null ||
+          _lifecycleState == _WalletLifecycleState.disposed ||
+          _lifecycleState == _WalletLifecycleState.shutDown) {
+        return;
+      }
+      _lifecycleState = _WalletLifecycleState.shutDown;
+      try {
+        await _client.shutdown(id);
+      } catch (_) {
+        _lifecycleState = _WalletLifecycleState.initialized;
+        rethrow;
+      }
+    });
   }
 
-  Future<void> destroy() async {
-    final id = _nodeId;
-    if (id == null) {
-      _disposed = true;
-      return;
-    }
-    try {
-      await _client.shutdown(id);
-    } catch (_) {
-      // Destroy should still release the native handle after a failed shutdown.
-    }
-    try {
-      await _signer?.dispose(client: _client, nodeId: id);
-    } catch (_) {
-      // Destroy should still release the native handle after signer cleanup.
-    }
-    await _client.destroyNode(id);
-    _nodeId = null;
-    _initialized = false;
-    _unlocked = false;
-    _shutdown = false;
-    _disposed = true;
+  Future<void> destroy() {
+    return _withLifecycle(() async {
+      final id = _nodeId;
+      final wasShutdown = _lifecycleState == _WalletLifecycleState.shutDown;
+      if (_lifecycleState == _WalletLifecycleState.disposed) return;
+      _lifecycleState = _WalletLifecycleState.destroying;
+      if (id == null) {
+        _lifecycleState = _WalletLifecycleState.disposed;
+        return;
+      }
+      final errors = <Object>[];
+      if (!wasShutdown) {
+        try {
+          await _client.shutdown(id);
+        } catch (error) {
+          errors.add(error);
+        }
+      }
+      try {
+        await _signer?.dispose(client: _client, nodeId: id);
+      } catch (error) {
+        errors.add(error);
+      }
+      try {
+        await _client.destroyNode(id);
+      } catch (error) {
+        errors.add(error);
+      }
+      if (errors.isNotEmpty) {
+        _lifecycleState = _WalletLifecycleState.initialized;
+        throw WalletException(
+          'Wallet destroy did not complete cleanly.',
+          cause: List<Object>.unmodifiable(errors),
+        );
+      }
+      _nodeId = null;
+      _nodeCreated = false;
+      _lifecycleState = _WalletLifecycleState.disposed;
+    });
   }
 
   Future<void> dispose() => destroy();
@@ -380,7 +641,9 @@ class UtexoWallet {
   }
 
   Future<RlnNetworkInfo> networkInfo() async {
-    return RlnNetworkInfo.fromMap(await _client.networkInfo(_requireNode()));
+    return RlnNetworkInfo.fromMap(
+      await _client.networkInfo(_requireUnlockedNode()),
+    );
   }
 
   Future<RlnNetworkInfo> getNetworkInfo() {
@@ -400,7 +663,10 @@ class UtexoWallet {
 
   Future<RlnBtcBalance> getBtcBalance({bool skipSync = false}) async {
     return RlnBtcBalance.fromMap(
-      await _client.btcBalance(nodeId: _requireNode(), skipSync: skipSync),
+      await _client.btcBalance(
+        nodeId: _requireUnlockedNode(),
+        skipSync: skipSync,
+      ),
     );
   }
 
@@ -409,13 +675,13 @@ class UtexoWallet {
   }
 
   Future<String> getAddress() async {
-    final response = await _client.address(_requireNode());
+    final response = await _client.address(_requireUnlockedNode());
     return response['address']! as String;
   }
 
   Future<List<RlnUnspent>> listUnspents({bool skipSync = false}) async {
     final unspents = await _client.listUnspents(
-      nodeId: _requireNode(),
+      nodeId: _requireUnlockedNode(),
       skipSync: skipSync,
     );
     return unspents.map(RlnUnspent.fromMap).toList(growable: false);
@@ -431,14 +697,15 @@ class UtexoWallet {
     bool upTo = true,
     int? num,
     int? size,
-    double feeRate = 1.5,
+    double feeRate = 1,
     bool skipSync = false,
   }) async {
     _requireUInt8Optional(num, 'num');
     _requireUInt32Optional(size, 'size');
     _requireFeeRate(feeRate, 'feeRate');
+    _ensureRgbUtxoCreationSupported();
     await _client.createUtxos(
-      nodeId: _requireNode(),
+      nodeId: _requireUnlockedNode(),
       upTo: upTo,
       num: num,
       size: size,
@@ -453,7 +720,7 @@ class UtexoWallet {
   }) async {
     return RlnAssets.fromMap(
       await _client.listAssets(
-        nodeId: _requireNode(),
+        nodeId: _requireUnlockedNode(),
         filterAssetSchemas: filterAssetSchemas,
       ),
     );
@@ -468,7 +735,10 @@ class UtexoWallet {
   Future<RlnAssetBalance> getAssetBalance(String assetId) async {
     _requireNonEmpty(assetId, 'assetId');
     return RlnAssetBalance.fromMap(
-      await _client.assetBalance(nodeId: _requireNode(), assetId: assetId),
+      await _client.assetBalance(
+        nodeId: _requireUnlockedNode(),
+        assetId: assetId,
+      ),
     );
   }
 
@@ -477,12 +747,8 @@ class UtexoWallet {
   }
 
   Future<String> rotateVanillaAddress() async {
-    final response = await _client.rotateAddress(_requireNode());
+    final response = await _client.rotateAddress(_requireUnlockedNode());
     return RlnAddress.fromMap(response).address;
-  }
-
-  Future<String> rotateColoredAddress() {
-    _unsupported('rotateColoredAddress');
   }
 
   Future<RlnAssetNia> issueAssetNia({
@@ -495,38 +761,15 @@ class UtexoWallet {
     _requireNonEmpty(name, 'name');
     _requireUInt8(precision, 'precision');
     _requireNonNegativeList(amounts, 'amounts');
+    _ensureRgbAssetIssuanceSupported('issueAssetNia');
     return RlnAssetNia.fromMap(
       _asRlnMap(
         await _client.issueAssetNia(
-          nodeId: _requireNode(),
+          nodeId: _requireUnlockedNode(),
           ticker: ticker,
           name: name,
           precision: precision,
           amounts: amounts,
-        ),
-      ),
-    );
-  }
-
-  Future<RlnAssetCfa> issueAssetCfa({
-    required String name,
-    String? details,
-    required int precision,
-    required List<int> amounts,
-    String? fileDigest,
-  }) async {
-    _requireNonEmpty(name, 'name');
-    _requireUInt8(precision, 'precision');
-    _requireNonNegativeList(amounts, 'amounts');
-    return RlnAssetCfa.fromMap(
-      _asRlnMap(
-        await _client.issueAssetCfa(
-          nodeId: _requireNode(),
-          name: name,
-          details: details,
-          precision: precision,
-          amounts: amounts,
-          fileDigest: fileDigest,
         ),
       ),
     );
@@ -545,42 +788,17 @@ class UtexoWallet {
     _requireUInt8(precision, 'precision');
     _requireNonNegativeList(amounts, 'amounts');
     _requireNonNegativeList(inflationAmounts, 'inflationAmounts');
+    _ensureRgbAssetIssuanceSupported('issueAssetIfa');
     return RlnAssetIfa.fromMap(
       _asRlnMap(
         await _client.issueAssetIfa(
-          nodeId: _requireNode(),
+          nodeId: _requireUnlockedNode(),
           ticker: ticker,
           name: name,
           precision: precision,
           amounts: amounts,
           inflationAmounts: inflationAmounts,
           rejectListUrl: rejectListUrl,
-        ),
-      ),
-    );
-  }
-
-  Future<RlnAssetUda> issueAssetUda({
-    required String ticker,
-    required String name,
-    String? details,
-    required int precision,
-    String? mediaFileDigest,
-    List<String> attachmentsFileDigests = const <String>[],
-  }) async {
-    _requireNonEmpty(ticker, 'ticker');
-    _requireNonEmpty(name, 'name');
-    _requireUInt8(precision, 'precision');
-    return RlnAssetUda.fromMap(
-      _asRlnMap(
-        await _client.issueAssetUda(
-          nodeId: _requireNode(),
-          ticker: ticker,
-          name: name,
-          details: details,
-          precision: precision,
-          mediaFileDigest: mediaFileDigest,
-          attachmentsFileDigests: attachmentsFileDigests,
         ),
       ),
     );
@@ -609,7 +827,10 @@ class UtexoWallet {
   Future<RlnDecodedRgbInvoice> decodeRgbInvoice(String invoice) async {
     _requireNonEmpty(invoice, 'invoice');
     return RlnDecodedRgbInvoice.fromMap(
-      await _client.decodeRgbInvoice(nodeId: _requireNode(), invoice: invoice),
+      await _client.decodeRgbInvoice(
+        nodeId: _requireUnlockedNode(),
+        invoice: invoice,
+      ),
     );
   }
 
@@ -656,7 +877,7 @@ class UtexoWallet {
 
     return RlnSendResult.fromMap(
       await _client.sendRgb(
-        nodeId: _requireNode(),
+        nodeId: _requireUnlockedNode(),
         donation: request.donation,
         feeRate: request.feeRate,
         minConfirmations: request.minConfirmations,
@@ -669,14 +890,6 @@ class UtexoWallet {
         witnessBlinding: request.witnessBlinding,
       ),
     );
-  }
-
-  Future<String> inflateBegin(Object params) {
-    _unsupported('inflateBegin');
-  }
-
-  Future<RlnMap> inflateEnd(Object params) {
-    _unsupported('inflateEnd');
   }
 
   Future<RlnInflateResult> inflate(InflateAssetIfaRequest request) async {
@@ -695,9 +908,10 @@ class UtexoWallet {
     }
     _requireFeeRate(request.feeRate, 'feeRate');
     _requireUInt8(request.minConfirmations, 'minConfirmations');
+    _ensureRgbAssetIssuanceSupported('inflate');
     return RlnInflateResult.fromMap(
       await _client.inflate(
-        nodeId: _requireNode(),
+        nodeId: _requireUnlockedNode(),
         assetId: request.assetId,
         inflationAmounts: request.inflationAmounts,
         feeRate: request.feeRate,
@@ -709,14 +923,14 @@ class UtexoWallet {
   Future<String> sendBtc({
     required int amount,
     required String address,
-    double feeRate = 1.5,
+    double feeRate = 1,
     bool skipSync = false,
   }) async {
     _requirePositive(amount, 'amount');
     _requireNonEmpty(address, 'address');
     _requireFeeRate(feeRate, 'feeRate');
     final response = await _client.sendBtc(
-      nodeId: _requireNode(),
+      nodeId: _requireUnlockedNode(),
       amount: amount,
       address: address,
       feeRate: feeRate,
@@ -727,7 +941,7 @@ class UtexoWallet {
 
   Future<List<RlnTransaction>> listTransactions({bool skipSync = false}) async {
     final transactions = await _client.listTransactions(
-      nodeId: _requireNode(),
+      nodeId: _requireUnlockedNode(),
       skipSync: skipSync,
     );
     return transactions.map(RlnTransaction.fromMap).toList(growable: false);
@@ -747,7 +961,7 @@ class UtexoWallet {
   }) async {
     _requireNonEmpty(txid, 'txid');
     final transactions = await _client.listTransactionsByTxid(
-      nodeId: _requireNode(),
+      nodeId: _requireUnlockedNode(),
       txid: txid,
       skipSync: skipSync,
     );
@@ -757,7 +971,7 @@ class UtexoWallet {
   Future<List<RlnTransfer>> listTransfers({String? assetId}) async {
     if (assetId != null) {
       final transfers = await _client.listTransfers(
-        nodeId: _requireNode(),
+        nodeId: _requireUnlockedNode(),
         assetId: assetId,
       );
       return transfers.map(RlnTransfer.fromMap).toList(growable: false);
@@ -765,11 +979,11 @@ class UtexoWallet {
 
     try {
       final transfers = await _client.listTransfers(
-        nodeId: _requireNode(),
+        nodeId: _requireUnlockedNode(),
         assetId: '',
       );
       return transfers.map(RlnTransfer.fromMap).toList(growable: false);
-    } on PlatformException catch (error) {
+    } on RgbSdkException catch (error) {
       if (!_isInvalidListTransfersRequest(error)) rethrow;
       return _listTransfersForKnownAssets();
     }
@@ -784,7 +998,7 @@ class UtexoWallet {
   Future<List<RlnTransfer>> listTransfersByTxid(String txid) async {
     _requireNonEmpty(txid, 'txid');
     final transfers = await _client.listTransfersByTxid(
-      nodeId: _requireNode(),
+      nodeId: _requireUnlockedNode(),
       txid: txid,
     );
     return transfers.map(RlnTransfer.fromMap).toList(growable: false);
@@ -797,7 +1011,7 @@ class UtexoWallet {
   }) async {
     _requireNonNegativeOptional(batchTransferIdx, 'batchTransferIdx');
     final response = await _client.failTransfers(
-      nodeId: _requireNode(),
+      nodeId: _requireUnlockedNode(),
       batchTransferIdx: batchTransferIdx,
       noAssetOnly: noAssetOnly,
       skipSync: skipSync,
@@ -806,59 +1020,55 @@ class UtexoWallet {
   }
 
   Future<void> refreshWallet({bool skipSync = false}) {
-    return _client.refreshTransfers(nodeId: _requireNode(), skipSync: skipSync);
-  }
-
-  Future<void> syncWallet() => _client.sync(_requireNode());
-
-  Future<double> estimateFeeRate(int blocks) async {
-    _requireUInt16(blocks, 'blocks');
-    final response = RlnFeeRate.fromMap(
-      await _client.estimateFee(nodeId: _requireNode(), blocks: blocks),
+    return _client.refreshTransfers(
+      nodeId: _requireUnlockedNode(),
+      skipSync: skipSync,
     );
-    return response.feeRate;
   }
 
-  Future<RlnFeeRate> rlnEstimateFeeRate(int blocks) async {
+  Future<void> syncWallet() => _client.sync(_requireUnlockedNode());
+
+  Future<RlnFeeRate> estimateFeeRate(int blocks) async {
     _requireUInt16(blocks, 'blocks');
     return RlnFeeRate.fromMap(
-      await _client.estimateFee(nodeId: _requireNode(), blocks: blocks),
+      await _client.estimateFee(nodeId: _requireUnlockedNode(), blocks: blocks),
     );
   }
+
+  Future<double> estimateFeeRateValue(int blocks) async {
+    return (await estimateFeeRate(blocks)).feeRate;
+  }
+
+  Future<RlnFeeRate> rlnEstimateFeeRate(int blocks) => estimateFeeRate(blocks);
 
   Future<RlnIndexerCheck> checkIndexerUrl(String url) async {
     _requireNonEmpty(url, 'url');
     return RlnIndexerCheck.fromMap(
-      await _client.checkIndexerUrl(nodeId: _requireNode(), indexerUrl: url),
+      await _client.checkIndexerUrl(
+        nodeId: _requireUnlockedNode(),
+        indexerUrl: url,
+      ),
     );
   }
 
   Future<void> checkProxyEndpoint(String endpoint) {
     _requireNonEmpty(endpoint, 'endpoint');
     return _client.checkProxyEndpoint(
-      nodeId: _requireNode(),
+      nodeId: _requireUnlockedNode(),
       proxyEndpoint: endpoint,
     );
-  }
-
-  Future<RlnMap> estimateFee(String psbtBase64) {
-    _unsupported('estimateFee');
   }
 
   Future<WalletBackupResponse> createBackup({
     required String backupPath,
     required String password,
-  }) async {
+  }) {
     _requireNonEmpty(backupPath, 'backupPath');
     _requireNonEmpty(password, 'password');
-    await _client.backup(
-      nodeId: _requireNode(),
-      backupPath: backupPath,
-      password: password,
-    );
-    return WalletBackupResponse(
-      message: 'Backup created successfully',
-      backupPath: backupPath,
+    throw const UnsupportedWalletFeatureException(
+      'createBackup is native-blocked by the current RLN/RN contract and is '
+      'not a recovery-ready API.',
+      feature: 'createBackup',
     );
   }
 
@@ -870,7 +1080,6 @@ class UtexoWallet {
     int? expirySec,
     String? assetId,
     int? assetAmount,
-    String? paymentHash,
     int? minFinalCltvExpiryDelta,
     String? descriptionHash,
   }) async {
@@ -886,7 +1095,7 @@ class UtexoWallet {
       expirySec: resolvedExpirySec,
       assetId: resolvedAssetId,
       assetAmount: resolvedAssetAmount,
-      paymentHash: paymentHash,
+      paymentHash: null,
       minFinalCltvExpiryDelta: minFinalCltvExpiryDelta,
       descriptionHash: descriptionHash,
     );
@@ -908,7 +1117,7 @@ class UtexoWallet {
     _requireUInt16Optional(minFinalCltvExpiryDelta, 'minFinalCltvExpiryDelta');
     return RlnLnInvoice.fromMap(
       await _client.lnInvoice(
-        nodeId: _requireNode(),
+        nodeId: _requireUnlockedNode(),
         amtMsat: amtMsat,
         expirySec: expirySec,
         assetId: assetId,
@@ -941,6 +1150,12 @@ class UtexoWallet {
     return HodlInvoice(
       bolt11: invoice.invoice,
       paymentHash: params.paymentHash,
+      amtMsat: params.amtMsat,
+      expirySec: params.expirySec,
+      assetId: params.assetId,
+      assetAmount: params.assetAmount,
+      minFinalCltvExpiryDelta: params.minFinalCltvExpiryDelta,
+      descriptionHash: params.descriptionHash,
     );
   }
 
@@ -951,7 +1166,7 @@ class UtexoWallet {
     _requireNonEmpty(paymentHash, 'paymentHash');
     _requireNonEmpty(preimage, 'preimage');
     final response = await _client.claimHodlInvoice(
-      nodeId: _requireNode(),
+      nodeId: _requireUnlockedNode(),
       paymentHash: paymentHash,
       paymentPreimage: preimage,
     );
@@ -961,7 +1176,7 @@ class UtexoWallet {
   Future<HodlInvoiceResult> cancelHodlInvoice(String paymentHash) async {
     _requireNonEmpty(paymentHash, 'paymentHash');
     await _client.cancelHodlInvoice(
-      nodeId: _requireNode(),
+      nodeId: _requireUnlockedNode(),
       paymentHash: paymentHash,
     );
     return const HodlInvoiceResult(changed: true);
@@ -974,7 +1189,10 @@ class UtexoWallet {
   Future<ApayNewResponse> apayNew(String hostNodeId) async {
     _requireNonEmpty(hostNodeId, 'hostNodeId');
     return ApayNewResponse.fromMap(
-      await _client.apayNew(nodeId: _requireNode(), hostNodeId: hostNodeId),
+      await _client.apayNew(
+        nodeId: _requireUnlockedNode(),
+        hostNodeId: hostNodeId,
+      ),
     );
   }
 
@@ -988,7 +1206,7 @@ class UtexoWallet {
     _requireNonEmpty(domain, 'domain');
     return ApayNewResponse.fromMap(
       await _client.apayNewWithAddress(
-        nodeId: _requireNode(),
+        nodeId: _requireUnlockedNode(),
         hostNodeId: hostNodeId,
         username: username,
         domain: domain,
@@ -1036,7 +1254,10 @@ class UtexoWallet {
   Future<RlnDecodedLnInvoice> decodeLnInvoice(String invoice) async {
     _requireNonEmpty(invoice, 'invoice');
     return RlnDecodedLnInvoice.fromMap(
-      await _client.decodeLnInvoice(nodeId: _requireNode(), invoice: invoice),
+      await _client.decodeLnInvoice(
+        nodeId: _requireUnlockedNode(),
+        invoice: invoice,
+      ),
     );
   }
 
@@ -1081,7 +1302,7 @@ class UtexoWallet {
     _requireNonNegativeOptional(assetAmount, 'assetAmount');
     return RlnPaymentResult.fromMap(
       await _client.sendPayment(
-        nodeId: _requireNode(),
+        nodeId: _requireUnlockedNode(),
         invoice: invoice,
         amtMsat: amtMsat,
         assetId: assetId,
@@ -1090,42 +1311,46 @@ class UtexoWallet {
     );
   }
 
-  Future<String> payLightningInvoiceBegin(Object params) {
-    _unsupported('payLightningInvoiceBegin');
+  Future<RlnInvoiceStatusValue> getLightningReceiveStatus(String id) async {
+    _requireNonEmpty(id, 'id');
+    return normalizeInvoiceStatus((await invoiceStatus(id)).status);
   }
 
-  Future<RlnMap> payLightningInvoiceEnd(Object params) {
-    _unsupported('payLightningInvoiceEnd');
+  Future<RlnPaymentStatusValue?> getLightningSendStatus(String id) async {
+    _requireNonEmpty(id, 'id');
+    final payment = await getPayment(id);
+    return tryNormalizePaymentStatus(payment.status);
   }
 
-  Future<int> getLightningSendFeeEstimate(Object params) {
-    _unsupported('getLightningSendFeeEstimate');
-  }
-
+  /// Deprecated compatibility helper that folds Lightning invoice states into
+  /// the older RGB transfer-status vocabulary.
   Future<CoreTransferStatus?> getLightningReceiveRequest(String invoice) async {
-    return _coreStatusFromInvoiceStatus(await invoiceStatus(invoice));
+    return _coreStatusFromNativeStatus(
+      await getLightningReceiveStatus(invoice),
+    );
   }
 
-  /// Returns a core transfer status for a Lightning payment hash.
-  ///
-  /// Unknown native status strings return `null`, matching the nullable RN
-  /// helper shape while preserving access to raw status through [getPayment].
+  /// Deprecated compatibility helper that folds Lightning payment states into
+  /// the older RGB transfer-status vocabulary.
   Future<CoreTransferStatus?> getLightningSendRequest(
     String paymentHash,
   ) async {
-    final payment = await getPayment(paymentHash);
-    return _coreStatusFromPaymentStatus(payment.status);
+    final status = await getLightningSendStatus(paymentHash);
+    return status == null ? null : _coreStatusFromNativeStatus(status);
   }
 
   Future<RlnInvoiceStatus> invoiceStatus(String invoice) async {
     _requireNonEmpty(invoice, 'invoice');
     return RlnInvoiceStatus.fromMap(
-      await _client.invoiceStatus(nodeId: _requireNode(), invoice: invoice),
+      await _client.invoiceStatus(
+        nodeId: _requireUnlockedNode(),
+        invoice: invoice,
+      ),
     );
   }
 
   Future<List<RlnPayment>> listPayments() async {
-    final payments = await _client.listPayments(_requireNode());
+    final payments = await _client.listPayments(_requireUnlockedNode());
     return payments.map(RlnPayment.fromMap).toList(growable: false);
   }
 
@@ -1136,7 +1361,7 @@ class UtexoWallet {
           .map(
             (payment) => LightningPaymentSummary(
               txid: payment.paymentHash,
-              status: payment.status,
+              status: payment.status ?? RlnPaymentStatuses.pending,
             ),
           )
           .toList(growable: false),
@@ -1147,23 +1372,11 @@ class UtexoWallet {
     RgbInvoiceRequest request,
   ) async {
     final invoice = await _rgbInvoice(request, witness: true);
-    return OnchainReceiveResponse(invoice: invoice.invoice);
+    return OnchainReceiveResponse.fromRln(invoice);
   }
 
   Future<OnchainSendResponse> onchainSend(RgbSendRequest request) async {
     return OnchainSendResponse.fromRln(await send(request));
-  }
-
-  Future<String> onchainSendBegin(Object params) {
-    _unsupported('onchainSendBegin');
-  }
-
-  Future<RlnMap> onchainSendEnd(Object params) {
-    _unsupported('onchainSendEnd');
-  }
-
-  Future<RlnMap> getOnchainSendStatus(String invoice) {
-    _unsupported('getOnchainSendStatus');
   }
 
   Future<List<RlnTransfer>> listOnchainTransfers({String? assetId}) {
@@ -1173,7 +1386,7 @@ class UtexoWallet {
   Future<void> connectPeer(String peerPubkeyAndAddr) {
     _requireNonEmpty(peerPubkeyAndAddr, 'peerPubkeyAndAddr');
     return _client.connectPeer(
-      nodeId: _requireNode(),
+      nodeId: _requireUnlockedNode(),
       peerPubkeyAndAddr: peerPubkeyAndAddr,
     );
   }
@@ -1181,19 +1394,25 @@ class UtexoWallet {
   Future<void> disconnectPeer(String peerPubkey) {
     _requireNonEmpty(peerPubkey, 'peerPubkey');
     return _client.disconnectPeer(
-      nodeId: _requireNode(),
+      nodeId: _requireUnlockedNode(),
       peerPubkey: peerPubkey,
     );
   }
 
   Future<List<RlnPeer>> listPeers() async {
-    final peers = await _client.listPeers(_requireNode());
+    final peers = await _client.listPeers(_requireUnlockedNode());
     return peers.map(RlnPeer.fromMap).toList(growable: false);
   }
 
   Future<List<RlnChannel>> listChannels() async {
-    final channels = await _client.listChannels(_requireNode());
+    final channels = await _client.listChannels(_requireUnlockedNode());
     return channels.map(RlnChannel.fromMap).toList(growable: false);
+  }
+
+  Future<List<LightningChannel>> listLightningChannels() async {
+    return (await listChannels())
+        .map((channel) => channel.toLightningChannel())
+        .toList(growable: false);
   }
 
   Future<RlnOpenChannelResult> openChannel({
@@ -1201,7 +1420,7 @@ class UtexoWallet {
     required int capacitySat,
     int pushMsat = 0,
     bool publicChannel = false,
-    bool withAnchors = false,
+    bool withAnchors = true,
     int? feeBaseMsat,
     int? feeProportionalMillionths,
     String? temporaryChannelId,
@@ -1222,7 +1441,7 @@ class UtexoWallet {
     _requireNonNegativeOptional(pushAssetAmount, 'pushAssetAmount');
     return RlnOpenChannelResult.fromMap(
       await _client.openChannel(
-        nodeId: _requireNode(),
+        nodeId: _requireUnlockedNode(),
         peerPubkeyAndOptAddr: peerPubkeyAndOptAddr,
         capacitySat: capacitySat,
         pushMsat: pushMsat,
@@ -1247,7 +1466,7 @@ class UtexoWallet {
     _requireNonEmpty(channelId, 'channelId');
     _requireNonEmpty(peerPubkey, 'peerPubkey');
     return _client.closeChannel(
-      nodeId: _requireNode(),
+      nodeId: _requireUnlockedNode(),
       channelId: channelId,
       peerPubkey: peerPubkey,
       force: force,
@@ -1257,7 +1476,7 @@ class UtexoWallet {
   Future<String> getChannelId(String temporaryChannelId) {
     _requireNonEmpty(temporaryChannelId, 'temporaryChannelId');
     return _client.getChannelId(
-      nodeId: _requireNode(),
+      nodeId: _requireUnlockedNode(),
       temporaryChannelId: temporaryChannelId,
     );
   }
@@ -1273,7 +1492,7 @@ class UtexoWallet {
     _requireNonNegativeOptional(assetAmount, 'assetAmount');
     return RlnPaymentResult.fromMap(
       await _client.keysend(
-        nodeId: _requireNode(),
+        nodeId: _requireUnlockedNode(),
         destPubkey: destPubkey,
         amtMsat: amtMsat,
         assetId: assetId,
@@ -1286,48 +1505,16 @@ class UtexoWallet {
     _requireNonEmpty(paymentHash, 'paymentHash');
     return RlnPayment.fromMap(
       await _client.getPayment(
-        nodeId: _requireNode(),
+        nodeId: _requireUnlockedNode(),
         paymentHash: paymentHash,
       ),
     );
   }
 
-  Future<void> goOnline(String indexerUrl, {bool? skipConsistencyCheck}) {
-    _unsupported('goOnline; use unlock() with indexerUrl instead.');
-  }
-
-  Future<String> createUtxosBegin(Object params) {
-    _unsupported('createUtxosBegin');
-  }
-
-  Future<int> createUtxosEnd(Object params) {
-    _unsupported('createUtxosEnd');
-  }
-
-  Future<String> sendBegin(Object params) {
-    _unsupported('sendBegin');
-  }
-
-  Future<RlnMap> sendEnd(Object params) {
-    _unsupported('sendEnd');
-  }
-
-  Future<String> sendBtcBegin(Object params) {
-    _unsupported('sendBtcBegin');
-  }
-
-  Future<String> sendBtcEnd(Object params) {
-    _unsupported('sendBtcEnd');
-  }
-
-  Future<String> signPsbt(String psbt, {String? mnemonic}) {
-    _unsupported('signPsbt');
-  }
-
   Future<String> signMessage(String message) async {
     _requireNonEmpty(message, 'message');
     final response = await _client.signMessage(
-      nodeId: _requireNode(),
+      nodeId: _requireUnlockedNode(),
       message: message,
     );
     return RlnSignMessageResult.fromMap(response).signedMessage;
@@ -1337,48 +1524,35 @@ class UtexoWallet {
     _requireNonEmpty(message, 'message');
     _requireNonEmpty(signature, 'signature');
     final response = await _client.verifyMessage(
-      nodeId: _requireNode(),
+      nodeId: _requireUnlockedNode(),
       message: message,
       signature: signature,
     );
     return RlnVerifyMessageResult.fromMap(response).valid;
   }
 
-  Future<void> configureVssBackup(Object config) {
-    _unsupported('configureVssBackup');
-  }
-
-  Future<void> disableVssAutoBackup() {
-    _unsupported('disableVssAutoBackup');
-  }
-
-  Future<int> vssBackup(Object config) {
-    _unsupported('vssBackup');
+  Future<void> vssClearFence(String password) {
+    _requireNonEmpty(password, 'password');
+    return _client.vssClearFence(
+      nodeId: _requireUnlockedNode(),
+      password: password,
+    );
   }
 
   Future<int> backupNow() {
-    return _client.vssBackup(_requireNode());
-  }
-
-  Future<RlnMap> vssBackupInfo(Object config) {
-    _unsupported('vssBackupInfo');
-  }
-
-  Future<void> vssClearFence(String password) {
-    _requireNonEmpty(password, 'password');
-    return _client.vssClearFence(nodeId: _requireNode(), password: password);
-  }
-
-  Never _unsupported(String feature) {
-    throw UnsupportedWalletFeatureException(
-      '$feature is not available in rgb_sdk_flutter.',
-      feature: feature,
-    );
+    return _client.vssBackup(_requireUnlockedNode());
   }
 
   RlnSigner _ensureSigner({String? password, String? mnemonic}) {
     final signer = _signer;
-    if (signer != null) return signer;
+    if (signer != null) {
+      if (signer is PasswordRlnSigner &&
+          password != null &&
+          password.isNotEmpty) {
+        signer.provideSecrets(password: password, mnemonic: mnemonic);
+      }
+      return signer;
+    }
     if (password == null || password.isEmpty) {
       throw const WalletValidationException(
         'password is required when no RlnSigner is configured.',
@@ -1453,31 +1627,42 @@ class UtexoWallet {
   Future<List<RlnTransfer>> _listTransfersForKnownAssets() async {
     final assets = await listAssets();
     final transfers = <RlnTransfer>[];
+    final seen = <String>{};
     for (final id in assets.assetIds) {
       final assetTransfers = await _client.listTransfers(
-        nodeId: _requireNode(),
+        nodeId: _requireUnlockedNode(),
         assetId: id,
       );
-      transfers.addAll(assetTransfers.map(RlnTransfer.fromMap));
+      for (final rawTransfer in assetTransfers) {
+        final transfer = RlnTransfer.fromMap(rawTransfer);
+        if (seen.add(_transferDeduplicationKey(transfer))) {
+          transfers.add(transfer);
+        }
+      }
     }
     return transfers;
   }
 
-  bool _isInvalidListTransfersRequest(PlatformException error) {
-    final details = error.details;
-    final operation = details is Map ? details['operation'] : null;
-    final message = error.message ?? '';
-    return operation == 'rlnListTransfers' &&
-        (error.code == 'InvalidRequest' ||
-            (error.code == 'RlnError' && message.contains('InvalidRequest')));
+  String _transferDeduplicationKey(RlnTransfer transfer) {
+    final batchTransferIdx = transfer.batchTransferIdx;
+    if (batchTransferIdx != null) return 'batch:$batchTransferIdx';
+    return [
+      transfer.idx,
+      transfer.txid ?? '',
+      transfer.recipientId ?? '',
+      transfer.kind,
+      transfer.status,
+    ].join('|');
   }
 
-  CoreTransferStatus? _coreStatusFromInvoiceStatus(RlnInvoiceStatus status) {
-    return _coreStatusFromNativeStatus(status.status);
-  }
-
-  CoreTransferStatus? _coreStatusFromPaymentStatus(String status) {
-    return _coreStatusFromNativeStatus(status);
+  bool _isInvalidListTransfersRequest(RgbSdkException error) {
+    final cause = error.cause;
+    if (cause is! NativeBridgeFailure) return false;
+    final message = cause.message;
+    return cause.operation == 'rlnListTransfers' &&
+        (cause.nativeCode == 'InvalidRequest' ||
+            (cause.nativeCode == 'RlnError' &&
+                message.contains('InvalidRequest')));
   }
 
   CoreTransferStatus? _coreStatusFromNativeStatus(String status) {
@@ -1507,7 +1692,7 @@ class UtexoWallet {
     _requireUInt8(request.minConfirmations, 'minConfirmations');
     return RlnInvoice.fromMap(
       await _client.rgbInvoice(
-        nodeId: _requireNode(),
+        nodeId: _requireUnlockedNode(),
         assetId: request.assetId,
         assignmentAmount: request.amount,
         durationSeconds: request.durationSeconds,
@@ -1535,9 +1720,19 @@ class UtexoWallet {
     return id;
   }
 
+  int _requireUnlockedNode() {
+    final id = _requireNode();
+    if (!isUnlocked) {
+      throw const WalletException(
+        'Wallet is not unlocked. Call unlock() before wallet operations.',
+      );
+    }
+    return id;
+  }
+
   void _ensureInitialized() {
     _ensureActive();
-    if (!_initialized || _nodeId == null) {
+    if (!isInitialized || _nodeId == null) {
       throw const WalletException(
         'Wallet is not initialized. Call init() first.',
       );
@@ -1546,12 +1741,26 @@ class UtexoWallet {
 
   void _ensureActive() {
     _ensureNotDisposed();
+    if (_lifecycleState == _WalletLifecycleState.shutDown) {
+      throw const WalletException(
+        'Wallet is shut down. Call reinit() before regular use.',
+      );
+    }
+    if (_lifecycleState == _WalletLifecycleState.destroying) {
+      throw const WalletException('Wallet is being destroyed.');
+    }
   }
 
   void _ensureNotDisposed() {
-    if (_disposed) {
+    if (_lifecycleState == _WalletLifecycleState.disposed) {
       throw const WalletException('Wallet is disposed.');
     }
+  }
+
+  Future<T> _withLifecycle<T>(Future<T> Function() operation) {
+    final next = _lifecycleQueue.then((_) => operation());
+    _lifecycleQueue = next.then<void>((_) {}, onError: (_) {});
+    return next;
   }
 
   void _requireNonEmpty(String value, String field) {
@@ -1639,12 +1848,33 @@ class UtexoWallet {
   }
 
   void _requireFeeRate(double value, String field) {
-    if (value.isNaN || value.isInfinite || value < 0) {
+    if (value.isNaN ||
+        value.isInfinite ||
+        value < 0 ||
+        value.truncateToDouble() != value) {
       throw WalletValidationException(
-        '$field must be a finite non-negative fee rate.',
+        '$field must be a finite non-negative integer fee rate.',
         field: field,
       );
     }
+  }
+
+  void _ensureRgbUtxoCreationSupported() {
+    if (capabilities.rgbUtxoCreation) return;
+    throw const UnsupportedWalletFeatureException(
+      'createUtxos is not supported with NativeExternalRlnSigner by the pinned '
+      'RLN native artifact.',
+      feature: 'nativeExternalSigner.rgbUtxoCreation',
+    );
+  }
+
+  void _ensureRgbAssetIssuanceSupported(String operation) {
+    if (capabilities.rgbAssetIssuance) return;
+    throw UnsupportedWalletFeatureException(
+      '$operation is not supported with NativeExternalRlnSigner by the pinned '
+      'RLN native artifact.',
+      feature: 'nativeExternalSigner.rgbAssetIssuance',
+    );
   }
 
   void _requireSupportedRgbSendSkipSync(bool skipSync) {
@@ -1660,17 +1890,30 @@ UtexoUnlockConfig resolveUnlockConfig(
   String network,
   UtexoUnlockConfig config,
 ) {
+  if (config.gossipRgsServerUrl != null &&
+      config.gossipRgsServerUrl!.trim().isNotEmpty) {
+    throw const UnsupportedWalletFeatureException(
+      'gossipRgsServerUrl is not supported by the pinned RLN native signer '
+      'unlock APIs and would be ignored by native platforms.',
+      feature: 'unlock.gossipRgsServerUrl',
+    );
+  }
   final defaults = getNetworkDefaults(network);
+  final indexerUrl = _blankToNull(config.indexerUrl) ?? defaults?.indexerUrl;
+  final proxyEndpoint =
+      _blankToNull(config.proxyEndpoint) ?? defaults?.proxyEndpoint;
+  final bitcoindRpcHost = _blankToNull(config.bitcoindRpcHost);
+  final bitcoindRpcUsername = _blankToNull(config.bitcoindRpcUsername);
   final resolved = UtexoUnlockConfig(
-    bitcoindRpcUsername: config.bitcoindRpcUsername,
+    bitcoindRpcUsername: bitcoindRpcUsername,
     bitcoindRpcPassword: config.bitcoindRpcPassword,
-    bitcoindRpcHost: config.bitcoindRpcHost,
+    bitcoindRpcHost: bitcoindRpcHost,
     bitcoindRpcPort: config.bitcoindRpcPort,
-    indexerUrl: config.indexerUrl ?? defaults?.indexerUrl,
-    proxyEndpoint: config.proxyEndpoint ?? defaults?.proxyEndpoint,
+    indexerUrl: indexerUrl,
+    proxyEndpoint: proxyEndpoint,
     announceAddresses: config.announceAddresses,
     announceAlias: config.announceAlias,
-    gossipRgsServerUrl: config.gossipRgsServerUrl,
+    gossipRgsServerUrl: null,
   );
 
   final hasIndexer = resolved.indexerUrl != null;
@@ -1684,6 +1927,12 @@ UtexoUnlockConfig resolveUnlockConfig(
     );
   }
   return resolved;
+}
+
+String? _blankToNull(String? value) {
+  final trimmed = value?.trim();
+  if (trimmed == null || trimmed.isEmpty) return null;
+  return trimmed;
 }
 
 UtexoUnlockConfig resolveUnlockParams(

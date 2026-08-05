@@ -11,7 +11,7 @@ Pod::Spec.new do |s|
   ios_requirements = baseline.fetch('buildRequirements').fetch('ios')
 
   s.name             = 'rgb_sdk_flutter'
-  s.version          = '0.0.1'
+  s.version          = '0.1.0'
   s.summary          = 'Flutter SDK bridge for Bitcoin RGB Protocol and RGB Lightning Node.'
   s.description      = <<-DESC
 Flutter SDK bridge for Bitcoin RGB Protocol and RGB Lightning Node. This
@@ -28,8 +28,7 @@ Pinned RLN artifact: #{rln_version}.
     'RGBLightningNode.swift',
     'RGBLightningNodeFFI.h'
   ]
-  s.private_header_files = 'RGBLightningNodeFFI.h'
-  s.vendored_frameworks = 'RGBLightningNode.xcframework'
+  s.public_header_files = 'RGBLightningNodeFFI.h'
   s.preserve_paths = [
     'RGBLightningNode.xcframework',
     'RGBLightningNode.swift',
@@ -44,13 +43,20 @@ Pinned RLN artifact: #{rln_version}.
     'DEFINES_MODULE' => 'YES',
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
     'SWIFT_INCLUDE_PATHS' => '$(PODS_TARGET_SRCROOT)',
-    'HEADER_SEARCH_PATHS' => '$(PODS_TARGET_SRCROOT)'
+    'HEADER_SEARCH_PATHS' => '$(PODS_TARGET_SRCROOT)',
+    'HEADER_SEARCH_PATHS[sdk=iphoneos*]' => '$(PODS_TARGET_SRCROOT)/RGBLightningNode.xcframework/ios-arm64/Headers',
+    'HEADER_SEARCH_PATHS[sdk=iphonesimulator*]' => '$(PODS_TARGET_SRCROOT)/RGBLightningNode.xcframework/ios-arm64_x86_64-simulator/Headers',
+    'LIBRARY_SEARCH_PATHS[sdk=iphoneos*]' => '$(PODS_TARGET_SRCROOT)/RGBLightningNode.xcframework/ios-arm64',
+    'LIBRARY_SEARCH_PATHS[sdk=iphonesimulator*]' => '$(PODS_TARGET_SRCROOT)/RGBLightningNode.xcframework/ios-arm64_x86_64-simulator',
+    'OTHER_LDFLAGS' => '$(inherited) -l"rgb_lightning_node"'
+  }
+  s.user_target_xcconfig = {
+    'HEADER_SEARCH_PATHS[sdk=iphoneos*]' => '$(inherited) "$(PODS_ROOT)/../.symlinks/plugins/rgb_sdk_flutter/ios/RGBLightningNode.xcframework/ios-arm64/Headers"',
+    'HEADER_SEARCH_PATHS[sdk=iphonesimulator*]' => '$(inherited) "$(PODS_ROOT)/../.symlinks/plugins/rgb_sdk_flutter/ios/RGBLightningNode.xcframework/ios-arm64_x86_64-simulator/Headers"'
   }
   s.swift_version = ios_requirements.fetch('swiftLanguageVersion')
 
-  # If your plugin requires a privacy manifest, for example if it uses any
-  # required reason APIs, update the PrivacyInfo.xcprivacy file to describe your
-  # plugin's privacy impact, and then uncomment this line. For more information,
-  # see https://developer.apple.com/documentation/bundleresources/privacy_manifest_files
-  # s.resource_bundles = {'rgb_sdk_flutter_privacy' => ['Resources/PrivacyInfo.xcprivacy']}
+  s.resource_bundles = {
+    'rgb_sdk_flutter_privacy' => ['Resources/PrivacyInfo.xcprivacy']
+  }
 end

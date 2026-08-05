@@ -1,0 +1,275 @@
+{
+  "schemaVersion": 1,
+  "description": "Maps test-matrix evidence buckets to executable evidence identifiers and the claim level they prove. This catalog does not make a row release-ready by itself; the release tracker owns sufficiency.",
+  "buckets": {
+    "expected_failure": {
+      "claimLevel": "release_blocked",
+      "testIds": [
+        "test/utexo_wallet_test.dart::keeps local backup explicitly native-blocked"
+      ],
+      "platformReportFamilies": [
+        "native-ios-xctest",
+        "native-android-jvm"
+      ],
+      "assertions": [
+        "Unsupported or native-blocked behavior fails before native side effects."
+      ]
+    },
+    "funded_btc": {
+      "claimLevel": "funded_regtest",
+      "testIds": [
+        "tool/test_platform_funded.sh::funded-bitcoin-flutter-smoke"
+      ],
+      "platformReportFamilies": [
+        "ios-funded-regtest",
+        "android-funded-regtest"
+      ],
+      "assertions": [
+        "Bitcoin funding, send, receive, and balance flows work against the controlled regtest stack."
+      ]
+    },
+    "funded_channels": {
+      "claimLevel": "funded_regtest",
+      "testIds": [
+        "tool/test_external_signer_restart.sh::trusted-virtual-channel-restart",
+        "tool/test_platform_funded.sh::funded-channel-flutter-smoke"
+      ],
+      "platformReportFamilies": [
+        "ios-funded-regtest",
+        "android-funded-regtest",
+        "external-signer-restart"
+      ],
+      "assertions": [
+        "Channel creation, lookup, and payment state survive the covered funded regtest paths."
+      ]
+    },
+    "funded_lightning": {
+      "claimLevel": "funded_regtest",
+      "testIds": [
+        "tool/test_platform_funded.sh::funded-lightning-flutter-smoke"
+      ],
+      "platformReportFamilies": [
+        "ios-funded-regtest",
+        "android-funded-regtest"
+      ],
+      "assertions": [
+        "Lightning invoice/payment paths work in the covered funded regtest smoke."
+      ]
+    },
+    "funded_lightning_hodl": {
+      "claimLevel": "funded_regtest",
+      "testIds": [
+        "test/utexo_wallet_test.dart::maps HODL invoices, APay, LSP config, and VSS clear fence",
+        "tool/test_platform_funded.sh::funded-hodl-flutter-smoke"
+      ],
+      "platformReportFamilies": [
+        "ios-funded-regtest",
+        "android-funded-regtest"
+      ],
+      "assertions": [
+        "HODL invoice helpers and the covered funded settlement path preserve required metadata."
+      ]
+    },
+    "funded_rgb": {
+      "claimLevel": "funded_regtest",
+      "testIds": [
+        "tool/test_platform_funded.sh::funded-rgb-flutter-smoke"
+      ],
+      "platformReportFamilies": [
+        "ios-funded-regtest",
+        "android-funded-regtest"
+      ],
+      "assertions": [
+        "RGB issue, receive, send, and transfer listing behavior works for the covered funded regtest flow."
+      ]
+    },
+    "funded_rgb_asset_types": {
+      "claimLevel": "funded_regtest",
+      "testIds": [
+        "test/utexo_wallet_test.dart::maps RGB asset balance and issuance methods",
+        "tool/test_platform_funded.sh::funded-rgb-asset-type-smoke"
+      ],
+      "platformReportFamilies": [
+        "ios-funded-regtest",
+        "android-funded-regtest"
+      ],
+      "assertions": [
+        "Supported RGB asset type APIs preserve request and response shape for the covered paths."
+      ]
+    },
+    "lsp_apay": {
+      "claimLevel": "platform_smoke",
+      "testIds": [
+        "test/utexo_wallet_test.dart::maps LSP APay proof and address attestation wire fields",
+        "test/utexo_wallet_test.dart::validates APay address registration inputs"
+      ],
+      "platformReportFamilies": [
+        "lsp-service-local"
+      ],
+      "assertions": [
+        "APay/LSP request mapping, validation, and proof DTOs preserve current core field names."
+      ]
+    },
+    "lsp_http": {
+      "claimLevel": "unit_contract",
+      "testIds": [
+        "test/utexo_wallet_test.dart::LSP outbound liquidity wait throws on timeout"
+      ],
+      "platformReportFamilies": [
+        "lsp-service-local"
+      ],
+      "assertions": [
+        "LSP HTTP policy, timeouts, and retry boundaries fail in controlled ways."
+      ]
+    },
+    "native_blocked": {
+      "claimLevel": "release_blocked",
+      "testIds": [
+        "test/utexo_wallet_test.dart::keeps local backup explicitly native-blocked",
+        "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::backupFailsAsNativeBlockedWithoutLeakingArguments"
+      ],
+      "platformReportFamilies": [
+        "native-ios-xctest",
+        "native-android-jvm"
+      ],
+      "assertions": [
+        "Known unsupported native behavior fails explicitly and cannot be cited as implemented."
+      ]
+    },
+    "restart_persistence": {
+      "claimLevel": "funded_regtest",
+      "testIds": [
+        "tool/test_external_signer_restart.sh::trusted-virtual-channel-restart"
+      ],
+      "platformReportFamilies": [
+        "external-signer-restart"
+      ],
+      "assertions": [
+        "One installed app recovers the same external-signer node/channel state across process restart."
+      ]
+    },
+    "unfunded_lifecycle": {
+      "claimLevel": "platform_smoke",
+      "testIds": [
+        "test/utexo_wallet_test.dart::coalesces concurrent init and unlock lifecycle calls",
+        "test/utexo_wallet_test.dart::rejects regular operations after shutdown until reinit",
+        "tool/test_platform_unfunded.sh::unfunded-lifecycle-flutter-smoke"
+      ],
+      "platformReportFamilies": [
+        "ios-unfunded-regtest",
+        "android-unfunded-regtest"
+      ],
+      "assertions": [
+        "Lifecycle state transitions and basic node readiness work without funded operations."
+      ]
+    },
+    "unfunded_negative": {
+      "claimLevel": "platform_smoke",
+      "testIds": [
+        "test/utexo_wallet_test.dart::validates app-facing bounded numeric inputs",
+        "tool/test_platform_unfunded.sh::unfunded-negative-flutter-smoke"
+      ],
+      "platformReportFamilies": [
+        "ios-unfunded-regtest",
+        "android-unfunded-regtest"
+      ],
+      "assertions": [
+        "Invalid app-facing inputs fail before native mutation for the covered fields."
+      ]
+    },
+    "unfunded_read": {
+      "claimLevel": "platform_smoke",
+      "testIds": [
+        "test/utexo_wallet_test.dart::initializes, unlocks, and delegates address lookup",
+        "tool/test_platform_unfunded.sh::unfunded-read-flutter-smoke"
+      ],
+      "platformReportFamilies": [
+        "ios-unfunded-regtest",
+        "android-unfunded-regtest"
+      ],
+      "assertions": [
+        "Read-only node, balance, invoice, peer, and list paths work for the covered unfunded smoke."
+      ]
+    },
+    "unit_alias": {
+      "claimLevel": "unit_contract",
+      "testIds": [
+        "test/rln_manager_contract_test.dart::RLNManager exports RN-style defaults and lifecycle helpers",
+        "test/utexo_wallet_test.dart::covers wallet lifecycle aliases"
+      ],
+      "platformReportFamilies": [],
+      "assertions": [
+        "Compatibility aliases delegate to the intended canonical implementation."
+      ]
+    },
+    "unit_contract": {
+      "claimLevel": "unit_contract",
+      "testIds": [
+        "test/rln_client_contract_test.dart::RlnClient bridge contract",
+        "test/utexo_wallet_test.dart::uses RN-shaped Lightning and on-chain wrapper contracts"
+      ],
+      "platformReportFamilies": [],
+      "assertions": [
+        "Dart request/response contracts, validation, and delegation match the documented shape."
+      ]
+    },
+    "unit_mapper": {
+      "claimLevel": "unit_contract",
+      "testIds": [
+        "test/utexo_wallet_test.dart::maps supported responses into core-style DTOs",
+        "test/utexo_wallet_test.dart::canonicalizes native enum and status casing at model boundary"
+      ],
+      "platformReportFamilies": [],
+      "assertions": [
+        "Wire-to-domain mappers preserve required fields, optionality, units, and enum/status normalization."
+      ]
+    },
+    "unit_status": {
+      "claimLevel": "unit_contract",
+      "testIds": [
+        "test/utexo_wallet_test.dart::maps Lightning helpers to canonical RN status shapes",
+        "test/utexo_wallet_test.dart::unknown Lightning send status maps to null"
+      ],
+      "platformReportFamilies": [],
+      "assertions": [
+        "Status helpers normalize current native/RN vocabularies and reject or quarantine unknown values."
+      ]
+    },
+    "unit_validation": {
+      "claimLevel": "unit_contract",
+      "testIds": [
+        "test/utexo_wallet_test.dart::validates app-facing bounded numeric inputs",
+        "test/crypto_bip340_vectors_test.dart::matches official BIP340 Schnorr vectors"
+      ],
+      "platformReportFamilies": [],
+      "assertions": [
+        "Pure Dart validators and crypto utilities satisfy their current vector suites."
+      ]
+    },
+    "unit_vectors": {
+      "claimLevel": "unit_contract",
+      "testIds": [
+        "test/crypto_bip340_vectors_test.dart::matches official BIP340 Schnorr vectors",
+        "test/utexo_wallet_test.dart::matches RN-core seed derivation and utility behavior"
+      ],
+      "platformReportFamilies": [],
+      "assertions": [
+        "Deterministic vectors match the pinned upstream/core expectations."
+      ]
+    },
+    "vss_recovery": {
+      "claimLevel": "platform_smoke",
+      "testIds": [
+        "test/utexo_wallet_test.dart::maps HODL invoices, APay, LSP config, and VSS clear fence",
+        "tool/test_platform_funded.sh::vss-recovery-smoke"
+      ],
+      "platformReportFamilies": [
+        "ios-funded-regtest",
+        "android-funded-regtest"
+      ],
+      "assertions": [
+        "VSS-facing facade calls preserve shape for current supported recovery-adjacent behavior without claiming local backup support."
+      ]
+    }
+  }
+}

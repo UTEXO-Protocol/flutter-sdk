@@ -7,9 +7,9 @@ support logs.
 ## Current Security Status
 
 This revision is **not approved for production or mainnet funds**. Confirmed
-release blockers include external-signer restart persistence, secret lifetime,
-bridge error redaction, transport policy, cryptographic assurance, native
-artifact provenance, and recovery limitations.
+release blockers include native lifecycle/threading evidence, complete secret
+lifetime minimization, cryptographic assurance, native artifact provenance,
+platform smoke evidence, and recovery limitations.
 
 The authoritative findings and exit criteria are in the
 [Release Readiness Tracker](doc/RELEASE_READINESS_TRACKER.md), especially the
@@ -32,6 +32,16 @@ Durable credential storage is the consuming application's responsibility. The
 SDK must not persist credentials implicitly and remains responsible for
 minimizing in-memory copies, bounding secret lifetime, and producing redacted
 diagnostics.
+
+Current LSP diagnostics redact common credential fields, bearer tokens, long
+hex secrets, and oversized response bodies before they are exposed through
+support-safe exceptions. Treat this as defense in depth, not permission to log
+secrets.
+
+## Transport
+
+LSP and LNURL HTTP must use HTTPS except for explicit local loopback development
+hosts. Non-loopback plain HTTP is rejected before the request is sent.
 
 ## Recovery Warning
 

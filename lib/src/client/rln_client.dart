@@ -1,3 +1,8 @@
+import 'dart:convert';
+
+import 'package:flutter/services.dart';
+
+import '../errors/native_bridge_error_mapper.dart';
 import '../errors/rgb_sdk_exception.dart';
 import '../pigeon/rln_api.g.dart';
 
@@ -10,6 +15,53 @@ class RlnClient {
   RlnClient({RlnHostApi? hostApi}) : _hostApi = hostApi ?? RlnHostApi();
 
   final RlnHostApi _hostApi;
+
+  Future<T> _native<T>(String operation, Future<T> Function() call) async {
+    try {
+      return await call();
+    } on PlatformException catch (error, stackTrace) {
+      Error.throwWithStackTrace(
+        mapNativeBridgeException(error, operation: operation),
+        stackTrace,
+      );
+    }
+  }
+
+  Future<Map<Object?, Object?>> _nativeMap(
+    String operation,
+    Future<RlnWireResponse> Function() call,
+  ) async {
+    return _decodeWireMap(await _native(operation, call));
+  }
+
+  Future<List<Map<Object?, Object?>>> _nativeMapList(
+    String operation,
+    Future<List<RlnWireResponse>> Function() call,
+  ) async {
+    return (await _native(
+      operation,
+      call,
+    )).map(_decodeWireMap).toList(growable: false);
+  }
+
+  Map<Object?, Object?> _decodeWireMap(RlnWireResponse response) {
+    final Object? decoded;
+    try {
+      decoded = jsonDecode(response.json);
+    } on FormatException catch (error) {
+      throw NativeProtocolException(
+        'Native response is not valid JSON.',
+        cause: error,
+      );
+    }
+    if (decoded is! Map) {
+      throw NativeProtocolException(
+        'Native response JSON root must be an object.',
+        field: 'RlnWireResponse.json',
+      );
+    }
+    return Map<Object?, Object?>.from(decoded);
+  }
 
   Future<int> createNode({
     required String storageDirPath,
@@ -26,20 +78,23 @@ class RlnClient {
     String? lspBearerToken,
     bool reuseAddresses = false,
   }) {
-    return _hostApi.rlnCreateNode(
-      storageDirPath,
-      daemonListeningPort,
-      ldkPeerListeningPort,
-      network,
-      maxMediaUploadSizeMb,
-      enableVirtualChannelsV0,
-      virtualPeerPubkeys,
-      vssUrl,
-      vssAllowHttp,
-      vssAllowEmptyRestore,
-      lspBaseUrl,
-      lspBearerToken,
-      reuseAddresses,
+    return _native(
+      'rlnCreateNode',
+      () => _hostApi.rlnCreateNode(
+        storageDirPath,
+        daemonListeningPort,
+        ldkPeerListeningPort,
+        network,
+        maxMediaUploadSizeMb,
+        enableVirtualChannelsV0,
+        virtualPeerPubkeys,
+        vssUrl,
+        vssAllowHttp,
+        vssAllowEmptyRestore,
+        lspBaseUrl,
+        lspBearerToken,
+        reuseAddresses,
+      ),
     );
   }
 
@@ -48,7 +103,10 @@ class RlnClient {
     required String password,
     String? mnemonic,
   }) {
-    return _hostApi.rlnInitNode(nodeId, password, mnemonic);
+    return _native(
+      'rlnInitNode',
+      () => _hostApi.rlnInitNode(nodeId, password, mnemonic),
+    );
   }
 
   Future<int> createNativeExternalSigner({
@@ -57,11 +115,14 @@ class RlnClient {
     required bool permissivePolicy,
     String? storageDirPath,
   }) {
-    return _hostApi.rlnCreateNativeExternalSigner(
-      seedHex,
-      network,
-      permissivePolicy,
-      storageDirPath,
+    return _native(
+      'rlnCreateNativeExternalSigner',
+      () => _hostApi.rlnCreateNativeExternalSigner(
+        seedHex,
+        network,
+        permissivePolicy,
+        storageDirPath,
+      ),
     );
   }
 
@@ -69,14 +130,20 @@ class RlnClient {
     required int nodeId,
     required int signerId,
   }) {
-    return _hostApi.rlnInitNodeWithNativeExternalSigner(nodeId, signerId);
+    return _native(
+      'rlnInitNodeWithNativeExternalSigner',
+      () => _hostApi.rlnInitNodeWithNativeExternalSigner(nodeId, signerId),
+    );
   }
 
   Future<void> attachNativeExternalSigner({
     required int nodeId,
     required int signerId,
   }) {
-    return _hostApi.rlnAttachNativeExternalSigner(nodeId, signerId);
+    return _native(
+      'rlnAttachNativeExternalSigner',
+      () => _hostApi.rlnAttachNativeExternalSigner(nodeId, signerId),
+    );
   }
 
   Future<void> unlockNodeWithNativeExternalSigner({
@@ -92,23 +159,29 @@ class RlnClient {
     String? announceAlias,
     String? gossipRgsServerUrl,
   }) {
-    return _hostApi.rlnUnlockNodeWithNativeExternalSigner(
-      nodeId,
-      signerId,
-      bitcoindRpcUsername,
-      bitcoindRpcPassword,
-      bitcoindRpcHost,
-      bitcoindRpcPort,
-      indexerUrl,
-      proxyEndpoint,
-      announceAddresses,
-      announceAlias,
-      gossipRgsServerUrl,
+    return _native(
+      'rlnUnlockNodeWithNativeExternalSigner',
+      () => _hostApi.rlnUnlockNodeWithNativeExternalSigner(
+        nodeId,
+        signerId,
+        bitcoindRpcUsername,
+        bitcoindRpcPassword,
+        bitcoindRpcHost,
+        bitcoindRpcPort,
+        indexerUrl,
+        proxyEndpoint,
+        announceAddresses,
+        announceAlias,
+        gossipRgsServerUrl,
+      ),
     );
   }
 
   Future<void> destroyNativeExternalSigner(int signerId) {
-    return _hostApi.rlnDestroyNativeExternalSigner(signerId);
+    return _native(
+      'rlnDestroyNativeExternalSigner',
+      () => _hostApi.rlnDestroyNativeExternalSigner(signerId),
+    );
   }
 
   Future<void> initNodeWithExternalSigner({
@@ -120,14 +193,17 @@ class RlnClient {
     required String protocolVersion,
     required int apiLevel,
   }) {
-    return _hostApi.rlnInitNodeWithExternalSigner(
-      nodeId,
-      nodePublicKeyHex,
-      accountXpubVanilla,
-      accountXpubColored,
-      masterFingerprint,
-      protocolVersion,
-      apiLevel,
+    return _native(
+      'rlnInitNodeWithExternalSigner',
+      () => _hostApi.rlnInitNodeWithExternalSigner(
+        nodeId,
+        nodePublicKeyHex,
+        accountXpubVanilla,
+        accountXpubColored,
+        masterFingerprint,
+        protocolVersion,
+        apiLevel,
+      ),
     );
   }
 
@@ -144,53 +220,65 @@ class RlnClient {
     String? announceAlias,
     String? gossipRgsServerUrl,
   }) {
-    return _hostApi.rlnUnlockNode(
-      nodeId,
-      password,
-      bitcoindRpcUsername,
-      bitcoindRpcPassword,
-      bitcoindRpcHost,
-      bitcoindRpcPort,
-      indexerUrl,
-      proxyEndpoint,
-      announceAddresses,
-      announceAlias,
-      gossipRgsServerUrl,
+    return _native(
+      'rlnUnlockNode',
+      () => _hostApi.rlnUnlockNode(
+        nodeId,
+        password,
+        bitcoindRpcUsername,
+        bitcoindRpcPassword,
+        bitcoindRpcHost,
+        bitcoindRpcPort,
+        indexerUrl,
+        proxyEndpoint,
+        announceAddresses,
+        announceAlias,
+        gossipRgsServerUrl,
+      ),
     );
   }
 
   Future<void> destroyNode(int nodeId) {
-    return _hostApi.rlnDestroyNode(nodeId);
+    return _native('rlnDestroyNode', () => _hostApi.rlnDestroyNode(nodeId));
   }
 
   Future<Map<Object?, Object?>> nodeInfo(int nodeId) {
-    return _hostApi.rlnNodeInfo(nodeId);
+    return _nativeMap('rlnNodeInfo', () => _hostApi.rlnNodeInfo(nodeId));
   }
 
   Future<Map<Object?, Object?>> networkInfo(int nodeId) {
-    return _hostApi.rlnNetworkInfo(nodeId);
+    return _nativeMap('rlnNetworkInfo', () => _hostApi.rlnNetworkInfo(nodeId));
   }
 
   Future<List<Map<Object?, Object?>>> listPeers(int nodeId) {
-    return _hostApi.rlnListPeers(nodeId);
+    return _nativeMapList('rlnListPeers', () => _hostApi.rlnListPeers(nodeId));
   }
 
   Future<void> connectPeer({
     required int nodeId,
     required String peerPubkeyAndAddr,
   }) {
-    return _hostApi.rlnConnectPeer(nodeId, peerPubkeyAndAddr);
+    return _native(
+      'rlnConnectPeer',
+      () => _hostApi.rlnConnectPeer(nodeId, peerPubkeyAndAddr),
+    );
   }
 
   Future<void> disconnectPeer({
     required int nodeId,
     required String peerPubkey,
   }) {
-    return _hostApi.rlnDisconnectPeer(nodeId, peerPubkey);
+    return _native(
+      'rlnDisconnectPeer',
+      () => _hostApi.rlnDisconnectPeer(nodeId, peerPubkey),
+    );
   }
 
   Future<List<Map<Object?, Object?>>> listChannels(int nodeId) {
-    return _hostApi.rlnListChannels(nodeId);
+    return _nativeMapList(
+      'rlnListChannels',
+      () => _hostApi.rlnListChannels(nodeId),
+    );
   }
 
   Future<Map<Object?, Object?>> openChannel({
@@ -208,20 +296,23 @@ class RlnClient {
     int? pushAssetAmount,
     String? virtualOpenMode,
   }) {
-    return _hostApi.rlnOpenChannel(
-      nodeId,
-      peerPubkeyAndOptAddr,
-      capacitySat,
-      pushMsat,
-      publicChannel,
-      withAnchors,
-      feeBaseMsat,
-      feeProportionalMillionths,
-      temporaryChannelId,
-      assetId,
-      assetAmount,
-      pushAssetAmount,
-      virtualOpenMode,
+    return _nativeMap(
+      'rlnOpenChannel',
+      () => _hostApi.rlnOpenChannel(
+        nodeId,
+        peerPubkeyAndOptAddr,
+        capacitySat,
+        pushMsat,
+        publicChannel,
+        withAnchors,
+        feeBaseMsat,
+        feeProportionalMillionths,
+        temporaryChannelId,
+        assetId,
+        assetAmount,
+        pushAssetAmount,
+        virtualOpenMode,
+      ),
     );
   }
 
@@ -231,26 +322,38 @@ class RlnClient {
     required String peerPubkey,
     required bool force,
   }) {
-    return _hostApi.rlnCloseChannel(nodeId, channelId, peerPubkey, force);
+    return _native(
+      'rlnCloseChannel',
+      () => _hostApi.rlnCloseChannel(nodeId, channelId, peerPubkey, force),
+    );
   }
 
   Future<List<Map<Object?, Object?>>> listPayments(int nodeId) {
-    return _hostApi.rlnListPayments(nodeId);
+    return _nativeMapList(
+      'rlnListPayments',
+      () => _hostApi.rlnListPayments(nodeId),
+    );
   }
 
   Future<Map<Object?, Object?>> address(int nodeId) {
-    return _hostApi.rlnAddress(nodeId);
+    return _nativeMap('rlnAddress', () => _hostApi.rlnAddress(nodeId));
   }
 
   Future<Map<Object?, Object?>> rotateAddress(int nodeId) {
-    return _hostApi.rlnRotateAddress(nodeId);
+    return _nativeMap(
+      'rlnRotateAddress',
+      () => _hostApi.rlnRotateAddress(nodeId),
+    );
   }
 
   Future<Map<Object?, Object?>> signMessage({
     required int nodeId,
     required String message,
   }) {
-    return _hostApi.rlnSignMessage(nodeId, message);
+    return _nativeMap(
+      'rlnSignMessage',
+      () => _hostApi.rlnSignMessage(nodeId, message),
+    );
   }
 
   Future<Map<Object?, Object?>> verifyMessage({
@@ -258,14 +361,20 @@ class RlnClient {
     required String message,
     required String signature,
   }) {
-    return _hostApi.rlnVerifyMessage(nodeId, message, signature);
+    return _nativeMap(
+      'rlnVerifyMessage',
+      () => _hostApi.rlnVerifyMessage(nodeId, message, signature),
+    );
   }
 
   Future<Map<Object?, Object?>> assetBalance({
     required int nodeId,
     required String assetId,
   }) {
-    return _hostApi.rlnAssetBalance(nodeId, assetId);
+    return _nativeMap(
+      'rlnAssetBalance',
+      () => _hostApi.rlnAssetBalance(nodeId, assetId),
+    );
   }
 
   Future<void> backup({
@@ -273,28 +382,40 @@ class RlnClient {
     required String backupPath,
     required String password,
   }) {
-    return _hostApi.rlnBackup(nodeId, backupPath, password);
+    return _native(
+      'rlnBackup',
+      () => _hostApi.rlnBackup(nodeId, backupPath, password),
+    );
   }
 
   Future<Map<Object?, Object?>> btcBalance({
     required int nodeId,
     required bool skipSync,
   }) {
-    return _hostApi.rlnBtcBalance(nodeId, skipSync);
+    return _nativeMap(
+      'rlnBtcBalance',
+      () => _hostApi.rlnBtcBalance(nodeId, skipSync),
+    );
   }
 
   Future<Map<Object?, Object?>> checkIndexerUrl({
     required int nodeId,
     required String indexerUrl,
   }) {
-    return _hostApi.rlnCheckIndexerUrl(nodeId, indexerUrl);
+    return _nativeMap(
+      'rlnCheckIndexerUrl',
+      () => _hostApi.rlnCheckIndexerUrl(nodeId, indexerUrl),
+    );
   }
 
   Future<void> checkProxyEndpoint({
     required int nodeId,
     required String proxyEndpoint,
   }) {
-    return _hostApi.rlnCheckProxyEndpoint(nodeId, proxyEndpoint);
+    return _native(
+      'rlnCheckProxyEndpoint',
+      () => _hostApi.rlnCheckProxyEndpoint(nodeId, proxyEndpoint),
+    );
   }
 
   Future<void> createUtxos({
@@ -305,28 +426,40 @@ class RlnClient {
     required double feeRate,
     required bool skipSync,
   }) {
-    return _hostApi.rlnCreateUtxos(nodeId, upTo, num, size, feeRate, skipSync);
+    return _native(
+      'rlnCreateUtxos',
+      () => _hostApi.rlnCreateUtxos(nodeId, upTo, num, size, feeRate, skipSync),
+    );
   }
 
   Future<Map<Object?, Object?>> decodeLnInvoice({
     required int nodeId,
     required String invoice,
   }) {
-    return _hostApi.rlnDecodeLnInvoice(nodeId, invoice);
+    return _nativeMap(
+      'rlnDecodeLnInvoice',
+      () => _hostApi.rlnDecodeLnInvoice(nodeId, invoice),
+    );
   }
 
   Future<Map<Object?, Object?>> decodeRgbInvoice({
     required int nodeId,
     required String invoice,
   }) {
-    return _hostApi.rlnDecodeRgbInvoice(nodeId, invoice);
+    return _nativeMap(
+      'rlnDecodeRgbInvoice',
+      () => _hostApi.rlnDecodeRgbInvoice(nodeId, invoice),
+    );
   }
 
   Future<Map<Object?, Object?>> estimateFee({
     required int nodeId,
     required int blocks,
   }) {
-    return _hostApi.rlnEstimateFee(nodeId, blocks);
+    return _nativeMap(
+      'rlnEstimateFee',
+      () => _hostApi.rlnEstimateFee(nodeId, blocks),
+    );
   }
 
   Future<Map<Object?, Object?>> failTransfers({
@@ -335,11 +468,14 @@ class RlnClient {
     required bool noAssetOnly,
     required bool skipSync,
   }) {
-    return _hostApi.rlnFailTransfers(
-      nodeId,
-      batchTransferIdx,
-      noAssetOnly,
-      skipSync,
+    return _nativeMap(
+      'rlnFailTransfers',
+      () => _hostApi.rlnFailTransfers(
+        nodeId,
+        batchTransferIdx,
+        noAssetOnly,
+        skipSync,
+      ),
     );
   }
 
@@ -347,21 +483,30 @@ class RlnClient {
     required int nodeId,
     required String temporaryChannelId,
   }) {
-    return _hostApi.rlnGetChannelId(nodeId, temporaryChannelId);
+    return _native(
+      'rlnGetChannelId',
+      () => _hostApi.rlnGetChannelId(nodeId, temporaryChannelId),
+    );
   }
 
   Future<Map<Object?, Object?>> getPayment({
     required int nodeId,
     required String paymentHash,
   }) {
-    return _hostApi.rlnGetPayment(nodeId, paymentHash);
+    return _nativeMap(
+      'rlnGetPayment',
+      () => _hostApi.rlnGetPayment(nodeId, paymentHash),
+    );
   }
 
   Future<Map<Object?, Object?>> invoiceStatus({
     required int nodeId,
     required String invoice,
   }) {
-    return _hostApi.rlnInvoiceStatus(nodeId, invoice);
+    return _nativeMap(
+      'rlnInvoiceStatus',
+      () => _hostApi.rlnInvoiceStatus(nodeId, invoice),
+    );
   }
 
   Future<Map<Object?, Object?>> keysend({
@@ -371,12 +516,15 @@ class RlnClient {
     String? assetId,
     int? assetAmount,
   }) {
-    return _hostApi.rlnKeysend(
-      nodeId,
-      destPubkey,
-      amtMsat,
-      assetId,
-      assetAmount,
+    return _nativeMap(
+      'rlnKeysend',
+      () => _hostApi.rlnKeysend(
+        nodeId,
+        destPubkey,
+        amtMsat,
+        assetId,
+        assetAmount,
+      ),
     );
   }
 
@@ -384,14 +532,20 @@ class RlnClient {
     required int nodeId,
     List<String> filterAssetSchemas = const <String>[],
   }) {
-    return _hostApi.rlnListAssets(nodeId, filterAssetSchemas);
+    return _nativeMap(
+      'rlnListAssets',
+      () => _hostApi.rlnListAssets(nodeId, filterAssetSchemas),
+    );
   }
 
   Future<List<Map<Object?, Object?>>> listTransactions({
     required int nodeId,
     required bool skipSync,
   }) {
-    return _hostApi.rlnListTransactions(nodeId, skipSync);
+    return _nativeMapList(
+      'rlnListTransactions',
+      () => _hostApi.rlnListTransactions(nodeId, skipSync),
+    );
   }
 
   Future<List<Map<Object?, Object?>>> listTransactionsByTxid({
@@ -399,28 +553,40 @@ class RlnClient {
     required String txid,
     required bool skipSync,
   }) {
-    return _hostApi.rlnListTransactionsByTxid(nodeId, txid, skipSync);
+    return _nativeMapList(
+      'rlnListTransactionsByTxid',
+      () => _hostApi.rlnListTransactionsByTxid(nodeId, txid, skipSync),
+    );
   }
 
   Future<List<Map<Object?, Object?>>> listTransfers({
     required int nodeId,
     required String assetId,
   }) {
-    return _hostApi.rlnListTransfers(nodeId, assetId);
+    return _nativeMapList(
+      'rlnListTransfers',
+      () => _hostApi.rlnListTransfers(nodeId, assetId),
+    );
   }
 
   Future<List<Map<Object?, Object?>>> listTransfersByTxid({
     required int nodeId,
     required String txid,
   }) {
-    return _hostApi.rlnListTransfersByTxid(nodeId, txid);
+    return _nativeMapList(
+      'rlnListTransfersByTxid',
+      () => _hostApi.rlnListTransfersByTxid(nodeId, txid),
+    );
   }
 
   Future<List<Map<Object?, Object?>>> listUnspents({
     required int nodeId,
     required bool skipSync,
   }) {
-    return _hostApi.rlnListUnspents(nodeId, skipSync);
+    return _nativeMapList(
+      'rlnListUnspents',
+      () => _hostApi.rlnListUnspents(nodeId, skipSync),
+    );
   }
 
   Future<Map<Object?, Object?>> lnInvoice({
@@ -433,15 +599,18 @@ class RlnClient {
     int? minFinalCltvExpiryDelta,
     String? descriptionHash,
   }) {
-    return _hostApi.rlnLnInvoice(
-      nodeId,
-      amtMsat,
-      expirySec,
-      assetId,
-      assetAmount,
-      paymentHash,
-      minFinalCltvExpiryDelta,
-      descriptionHash,
+    return _nativeMap(
+      'rlnLnInvoice',
+      () => _hostApi.rlnLnInvoice(
+        nodeId,
+        amtMsat,
+        expirySec,
+        assetId,
+        assetAmount,
+        paymentHash,
+        minFinalCltvExpiryDelta,
+        descriptionHash,
+      ),
     );
   }
 
@@ -450,21 +619,30 @@ class RlnClient {
     required String paymentHash,
     required String paymentPreimage,
   }) {
-    return _hostApi.rlnClaimHodlInvoice(nodeId, paymentHash, paymentPreimage);
+    return _nativeMap(
+      'rlnClaimHodlInvoice',
+      () => _hostApi.rlnClaimHodlInvoice(nodeId, paymentHash, paymentPreimage),
+    );
   }
 
   Future<void> cancelHodlInvoice({
     required int nodeId,
     required String paymentHash,
   }) {
-    return _hostApi.rlnCancelHodlInvoice(nodeId, paymentHash);
+    return _native(
+      'rlnCancelHodlInvoice',
+      () => _hostApi.rlnCancelHodlInvoice(nodeId, paymentHash),
+    );
   }
 
   Future<Map<Object?, Object?>> apayNew({
     required int nodeId,
     required String hostNodeId,
   }) {
-    return _hostApi.rlnApayNew(nodeId, hostNodeId);
+    return _nativeMap(
+      'rlnApayNew',
+      () => _hostApi.rlnApayNew(nodeId, hostNodeId),
+    );
   }
 
   Future<Map<Object?, Object?>> apayNewWithAddress({
@@ -473,11 +651,18 @@ class RlnClient {
     required String username,
     required String domain,
   }) {
-    return _hostApi.rlnApayNewWithAddress(nodeId, hostNodeId, username, domain);
+    return _nativeMap(
+      'rlnApayNewWithAddress',
+      () =>
+          _hostApi.rlnApayNewWithAddress(nodeId, hostNodeId, username, domain),
+    );
   }
 
   Future<void> refreshTransfers({required int nodeId, required bool skipSync}) {
-    return _hostApi.rlnRefreshTransfers(nodeId, skipSync);
+    return _native(
+      'rlnRefreshTransfers',
+      () => _hostApi.rlnRefreshTransfers(nodeId, skipSync),
+    );
   }
 
   Future<Map<Object?, Object?>> rgbInvoice({
@@ -489,14 +674,17 @@ class RlnClient {
     required bool witness,
     String? assignmentKind,
   }) {
-    return _hostApi.rlnRgbInvoice(
-      nodeId,
-      assetId,
-      assignmentAmount,
-      durationSeconds,
-      minConfirmations,
-      witness,
-      assignmentKind,
+    return _nativeMap(
+      'rlnRgbInvoice',
+      () => _hostApi.rlnRgbInvoice(
+        nodeId,
+        assetId,
+        assignmentAmount,
+        durationSeconds,
+        minConfirmations,
+        witness,
+        assignmentKind,
+      ),
     );
   }
 
@@ -507,7 +695,10 @@ class RlnClient {
     required double feeRate,
     required bool skipSync,
   }) {
-    return _hostApi.rlnSendBtc(nodeId, amount, address, feeRate, skipSync);
+    return _nativeMap(
+      'rlnSendBtc',
+      () => _hostApi.rlnSendBtc(nodeId, amount, address, feeRate, skipSync),
+    );
   }
 
   Future<Map<Object?, Object?>> sendPayment({
@@ -517,12 +708,15 @@ class RlnClient {
     String? assetId,
     int? assetAmount,
   }) {
-    return _hostApi.rlnSendPayment(
-      nodeId,
-      invoice,
-      amtMsat,
-      assetId,
-      assetAmount,
+    return _nativeMap(
+      'rlnSendPayment',
+      () => _hostApi.rlnSendPayment(
+        nodeId,
+        invoice,
+        amtMsat,
+        assetId,
+        assetAmount,
+      ),
     );
   }
 
@@ -545,27 +739,30 @@ class RlnClient {
         feature: 'rlnSendRgb.skipSync',
       );
     }
-    return _hostApi.rlnSendRgb(
-      nodeId,
-      donation,
-      feeRate,
-      minConfirmations,
-      skipSync,
-      assetId,
-      recipientId,
-      amount,
-      transportEndpoints,
-      witnessAmountSat,
-      witnessBlinding,
+    return _nativeMap(
+      'rlnSendRgb',
+      () => _hostApi.rlnSendRgb(
+        nodeId,
+        donation,
+        feeRate,
+        minConfirmations,
+        skipSync,
+        assetId,
+        recipientId,
+        amount,
+        transportEndpoints,
+        witnessAmountSat,
+        witnessBlinding,
+      ),
     );
   }
 
   Future<void> shutdown(int nodeId) {
-    return _hostApi.rlnShutdown(nodeId);
+    return _native('rlnShutdown', () => _hostApi.rlnShutdown(nodeId));
   }
 
   Future<void> sync(int nodeId) {
-    return _hostApi.rlnSync(nodeId);
+    return _native('rlnSync', () => _hostApi.rlnSync(nodeId));
   }
 
   Future<Object?> issueAssetNia({
@@ -575,7 +772,10 @@ class RlnClient {
     required int precision,
     required List<int> amounts,
   }) {
-    return _hostApi.rlnIssueAssetNia(nodeId, ticker, name, precision, amounts);
+    return _nativeMap(
+      'rlnIssueAssetNia',
+      () => _hostApi.rlnIssueAssetNia(nodeId, ticker, name, precision, amounts),
+    );
   }
 
   Future<Object?> issueAssetCfa({
@@ -586,13 +786,16 @@ class RlnClient {
     required List<int> amounts,
     String? fileDigest,
   }) {
-    return _hostApi.rlnIssueAssetCfa(
-      nodeId,
-      name,
-      details,
-      precision,
-      amounts,
-      fileDigest,
+    return _nativeMap(
+      'rlnIssueAssetCfa',
+      () => _hostApi.rlnIssueAssetCfa(
+        nodeId,
+        name,
+        details,
+        precision,
+        amounts,
+        fileDigest,
+      ),
     );
   }
 
@@ -605,14 +808,17 @@ class RlnClient {
     required List<int> inflationAmounts,
     String? rejectListUrl,
   }) {
-    return _hostApi.rlnIssueAssetIfa(
-      nodeId,
-      ticker,
-      name,
-      precision,
-      amounts,
-      inflationAmounts,
-      rejectListUrl,
+    return _nativeMap(
+      'rlnIssueAssetIfa',
+      () => _hostApi.rlnIssueAssetIfa(
+        nodeId,
+        ticker,
+        name,
+        precision,
+        amounts,
+        inflationAmounts,
+        rejectListUrl,
+      ),
     );
   }
 
@@ -623,12 +829,15 @@ class RlnClient {
     required double feeRate,
     required int minConfirmations,
   }) {
-    return _hostApi.rlnInflate(
-      nodeId,
-      assetId,
-      inflationAmounts,
-      feeRate,
-      minConfirmations,
+    return _nativeMap(
+      'rlnInflate',
+      () => _hostApi.rlnInflate(
+        nodeId,
+        assetId,
+        inflationAmounts,
+        feeRate,
+        minConfirmations,
+      ),
     );
   }
 
@@ -641,22 +850,28 @@ class RlnClient {
     String? mediaFileDigest,
     List<String> attachmentsFileDigests = const <String>[],
   }) {
-    return _hostApi.rlnIssueAssetUda(
-      nodeId,
-      ticker,
-      name,
-      details,
-      precision,
-      mediaFileDigest,
-      attachmentsFileDigests,
+    return _nativeMap(
+      'rlnIssueAssetUda',
+      () => _hostApi.rlnIssueAssetUda(
+        nodeId,
+        ticker,
+        name,
+        details,
+        precision,
+        mediaFileDigest,
+        attachmentsFileDigests,
+      ),
     );
   }
 
   Future<void> vssClearFence({required int nodeId, required String password}) {
-    return _hostApi.rlnVssClearFence(nodeId, password);
+    return _native(
+      'rlnVssClearFence',
+      () => _hostApi.rlnVssClearFence(nodeId, password),
+    );
   }
 
   Future<int> vssBackup(int nodeId) {
-    return _hostApi.rlnVssBackup(nodeId);
+    return _native('rlnVssBackup', () => _hostApi.rlnVssBackup(nodeId));
   }
 }

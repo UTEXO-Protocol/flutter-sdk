@@ -49,3 +49,31 @@ class LspSettlementException implements Exception {
     return 'Settlement ended with status "$status" at step $step';
   }
 }
+
+class LspAmountOutOfRangeException implements Exception {
+  const LspAmountOutOfRangeException({
+    required this.amtMsat,
+    required this.minSendable,
+    required this.maxSendable,
+  });
+
+  final int amtMsat;
+  final int minSendable;
+  final int maxSendable;
+
+  @override
+  String toString() {
+    return 'amount $amtMsat msat is outside LNURL sendable range '
+        '[$minSendable, $maxSendable]';
+  }
+}
+
+class LspTransportPolicyException implements Exception {
+  const LspTransportPolicyException(this.message, {required this.uri});
+
+  final String message;
+  final Uri uri;
+
+  @override
+  String toString() => 'LspTransportPolicyException($uri): $message';
+}

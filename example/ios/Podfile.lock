@@ -2,7 +2,7 @@ PODS:
   - Flutter (1.0.0)
   - integration_test (0.0.1):
     - Flutter
-  - rgb_sdk_flutter (0.0.1):
+  - rgb_sdk_flutter (0.1.0):
     - Flutter
 
 DEPENDENCIES:
@@ -21,7 +21,7 @@ EXTERNAL SOURCES:
 SPEC CHECKSUMS:
   Flutter: cabc95a1d2626b1b06e7179b784ebcf0c0cde467
   integration_test: 4a889634ef21a45d28d50d622cf412dc6d9f586e
-  rgb_sdk_flutter: 0b2cb7cc8a255fc1d3b9166e3a96fe48842bcd54
+  rgb_sdk_flutter: f5bc71aad8502759d803f73a0781f47ee90c7eb7
 
 PODFILE CHECKSUM: 3c63482e143d1b91d2d2560aee9fb04ecc74ac7e
 

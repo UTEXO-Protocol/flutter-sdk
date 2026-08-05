@@ -24,7 +24,30 @@ const List<String> TransferStatuses = <String>[
 ];
 
 int encodeTransferStatus(String transferStatus) {
-  return utf8.encode(transferStatus).first;
+  final index = TransferStatuses.indexOf(transferStatus);
+  if (index < 0) {
+    throw ArgumentError.value(
+      transferStatus,
+      'transferStatus',
+      'Unknown UTEXO transfer status',
+    );
+  }
+  return index;
+}
+
+class BridgeApiException implements Exception {
+  const BridgeApiException(this.message, {this.statusCode, this.uri});
+
+  final String message;
+  final int? statusCode;
+  final Uri? uri;
+
+  @override
+  String toString() {
+    final code = statusCode == null ? '' : ' HTTP $statusCode';
+    final target = uri == null ? '' : ' $uri';
+    return 'BridgeApiException$code$target: $message';
+  }
 }
 
 class NetworkAddress {
@@ -46,19 +69,29 @@ class NetworkAddress {
 }
 
 class FetchClient {
-  FetchClient(String baseUrl, {http.Client? httpClient})
-    : _baseUrl = baseUrl.replaceFirst(RegExp(r'/+$'), ''),
-      _http = httpClient ?? http.Client();
+  FetchClient(
+    String baseUrl, {
+    http.Client? httpClient,
+    this.timeout = const Duration(milliseconds: 120000),
+  }) : _baseUrl = baseUrl.replaceFirst(RegExp(r'/+$'), ''),
+       _http = httpClient ?? http.Client();
 
   final String _baseUrl;
   final http.Client _http;
+  final Duration timeout;
+
+  void close() {
+    _http.close();
+  }
 
   Future<Map<String, Object?>> post(String path, [Object? body]) async {
-    final response = await _http.post(
-      Uri.parse('$_baseUrl$path'),
-      headers: const <String, String>{'Content-Type': 'application/json'},
-      body: body == null ? null : jsonEncode(body),
-    );
+    final response = await _http
+        .post(
+          Uri.parse('$_baseUrl$path'),
+          headers: const <String, String>{'Content-Type': 'application/json'},
+          body: body == null ? null : jsonEncode(body),
+        )
+        .timeout(timeout);
     return _decodeResponse(response);
   }
 
@@ -71,14 +104,15 @@ class FetchClient {
           ? null
           : params.map((key, value) => MapEntry(key, value.toString())),
     );
-    return _decodeResponse(await _http.get(uri));
+    return _decodeResponse(await _http.get(uri).timeout(timeout));
   }
 
   Map<String, Object?> _decodeResponse(http.Response response) {
     if (response.statusCode < 200 || response.statusCode >= 300) {
-      throw http.ClientException(
+      throw BridgeApiException(
         response.body.isEmpty ? 'HTTP ${response.statusCode}' : response.body,
-        response.request?.url,
+        statusCode: response.statusCode,
+        uri: response.request?.url,
       );
     }
     final decoded = jsonDecode(response.body);
@@ -102,7 +136,7 @@ class UtexoBridgeApiClient {
 
   Future<String> submitTransaction(Map<String, Object?> request) async {
     final data = await _http.post('$basePath/submit-transaction', request);
-    return data['txHash'].toString();
+    return _requiredString(data, 'txHash');
   }
 
   Future<void> verifyBridgeIn(Map<String, Object?> request) async {
@@ -113,7 +147,7 @@ class UtexoBridgeApiClient {
     final data = await _http.get(
       '$basePath/receiver-invoice/$transferId/$networkId',
     );
-    return data['invoice'].toString();
+    return _requiredString(data, 'invoice');
   }
 
   Future<Map<String, Object?>?> getTransferByMainnetInvoice(
@@ -128,10 +162,17 @@ class UtexoBridgeApiClient {
           'network_id': networkId,
         },
       );
-    } catch (_) {
+    } on BridgeApiException catch (error) {
+      if (error.statusCode != 404) rethrow;
       return null;
     }
   }
+}
+
+String _requiredString(Map<String, Object?> data, String field) {
+  final value = data[field];
+  if (value is String && value.isNotEmpty) return value;
+  throw BridgeApiException('Missing or invalid string field "$field".');
 }
 
 UtexoBridgeApiClient getBridgeAPI([UtxoNetworkPreset network = 'mainnet']) {

@@ -27,10 +27,18 @@ class RlnNativeArtifactInfo {
   String nativeArtifact;
 }
 
+class RlnWireResponse {
+  RlnWireResponse({required this.json});
+
+  String json;
+}
+
 @HostApi()
 abstract class RlnHostApi {
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   RlnNativeArtifactInfo getNativeArtifactInfo();
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   int rlnCreateNode(
     String storageDirPath,
     int daemonListeningPort,
@@ -47,8 +55,10 @@ abstract class RlnHostApi {
     bool reuseAddresses,
   );
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   String rlnInitNode(int nodeId, String password, String? mnemonic);
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   int rlnCreateNativeExternalSigner(
     String seedHex,
     String network,
@@ -56,10 +66,13 @@ abstract class RlnHostApi {
     String? storageDirPath,
   );
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   void rlnInitNodeWithNativeExternalSigner(int nodeId, int signerId);
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   void rlnAttachNativeExternalSigner(int nodeId, int signerId);
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   void rlnUnlockNodeWithNativeExternalSigner(
     int nodeId,
     int signerId,
@@ -74,8 +87,10 @@ abstract class RlnHostApi {
     String? gossipRgsServerUrl,
   );
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   void rlnDestroyNativeExternalSigner(int signerId);
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   void rlnInitNodeWithExternalSigner(
     int nodeId,
     String nodePublicKeyHex,
@@ -86,6 +101,7 @@ abstract class RlnHostApi {
     int apiLevel,
   );
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   void rlnUnlockNode(
     int nodeId,
     String password,
@@ -100,21 +116,29 @@ abstract class RlnHostApi {
     String? gossipRgsServerUrl,
   );
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   void rlnDestroyNode(int nodeId);
 
-  Map<Object?, Object?> rlnNodeInfo(int nodeId);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnNodeInfo(int nodeId);
 
-  Map<Object?, Object?> rlnNetworkInfo(int nodeId);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnNetworkInfo(int nodeId);
 
-  List<Map<Object?, Object?>> rlnListPeers(int nodeId);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  List<RlnWireResponse> rlnListPeers(int nodeId);
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   void rlnConnectPeer(int nodeId, String peerPubkeyAndAddr);
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   void rlnDisconnectPeer(int nodeId, String peerPubkey);
 
-  List<Map<Object?, Object?>> rlnListChannels(int nodeId);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  List<RlnWireResponse> rlnListChannels(int nodeId);
 
-  Map<Object?, Object?> rlnOpenChannel(
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnOpenChannel(
     int nodeId,
     String peerPubkeyAndOptAddr,
     int capacitySat,
@@ -130,6 +154,7 @@ abstract class RlnHostApi {
     String? virtualOpenMode,
   );
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   void rlnCloseChannel(
     int nodeId,
     String channelId,
@@ -137,30 +162,41 @@ abstract class RlnHostApi {
     bool force,
   );
 
-  List<Map<Object?, Object?>> rlnListPayments(int nodeId);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  List<RlnWireResponse> rlnListPayments(int nodeId);
 
-  Map<Object?, Object?> rlnAddress(int nodeId);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnAddress(int nodeId);
 
-  Map<Object?, Object?> rlnRotateAddress(int nodeId);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnRotateAddress(int nodeId);
 
-  Map<Object?, Object?> rlnSignMessage(int nodeId, String message);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnSignMessage(int nodeId, String message);
 
-  Map<Object?, Object?> rlnVerifyMessage(
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnVerifyMessage(
     int nodeId,
     String message,
     String signature,
   );
 
-  Map<Object?, Object?> rlnAssetBalance(int nodeId, String assetId);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnAssetBalance(int nodeId, String assetId);
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   void rlnBackup(int nodeId, String backupPath, String password);
 
-  Map<Object?, Object?> rlnBtcBalance(int nodeId, bool skipSync);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnBtcBalance(int nodeId, bool skipSync);
 
-  Map<Object?, Object?> rlnCheckIndexerUrl(int nodeId, String indexerUrl);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnCheckIndexerUrl(int nodeId, String indexerUrl);
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   void rlnCheckProxyEndpoint(int nodeId, String proxyEndpoint);
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   void rlnCreateUtxos(
     int nodeId,
     bool upTo,
@@ -170,26 +206,34 @@ abstract class RlnHostApi {
     bool skipSync,
   );
 
-  Map<Object?, Object?> rlnDecodeLnInvoice(int nodeId, String invoice);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnDecodeLnInvoice(int nodeId, String invoice);
 
-  Map<Object?, Object?> rlnDecodeRgbInvoice(int nodeId, String invoice);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnDecodeRgbInvoice(int nodeId, String invoice);
 
-  Map<Object?, Object?> rlnEstimateFee(int nodeId, int blocks);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnEstimateFee(int nodeId, int blocks);
 
-  Map<Object?, Object?> rlnFailTransfers(
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnFailTransfers(
     int nodeId,
     int? batchTransferIdx,
     bool noAssetOnly,
     bool skipSync,
   );
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   String rlnGetChannelId(int nodeId, String temporaryChannelId);
 
-  Map<Object?, Object?> rlnGetPayment(int nodeId, String paymentHash);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnGetPayment(int nodeId, String paymentHash);
 
-  Map<Object?, Object?> rlnInvoiceStatus(int nodeId, String invoice);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnInvoiceStatus(int nodeId, String invoice);
 
-  Map<Object?, Object?> rlnKeysend(
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnKeysend(
     int nodeId,
     String destPubkey,
     int amtMsat,
@@ -197,26 +241,30 @@ abstract class RlnHostApi {
     int? assetAmount,
   );
 
-  Map<Object?, Object?> rlnListAssets(
-    int nodeId,
-    List<String> filterAssetSchemas,
-  );
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnListAssets(int nodeId, List<String> filterAssetSchemas);
 
-  List<Map<Object?, Object?>> rlnListTransactions(int nodeId, bool skipSync);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  List<RlnWireResponse> rlnListTransactions(int nodeId, bool skipSync);
 
-  List<Map<Object?, Object?>> rlnListTransactionsByTxid(
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  List<RlnWireResponse> rlnListTransactionsByTxid(
     int nodeId,
     String txid,
     bool skipSync,
   );
 
-  List<Map<Object?, Object?>> rlnListTransfers(int nodeId, String assetId);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  List<RlnWireResponse> rlnListTransfers(int nodeId, String assetId);
 
-  List<Map<Object?, Object?>> rlnListTransfersByTxid(int nodeId, String txid);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  List<RlnWireResponse> rlnListTransfersByTxid(int nodeId, String txid);
 
-  List<Map<Object?, Object?>> rlnListUnspents(int nodeId, bool skipSync);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  List<RlnWireResponse> rlnListUnspents(int nodeId, bool skipSync);
 
-  Map<Object?, Object?> rlnLnInvoice(
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnLnInvoice(
     int nodeId,
     int? amtMsat,
     int expirySec,
@@ -227,26 +275,32 @@ abstract class RlnHostApi {
     String? descriptionHash,
   );
 
-  Map<Object?, Object?> rlnClaimHodlInvoice(
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnClaimHodlInvoice(
     int nodeId,
     String paymentHash,
     String paymentPreimage,
   );
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   void rlnCancelHodlInvoice(int nodeId, String paymentHash);
 
-  Map<Object?, Object?> rlnApayNew(int nodeId, String hostNodeId);
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnApayNew(int nodeId, String hostNodeId);
 
-  Map<Object?, Object?> rlnApayNewWithAddress(
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnApayNewWithAddress(
     int nodeId,
     String hostNodeId,
     String username,
     String domain,
   );
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   void rlnRefreshTransfers(int nodeId, bool skipSync);
 
-  Map<Object?, Object?> rlnRgbInvoice(
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnRgbInvoice(
     int nodeId,
     String? assetId,
     int? assignmentAmount,
@@ -256,7 +310,8 @@ abstract class RlnHostApi {
     String? assignmentKind,
   );
 
-  Map<Object?, Object?> rlnSendBtc(
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnSendBtc(
     int nodeId,
     int amount,
     String address,
@@ -264,7 +319,8 @@ abstract class RlnHostApi {
     bool skipSync,
   );
 
-  Map<Object?, Object?> rlnSendPayment(
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnSendPayment(
     int nodeId,
     String invoice,
     int? amtMsat,
@@ -272,7 +328,8 @@ abstract class RlnHostApi {
     int? assetAmount,
   );
 
-  Map<Object?, Object?> rlnSendRgb(
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnSendRgb(
     int nodeId,
     bool donation,
     double feeRate,
@@ -286,11 +343,14 @@ abstract class RlnHostApi {
     int? witnessBlinding,
   );
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   void rlnShutdown(int nodeId);
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   void rlnSync(int nodeId);
 
-  Object? rlnIssueAssetNia(
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnIssueAssetNia(
     int nodeId,
     String ticker,
     String name,
@@ -298,7 +358,8 @@ abstract class RlnHostApi {
     List<int> amounts,
   );
 
-  Object? rlnIssueAssetCfa(
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnIssueAssetCfa(
     int nodeId,
     String name,
     String? details,
@@ -307,7 +368,8 @@ abstract class RlnHostApi {
     String? fileDigest,
   );
 
-  Object? rlnIssueAssetIfa(
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnIssueAssetIfa(
     int nodeId,
     String ticker,
     String name,
@@ -317,7 +379,8 @@ abstract class RlnHostApi {
     String? rejectListUrl,
   );
 
-  Map<Object?, Object?> rlnInflate(
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnInflate(
     int nodeId,
     String assetId,
     List<int> inflationAmounts,
@@ -325,7 +388,8 @@ abstract class RlnHostApi {
     int minConfirmations,
   );
 
-  Object? rlnIssueAssetUda(
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnIssueAssetUda(
     int nodeId,
     String ticker,
     String name,
@@ -335,7 +399,9 @@ abstract class RlnHostApi {
     List<String> attachmentsFileDigests,
   );
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   int rlnVssBackup(int nodeId);
 
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   void rlnVssClearFence(int nodeId, String password);
 }

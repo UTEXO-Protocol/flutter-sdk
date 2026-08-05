@@ -13,9 +13,32 @@ json_escape() {
 mkdir -p "${REPORT_DIR}"
 
 STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
-COMMIT="$(git -C "${REPO_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
-REPORT_FILE="${REPORT_DIR}/native-android-${COMMIT}.json"
-LOG_FILE="${REPORT_DIR}/native-android-${COMMIT}.log"
+FULL_COMMIT="$(git -C "${REPO_DIR}" rev-parse HEAD 2>/dev/null || echo unknown)"
+SHORT_COMMIT="$(git -C "${REPO_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)"
+RUN_ID="${RELEASE_RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)}"
+if [[ -n "$(git -C "${REPO_DIR}" status --short 2>/dev/null)" ]]; then
+  WORKTREE_DIRTY="true"
+else
+  WORKTREE_DIRTY="false"
+fi
+REPORT_FILE="${REPORT_DIR}/native-android-${RUN_ID}-${SHORT_COMMIT}.json"
+LOG_FILE="${REPORT_DIR}/native-android-${RUN_ID}-${SHORT_COMMIT}.log"
+
+sha256_file() {
+  if command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$1" | awk '{print $1}'
+  else
+    sha256sum "$1" | awk '{print $1}'
+  fi
+}
+
+repo_label_path() {
+  local path="$1"
+  case "${path}" in
+    "${REPO_DIR}"/*) printf '<repo>/%s' "${path#"${REPO_DIR}/"}" ;;
+    *) printf '%s' "${path}" ;;
+  esac
+}
 
 set +e
 (
@@ -34,14 +57,20 @@ fi
 
 cat >"${REPORT_FILE}" <<JSON
 {
+  "schemaVersion": 1,
   "suite": "native-android-jvm",
   "status": "${STATUS}",
   "exitCode": ${EXIT_CODE},
-  "commit": "$(json_escape "${COMMIT}")",
+  "releaseEligible": false,
+  "evidenceId": "$(json_escape "rgb-sdk-flutter/native-android-jvm/${RUN_ID}/${FULL_COMMIT}/android-host")",
+  "repository": {"commit": "$(json_escape "${FULL_COMMIT}")", "shortCommit": "$(json_escape "${SHORT_COMMIT}")"},
+  "workingTree": {"dirty": ${WORKTREE_DIRTY}},
   "startedAt": "${STARTED_AT}",
   "finishedAt": "${FINISHED_AT}",
   "command": "$(json_escape "cd example/android && ./gradlew ${GRADLE_ARGS[*]}")",
-  "logPath": "$(json_escape "${LOG_FILE}")"
+  "logPath": "$(json_escape "$(repo_label_path "${LOG_FILE}")")",
+  "logSha256": "$(json_escape "$(sha256_file "${LOG_FILE}")")",
+  "sanitization": {"pathPolicy": "repo-relative-labels"}
 }
 JSON
 

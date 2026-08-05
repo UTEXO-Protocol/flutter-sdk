@@ -18,7 +18,7 @@ jobs:
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
-          channel: stable
+          flutter-version-file: .fvmrc
           cache: true
 
       - name: Install package dependencies
@@ -33,6 +33,9 @@ jobs:
 
       - name: Validate test matrix
         run: dart run tool/validate_test_matrix.dart
+
+      - name: Validate release package metadata
+        run: dart run tool/validate_release_package.dart
 
       - name: Check generated release baseline
         run: dart run tool/generate_release_baseline.dart --check

@@ -165,6 +165,9 @@ class UtexoWallet {
     return _withLifecycle(() async {
       _ensureNotDisposed();
       _validateConfig();
+      if (unlockConfig != null) {
+        _validateSignerCanUnlock(password: password);
+      }
       final existingNodeId = _nodeId;
       if (existingNodeId != null &&
           _lifecycleState != _WalletLifecycleState.shutDown) {
@@ -1184,6 +1187,27 @@ class UtexoWallet {
       );
     }
     return _signer = PasswordRlnSigner(password: password, mnemonic: mnemonic);
+  }
+
+  void _validateSignerCanUnlock({String? password}) {
+    final signer = _signer;
+    if (signer == null) {
+      if (password == null || password.isEmpty) {
+        throw const WalletValidationException(
+          'password is required when no RlnSigner is configured.',
+          field: 'password',
+        );
+      }
+      return;
+    }
+    if (signer is PasswordRlnSigner &&
+        (password == null || password.isEmpty) &&
+        !signer.hasPendingPassword) {
+      throw const WalletValidationException(
+        'password is required because the previous password was consumed.',
+        field: 'password',
+      );
+    }
   }
 
   Future<int> _createNode() {

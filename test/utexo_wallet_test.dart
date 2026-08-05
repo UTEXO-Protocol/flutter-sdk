@@ -1495,6 +1495,8 @@ void main() {
       ),
       throwsA(isA<WalletValidationException>()),
     );
+    expect(hostApi.createNodeCount, 1);
+    expect(hostApi.unlockNodeCount, 1);
 
     await wallet.reinit(
       password: 'password',

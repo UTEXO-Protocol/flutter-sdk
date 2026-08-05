@@ -195,6 +195,7 @@ void main() {
       expect(wallet.isUnlocked, false);
 
       await wallet.reinit(
+        password: _password,
         unlockConfig: UtexoUnlockConfig(
           bitcoindRpcUsername: 'user',
           bitcoindRpcPassword: 'password',

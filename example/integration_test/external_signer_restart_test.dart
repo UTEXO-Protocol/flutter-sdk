@@ -237,7 +237,7 @@ Future<void> _verifyRestartFixture(Directory root, File stateFile) async {
 
   try {
     _step('cold reinit password host and external-signer device');
-    await _reinitialize(host);
+    await _reinitialize(host, password: _hostPassword);
     await _reinitialize(device);
 
     final hostInfo = await host.nodeInfo();
@@ -343,8 +343,8 @@ Future<void> _initialize(UtexoWallet wallet) async {
   await wallet.syncWallet();
 }
 
-Future<void> _reinitialize(UtexoWallet wallet) async {
-  await wallet.reinit(unlockConfig: _unlockConfig());
+Future<void> _reinitialize(UtexoWallet wallet, {String? password}) async {
+  await wallet.reinit(password: password, unlockConfig: _unlockConfig());
   await wallet.syncWallet();
 }
 

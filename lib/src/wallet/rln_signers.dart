@@ -110,6 +110,8 @@ class PasswordRlnSigner extends RlnSigner {
   String? _password;
   String? _mnemonic;
 
+  bool get hasPendingPassword => _password != null && _password!.isNotEmpty;
+
   void provideSecrets({required String password, String? mnemonic}) {
     _password = password;
     if (mnemonic != null) {

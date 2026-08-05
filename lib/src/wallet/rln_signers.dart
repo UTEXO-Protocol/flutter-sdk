@@ -5,7 +5,7 @@ import 'package:bip39/bip39.dart' as bip39;
 import '../client/rln_client.dart';
 import '../errors/rgb_sdk_exception.dart';
 import 'network_defaults.dart';
-import 'utexo_wallet.dart';
+import 'utexo_wallet_types.dart';
 
 /// Key material accepted by native external RLN signers.
 ///

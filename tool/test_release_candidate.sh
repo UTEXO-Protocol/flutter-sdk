@@ -166,6 +166,9 @@ main() {
   run_step "format check" "${DART_BIN}" format --set-exit-if-changed lib test tool pigeons
   run_step "test matrix validation" "${DART_BIN}" run tool/validate_test_matrix.dart
   run_step "bridge behavior vector validation" "${DART_BIN}" run tool/validate_bridge_vectors.dart
+  run_step "codebase hardening validation" "${DART_BIN}" run tool/validate_codebase_hardening.dart
+  run_step "public API documentation validation" "${DART_BIN}" run tool/validate_public_api_docs.dart
+  run_step "release language validation" "${DART_BIN}" run tool/validate_release_language.dart
   run_step "release governance validation" "${DART_BIN}" run tool/validate_release_governance.dart
   run_step "API and bridge snapshot validation" "${DART_BIN}" run tool/validate_api_snapshot.dart
   run_step "RN dev source parity validation" "${DART_BIN}" run tool/validate_rn_parity.dart
@@ -179,7 +182,8 @@ main() {
   fi
   run_step "pigeon drift check" bash -lc "before=\$(mktemp) && after=\$(mktemp) && git -C '${REPO_DIR}' diff -- pigeons/rln_api.dart lib/src/pigeon/rln_api.g.dart android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnApi.g.kt ios/Classes/RlnApi.g.swift > \"\${before}\" && '${REPO_DIR}/tool/generate_pigeon.sh' && '${DART_BIN}' format '${REPO_DIR}/lib/src/pigeon/rln_api.g.dart' && git -C '${REPO_DIR}' diff -- pigeons/rln_api.dart lib/src/pigeon/rln_api.g.dart android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnApi.g.kt ios/Classes/RlnApi.g.swift > \"\${after}\" && cmp -s \"\${before}\" \"\${after}\""
   run_step "package analyze" "${FLUTTER_BIN}" analyze
-  run_step "package tests" "${FLUTTER_BIN}" test
+  run_step "package tests with Dart coverage" "${FLUTTER_BIN}" test --coverage
+  run_step "Dart coverage policy validation" "${DART_BIN}" run tool/validate_coverage_policy.dart
   run_step "example widget tests" bash -lc "cd '${REPO_DIR}/example' && '${FLUTTER_BIN}' test test"
   run_step "native Android JVM bridge tests" bash -lc "REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_native_android.sh'"
 
@@ -194,19 +198,24 @@ main() {
       run_step "prepare iOS simulator for Flutter platform smokes" ensure_ios_simulator_visible "${IOS_DEVICE}"
       run_step "iOS unfunded regtest smoke" bash -lc "DEVICE='${IOS_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_platform_unfunded.sh'"
       run_step "iOS funded regtest smoke" bash -lc "DEVICE='${IOS_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_platform_funded.sh'"
+      run_step "iOS external-signer process restart" bash -lc "DEVICE='${IOS_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_external_signer_restart.sh'"
     else
       mark_required_skip "iOS platform regtest smokes" "RUN_PLATFORM=1 but IOS_DEVICE is unset"
+      mark_required_skip "iOS external-signer process restart" "RUN_PLATFORM=1 but IOS_DEVICE is unset"
     fi
 
     if [[ -n "${ANDROID_DEVICE:-}" ]]; then
       run_step "Android unfunded regtest smoke" bash -lc "DEVICE='${ANDROID_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_platform_unfunded.sh'"
       run_step "Android funded regtest smoke" bash -lc "DEVICE='${ANDROID_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_platform_funded.sh'"
+      run_step "Android external-signer process restart" bash -lc "DEVICE='${ANDROID_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_external_signer_restart.sh'"
     else
       mark_required_skip "Android platform regtest smokes" "RUN_PLATFORM=1 but ANDROID_DEVICE is unset"
+      mark_required_skip "Android external-signer process restart" "RUN_PLATFORM=1 but ANDROID_DEVICE is unset"
     fi
   else
     mark_required_skip "iOS funded/unfunded regtest smokes" "RUN_PLATFORM is not 1"
     mark_required_skip "Android funded/unfunded regtest smokes" "RUN_PLATFORM is not 1"
+    mark_required_skip "iOS/Android external-signer process restart" "RUN_PLATFORM is not 1"
   fi
 
   write_report

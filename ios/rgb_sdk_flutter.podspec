@@ -2,7 +2,9 @@ require 'json'
 
 #
 # To learn more about a Podspec see http://guides.cocoapods.org/syntax/podspec.html.
-# Run `pod lib lint rgb_sdk_flutter.podspec` to validate before publishing.
+# Validate Flutter integration through `tool/test_clean_consumer_matrix.sh`.
+# `pod lib lint` resolves the stale public Flutter pod and does not represent
+# the pinned Flutter toolchain required by this package.
 #
 Pod::Spec.new do |s|
   baseline_path = File.expand_path('../tool/release_baseline.json', __dir__)
@@ -19,7 +21,7 @@ package consumes the same RLN native artifacts as @utexo/rgb-sdk-rn.
 Pinned RLN artifact: #{rln_version}.
                        DESC
   s.homepage         = 'https://github.com/zeusbuilds/rgb-sdk-flutter'
-  s.license          = { :file => '../LICENSE' }
+  s.license          = { :type => 'MIT', :file => '../LICENSE' }
   s.author           = { 'UTEXO Protocol' => 'https://github.com/UTEXO-Protocol' }
   s.source           = { :path => '.' }
   s.prepare_command = 'bash ../tool/download_rln_ios.sh'
@@ -42,6 +44,7 @@ Pinned RLN artifact: #{rln_version}.
   s.pod_target_xcconfig = {
     'DEFINES_MODULE' => 'YES',
     'EXCLUDED_ARCHS[sdk=iphonesimulator*]' => 'i386',
+    'IPHONEOS_DEPLOYMENT_TARGET' => ios_requirements.fetch('minimumOsVersion'),
     'SWIFT_INCLUDE_PATHS' => '$(PODS_TARGET_SRCROOT)',
     'HEADER_SEARCH_PATHS' => '$(PODS_TARGET_SRCROOT)',
     'HEADER_SEARCH_PATHS[sdk=iphoneos*]' => '$(PODS_TARGET_SRCROOT)/RGBLightningNode.xcframework/ios-arm64/Headers',
@@ -51,6 +54,7 @@ Pinned RLN artifact: #{rln_version}.
     'OTHER_LDFLAGS' => '$(inherited) -l"rgb_lightning_node"'
   }
   s.user_target_xcconfig = {
+    'IPHONEOS_DEPLOYMENT_TARGET' => ios_requirements.fetch('minimumOsVersion'),
     'HEADER_SEARCH_PATHS[sdk=iphoneos*]' => '$(inherited) "$(PODS_ROOT)/../.symlinks/plugins/rgb_sdk_flutter/ios/RGBLightningNode.xcframework/ios-arm64/Headers"',
     'HEADER_SEARCH_PATHS[sdk=iphonesimulator*]' => '$(inherited) "$(PODS_ROOT)/../.symlinks/plugins/rgb_sdk_flutter/ios/RGBLightningNode.xcframework/ios-arm64_x86_64-simulator/Headers"'
   }

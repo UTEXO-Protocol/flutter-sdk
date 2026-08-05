@@ -77,6 +77,11 @@ if [[ "${EXIT_CODE}" -eq 0 ]]; then
 else
   STATUS="failed"
 fi
+if [[ "${EXIT_CODE}" -eq 0 && "${WORKTREE_DIRTY}" == "false" ]]; then
+  RELEASE_ELIGIBLE="true"
+else
+  RELEASE_ELIGIBLE="false"
+fi
 
 cat >"${REPORT_FILE}" <<JSON
 {
@@ -84,7 +89,7 @@ cat >"${REPORT_FILE}" <<JSON
   "suite": "native-ios-xctest",
   "status": "${STATUS}",
   "exitCode": ${EXIT_CODE},
-  "releaseEligible": false,
+  "releaseEligible": ${RELEASE_ELIGIBLE},
   "evidenceId": "$(json_escape "rgb-sdk-flutter/native-ios-xctest/${RUN_ID}/${FULL_COMMIT}/${DEVICE_LABEL}")",
   "repository": {"commit": "$(json_escape "${FULL_COMMIT}")", "shortCommit": "$(json_escape "${SHORT_COMMIT}")"},
   "workingTree": {"dirty": ${WORKTREE_DIRTY}},

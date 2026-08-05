@@ -152,13 +152,13 @@ class LspLightningReceiveResponse {
 }
 
 class LspLnurlpCallbackResponse {
-  const LspLnurlpCallbackResponse({
+  LspLnurlpCallbackResponse({
     required this.pr,
-    required this.routes,
+    required List<Object?> routes,
     this.status,
     this.reason,
     this.proof,
-  });
+  }) : routes = List<Object?>.unmodifiable(routes);
 
   factory LspLnurlpCallbackResponse.fromWire(Map<String, Object?> map) {
     final proof = map['proof'];
@@ -183,7 +183,8 @@ class LspLnurlpCallbackResponse {
 }
 
 class LspApayInvoiceProofWire {
-  const LspApayInvoiceProofWire(this.map);
+  LspApayInvoiceProofWire(Map<String, Object?> map)
+    : map = Map<String, Object?>.unmodifiable(map);
 
   factory LspApayInvoiceProofWire.fromMap(Map<String, Object?> map) {
     return LspApayInvoiceProofWire(map);
@@ -197,7 +198,8 @@ class LspApayInvoiceProofWire {
 }
 
 class LspLnurlpCallbackWire {
-  const LspLnurlpCallbackWire(this.map);
+  LspLnurlpCallbackWire(Map<String, Object?> map)
+    : map = Map<String, Object?>.unmodifiable(map);
 
   factory LspLnurlpCallbackWire.fromMap(Map<String, Object?> map) {
     return LspLnurlpCallbackWire(map);
@@ -225,7 +227,7 @@ class ApayMerkleProofElement {
 }
 
 class ApayInvoiceProof {
-  const ApayInvoiceProof({
+  ApayInvoiceProof({
     required this.version,
     required this.recipientPubkey,
     required this.hostPubkey,
@@ -234,11 +236,11 @@ class ApayInvoiceProof {
     required this.paymentHash,
     required this.batchRoot,
     required this.batchSize,
-    required this.merkleProof,
+    required List<ApayMerkleProofElement> merkleProof,
     required this.batchSig,
     required this.createdAt,
     required this.expiresAt,
-  });
+  }) : merkleProof = List<ApayMerkleProofElement>.unmodifiable(merkleProof);
 
   factory ApayInvoiceProof.fromWire(Map<String, Object?> map) {
     final merkleProof = map['merkle_proof'];
@@ -253,7 +255,7 @@ class ApayInvoiceProof {
       batchSize: _intValue(map['batch_size']),
       merkleProof: merkleProof is List
           ? merkleProof
-                .whereType<Map>()
+                .whereType<Map<Object?, Object?>>()
                 .map(
                   (value) => ApayMerkleProofElement.fromWire(
                     Map<String, Object?>.from(value),
@@ -467,7 +469,7 @@ class ApayNewResponse {
       lastHashIndex: _intValue(map['lastHashIndex']),
       hashes: hashes is List
           ? hashes
-                .whereType<Map>()
+                .whereType<Map<Object?, Object?>>()
                 .map(
                   (value) =>
                       ApayHashEntry.fromMap(Map<Object?, Object?>.from(value)),

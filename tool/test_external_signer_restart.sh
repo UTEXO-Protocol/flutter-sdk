@@ -53,6 +53,11 @@ if [[ "${EXIT_CODE}" -eq 0 ]]; then
 else
   STATUS="failed"
 fi
+if [[ "${EXIT_CODE}" -eq 0 && "${DIRTY}" == "false" ]]; then
+  RELEASE_ELIGIBLE="true"
+else
+  RELEASE_ELIGIBLE="false"
+fi
 
 ruby -rjson -e '
   report = {
@@ -60,7 +65,7 @@ ruby -rjson -e '
     "suite" => "external-signer-process-restart",
     "status" => ARGV.fetch(0),
     "exitCode" => Integer(ARGV.fetch(1)),
-    "releaseEligible" => false,
+    "releaseEligible" => ARGV.fetch(14) == "true",
     "evidenceId" => "rgb-sdk-flutter/external-signer-process-restart/#{ARGV.fetch(5)}/#{ARGV.fetch(2)}/#{ARGV.fetch(4).gsub(/[^A-Za-z0-9_.-]/, "_")}",
     "repository" => {
       "commit" => ARGV.fetch(2),
@@ -95,7 +100,8 @@ ruby -rjson -e '
   "${RGB_PROXY_PORT:-3003}" \
   "$(repo_label_path "${LOG_FILE}")" \
   "$(sha256_file "${LOG_FILE}")" \
-  "${REPORT_FILE}"
+  "${REPORT_FILE}" \
+  "${RELEASE_ELIGIBLE}"
 
 echo "external signer restart report: ${REPORT_FILE}"
 exit "${EXIT_CODE}"

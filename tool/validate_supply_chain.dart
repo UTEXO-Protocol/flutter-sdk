@@ -483,7 +483,7 @@ Future<Map<String, Object?>> _vulnerabilityAudit(
       'name': dependency['name'],
       'version': dependency['version'],
       'vulnerabilities': vulns
-          .whereType<Map>()
+          .whereType<Map<Object?, Object?>>()
           .map(
             (vuln) => <String, Object?>{
               'id': vuln['id'],

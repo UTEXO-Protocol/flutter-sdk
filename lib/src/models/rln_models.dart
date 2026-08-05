@@ -424,16 +424,16 @@ class RlnMedia {
 }
 
 class RlnTokenLight {
-  const RlnTokenLight({
+  RlnTokenLight({
     required this.index,
     this.ticker,
     this.name,
     this.details,
     required this.embeddedMedia,
     this.media,
-    required this.attachments,
+    required List<RlnMediaAttachment> attachments,
     required this.reserves,
-  });
+  }) : attachments = List<RlnMediaAttachment>.unmodifiable(attachments);
 
   factory RlnTokenLight.fromMap(RlnMap map) {
     return RlnTokenLight(
@@ -665,12 +665,15 @@ class RlnAssetUda extends RlnAsset {
 
 /// Asset groups returned by `listAssets`.
 class RlnAssets {
-  const RlnAssets({
-    required this.nia,
-    required this.uda,
-    required this.cfa,
-    required this.ifa,
-  });
+  RlnAssets({
+    required List<RlnAssetNia> nia,
+    required List<RlnAssetUda> uda,
+    required List<RlnAssetCfa> cfa,
+    required List<RlnAssetIfa> ifa,
+  }) : nia = List<RlnAssetNia>.unmodifiable(nia),
+       uda = List<RlnAssetUda>.unmodifiable(uda),
+       cfa = List<RlnAssetCfa>.unmodifiable(cfa),
+       ifa = List<RlnAssetIfa>.unmodifiable(ifa);
 
   factory RlnAssets.fromMap(RlnMap map) {
     return RlnAssets(
@@ -732,7 +735,7 @@ class RlnInvoice {
 
 /// Decoded RGB invoice data.
 class RlnDecodedRgbInvoice {
-  const RlnDecodedRgbInvoice({
+  RlnDecodedRgbInvoice({
     required this.recipientId,
     required this.recipientType,
     this.assetSchema,
@@ -740,8 +743,8 @@ class RlnDecodedRgbInvoice {
     required this.assignment,
     required this.network,
     this.expirationTimestamp,
-    required this.transportEndpoints,
-  });
+    required List<String> transportEndpoints,
+  }) : transportEndpoints = List<String>.unmodifiable(transportEndpoints);
 
   factory RlnDecodedRgbInvoice.fromMap(RlnMap map) {
     return RlnDecodedRgbInvoice(
@@ -873,22 +876,25 @@ class RlnTransferTransportEndpoint {
 
 /// RGB transfer state.
 class RlnTransfer {
-  const RlnTransfer({
+  RlnTransfer({
     required this.idx,
     required this.createdAt,
     required this.updatedAt,
     required this.status,
     this.requestedAssignment,
-    required this.assignments,
+    required List<String> assignments,
     required this.kind,
     this.txid,
     this.recipientId,
     this.receiveUtxo,
     this.changeUtxo,
     this.expiration,
-    required this.transportEndpoints,
+    required List<RlnTransferTransportEndpoint> transportEndpoints,
     this.batchTransferIdx,
-  });
+  }) : assignments = List<String>.unmodifiable(assignments),
+       transportEndpoints = List<RlnTransferTransportEndpoint>.unmodifiable(
+         transportEndpoints,
+       );
 
   factory RlnTransfer.fromMap(RlnMap map) {
     return RlnTransfer(
@@ -970,11 +976,11 @@ class RlnUtxo {
 
 /// Wallet UTXO and RGB allocations.
 class RlnUnspent {
-  const RlnUnspent({
+  RlnUnspent({
     required this.utxo,
-    required this.rgbAllocations,
+    required List<RlnRgbAllocation> rgbAllocations,
     this.pendingBlinded = 0,
-  });
+  }) : rgbAllocations = List<RlnRgbAllocation>.unmodifiable(rgbAllocations);
 
   factory RlnUnspent.fromMap(RlnMap map) {
     return RlnUnspent(

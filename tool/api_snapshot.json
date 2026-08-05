@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "description": "Normalized public API and bridge snapshot. Update only with a tracker row and migration note.",
   "dartExportedSurface": {
-    "count": 1840,
-    "hash": "5b3886af86c79b2139b8b8cd128b45a8cb84e874b121bc9cd107212e39c6e427",
+    "count": 1823,
+    "hash": "a2e17388e39c2d6e593a81550e654e4ede3cd0eff1ad24fc77b221e64a099e85",
     "files": [
       "lib/rgb_sdk_flutter.dart",
       "lib/src/binding/rln_binding.dart",
@@ -29,7 +29,8 @@
       "lib/src/wallet/network_defaults.dart",
       "lib/src/wallet/rln_manager.dart",
       "lib/src/wallet/rln_signers.dart",
-      "lib/src/wallet/utexo_wallet.dart"
+      "lib/src/wallet/utexo_wallet.dart",
+      "lib/src/wallet/utexo_wallet_types.dart"
     ]
   },
   "pigeonSchema": {

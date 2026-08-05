@@ -2,6 +2,7 @@
 .github/
 .pub/
 build/
+coverage/
 example/build/
 example/.dart_tool/
 tool/regtest/data/

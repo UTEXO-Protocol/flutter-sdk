@@ -1,9 +1,10 @@
 import 'dart:async';
 
-import '../models/rln_models.dart';
-import '../errors/rgb_sdk_exception.dart';
 import '../crypto/validation.dart';
+import '../errors/rgb_sdk_exception.dart';
+import '../models/rln_models.dart';
 import '../wallet/utexo_wallet.dart';
+import '../wallet/utexo_wallet_types.dart';
 import 'lsp_errors.dart';
 import 'lsp_types.dart';
 import 'utexo_lsp_client.dart';

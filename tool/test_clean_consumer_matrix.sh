@@ -106,10 +106,80 @@ prepare_package_git_ref() {
 create_consumer() {
   local consumer_dir="$1"
   local dependency_yaml="$2"
+  local ios_minimum
+  ios_minimum="$(python3 - "${REPO_DIR}/tool/release_baseline.json" <<'PY'
+import json
+import sys
+from pathlib import Path
+
+baseline = json.loads(Path(sys.argv[1]).read_text())
+print(baseline["buildRequirements"]["ios"]["minimumOsVersion"], end="")
+PY
+)"
 
   mkdir -p "${consumer_dir}"
   cd "${consumer_dir}"
   "${FLUTTER_BIN}" create --platforms android,ios --org com.utexo.consumer --project-name rgb_sdk_consumer .
+  python3 - "${consumer_dir}/ios/Podfile" "${ios_minimum}" <<'PY'
+import re
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+minimum = sys.argv[2]
+if path.exists():
+    text = path.read_text()
+else:
+    text = """\
+platform :ios, '__IOS_MINIMUM__'
+
+ENV['COCOAPODS_DISABLE_STATS'] = 'true'
+
+project 'Runner', {
+  'Debug' => :debug,
+  'Profile' => :release,
+  'Release' => :release,
+}
+
+def flutter_root
+  generated_xcode_build_settings_path = File.expand_path(File.join('..', 'Flutter', 'Generated.xcconfig'), __FILE__)
+  unless File.exist?(generated_xcode_build_settings_path)
+    raise "#{generated_xcode_build_settings_path} must exist. If you're running pod install manually, make sure flutter pub get is executed first"
+  end
+
+  File.foreach(generated_xcode_build_settings_path) do |line|
+    matches = line.match(/FLUTTER_ROOT\\=(.*)/)
+    return matches[1].strip if matches
+  end
+  raise "FLUTTER_ROOT not found in #{generated_xcode_build_settings_path}. Try deleting Generated.xcconfig, then run flutter pub get"
+end
+
+require File.expand_path(File.join('packages', 'flutter_tools', 'bin', 'podhelper'), flutter_root)
+
+flutter_ios_podfile_setup
+
+target 'Runner' do
+  use_frameworks!
+
+  flutter_install_all_ios_pods File.dirname(File.realpath(__FILE__))
+  target 'RunnerTests' do
+    inherit! :search_paths
+  end
+end
+
+post_install do |installer|
+  installer.pods_project.targets.each do |target|
+    flutter_additional_ios_build_settings(target)
+  end
+end
+""".replace("__IOS_MINIMUM__", minimum)
+platform = f"platform :ios, '{minimum}'"
+if re.search(r"^#?\s*platform :ios,", text, re.M):
+    text = re.sub(r"^#?\s*platform :ios,.*$", platform, text, count=1, flags=re.M)
+else:
+    text = f"{platform}\n{text}"
+path.write_text(text)
+PY
   python3 - "${consumer_dir}/pubspec.yaml" "${dependency_yaml}" <<'PY'
 import sys
 from pathlib import Path

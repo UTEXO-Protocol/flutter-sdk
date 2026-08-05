@@ -3,21 +3,23 @@ import '../errors/rgb_sdk_exception.dart';
 import '../models/rln_models.dart';
 
 class IRLNNodeCreateParams {
-  const IRLNNodeCreateParams({
+  IRLNNodeCreateParams({
     required this.storageDirPath,
     required this.daemonListeningPort,
     required this.ldkPeerListeningPort,
     required this.network,
     required this.maxMediaUploadSizeMb,
     this.enableVirtualChannelsV0,
-    this.virtualPeerPubkeys,
+    List<String>? virtualPeerPubkeys,
     this.vssUrl,
     this.vssAllowHttp = false,
     this.vssAllowEmptyRestore = false,
     this.lspBaseUrl,
     this.lspBearerToken,
     this.reuseAddresses = false,
-  });
+  }) : virtualPeerPubkeys = virtualPeerPubkeys == null
+           ? null
+           : List<String>.unmodifiable(virtualPeerPubkeys);
 
   final String storageDirPath;
   final int daemonListeningPort;
@@ -35,17 +37,17 @@ class IRLNNodeCreateParams {
 }
 
 class IRLNUnlockParams {
-  const IRLNUnlockParams({
+  IRLNUnlockParams({
     this.bitcoindRpcUsername,
     this.bitcoindRpcPassword,
     this.bitcoindRpcHost,
     this.bitcoindRpcPort,
     this.indexerUrl,
     this.proxyEndpoint,
-    this.announceAddresses = const <String>[],
+    List<String> announceAddresses = const <String>[],
     this.announceAlias,
     this.gossipRgsServerUrl,
-  });
+  }) : announceAddresses = List<String>.unmodifiable(announceAddresses);
 
   final String? bitcoindRpcUsername;
   final String? bitcoindRpcPassword;
@@ -211,9 +213,10 @@ class RLNBinding {
 
   Future<void> rlnUnlockNode({
     required String password,
-    IRLNUnlockParams params = const IRLNUnlockParams(),
+    IRLNUnlockParams? params,
   }) {
     return _withNodeQueue(() async {
+      final resolvedParams = params ?? IRLNUnlockParams();
       final nodeId = _requireNodeId();
       _assertRegularOpsAllowed();
       _unlockConflictNormalized = false;
@@ -222,15 +225,15 @@ class RLNBinding {
         await _client.unlockNode(
           nodeId: nodeId,
           password: password,
-          bitcoindRpcUsername: params.bitcoindRpcUsername,
-          bitcoindRpcPassword: params.bitcoindRpcPassword,
-          bitcoindRpcHost: params.bitcoindRpcHost,
-          bitcoindRpcPort: params.bitcoindRpcPort,
-          indexerUrl: params.indexerUrl,
-          proxyEndpoint: params.proxyEndpoint,
-          announceAddresses: params.announceAddresses,
-          announceAlias: params.announceAlias,
-          gossipRgsServerUrl: params.gossipRgsServerUrl,
+          bitcoindRpcUsername: resolvedParams.bitcoindRpcUsername,
+          bitcoindRpcPassword: resolvedParams.bitcoindRpcPassword,
+          bitcoindRpcHost: resolvedParams.bitcoindRpcHost,
+          bitcoindRpcPort: resolvedParams.bitcoindRpcPort,
+          indexerUrl: resolvedParams.indexerUrl,
+          proxyEndpoint: resolvedParams.proxyEndpoint,
+          announceAddresses: resolvedParams.announceAddresses,
+          announceAlias: resolvedParams.announceAlias,
+          gossipRgsServerUrl: resolvedParams.gossipRgsServerUrl,
         );
       } catch (error) {
         if (!_isConflictError(error) || !await _probeNodeReady(nodeId)) {
@@ -312,9 +315,10 @@ class RLNBinding {
 
   Future<void> rlnUnlockNodeWithNativeExternalSigner(
     int signerId, [
-    IRLNUnlockParams params = const IRLNUnlockParams(),
+    IRLNUnlockParams? params,
   ]) {
     return _withNodeQueue(() async {
+      final resolvedParams = params ?? IRLNUnlockParams();
       final nodeId = _requireNodeId();
       _assertRegularOpsAllowed();
       _unlockConflictNormalized = false;
@@ -323,15 +327,15 @@ class RLNBinding {
         await _client.unlockNodeWithNativeExternalSigner(
           nodeId: nodeId,
           signerId: signerId,
-          bitcoindRpcUsername: params.bitcoindRpcUsername,
-          bitcoindRpcPassword: params.bitcoindRpcPassword,
-          bitcoindRpcHost: params.bitcoindRpcHost,
-          bitcoindRpcPort: params.bitcoindRpcPort,
-          indexerUrl: params.indexerUrl,
-          proxyEndpoint: params.proxyEndpoint,
-          announceAddresses: params.announceAddresses,
-          announceAlias: params.announceAlias,
-          gossipRgsServerUrl: params.gossipRgsServerUrl,
+          bitcoindRpcUsername: resolvedParams.bitcoindRpcUsername,
+          bitcoindRpcPassword: resolvedParams.bitcoindRpcPassword,
+          bitcoindRpcHost: resolvedParams.bitcoindRpcHost,
+          bitcoindRpcPort: resolvedParams.bitcoindRpcPort,
+          indexerUrl: resolvedParams.indexerUrl,
+          proxyEndpoint: resolvedParams.proxyEndpoint,
+          announceAddresses: resolvedParams.announceAddresses,
+          announceAlias: resolvedParams.announceAlias,
+          gossipRgsServerUrl: resolvedParams.gossipRgsServerUrl,
         );
       } catch (error) {
         if (!_isConflictError(error) || !await _probeNodeReady(nodeId)) {

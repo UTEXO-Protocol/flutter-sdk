@@ -11,6 +11,8 @@ RLN_VERSION="$(release_baseline_value rln.version)"
 ARCHIVE_URL="$(release_baseline_value rln.ios.archiveUrl)"
 ARCHIVE_SHA256="$(release_baseline_value rln.ios.archiveSha256)"
 ARCHIVE_SIZE="$(release_baseline_value rln.ios.archiveSizeBytes)"
+CACHE_DIR="${RLN_CACHE_DIR:-${HOME}/.cache/rgb-sdk-flutter/rln-ios/${RLN_VERSION}}"
+CACHE_ARCHIVE="${CACHE_DIR}/rgb-lightning-node-swift-${RLN_VERSION}.zip"
 
 require_tool() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -77,6 +79,13 @@ if [[ -n "${RLN_ARCHIVE_PATH:-}" ]]; then
     exit 1
   }
   cp "${RLN_ARCHIVE_PATH}" "${ARCHIVE_PATH}"
+elif [[ -f "${CACHE_ARCHIVE}" ]]; then
+  echo "[rln] Using cached iOS RLN archive ${CACHE_ARCHIVE}"
+  cp "${CACHE_ARCHIVE}" "${ARCHIVE_PATH}"
+elif [[ "${RLN_OFFLINE:-0}" == "1" ]]; then
+  echo "[rln] iOS RLN archive is not installed and offline mode is enabled." >&2
+  echo "[rln] Set RLN_ARCHIVE_PATH or pre-populate ${CACHE_ARCHIVE}." >&2
+  exit 1
 else
   echo "[rln] Downloading ${ARCHIVE_URL}"
   curl \
@@ -98,6 +107,13 @@ if [[ "${ACTUAL_SIZE}" != "${ARCHIVE_SIZE}" ]]; then
   exit 1
 fi
 verify_file "${ARCHIVE_SHA256}" "${ARCHIVE_PATH}"
+
+if [[ -z "${RLN_ARCHIVE_PATH:-}" && "${CACHE_ARCHIVE}" != "${ARCHIVE_PATH}" ]]; then
+  mkdir -p "${CACHE_DIR}"
+  CACHE_TMP="${CACHE_ARCHIVE}.tmp.$$"
+  cp "${ARCHIVE_PATH}" "${CACHE_TMP}"
+  mv "${CACHE_TMP}" "${CACHE_ARCHIVE}"
+fi
 
 EXTRACT_DIR="${TMP_DIR}/extracted"
 mkdir -p "${EXTRACT_DIR}"

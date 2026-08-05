@@ -4,6 +4,8 @@ import 'dart:io';
 const _trackerPath = 'doc/RELEASE_READINESS_TRACKER.md';
 const _apiPolicyPath = 'doc/API_COMPATIBILITY_AND_DIVERGENCE.md';
 const _evidenceSchemaPath = 'doc/RELEASE_EVIDENCE_SCHEMA.md';
+const _publicApiReferencePath = 'doc/PUBLIC_API_REFERENCE.md';
+const _coveragePolicyPath = 'doc/COVERAGE_POLICY.md';
 const _evidenceCatalogPath = 'tool/test_matrix/evidence_catalog.json';
 
 void main() {
@@ -49,6 +51,26 @@ void main() {
     '## Documentation Completeness Criteria',
   ], errors);
 
+  final publicApiReference = _read(_publicApiReferencePath, errors);
+  _requireSections(_publicApiReferencePath, publicApiReference, <String>[
+    '## Stability Tiers',
+    '## Lifecycle Prerequisites',
+    '## Units',
+    '## Error Taxonomy',
+    '## Side Effects',
+    '## Secret Handling',
+    '## Platform Support',
+    '## Unsupported or Native-Blocked Behavior',
+    '## Symbol Coverage Checklist',
+  ], errors);
+
+  final coveragePolicy = _read(_coveragePolicyPath, errors);
+  _requireSections(_coveragePolicyPath, coveragePolicy, <String>[
+    '## Scope',
+    '## Thresholds',
+    '## Command',
+  ], errors);
+
   _validateEvidenceCatalog(errors);
 
   final readme = _read('README.md', errors);
@@ -59,6 +81,8 @@ void main() {
     _apiPolicyPath,
     'doc/BRIDGE_BEHAVIOR_CONTRACT.md',
     _evidenceSchemaPath,
+    _publicApiReferencePath,
+    _coveragePolicyPath,
     'doc/INTEGRATION_SECURITY_AND_RELEASE.md',
   ]) {
     if (!readme.contains(path)) {

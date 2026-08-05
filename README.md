@@ -59,7 +59,7 @@ blockers are open:
 import 'package:rgb_sdk_flutter/rgb_sdk_flutter.dart';
 
 final wallet = UtexoWallet(
-  config: const UtexoWalletConfig(
+  config: UtexoWalletConfig(
     storageDirPath: '/app/documents/rgb-node',
     network: 'regtest',
     daemonListeningPort: 9735,
@@ -70,7 +70,7 @@ final wallet = UtexoWallet(
 await wallet.init(password: password);
 await wallet.unlock(
   password: password,
-  config: const UtexoUnlockConfig(
+  config: UtexoUnlockConfig(
     bitcoindRpcUsername: 'user',
     bitcoindRpcPassword: 'password',
     bitcoindRpcHost: '127.0.0.1',
@@ -92,10 +92,14 @@ dart --version
 flutter pub get
 dart format --output=none --set-exit-if-changed lib test pigeons tool
 dart run tool/validate_release_governance.dart
+dart run tool/validate_codebase_hardening.dart
+dart run tool/validate_public_api_docs.dart
+dart run tool/validate_release_language.dart
 dart run tool/validate_api_snapshot.dart
 dart run tool/validate_bridge_vectors.dart
 flutter analyze
-flutter test
+flutter test --coverage
+dart run tool/validate_coverage_policy.dart
 dart run tool/validate_test_matrix.dart
 RGB_SDK_RN_PATH=<current-rn-checkout> \
   dart run tool/validate_rn_parity.dart
@@ -125,6 +129,8 @@ local loopback development hosts.
 - [API Compatibility and Divergence Policy](doc/API_COMPATIBILITY_AND_DIVERGENCE.md)
 - [Bridge Behavior Contract](doc/BRIDGE_BEHAVIOR_CONTRACT.md)
 - [Release Evidence Schema](doc/RELEASE_EVIDENCE_SCHEMA.md)
+- [Public API Reference](doc/PUBLIC_API_REFERENCE.md)
+- [Dart Coverage Policy](doc/COVERAGE_POLICY.md)
 - [Security Policy](SECURITY.md)
 - [Changelog](CHANGELOG.md)
 - [Machine-Readable Test Matrix](tool/test_matrix/README.md)

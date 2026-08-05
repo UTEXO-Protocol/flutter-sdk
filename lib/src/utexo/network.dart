@@ -20,11 +20,11 @@ class NetworkAsset {
 }
 
 class UtxoNetworkConfig {
-  const UtxoNetworkConfig({
+  UtxoNetworkConfig({
     required this.networkName,
     required this.networkId,
-    required this.assets,
-  });
+    required List<NetworkAsset> assets,
+  }) : assets = List<NetworkAsset>.unmodifiable(assets);
 
   final String networkName;
   final int networkId;
@@ -39,16 +39,19 @@ class UtxoNetworkConfig {
 }
 
 class UtxoNetworkPresetConfig {
-  const UtxoNetworkPresetConfig({
-    required this.networkMap,
-    required this.networkIdMap,
-  });
+  UtxoNetworkPresetConfig({
+    required Map<String, Network> networkMap,
+    required Map<UtxoNetworkId, UtxoNetworkConfig> networkIdMap,
+  }) : networkMap = Map<String, Network>.unmodifiable(networkMap),
+       networkIdMap = Map<UtxoNetworkId, UtxoNetworkConfig>.unmodifiable(
+         networkIdMap,
+       );
 
   final Map<String, Network> networkMap;
   final Map<UtxoNetworkId, UtxoNetworkConfig> networkIdMap;
 }
 
-const UtxoNetworkPresetConfig testnetPreset = UtxoNetworkPresetConfig(
+final UtxoNetworkPresetConfig testnetPreset = UtxoNetworkPresetConfig(
   networkMap: <String, Network>{'mainnet': 'testnet', 'utexo': 'utexo'},
   networkIdMap: <UtxoNetworkId, UtxoNetworkConfig>{
     'mainnet': UtxoNetworkConfig(
@@ -93,7 +96,7 @@ const UtxoNetworkPresetConfig testnetPreset = UtxoNetworkPresetConfig(
   },
 );
 
-const UtxoNetworkPresetConfig mainnetPreset = UtxoNetworkPresetConfig(
+final UtxoNetworkPresetConfig mainnetPreset = UtxoNetworkPresetConfig(
   networkMap: <String, Network>{'mainnet': 'mainnet', 'utexo': 'utexo'},
   networkIdMap: <UtxoNetworkId, UtxoNetworkConfig>{
     'mainnet': UtxoNetworkConfig(
@@ -138,7 +141,7 @@ const UtxoNetworkPresetConfig mainnetPreset = UtxoNetworkPresetConfig(
   },
 );
 
-const Map<UtxoNetworkPreset, UtxoNetworkPresetConfig> _networkPresets =
+final Map<UtxoNetworkPreset, UtxoNetworkPresetConfig> _networkPresets =
     <UtxoNetworkPreset, UtxoNetworkPresetConfig>{
       'mainnet': mainnetPreset,
       'testnet': testnetPreset,

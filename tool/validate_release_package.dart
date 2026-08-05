@@ -56,6 +56,20 @@ void main() {
     'podspec version must match pubspec.',
   );
   check(
+    podspec.contains(":type => 'MIT'") &&
+        podspec.contains(":file => '../LICENSE'"),
+    'podspec must declare the package license type and LICENSE file.',
+  );
+  check(
+    podspec.contains("s.source           = { :path => '.' }"),
+    'podspec source must remain path-based for Flutter plugin integration.',
+  );
+  check(
+    podspec.contains('IPHONEOS_DEPLOYMENT_TARGET') &&
+        podspec.contains("ios_requirements.fetch('minimumOsVersion')"),
+    'podspec must apply the baseline iOS minimum deployment target.',
+  );
+  check(
     podspec.contains('s.resource_bundles') &&
         podspec.contains('Resources/PrivacyInfo.xcprivacy'),
     'podspec must bundle the iOS privacy manifest.',
@@ -91,6 +105,7 @@ void main() {
   final pubignore = _read('.pubignore');
   for (final requiredPattern in <String>[
     'build/',
+    'coverage/',
     '.github/',
     'ios/RGBLightningNode.xcframework/',
     'android/.gradle/',
@@ -106,6 +121,33 @@ void main() {
   check(
     baseline['releaseTier'] == 'internal-beta',
     'release baseline must keep releaseTier=internal-beta until provenance gates pass.',
+  );
+  final iosRequirements =
+      ((baseline['buildRequirements']! as Map<String, Object?>)['ios']!
+          as Map<String, Object?>);
+  check(
+    iosRequirements['minimumOsVersion'] == '18.5',
+    'iOS minimum must match the current RLN iOS artifact object minos 18.5.',
+  );
+  check(
+    _read(
+      'example/ios/Podfile',
+    ).contains("platform :ios, '${iosRequirements['minimumOsVersion']}'"),
+    'example iOS Podfile must declare the baseline iOS minimum.',
+  );
+  check(
+    !_read(
+      'example/ios/Runner.xcodeproj/project.pbxproj',
+    ).contains('IPHONEOS_DEPLOYMENT_TARGET = 13.0;'),
+    'example Xcode project must not keep stale iOS 13.0 deployment targets.',
+  );
+
+  final downloader = _read('tool/download_rln_ios.sh');
+  check(
+    downloader.contains('RLN_CACHE_DIR') &&
+        downloader.contains('RLN_OFFLINE') &&
+        downloader.contains('RLN_ARCHIVE_PATH'),
+    'iOS artifact downloader must support explicit path, cache, and offline mode.',
   );
 
   check(File('LICENSE').existsSync(), 'LICENSE must exist.');
@@ -125,6 +167,14 @@ void main() {
   check(
     File('doc/RELEASE_EVIDENCE_SCHEMA.md').existsSync(),
     'release evidence schema must exist.',
+  );
+  check(
+    File('doc/PUBLIC_API_REFERENCE.md').existsSync(),
+    'public API reference must exist.',
+  );
+  check(
+    File('doc/COVERAGE_POLICY.md').existsSync(),
+    'coverage policy must exist.',
   );
   check(
     File('tool/api_snapshot.json').existsSync(),
@@ -147,6 +197,22 @@ void main() {
     'bridge behavior vector validation gate must exist.',
   );
   check(
+    File('tool/validate_codebase_hardening.dart').existsSync(),
+    'codebase hardening validation gate must exist.',
+  );
+  check(
+    File('tool/validate_coverage_policy.dart').existsSync(),
+    'coverage policy validation gate must exist.',
+  );
+  check(
+    File('tool/validate_public_api_docs.dart').existsSync(),
+    'public API documentation validation gate must exist.',
+  );
+  check(
+    File('tool/validate_release_language.dart').existsSync(),
+    'release language validation gate must exist.',
+  );
+  check(
     File('tool/validate_release_governance.dart').existsSync(),
     'release governance validation gate must exist.',
   );
@@ -164,11 +230,26 @@ void main() {
         ).contains('validate_supply_chain.dart') &&
         _read(
           'tool/test_release_candidate.sh',
+        ).contains('validate_codebase_hardening.dart') &&
+        _read(
+          'tool/test_release_candidate.sh',
+        ).contains('validate_public_api_docs.dart') &&
+        _read(
+          'tool/test_release_candidate.sh',
+        ).contains('validate_release_language.dart') &&
+        _read(
+          'tool/test_release_candidate.sh',
+        ).contains('validate_coverage_policy.dart') &&
+        _read(
+          'tool/test_release_candidate.sh',
         ).contains('test_clean_consumer_matrix.sh') &&
         _read(
           'tool/test_release_candidate.sh',
+        ).contains('test_external_signer_restart.sh') &&
+        _read(
+          'tool/test_release_candidate.sh',
         ).contains('validate_bridge_vectors.dart'),
-    'release candidate script must include bridge-vector, supply-chain, and clean-consumer gates.',
+    'release candidate script must include bridge-vector, supply-chain, clean-consumer, and external-signer restart gates.',
   );
   check(
     File('test/fixtures/bip340_test_vectors.csv').existsSync(),

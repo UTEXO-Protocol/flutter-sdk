@@ -76,6 +76,11 @@ if [[ "${EXIT_CODE}" -eq 0 ]]; then
 else
   STATUS="failed"
 fi
+if [[ "${EXIT_CODE}" -eq 0 && "${WORKTREE_DIRTY}" == "false" ]]; then
+  RELEASE_ELIGIBLE="true"
+else
+  RELEASE_ELIGIBLE="false"
+fi
 
 cat >"${REPORT_FILE}" <<JSON
 {
@@ -83,7 +88,7 @@ cat >"${REPORT_FILE}" <<JSON
   "suite": "platform-unfunded-regtest",
   "status": "${STATUS}",
   "exitCode": ${EXIT_CODE},
-  "releaseEligible": false,
+  "releaseEligible": ${RELEASE_ELIGIBLE},
   "evidenceId": "$(json_escape "rgb-sdk-flutter/platform-unfunded-regtest/${RUN_ID}/${FULL_COMMIT}/${DEVICE_LABEL}")",
   "repository": {"commit": "$(json_escape "${FULL_COMMIT}")", "shortCommit": "$(json_escape "${SHORT_COMMIT}")"},
   "workingTree": {"dirty": ${WORKTREE_DIRTY}},

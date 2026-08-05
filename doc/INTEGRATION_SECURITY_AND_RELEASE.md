@@ -9,13 +9,28 @@ The current development baseline is:
 
 - Flutter `>=3.41.0`
 - Dart `>=3.11.0 <4.0.0`
-- iOS minimum from `tool/release_baseline.json`
+- iOS `18.5` or newer. This is not a product preference: the pinned RLN
+  `0.10.0-beta.3` iOS static objects are built with `LC_BUILD_VERSION`
+  `minos 18.5`, so lower deployment targets are not supported by this artifact
+  set.
 - Swift version from `tool/release_baseline.json`
 - Android min/compile SDK, Java, and Kotlin versions from
   `tool/release_baseline.json`
 
 Release evidence must record the exact Flutter, Dart, Xcode, CocoaPods, Gradle,
 Kotlin, Android SDK, simulator/device, and regtest stack used for a candidate.
+
+## Support Matrix
+
+| Area | Current support | Release note |
+| --- | --- | --- |
+| Package distribution | Private Git/path only | `publish_to: none`; public publishing policy is deferred |
+| Flutter | `3.41.x` family | CI and local gates read `.fvmrc` |
+| Dart | `>=3.11.0 <4.0.0` | Tested with Dart `3.11.5` from Flutter `3.41.9` |
+| iOS | `18.5+` | Required by the pinned RLN iOS archive object metadata |
+| CocoaPods | Local Flutter consumer integration | Plain `pod lib lint` resolves the stale public Flutter pod and is not authoritative |
+| Android | min SDK `24`, compile SDK `36` | Native AAR must verify checksum, size, and ABI set |
+| Native/regtest CI | Not supported | Native builds and regtest smokes are mandatory local release gates |
 
 ## Native Artifacts
 
@@ -32,8 +47,43 @@ The current `releaseTier` is `internal-beta`. That means:
   upstream artifact signatures and reproducible-build attestations are present.
 
 iOS artifacts are downloaded by the pod `prepare_command` and verified before
-reuse. Android artifacts resolve through Gradle/Maven and must be checked
-against the pinned hash before candidate evidence is accepted.
+reuse. The downloader supports three deterministic acquisition modes:
+
+- `RLN_ARCHIVE_PATH=/path/to/rgb-lightning-node-swift.zip` for an explicit
+  pre-resolved archive;
+- `RLN_CACHE_DIR=/path/to/cache` for a checksum-verified local archive cache;
+- `RLN_OFFLINE=1` to fail closed unless an installed artifact, explicit
+  archive, or cache entry is available.
+
+Android artifacts resolve through Gradle/Maven and must be checked against the
+pinned hash before candidate evidence is accepted.
+
+Production supply-chain mode is intentionally fail-closed today. Checksums,
+source pins, dependency SBOM, license classification, OSV checks, ABI markers,
+and slice metadata are present, but upstream artifact signatures and
+reproducible-build attestations are not available for the pinned RLN release.
+Do not change `releaseTier` out of `internal-beta` until those upstream
+provenance artifacts exist and `dart run tool/validate_supply_chain.dart
+--production` passes.
+
+## Artifact Upgrade Procedure
+
+When RN/core/RLN changes, update artifacts in this order:
+
+1. Update `tool/release_baseline.json` with the exact RN commit, core version,
+   RLN tag/commit/version, archive URLs, archive sizes, SHA-256 digests,
+   iOS installed-file digests, iOS object minimum, slices, Android ABI set, and
+   toolchain requirements.
+2. Run `dart run tool/generate_release_baseline.dart`, then `dart format` on
+   generated Dart files.
+3. Run `tool/download_rln_ios.sh` and `tool/verify_native_artifacts.sh
+   --require-android` from a clean or explicitly prepared cache.
+4. Run `pod ipc spec ios/rgb_sdk_flutter.podspec` and confirm the platform,
+   license, privacy bundle, source files, and deployment-target xconfigs match
+   the baseline.
+5. Run the clean consumer matrix with archives enabled on macOS.
+6. Update this tracker with the exact evidence paths and keep any new
+   upstream mismatch open until it has executable proof.
 
 ## Clean Consumer Matrix
 
@@ -49,6 +99,15 @@ then verifies:
 
 This matrix proves install/archive behavior for a clean consumer. It does not
 replace funded native smokes or upstream provenance evidence.
+
+## CocoaPods Validation Policy
+
+Use `pod ipc spec ios/rgb_sdk_flutter.podspec` for podspec metadata validation
+and `tool/test_clean_consumer_matrix.sh` for real Flutter/CocoaPods consumer
+integration. Do not use a plain `pod lib lint` result as release evidence for
+this package: CocoaPods resolves the public `Flutter` pod at `3.13.0`, while
+the generated Pigeon Swift bridge requires the `FlutterBinaryMessenger`
+task-queue API available in the pinned Flutter `3.41.9` toolchain.
 
 ## Transport Policy
 
@@ -103,13 +162,22 @@ Release policy is split across two dedicated documents:
 - `doc/RELEASE_EVIDENCE_SCHEMA.md` defines evidence IDs, required report
   fields, sanitization rules, matrix evidence catalog rules, API/ABI snapshot
   policy, and documentation completeness criteria.
+- `doc/PUBLIC_API_REFERENCE.md` documents the current exported symbols,
+  stability tiers, lifecycle prerequisites, units, error taxonomy, side effects,
+  secret-handling responsibilities, platform support, and unsupported behavior.
+- `doc/COVERAGE_POLICY.md` defines the Dart-only coverage scope and thresholds.
 
 The local release gate runs:
 
 ```sh
 dart run tool/validate_release_governance.dart
+dart run tool/validate_codebase_hardening.dart
+dart run tool/validate_public_api_docs.dart
+dart run tool/validate_release_language.dart
 dart run tool/validate_api_snapshot.dart
 dart run tool/validate_bridge_vectors.dart
+flutter test --coverage
+dart run tool/validate_coverage_policy.dart
 ```
 
 Intentional public API, Pigeon, or native bridge surface changes must update
@@ -118,4 +186,15 @@ note. Evidence-bucket changes must update
 `tool/test_matrix/evidence_catalog.json`; bridge-vector changes must update
 `tool/test_matrix/bridge_behavior_vectors.json`. Both must pass
 `dart run tool/validate_test_matrix.dart` and
-`dart run tool/validate_bridge_vectors.dart`.
+`dart run tool/validate_bridge_vectors.dart`. Documentation or public-surface
+language changes must pass `dart run tool/validate_public_api_docs.dart` and
+`dart run tool/validate_release_language.dart`.
+
+## API Policy Summary
+
+Stable app-facing APIs live behind `UtexoWallet` and return domain models.
+`RlnClient` and generated Pigeon surfaces are advanced/native-parity layers and
+may expose wire-shaped DTOs. Unsupported native feature groups must be absent
+or represented by nullable typed capability carriers, not always-present
+runtime stubs. Any deliberate RN/core divergence must cite a tracker row in
+`doc/API_COMPATIBILITY_AND_DIVERGENCE.md` before release claims are updated.

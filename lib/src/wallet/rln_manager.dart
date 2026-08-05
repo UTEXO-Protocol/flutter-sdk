@@ -16,7 +16,7 @@ class RLNManager {
 
   Future<void> rlnUnlockNode({
     required String password,
-    IRLNUnlockParams params = const IRLNUnlockParams(),
+    IRLNUnlockParams? params,
   }) {
     return rlnBinding.rlnUnlockNode(password: password, params: params);
   }
@@ -53,7 +53,7 @@ class RLNManager {
 
   Future<void> rlnUnlockNodeWithNativeExternalSigner(
     int signerId, [
-    IRLNUnlockParams params = const IRLNUnlockParams(),
+    IRLNUnlockParams? params,
   ]) {
     return rlnBinding.rlnUnlockNodeWithNativeExternalSigner(signerId, params);
   }

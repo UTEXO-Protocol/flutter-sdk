@@ -55,7 +55,7 @@
   },
   "buildRequirements": {
     "ios": {
-      "minimumOsVersion": "13.0",
+      "minimumOsVersion": "18.5",
       "swiftLanguageVersion": "5.0"
     },
     "android": {

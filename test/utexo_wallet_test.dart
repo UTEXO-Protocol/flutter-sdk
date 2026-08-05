@@ -1055,7 +1055,7 @@ class FakeLspClient extends IUtexoLspClient {
     resolveAddressCalls += 1;
     final error = resolveAddressError;
     if (error != null) throw error;
-    return const LspLnurlpCallbackResponse(pr: 'lnbc1invoice', routes: []);
+    return LspLnurlpCallbackResponse(pr: 'lnbc1invoice', routes: []);
   }
 
   @override
@@ -1065,7 +1065,7 @@ class FakeLspClient extends IUtexoLspClient {
     String? assetId,
     int? assetAmount,
   }) async {
-    return const LspLnurlpCallbackResponse(pr: 'lnbc1invoice', routes: []);
+    return LspLnurlpCallbackResponse(pr: 'lnbc1invoice', routes: []);
   }
 
   @override
@@ -1077,7 +1077,7 @@ class FakeLspClient extends IUtexoLspClient {
     int? assetAmount,
   }) async {
     resolveExternalAddressCalls += 1;
-    return const LspLnurlpCallbackResponse(pr: 'lnbc1external', routes: []);
+    return LspLnurlpCallbackResponse(pr: 'lnbc1external', routes: []);
   }
 
   @override
@@ -1140,7 +1140,7 @@ class _StaticHttpClient extends http.BaseClient {
 void main() {
   UtexoWallet walletWith(FakeRlnHostApi hostApi) {
     return UtexoWallet(
-      config: const UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
+      config: UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
       client: RlnClient(hostApi: hostApi),
     );
   }
@@ -1149,7 +1149,7 @@ void main() {
     await wallet.init(password: 'password');
     await wallet.unlock(
       password: 'password',
-      config: const UtexoUnlockConfig(
+      config: UtexoUnlockConfig(
         bitcoindRpcHost: '127.0.0.1',
         bitcoindRpcUsername: 'user',
       ),
@@ -1199,7 +1199,7 @@ void main() {
     await wallet.init(password: 'password');
     await wallet.unlock(
       password: 'password',
-      config: const UtexoUnlockConfig(
+      config: UtexoUnlockConfig(
         bitcoindRpcUsername: 'user',
         bitcoindRpcPassword: 'password',
         bitcoindRpcHost: '127.0.0.1',
@@ -1218,7 +1218,7 @@ void main() {
   test('supports RN-style password signer in constructor', () async {
     final hostApi = FakeRlnHostApi();
     final wallet = UtexoWallet(
-      config: const UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
+      config: UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
       client: RlnClient(hostApi: hostApi),
       signer: PasswordRlnSigner(
         password: 'password',
@@ -1229,7 +1229,7 @@ void main() {
 
     await wallet.init();
     await wallet.unlock(
-      config: const UtexoUnlockConfig(
+      config: UtexoUnlockConfig(
         bitcoindRpcUsername: 'user',
         bitcoindRpcPassword: 'password',
         bitcoindRpcHost: '127.0.0.1',
@@ -1244,7 +1244,7 @@ void main() {
   test('supports RN-style native external signer lifecycle', () async {
     final hostApi = FakeRlnHostApi();
     final wallet = UtexoWallet(
-      config: const UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
+      config: UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
       client: RlnClient(hostApi: hostApi),
       signer: NativeExternalRlnSigner(
         keys: RlnKeyMaterial.mnemonic(
@@ -1256,7 +1256,7 @@ void main() {
 
     await wallet.init();
     await wallet.unlock(
-      config: const UtexoUnlockConfig(
+      config: UtexoUnlockConfig(
         bitcoindRpcUsername: 'user',
         bitcoindRpcPassword: 'password',
         bitcoindRpcHost: '127.0.0.1',
@@ -1278,7 +1278,7 @@ void main() {
     () async {
       final hostApi = FakeRlnHostApi();
       final wallet = UtexoWallet(
-        config: const UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
+        config: UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
         client: RlnClient(hostApi: hostApi),
         signer: NativeExternalRlnSigner(
           keys: RlnKeyMaterial.mnemonic(
@@ -1298,7 +1298,7 @@ void main() {
   test('normalizes utexo network for native node and signer parity', () async {
     final passwordHostApi = FakeRlnHostApi();
     final passwordWallet = UtexoWallet(
-      config: const UtexoWalletConfig(
+      config: UtexoWalletConfig(
         storageDirPath: '/tmp/rgb-wallet-test',
         network: 'utexo',
       ),
@@ -1308,7 +1308,7 @@ void main() {
     await passwordWallet.init(password: 'password');
     await passwordWallet.unlock(
       password: 'password',
-      config: const UtexoUnlockConfig(),
+      config: UtexoUnlockConfig(),
     );
 
     expect(passwordWallet.getNetwork(), 'utexo');
@@ -1321,7 +1321,7 @@ void main() {
 
     final signerHostApi = FakeRlnHostApi();
     final signerWallet = UtexoWallet(
-      config: const UtexoWalletConfig(
+      config: UtexoWalletConfig(
         storageDirPath: '/tmp/rgb-wallet-test',
         network: 'utexo',
       ),
@@ -1342,7 +1342,7 @@ void main() {
 
   test('exports RN-style network defaults and unlock resolution', () {
     final defaults = getNetworkDefaults('utexo');
-    final resolved = resolveUnlockParams('utexo', const UtexoUnlockConfig());
+    final resolved = resolveUnlockParams('utexo', UtexoUnlockConfig());
 
     expect(normalizeNativeRlnNetwork('UTEXO'), 'signet');
     expect(defaults?.indexerUrl, 'https://esplora-api.utexo.com');
@@ -1357,7 +1357,7 @@ void main() {
     expect(resolved.proxyEndpoint, 'rpcs://rgb-proxy.utexo.com/json-rpc');
 
     expect(
-      () => resolveUnlockConfig('unknown-network', const UtexoUnlockConfig()),
+      () => resolveUnlockConfig('unknown-network', UtexoUnlockConfig()),
       throwsA(isA<WalletValidationException>()),
     );
     expect(
@@ -1411,7 +1411,7 @@ void main() {
   test('rejects unsupported networks before native node creation', () async {
     final hostApi = FakeRlnHostApi();
     final wallet = UtexoWallet(
-      config: const UtexoWalletConfig(
+      config: UtexoWalletConfig(
         storageDirPath: '/tmp/rgb-wallet-test',
         network: 'unknown-network',
       ),
@@ -1432,7 +1432,7 @@ void main() {
     await expectLater(
       wallet.unlock(
         password: 'password',
-        config: const UtexoUnlockConfig(
+        config: UtexoUnlockConfig(
           bitcoindRpcHost: '127.0.0.1',
           bitcoindRpcUsername: 'user',
           gossipRgsServerUrl: 'https://rgs.example',
@@ -1456,14 +1456,14 @@ void main() {
     await Future.wait(<Future<void>>[
       wallet.unlock(
         password: 'password',
-        config: const UtexoUnlockConfig(
+        config: UtexoUnlockConfig(
           bitcoindRpcHost: '127.0.0.1',
           bitcoindRpcUsername: 'user',
         ),
       ),
       wallet.unlock(
         password: 'password',
-        config: const UtexoUnlockConfig(
+        config: UtexoUnlockConfig(
           bitcoindRpcHost: '127.0.0.1',
           bitcoindRpcUsername: 'user',
         ),
@@ -1479,7 +1479,7 @@ void main() {
 
     await wallet.init(password: 'password');
     await wallet.unlock(
-      config: const UtexoUnlockConfig(
+      config: UtexoUnlockConfig(
         bitcoindRpcHost: '127.0.0.1',
         bitcoindRpcUsername: 'user',
       ),
@@ -1488,7 +1488,7 @@ void main() {
 
     await expectLater(
       wallet.reinit(
-        unlockConfig: const UtexoUnlockConfig(
+        unlockConfig: UtexoUnlockConfig(
           bitcoindRpcHost: '127.0.0.1',
           bitcoindRpcUsername: 'user',
         ),
@@ -1498,7 +1498,7 @@ void main() {
 
     await wallet.reinit(
       password: 'password',
-      unlockConfig: const UtexoUnlockConfig(
+      unlockConfig: UtexoUnlockConfig(
         bitcoindRpcHost: '127.0.0.1',
         bitcoindRpcUsername: 'user',
       ),
@@ -1519,7 +1519,7 @@ void main() {
     await expectLater(wallet.getAddress(), throwsA(isA<WalletException>()));
 
     await wallet.reinit(
-      unlockConfig: const UtexoUnlockConfig(
+      unlockConfig: UtexoUnlockConfig(
         bitcoindRpcHost: '127.0.0.1',
         bitcoindRpcUsername: 'user',
       ),
@@ -1534,7 +1534,7 @@ void main() {
     await wallet.init(password: 'password');
     await wallet.shutdown();
     await wallet.reinit(
-      unlockConfig: const UtexoUnlockConfig(
+      unlockConfig: UtexoUnlockConfig(
         bitcoindRpcUsername: 'user',
         bitcoindRpcPassword: 'password',
         bitcoindRpcHost: '127.0.0.1',
@@ -1556,7 +1556,7 @@ void main() {
 
     await wallet.reinit(
       password: 'password',
-      unlockConfig: const UtexoUnlockConfig(
+      unlockConfig: UtexoUnlockConfig(
         bitcoindRpcHost: '127.0.0.1',
         bitcoindRpcPort: 18444,
       ),
@@ -1573,7 +1573,7 @@ void main() {
     () async {
       final hostApi = FakeRlnHostApi();
       final wallet = UtexoWallet(
-        config: const UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
+        config: UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
         client: RlnClient(hostApi: hostApi),
         signer: NativeExternalRlnSigner(
           keys: RlnKeyMaterial.seedHex(
@@ -1583,7 +1583,7 @@ void main() {
         ),
       );
 
-      await wallet.reinit(unlockConfig: const UtexoUnlockConfig());
+      await wallet.reinit(unlockConfig: UtexoUnlockConfig());
 
       expect(hostApi.createNodeCount, 1);
       expect(hostApi.createdSignerIds, <int>[99]);
@@ -1604,7 +1604,7 @@ void main() {
         network: 'regtest',
       );
       final wallet = UtexoWallet(
-        config: const UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
+        config: UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
         client: RlnClient(hostApi: hostApi),
         signer: signer,
       );
@@ -1619,7 +1619,7 @@ void main() {
       expect(hostApi.createdSignerIds, <int>[99]);
 
       final retryWallet = UtexoWallet(
-        config: const UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
+        config: UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
         client: RlnClient(hostApi: hostApi),
         signer: NativeExternalRlnSigner(
           keys: RlnKeyMaterial.seedHex(
@@ -1646,13 +1646,13 @@ void main() {
         network: 'regtest',
       );
       final wallet = UtexoWallet(
-        config: const UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
+        config: UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
         client: RlnClient(hostApi: hostApi),
         signer: signer,
       );
 
       await expectLater(
-        wallet.reinit(unlockConfig: const UtexoUnlockConfig()),
+        wallet.reinit(unlockConfig: UtexoUnlockConfig()),
         throwsStateError,
       );
       expect(signer.signerId, isNull);
@@ -1661,13 +1661,13 @@ void main() {
 
       hostApi.throwOnNativeSignerAttach = false;
       await expectLater(
-        wallet.unlock(config: const UtexoUnlockConfig()),
+        wallet.unlock(config: UtexoUnlockConfig()),
         throwsA(isA<WalletException>()),
       );
       expect(hostApi.createdSignerIds, <int>[99]);
 
       final retryWallet = UtexoWallet(
-        config: const UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
+        config: UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
         client: RlnClient(hostApi: hostApi),
         signer: NativeExternalRlnSigner(
           keys: RlnKeyMaterial.seedHex(
@@ -1676,7 +1676,7 @@ void main() {
           network: 'regtest',
         ),
       );
-      await retryWallet.reinit(unlockConfig: const UtexoUnlockConfig());
+      await retryWallet.reinit(unlockConfig: UtexoUnlockConfig());
 
       expect(hostApi.attachedNativeSignerId, 100);
       expect(hostApi.unlockedNativeSignerId, 100);
@@ -1697,7 +1697,7 @@ void main() {
         network: 'regtest',
       );
       final wallet = UtexoWallet(
-        config: const UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
+        config: UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
         client: client,
         signer: signer,
       );
@@ -1725,7 +1725,7 @@ void main() {
       expect(hostApi.createdSignerIds, <int>[99]);
 
       final retryWallet = UtexoWallet(
-        config: const UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
+        config: UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
         client: client,
         signer: NativeExternalRlnSigner(
           keys: RlnKeyMaterial.seedHex(
@@ -1771,7 +1771,7 @@ void main() {
       signer.unlockNode(
         client: client,
         nodeId: 7,
-        config: const UtexoUnlockConfig(),
+        config: UtexoUnlockConfig(),
         storageDirPath: '/tmp/rgb-wallet-two',
       ),
       throwsA(isA<WalletException>()),
@@ -1785,10 +1785,7 @@ void main() {
     final hostApi = FakeRlnHostApi();
     final wallet = walletWith(hostApi);
     await wallet.init(password: 'password');
-    await wallet.unlock(
-      password: 'password',
-      config: const UtexoUnlockConfig(),
-    );
+    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
     expect((await wallet.getNodeInfo()).pubkey, 'node');
     expect((await wallet.getNetworkInfo()).height, 101);
@@ -1806,7 +1803,7 @@ void main() {
     'returns constructor xpubs when provided like RN wallet params',
     () async {
       final wallet = UtexoWallet(
-        config: const UtexoWalletConfig(
+        config: UtexoWalletConfig(
           storageDirPath: '/tmp/rgb-wallet-test',
           xpubVan: 'constructor-van',
           xpubCol: 'constructor-col',
@@ -1827,10 +1824,7 @@ void main() {
     final hostApi = FakeRlnHostApi();
     final wallet = walletWith(hostApi);
     await wallet.init(password: 'password');
-    await wallet.unlock(
-      password: 'password',
-      config: const UtexoUnlockConfig(),
-    );
+    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
     await wallet.blindReceive(const RgbInvoiceRequest(assetId: 'asset'));
     expect(hostApi.lastRgbInvoiceWitness, false);
@@ -1844,10 +1838,7 @@ void main() {
     final hostApi = FakeRlnHostApi();
     final wallet = walletWith(hostApi);
     await wallet.init(password: 'password');
-    await wallet.unlock(
-      password: 'password',
-      config: const UtexoUnlockConfig(),
-    );
+    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
     final response = await wallet.send(
       const RgbSendRequest(invoice: 'rgb:invoice'),
@@ -1865,10 +1856,7 @@ void main() {
     final hostApi = FakeRlnHostApi();
     final wallet = walletWith(hostApi);
     await wallet.init(password: 'password');
-    await wallet.unlock(
-      password: 'password',
-      config: const UtexoUnlockConfig(),
-    );
+    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
     await expectLater(
       wallet.send(const RgbSendRequest(invoice: 'rgb:invoice', skipSync: true)),
@@ -2096,10 +2084,7 @@ void main() {
   test('maps Lightning helpers to canonical RN status shapes', () async {
     final wallet = walletWith(FakeRlnHostApi());
     await wallet.init(password: 'password');
-    await wallet.unlock(
-      password: 'password',
-      config: const UtexoUnlockConfig(),
-    );
+    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
     expect(
       await wallet.getLightningReceiveStatus('invoice'),
@@ -2125,10 +2110,7 @@ void main() {
       ..paymentStatus = 'UNKNOWN_PAYMENT';
     final wallet = walletWith(hostApi);
     await wallet.init(password: 'password');
-    await wallet.unlock(
-      password: 'password',
-      config: const UtexoUnlockConfig(),
-    );
+    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
     await expectLater(
       wallet.getLightningReceiveStatus('invoice'),
@@ -2141,10 +2123,7 @@ void main() {
     final hostApi = FakeRlnHostApi();
     final wallet = walletWith(hostApi);
     await wallet.init(password: 'password');
-    await wallet.unlock(
-      password: 'password',
-      config: const UtexoUnlockConfig(),
-    );
+    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
     final transfers = await wallet.listTransfers();
 
@@ -2158,10 +2137,7 @@ void main() {
       final hostApi = FakeRlnHostApi()..throwOnEmptyListTransfers = true;
       final wallet = walletWith(hostApi);
       await wallet.init(password: 'password');
-      await wallet.unlock(
-        password: 'password',
-        config: const UtexoUnlockConfig(),
-      );
+      await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
       final transfers = await wallet.listTransfers();
 
@@ -2179,10 +2155,7 @@ void main() {
         ..emptyListTransfersErrorMessage = 'invalid request';
       final wallet = walletWith(hostApi);
       await wallet.init(password: 'password');
-      await wallet.unlock(
-        password: 'password',
-        config: const UtexoUnlockConfig(),
-      );
+      await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
       final transfers = await wallet.listTransfers();
 
@@ -2195,10 +2168,7 @@ void main() {
     final hostApi = FakeRlnHostApi();
     final wallet = walletWith(hostApi);
     await wallet.init(password: 'password');
-    await wallet.unlock(
-      password: 'password',
-      config: const UtexoUnlockConfig(),
-    );
+    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
     final balance = await wallet.getBtcBalanceCore();
     final invoice = await wallet.blindReceiveCore(
@@ -2238,10 +2208,7 @@ void main() {
     final hostApi = FakeRlnHostApi();
     final wallet = walletWith(hostApi);
     await wallet.init(password: 'password');
-    await wallet.unlock(
-      password: 'password',
-      config: const UtexoUnlockConfig(),
-    );
+    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
     final lnReceive = await wallet.createLightningInvoice(
       amountSats: 2,
@@ -2282,10 +2249,7 @@ void main() {
     final hostApi = FakeRlnHostApi();
     final wallet = walletWith(hostApi);
     await wallet.init(password: 'password');
-    await wallet.unlock(
-      password: 'password',
-      config: const UtexoUnlockConfig(),
-    );
+    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
     final hodl = await wallet.createHodlInvoice(
       const CreateHodlInvoiceParams(
@@ -2349,10 +2313,7 @@ void main() {
       final hostApi = FakeRlnHostApi();
       final wallet = walletWith(hostApi);
       await wallet.init(password: 'password');
-      await wallet.unlock(
-        password: 'password',
-        config: const UtexoUnlockConfig(),
-      );
+      await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
       final lspClient = FakeLspClient();
       final lsp = UtexoLsp(
         wallet: wallet,
@@ -2449,7 +2410,7 @@ void main() {
     () async {
       final hostApi = FakeRlnHostApi();
       final wallet = UtexoWallet(
-        config: const UtexoWalletConfig(
+        config: UtexoWalletConfig(
           storageDirPath: '/tmp/rgb-wallet-test',
           network: 'utexo',
         ),
@@ -2607,10 +2568,7 @@ void main() {
       final hostApi = FakeRlnHostApi();
       final wallet = walletWith(hostApi);
       await wallet.init(password: 'password');
-      await wallet.unlock(
-        password: 'password',
-        config: const UtexoUnlockConfig(),
-      );
+      await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
       final lspClient = FakeLspClient();
       final lsp = UtexoLsp(
@@ -2652,10 +2610,7 @@ void main() {
       ..connectPeerError = const ConflictError('peer already connected');
     final wallet = walletWith(hostApi);
     await wallet.init(password: 'password');
-    await wallet.unlock(
-      password: 'password',
-      config: const UtexoUnlockConfig(),
-    );
+    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
     final lsp = UtexoLsp(
       wallet: wallet,
       peer: const LspPeer(
@@ -2677,10 +2632,7 @@ void main() {
     final hostApi = FakeRlnHostApi();
     final wallet = walletWith(hostApi);
     await wallet.init(password: 'password');
-    await wallet.unlock(
-      password: 'password',
-      config: const UtexoUnlockConfig(),
-    );
+    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
     final lspClient = FakeLspClient()
       ..lightningReceiveError = const LspError(
         endpoint: '/lightning_receive',
@@ -2726,10 +2678,7 @@ void main() {
       ..apayNewWithAddressError = const WalletError('apay registration failed');
     final wallet = walletWith(hostApi);
     await wallet.init(password: 'password');
-    await wallet.unlock(
-      password: 'password',
-      config: const UtexoUnlockConfig(),
-    );
+    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
     final lsp = UtexoLsp(
       wallet: wallet,
       peer: const LspPeer(
@@ -2768,10 +2717,7 @@ void main() {
       ];
     final wallet = walletWith(hostApi);
     await wallet.init(password: 'password');
-    await wallet.unlock(
-      password: 'password',
-      config: const UtexoUnlockConfig(),
-    );
+    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
     final lsp = UtexoLsp(
       wallet: wallet,
       peer: const LspPeer(
@@ -2808,10 +2754,7 @@ void main() {
       ..vssBackupError = const WalletError('vss backup failed');
     final wallet = walletWith(hostApi);
     await wallet.init(password: 'password');
-    await wallet.unlock(
-      password: 'password',
-      config: const UtexoUnlockConfig(),
-    );
+    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
     final lsp = UtexoLsp(
       wallet: wallet,
       peer: const LspPeer(
@@ -2904,10 +2847,7 @@ void main() {
     final hostApi = FakeRlnHostApi();
     final wallet = walletWith(hostApi);
     await wallet.init(password: 'password');
-    await wallet.unlock(
-      password: 'password',
-      config: const UtexoUnlockConfig(),
-    );
+    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
     final unspents = await wallet.listUnspents(skipSync: true);
     final coreUnspents = await wallet.listUnspentsCore(skipSync: true);
@@ -3008,10 +2948,7 @@ void main() {
     final hostApi = FakeRlnHostApi();
     final wallet = walletWith(hostApi);
     await wallet.init(password: 'password');
-    await wallet.unlock(
-      password: 'password',
-      config: const UtexoUnlockConfig(),
-    );
+    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
     final transfers = await wallet.listOnchainTransfers(assetId: 'asset');
 
@@ -3028,10 +2965,7 @@ void main() {
 
       expect(await wallet.rotateVanillaAddress(), 'bcrt1rotated');
       final inflation = await wallet.inflate(
-        const InflateAssetIfaRequest(
-          assetId: 'ifa',
-          inflationAmounts: <int>[25, 75],
-        ),
+        InflateAssetIfaRequest(assetId: 'ifa', inflationAmounts: <int>[25, 75]),
       );
       expect(inflation.txid, 'inflate-txid');
       expect(hostApi.lastInflate?['assetId'], 'ifa');
@@ -3054,7 +2988,7 @@ void main() {
     () async {
       final hostApi = FakeRlnHostApi();
       final wallet = UtexoWallet(
-        config: const UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
+        config: UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
         client: RlnClient(hostApi: hostApi),
         signer: NativeExternalRlnSigner(
           keys: RlnKeyMaterial.seedHex(

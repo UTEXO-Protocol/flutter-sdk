@@ -75,11 +75,11 @@ class CoreRgbAllocation {
 }
 
 class CoreUnspent {
-  const CoreUnspent({
+  CoreUnspent({
     required this.utxo,
-    required this.rgbAllocations,
+    required List<CoreRgbAllocation> rgbAllocations,
     this.pendingBlinded = 0,
-  });
+  }) : rgbAllocations = List<CoreRgbAllocation>.unmodifiable(rgbAllocations);
 
   final CoreUtxo utxo;
   final List<CoreRgbAllocation> rgbAllocations;
@@ -105,21 +105,24 @@ class CoreTransaction {
 }
 
 class CoreTransfer {
-  const CoreTransfer({
+  CoreTransfer({
     required this.idx,
     this.batchTransferIdx,
     this.createdAt,
     this.updatedAt,
     required this.status,
-    required this.assignments,
+    required List<Assignment> assignments,
     required this.kind,
     this.txid,
     this.recipientId,
     this.receiveUtxo,
     this.changeUtxo,
     this.expiration,
-    required this.transportEndpoints,
-  });
+    required List<RlnTransferTransportEndpoint> transportEndpoints,
+  }) : assignments = List<Assignment>.unmodifiable(assignments),
+       transportEndpoints = List<RlnTransferTransportEndpoint>.unmodifiable(
+         transportEndpoints,
+       );
 
   final int idx;
   final int? batchTransferIdx;
@@ -151,7 +154,7 @@ class CoreInvoiceReceiveData {
 }
 
 class CoreInvoiceData {
-  const CoreInvoiceData({
+  CoreInvoiceData({
     required this.invoice,
     required this.recipientId,
     this.assetSchema,
@@ -159,8 +162,8 @@ class CoreInvoiceData {
     required this.network,
     required this.assignment,
     this.expirationTimestamp,
-    required this.transportEndpoints,
-  });
+    required List<String> transportEndpoints,
+  }) : transportEndpoints = List<String>.unmodifiable(transportEndpoints);
 
   final String invoice;
   final String recipientId;
@@ -269,12 +272,15 @@ class CoreAssetUda extends CoreAsset {
 }
 
 class CoreListAssets {
-  const CoreListAssets({
-    required this.nia,
-    required this.cfa,
-    required this.ifa,
-    required this.uda,
-  });
+  CoreListAssets({
+    required List<CoreAssetNia> nia,
+    required List<CoreAssetCfa> cfa,
+    required List<CoreAssetIfa> ifa,
+    required List<CoreAssetUda> uda,
+  }) : nia = List<CoreAssetNia>.unmodifiable(nia),
+       cfa = List<CoreAssetCfa>.unmodifiable(cfa),
+       ifa = List<CoreAssetIfa>.unmodifiable(ifa),
+       uda = List<CoreAssetUda>.unmodifiable(uda);
 
   final List<CoreAssetNia> nia;
   final List<CoreAssetCfa> cfa;

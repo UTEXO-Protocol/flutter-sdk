@@ -3,8 +3,8 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
-import '../errors/rgb_sdk_exception.dart';
 import '../crypto/constants.dart';
+import '../errors/rgb_sdk_exception.dart';
 import 'lsp_errors.dart';
 import 'lsp_types.dart';
 

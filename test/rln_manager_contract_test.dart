@@ -179,7 +179,7 @@ void main() {
     final binding = RLNBinding(client: RlnClient(hostApi: hostApi));
 
     final nodeId = await binding.rlnCreateNode(
-      const IRLNNodeCreateParams(
+      IRLNNodeCreateParams(
         storageDirPath: '/tmp/rgb-node',
         daemonListeningPort: 9735,
         ldkPeerListeningPort: 9736,
@@ -201,7 +201,7 @@ void main() {
     expect(hostApi.calls[2].args, <Object?>[42, true, 2, null, 1.5, false]);
     expect(
       () => binding.rlnCreateNode(
-        const IRLNNodeCreateParams(
+        IRLNNodeCreateParams(
           storageDirPath: '/tmp/another',
           daemonListeningPort: 9735,
           ldkPeerListeningPort: 9736,
@@ -220,7 +220,7 @@ void main() {
     );
 
     await manager.rlnCreateNode(
-      const IRLNNodeCreateParams(
+      IRLNNodeCreateParams(
         storageDirPath: '/tmp/rgb-node',
         daemonListeningPort: 9735,
         ldkPeerListeningPort: 9736,
@@ -260,7 +260,7 @@ void main() {
         ..nodeInfoFailuresRemaining = 1;
       final binding = RLNBinding(client: RlnClient(hostApi: hostApi));
       await binding.rlnCreateNode(
-        const IRLNNodeCreateParams(
+        IRLNNodeCreateParams(
           storageDirPath: '/tmp/rgb-node',
           daemonListeningPort: 9735,
           ldkPeerListeningPort: 9736,
@@ -271,7 +271,7 @@ void main() {
 
       await binding.rlnUnlockNode(
         password: 'password',
-        params: const IRLNUnlockParams(indexerUrl: '127.0.0.1:50002'),
+        params: IRLNUnlockParams(indexerUrl: '127.0.0.1:50002'),
       );
 
       expect(binding.consumeRlnUnlockConflictNormalized(), true);

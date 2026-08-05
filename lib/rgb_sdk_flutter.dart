@@ -4,6 +4,7 @@ import 'src/native_artifact_info.dart';
 import 'src/release_baseline.g.dart';
 import 'src/wallet/rln_manager.dart';
 import 'src/wallet/utexo_wallet.dart';
+import 'src/wallet/utexo_wallet_types.dart';
 
 export 'src/binding/rln_binding.dart';
 export 'src/client/rln_client.dart';
@@ -12,8 +13,8 @@ export 'src/crypto/keys.dart';
 export 'src/crypto/message.dart';
 export 'src/crypto/signer.dart';
 export 'src/crypto/validation.dart';
-export 'src/errors/rgb_sdk_exception.dart';
 export 'src/errors/native_bridge_error_mapper.dart';
+export 'src/errors/rgb_sdk_exception.dart';
 export 'src/lsp/lsp_errors.dart';
 export 'src/lsp/lsp_types.dart';
 export 'src/lsp/utexo_lsp.dart';
@@ -29,6 +30,7 @@ export 'src/wallet/network_defaults.dart';
 export 'src/wallet/rln_manager.dart';
 export 'src/wallet/rln_signers.dart';
 export 'src/wallet/utexo_wallet.dart';
+export 'src/wallet/utexo_wallet_types.dart';
 
 /// Flutter entry point for RGB Lightning Node bindings.
 ///

@@ -148,15 +148,15 @@ gates.
 
 | Measure | Count |
 | --- | ---: |
-| Total tracked findings | 153 |
+| Total tracked findings | 154 |
 | P0 | 4 |
-| P1 | 101 |
+| P1 | 102 |
 | P2 | 48 |
 | Open | 28 |
 | In progress | 0 |
 | Needs decision | 0 |
 | Accepted constraint | 5 |
-| Verified | 120 |
+| Verified | 121 |
 
 This rollup is a snapshot of the master ledger below. Update it in the same
 change whenever an issue is added or its priority/status changes.
@@ -373,8 +373,9 @@ non-recovery-ready until upstream supplies a real implementation.
 | MODEL-012 | P1 | Verified | Core transfer mapping no longer hard-codes `batchTransferIdx: 0` and no longer substitutes fallback status/kind values; optional values remain nullable and unknown state throws. | Add native vectors to prove the current transfer shape on both platforms. |
 | MODEL-013 | P1 | Verified | Outpoint parsing now requires `<txid>:<vout>` with a non-negative integer vout, and assignment parsing only accepts supported assignment shapes plus the RN/core numeric fungible shorthand. | Add fuzz/property tests for parser boundaries under TEST-009. |
 | MODEL-014 | P1 | Verified | Facade fee-rate defaults are now integer-equivalent (`1`), Dart validation rejects fractional rates, Swift/Kotlin bridge validation rejects fractional rates before node lookup, and Dart plus Android JVM tests prove `1.5` fails instead of truncating. | Add the matching iOS XCTest run on the next local iOS bridge pass. |
-| MODEL-015 | P2 | Verified | `doc/BRIDGE_BEHAVIOR_CONTRACT.md`, `bridge_behavior_vectors.json`, and `rln_models.dart` now define the Pigeon numeric contract: request integers are bounded to signed `Int64` over Pigeon, narrower unsigned fields are rejected natively before mutation, native unsigned outputs may arrive as decimal strings, Dart models parse decimal strings through signed `Int64.max`, and out-of-range values throw `NativeProtocolException` rather than fabricating `0`/`null`. | Introduce an explicit BigInt/string domain type in a future breaking API only if native/RN exposes values that exceed signed `Int64` in real release fixtures. |
+| MODEL-015 | P2 | Verified | `doc/BRIDGE_BEHAVIOR_CONTRACT.md`, `bridge_behavior_vectors.json`, and `rln_models.dart` now define the Pigeon numeric contract: request integers are bounded to signed `Int64` over Pigeon, narrower unsigned fields are rejected natively before mutation, native unsigned outputs may arrive as decimal strings, signed domain fields parse decimal strings through signed `Int64.max`, and out-of-range values throw `NativeProtocolException` rather than fabricating `0`/`null`. | Native unsigned capability outputs that exceed signed `Int64` must use exact domain types and their own model tests; see MODEL-017 for the first runtime-proven field. |
 | MODEL-016 | P2 | Open | Timestamp and amount units are not consistently documented on public Dart models. | Document and test seconds/msat/sat semantics at every boundary. |
+| MODEL-017 | P1 | Verified | Exact clean iOS funded regtest candidate run `20260805T160450Z-5b2a55f` reached the funded RGB send flow and then failed in `RlnNodeInfo.fromMap` because native returned `channelAssetMaxAmount` as an unsigned UInt64 decimal above signed `Int64.max`; the old Dart model rejected it as a malformed signed integer. | `RlnNodeInfo.channelAssetMaxAmount` is now an exact `BigInt?`, `BRIDGE_BEHAVIOR_CONTRACT.md`, `PUBLIC_API_REFERENCE.md`, and `bridge_behavior_vectors.json` document the field-level unsigned-output policy, and `test/utexo_wallet_test.dart::parses and bounds native integer strings at model boundaries` proves `18446744073709551615` survives exactly while `18446744073709551616` is rejected. |
 
 ### Lifecycle, Threading, and Architecture
 

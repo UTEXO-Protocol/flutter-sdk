@@ -39,11 +39,13 @@ values, so Flutter request inputs support:
   non-negative, integral `double` values.
 
 Native outputs may contain unsigned 64-bit values. Swift and Kotlin bridge
-adapters serialize values above signed `Int64.max` as decimal strings. Current
-public Dart models expose signed `int` values, so model mappers parse integer
-or decimal-string values through `Int64.max` and reject larger values with
-`NativeProtocolException`. They must never turn out-of-range native values into
-`0`, `null`, or a default model.
+adapters serialize values above signed `Int64.max` as decimal strings. Public
+Dart models use signed `int` only for fields whose release fixtures and domain
+contracts fit signed 64-bit values. Native unsigned capability fields that may
+legitimately exceed signed 64-bit use an exact domain type instead; for example
+`RlnNodeInfo.channelAssetMaxAmount` is `BigInt?` and accepts the full UInt64
+range. Model mappers must never turn out-of-range native values into `0`,
+`null`, a clamped value, or a default model.
 
 The source constants are:
 

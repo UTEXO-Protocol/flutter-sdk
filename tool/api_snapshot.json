@@ -2,8 +2,8 @@
   "schemaVersion": 1,
   "description": "Normalized public API and bridge snapshot. Update only with a tracker row and migration note.",
   "dartExportedSurface": {
-    "count": 1823,
-    "hash": "a2e17388e39c2d6e593a81550e654e4ede3cd0eff1ad24fc77b221e64a099e85",
+    "count": 1824,
+    "hash": "10eb2b5e3408e8bf060650eee5f0b8852e97c7fac8889aa2bc73f33af516d0e2",
     "files": [
       "lib/rgb_sdk_flutter.dart",
       "lib/src/binding/rln_binding.dart",

@@ -40,8 +40,9 @@ unless a test explicitly owns that interaction.
 | Native timestamps from transfer/invoice/block metadata | Unix seconds unless a field is explicitly named `Ms` |
 | Ports, counts, indexes, confirmations | integer native units |
 
-Numeric inputs must fit the current signed 64-bit Pigeon bridge boundary unless
-the field is documented as a decimal-string native output.
+Numeric inputs must fit the current signed 64-bit Pigeon bridge boundary.
+Native UInt64 outputs that may exceed that boundary use exact domain types; for
+example `RlnNodeInfo.channelAssetMaxAmount` is `BigInt?`.
 
 ## Error Taxonomy
 

@@ -53,6 +53,26 @@ int? _intOrNull(Object? value, [String field = 'native integer']) {
   return null;
 }
 
+BigInt? _uint64OrNull(Object? value, [String field = 'native UInt64']) {
+  if (value == null) return null;
+  final parsed = switch (value) {
+    int() when value >= 0 => BigInt.from(value),
+    double() when value.isFinite && value % 1 == 0 && value >= 0 => BigInt.from(
+      value.toInt(),
+    ),
+    String() => BigInt.tryParse(value),
+    _ => null,
+  };
+  if (parsed == null) return null;
+  if (parsed < BigInt.zero || parsed > BigInt.parse(rlnMaxUnsigned64Decimal)) {
+    throw NativeProtocolException(
+      '$field exceeds the supported unsigned 64-bit integer range.',
+      field: field,
+    );
+  }
+  return parsed;
+}
+
 int _requiredInt(RlnMap map, String key, String typeName) {
   final value = _intOrNull(map[key]);
   if (value == null) {
@@ -295,7 +315,10 @@ class RlnNodeInfo {
       channelCapacityMinSat: _intOrNull(map['channelCapacityMinSat']),
       channelCapacityMaxSat: _intOrNull(map['channelCapacityMaxSat']),
       channelAssetMinAmount: _intOrNull(map['channelAssetMinAmount']),
-      channelAssetMaxAmount: _intOrNull(map['channelAssetMaxAmount']),
+      channelAssetMaxAmount: _uint64OrNull(
+        map['channelAssetMaxAmount'],
+        'RlnNodeInfo.channelAssetMaxAmount',
+      ),
       networkNodes: _intOrNull(map['networkNodes']),
       networkChannels: _intOrNull(map['networkChannels']),
       latestRgsSnapshotTimestamp: _intOrNull(map['latestRgsSnapshotTimestamp']),
@@ -317,7 +340,7 @@ class RlnNodeInfo {
   final int? channelCapacityMinSat;
   final int? channelCapacityMaxSat;
   final int? channelAssetMinAmount;
-  final int? channelAssetMaxAmount;
+  final BigInt? channelAssetMaxAmount;
   final int? networkNodes;
   final int? networkChannels;
   final int? latestRgsSnapshotTimestamp;

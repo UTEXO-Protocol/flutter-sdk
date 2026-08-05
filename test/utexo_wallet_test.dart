@@ -2016,6 +2016,19 @@ void main() {
     expect(transfer.updatedAt, 9223372036854775805);
     expect(transfer.batchTransferIdx, 9223372036854775804);
 
+    final nodeInfo = RlnNodeInfo.fromMap(<Object?, Object?>{
+      'pubkey': 'node',
+      'numChannels': 0,
+      'numUsableChannels': 0,
+      'localBalanceSat': 0,
+      'numPeers': 0,
+      'channelAssetMaxAmount': rlnMaxUnsigned64Decimal,
+    });
+    expect(
+      nodeInfo.channelAssetMaxAmount,
+      BigInt.parse(rlnMaxUnsigned64Decimal),
+    );
+
     expect(
       () => RlnTransaction.fromMap(<Object?, Object?>{
         'transactionType': 'rgbSend',
@@ -2030,6 +2043,17 @@ void main() {
         'idx': rlnMaxUnsigned64Decimal,
         'status': 'WaitingCounterparty',
         'assignments': <String>['Fungible(1)'],
+      }),
+      throwsA(isA<NativeProtocolException>()),
+    );
+    expect(
+      () => RlnNodeInfo.fromMap(<Object?, Object?>{
+        'pubkey': 'node',
+        'numChannels': 0,
+        'numUsableChannels': 0,
+        'localBalanceSat': 0,
+        'numPeers': 0,
+        'channelAssetMaxAmount': '18446744073709551616',
       }),
       throwsA(isA<NativeProtocolException>()),
     );

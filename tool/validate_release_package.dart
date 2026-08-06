@@ -198,7 +198,7 @@ void main() {
   }
 
   check(File('LICENSE').existsSync(), 'LICENSE must exist.');
-  check(File('SECURITY.md').existsSync(), 'SECURITY.md must exist.');
+  check(File('doc/SECURITY.md').existsSync(), 'doc/SECURITY.md must exist.');
   check(
     File('doc/RELEASE_READINESS_TRACKER.md').existsSync(),
     'release tracker must exist.',

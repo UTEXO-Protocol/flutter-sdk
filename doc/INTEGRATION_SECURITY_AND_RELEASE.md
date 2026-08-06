@@ -24,7 +24,7 @@ Kotlin, Android SDK, simulator/device, and regtest stack used for a candidate.
 
 | Area | Current support | Release note |
 | --- | --- | --- |
-| Package distribution | Private Git/path only | `publish_to: none`; public publishing policy is deferred |
+| Package distribution | Public Git/path only | `publish_to: none`; pub.dev publishing policy is deferred |
 | Flutter | `3.41.x` family | CI and local gates read `.fvmrc` |
 | Dart | `>=3.11.0 <4.0.0` | Tested with Dart `3.11.5` from Flutter `3.41.9` |
 | iOS | `18.5+` | Required by the pinned RLN iOS archive object metadata |

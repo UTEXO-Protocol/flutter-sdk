@@ -1,13 +1,20 @@
 # RGB SDK Flutter
 
-Private Flutter plugin for Bitcoin, RGB assets, and RGB Lightning, backed by
+Flutter plugin for Bitcoin, RGB assets, and RGB Lightning wallets backed by
 RGB Lightning Node native artifacts.
 
-## Release Status
+This package is the Flutter counterpart to
+[`@utexo/rgb-sdk-rn`](https://github.com/UTEXO-Protocol/rgb-sdk-rn). It exposes
+a stable Dart wallet facade for app code and an explicit advanced entrypoint
+for RN/native parity diagnostics.
+
+## Status
 
 **Not production ready. Do not use this revision with mainnet funds.**
 
-The current source/static parity pass compares this repository with:
+Current package version: `0.1.0`.
+
+The current baseline is:
 
 - `UTEXO-Protocol/rgb-sdk-rn` `dev` at
   `63cbf9a01030a8a10eb1b04b2734cd8c5d23aec1`
@@ -15,71 +22,122 @@ The current source/static parity pass compares this repository with:
 - `@utexo/rgb-sdk-core` `1.0.0-beta.7`
 - RGB Lightning Node `0.10.0-beta.3`
 
-The source baseline targets those exact versions, and the pinned native
-artifact remains unchanged from the RN package. Repository-owned API, model,
-lifecycle, code-quality, and packaging findings are closed; the final source
-still requires its exact clean-candidate local runtime rerun. Production
-remains blocked by `PKG-006`: the upstream
-native artifacts do not yet have the required verified signatures, trusted-key
-policy, and reproducible-build/source attestations. Baseline alignment and
-internal-beta evidence must not be mistaken for production readiness.
+All repository-owned source, API, model, lifecycle, package, local native
+bridge, platform smoke, and release-runner findings are either verified or
+explicitly accepted for this internal-beta line. The major accepted production
+constraint is `PKG-006`: upstream native artifacts are pinned and checksum
+verified, but full production provenance is not available yet.
 
-The authoritative verdict and issue ledger are in the
-[Release Readiness Tracker](doc/RELEASE_READINESS_TRACKER.md). Do not infer
-production readiness from passing unit tests, static parity matrices, local
-artifact checks, or the presence of an advanced/raw bridge method.
+That means internal-beta development may proceed, while public/funds-bearing
+production use still requires upstream signatures, trusted-key verification,
+and reproducible-build/source attestations for every native artifact. The
+authoritative ledger is
+[doc/RELEASE_READINESS_TRACKER.md](doc/RELEASE_READINESS_TRACKER.md).
 
-## Intended Architecture
+## Features
 
-The package exposes two Dart entrypoints:
+- On-device RGB Lightning Node integration for iOS and Android.
+- Stable `UtexoWallet` facade for Bitcoin, RGB, Lightning, peer, channel,
+  LSP, APay, signer, and lifecycle workflows.
+- RGB asset issuance and transfer support for the native/RN-supported surface.
+- On-chain BTC balance, address, UTXO, transaction, and send workflows.
+- Lightning invoice, payment, peer, channel, keysend, decode, and status
+  workflows.
+- LSP integration for Lightning Address, async payment hash pools, APay order
+  creation, and RGB/Lightning orchestration.
+- Password signer and native external signer strategies.
+- Strict Dart domain DTOs on the stable API boundary.
+- Advanced RN/native entrypoint for `RlnClient`, `RLNBinding`, `RLNManager`,
+  raw `Rln*` models, bridge diagnostics, and parity tooling.
+- Local release gates for Dart tests, native iOS XCTest, Android bridge tests,
+  clean consumer archives, funded/unfunded regtest smokes, and external signer
+  restart proofs.
 
-- `package:rgb_sdk_flutter/rgb_sdk_flutter.dart`: stable app-facing wallet,
-  domain DTOs, signer strategies, errors, validation, and crypto helpers.
-- `package:rgb_sdk_flutter/rgb_sdk_flutter_advanced.dart`: explicit
-  RN/native-parity surface for `RlnClient`, `RLNBinding`, `RLNManager`, raw
-  `Rln*` models, native bridge diagnostics, logger access, and migration tests.
+## Platform Requirements
 
-App code should start with the stable root import. Advanced imports are for
-release evidence, diagnostics, and deliberate native/RN escape hatches only.
-Standalone account-key Schnorr signing is disabled by default and requires an
-explicit `SchnorrSigningMode.experimentalDart` opt-in for parity tests/internal
-tooling; production message signing should use the native RLN-backed wallet
-node-key methods.
+| Platform | Requirement |
+| --- | --- |
+| Flutter | `>=3.41.0` |
+| Dart | `>=3.11.0 <4.0.0` |
+| iOS | `18.5+`, required by the pinned RLN iOS artifact object metadata |
+| Android | min SDK `24`, compile SDK from `tool/release_baseline.json` |
+| Native services | Electrum and/or bitcoind RPC plus RGB proxy at unlock time |
 
-## Development Install
+The tested local toolchain is pinned in `.fvmrc`.
 
-Use an immutable Git commit for internal development. Tracking `main` is not a
-release-safe dependency policy.
+## Installation
+
+This release line is Git/path only and is not published to pub.dev. Use an
+immutable commit in consuming apps.
 
 ```yaml
 dependencies:
   rgb_sdk_flutter:
     git:
-      url: git@github.com:zeusbuilds/rgb-sdk-flutter.git
+      url: https://github.com/zeusbuilds/rgb-sdk-flutter.git
       ref: <immutable-commit>
 ```
 
-## Development Example
+Then run:
 
-The following is provided only for local development while the release
-blockers are open:
+```sh
+flutter pub get
+```
+
+### iOS
+
+The pod `prepare_command` downloads the pinned
+`RGBLightningNode.xcframework`, verifies it, and installs it into the plugin's
+iOS directory.
+
+```sh
+cd ios
+pod install
+```
+
+For deterministic local release runs, prefer a pre-resolved archive or cache:
+
+```sh
+RLN_ARCHIVE_PATH=/path/to/rgb-lightning-node-swift-0.10.0-beta.3.zip pod install
+RLN_CACHE_DIR=/path/to/rln-cache pod install
+RLN_OFFLINE=1 pod install
+```
+
+### Android
+
+Android resolves `com.utexo:rgb-lightning-node-android:0.10.0-beta.3` through
+Gradle/Maven. The release gate verifies the resolved AAR checksum, size, and
+ABI set against `tool/release_baseline.json`.
+
+## Quick Start
+
+Import the stable package entrypoint for app code:
 
 ```dart
 import 'package:rgb_sdk_flutter/rgb_sdk_flutter.dart';
+```
+
+Create a wallet with app-owned storage and a signer:
+
+```dart
+final keys = await generateKeys('regtest');
 
 final wallet = UtexoWallet(
   config: UtexoWalletConfig(
-    storageDirPath: '/app/documents/rgb-node',
-    network: 'regtest',
+    storageDirPath: appRgbNodeStoragePath,
     daemonListeningPort: 9735,
     ldkPeerListeningPort: 9736,
+    network: 'regtest',
+  ),
+  signer: PasswordRlnSigner(
+    password: passwordFromUser,
+    mnemonic: keys.mnemonic,
   ),
 );
 
-await wallet.init(password: password);
+await wallet.init();
 await wallet.unlock(
-  password: password,
-  config: UtexoUnlockConfig(
+  UtexoUnlockConfig(
     bitcoindRpcUsername: 'user',
     bitcoindRpcPassword: 'password',
     bitcoindRpcHost: '127.0.0.1',
@@ -88,51 +146,165 @@ await wallet.unlock(
     proxyEndpoint: 'rpc://127.0.0.1:3013/json-rpc',
   ),
 );
+
+final address = await wallet.getAddress();
+final balance = await wallet.getBtcBalance();
+
+await wallet.syncWallet();
+await wallet.createUtxos(
+  upTo: false,
+  num: 4,
+  feeRate: 1,
+);
+
+final receive = await wallet.onchainReceive(
+  RgbInvoiceRequest(
+    witness: false,
+    minConfirmations: 1,
+  ),
+);
+
+print(address);
+print(balance.vanilla.spendable);
+print(receive.invoice);
 ```
 
-## Local Checks
+Restart the same wallet instance after shutdown:
 
-Use the pinned toolchain in `.fvmrc`. Release evidence must record the exact
-toolchain and must fail when required local gates are skipped.
+```dart
+await wallet.shutdown();
+await wallet.reinit(unlockConfig);
+```
+
+Release all SDK-owned native resources when the app is done with the wallet:
+
+```dart
+await wallet.destroy();
+```
+
+## Signers
+
+`PasswordRlnSigner` is the password-based signer. The mnemonic is required for
+first initialization and may be omitted for later unlock-only sessions when the
+node storage already exists.
+
+```dart
+final firstRunSigner = PasswordRlnSigner(
+  password: passwordFromUser,
+  mnemonic: keys.mnemonic,
+);
+
+final unlockOnlySigner = PasswordRlnSigner(password: passwordFromUser);
+```
+
+`NativeExternalRlnSigner` uses the native external-signer path and accepts
+mnemonic, seed bytes, or seed hex key material.
+
+```dart
+final signer = NativeExternalRlnSigner(
+  keys: RlnKeyMaterial.mnemonic(keys.mnemonic),
+  network: 'regtest',
+);
+```
+
+Durable credential storage is app-owned. The SDK does not silently persist
+passwords, mnemonics, seed hex, or app auth tokens.
+
+## API Entry Points
+
+Use the stable root library for normal app code:
+
+```dart
+import 'package:rgb_sdk_flutter/rgb_sdk_flutter.dart';
+```
+
+Use the advanced library only for parity tests, diagnostics, migration tooling,
+or low-level integrations that intentionally need the RN/native shape:
+
+```dart
+import 'package:rgb_sdk_flutter/rgb_sdk_flutter_advanced.dart';
+```
+
+The stable facade returns Dart domain DTOs. Raw native/RN models remain behind
+the advanced entrypoint.
+
+## Common Workflows
+
+| Area | Stable API examples |
+| --- | --- |
+| Wallet lifecycle | `init`, `unlock`, `shutdown`, `reinit`, `destroy` |
+| BTC | `getBtcBalance`, `getAddress`, `rotateVanillaAddress`, `sendBtc` |
+| UTXOs | `createUtxos`, `listUnspents` |
+| RGB assets | `listAssets`, `getAssetBalance`, `issueAssetNia`, `issueAssetIfa` |
+| RGB receive/send | `onchainReceive`, `blindReceive`, `witnessReceive`, `onchainSend`, `decodeRgbInvoice` |
+| Transactions/transfers | `listTransactions`, `listTransfers`, `failTransfers`, `refreshWallet`, `syncWallet` |
+| Lightning | `createBolt11Invoice`, `sendPayment`, `keysend`, `listPayments`, `decodeLightningInvoice` |
+| Channels/peers | `connectPeer`, `disconnectPeer`, `listPeers`, `openChannel`, `closeChannel`, `listChannels` |
+| LSP/APay | `createLsp`, `enableLightningAddress`, `refillHashPool`, APay order helpers |
+| Signing | wallet node-message signing plus explicit experimental account-key Schnorr opt-in |
+
+## Accepted Constraints
+
+The current internal-beta line intentionally keeps these constraints explicit:
+
+- Native backup/recovery is blocked until upstream provides and proves a real
+  implementation.
+- `sendRgb(skipSync: true)` fails fast because the pinned native artifact has
+  no real skip-sync field.
+- Standalone pure-Dart account-key Schnorr signing fails closed by default and
+  requires `SchnorrSigningMode.experimentalDart`.
+- Durable credential storage is app-owned.
+- Native builds and funded regtest smokes are local release gates, not CI
+  gates.
+- `publish_to: none` remains until publishing/version distribution policy is
+  decided.
+- Production native artifact provenance is accepted as an internal-beta
+  constraint under `PKG-006`; production supply-chain mode must still fail
+  until upstream signatures and reproducible-build/source attestations exist.
+
+## Local Validation
+
+Use the pinned Flutter toolchain from `.fvmrc`.
 
 ```sh
-flutter --version
-dart --version
 flutter pub get
-dart format --output=none --set-exit-if-changed lib test example/integration_test pigeons tool
+dart format --output=none --set-exit-if-changed lib test example/integration_test tool pigeons
+flutter analyze --no-fatal-warnings --no-fatal-infos
+flutter test --coverage
+dart run tool/validate_coverage_policy.dart
 dart run tool/validate_release_governance.dart
 dart run tool/validate_codebase_hardening.dart
 dart run tool/validate_public_api_docs.dart
 dart run tool/validate_release_language.dart
 dart run tool/validate_api_snapshot.dart
 dart run tool/validate_bridge_vectors.dart
-flutter analyze
-flutter test --coverage
-dart run tool/validate_coverage_policy.dart
-dart run tool/validate_test_matrix.dart
-RGB_SDK_RN_PATH=<current-rn-dev-checkout> \
-  dart run tool/validate_rn_parity.dart
+RGB_SDK_RN_PATH=/path/to/rgb-sdk-rn dart run tool/validate_rn_parity.dart
 ```
 
-The current RN parity command is expected to pass for static method/export
-inventory only when the local checkout and live upstream `origin/dev` both
-match `tool/release_baseline.json`. It is not behavioral runtime evidence.
+The full local candidate gate is:
 
-Native builds, iOS XCTest, and funded/unfunded regtest smokes are intentionally
-local-only release gates. A release report must fail when any required local
-gate is skipped.
+```sh
+RUN_CONSUMER_ARCHIVES=1 RUN_PLATFORM=1 ./tool/test_release_candidate.sh
+```
 
-## Recovery Boundary
+The full gate runs Dart checks, package governance, clean consumer installs and
+archives, Android bridge tests, iOS XCTest, funded/unfunded iOS and Android
+regtest smokes, and external-signer process restart proofs. Required local
+gates must not be skipped for release evidence.
 
-Native local backup/recovery remains blocked. The package must not claim
-recovery readiness until upstream provides a working, tested implementation.
-Durable credential storage is owned by the consuming app; the SDK still owns
-in-memory secret minimization and safe diagnostics.
+## Security and Recovery
 
-LSP/LNURL HTTP uses HTTPS by default. Plain HTTP is accepted only for explicit
-local loopback development hosts.
+Read [doc/SECURITY.md](doc/SECURITY.md) before integrating the package.
 
-## Project Documents
+Do not put mnemonics, seeds, passwords, private keys, bearer tokens, invoices,
+preimages, wallet paths, or native error bodies in logs, screenshots, reports,
+or issue trackers. SDK diagnostics are redacted as defense in depth, not as a
+license to log secrets.
+
+Native local backup/recovery remains blocked. This release line must not claim
+recovery readiness.
+
+## Documentation
 
 - [Release Readiness Tracker](doc/RELEASE_READINESS_TRACKER.md)
 - [Integration, Security, and Release Policy](doc/INTEGRATION_SECURITY_AND_RELEASE.md)
@@ -141,6 +313,6 @@ local loopback development hosts.
 - [Release Evidence Schema](doc/RELEASE_EVIDENCE_SCHEMA.md)
 - [Public API Reference](doc/PUBLIC_API_REFERENCE.md)
 - [Dart Coverage Policy](doc/COVERAGE_POLICY.md)
-- [Security Policy](SECURITY.md)
-- [Changelog](CHANGELOG.md)
+- [Security Policy](doc/SECURITY.md)
 - [Machine-Readable Test Matrix](tool/test_matrix/README.md)
+- [Example App](example/README.md)

@@ -42,7 +42,10 @@ void main() {
     'Not production ready',
   ]) {
     if (!readme.contains(expected)) {
-      failures.add('README.md must include baseline/NO-GO wording: $expected');
+      failures.add(
+        'README.md must include baseline/internal-beta safety wording: '
+        '$expected',
+      );
     }
   }
 
@@ -165,5 +168,5 @@ bool _looksTextual(String path) {
   return suffixes.any(path.endsWith) ||
       path == 'README.md' ||
       path == 'LICENSE' ||
-      path == 'SECURITY.md';
+      path == 'doc/SECURITY.md';
 }

@@ -1,18 +1,24 @@
 # Security Policy
 
-This repository is private. Report suspected vulnerabilities through the
-private project-owner channel, not through public issues, discussions, or
+This repository is public. Report suspected vulnerabilities through a
+project-owner security channel, not through public issues, discussions, or
 support logs.
 
 ## Current Security Status
 
-This revision is **not approved for production or mainnet funds**. Confirmed
-release blockers include native lifecycle/threading evidence, complete secret
-lifetime minimization, cryptographic assurance, native artifact provenance,
-platform smoke evidence, and recovery limitations.
+This revision is **not approved for production or mainnet funds**. The current
+SDK source, API, model, lifecycle, packaging, local native, and platform-smoke
+evidence is current for the internal-beta line, but production approval is
+still bounded by accepted constraints.
+
+The most important constraint is `PKG-006`: pinned native artifacts are
+checksum/ABI/slice verified and inventoried, but the upstream release does not
+yet provide the full signature, trusted-key verification, and
+reproducible-build/source attestation evidence required for production
+supply-chain mode.
 
 The authoritative findings and exit criteria are in the
-[Release Readiness Tracker](doc/RELEASE_READINESS_TRACKER.md), especially the
+[Release Readiness Tracker](RELEASE_READINESS_TRACKER.md), especially the
 `SEC`, `LSP`, `LIFE`, `PKG`, and `TEST` issue groups.
 
 ## Secret Handling

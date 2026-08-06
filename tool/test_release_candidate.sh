@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+source "${SCRIPT_DIR}/regtest/config.sh"
 REPORT_DIR="${REPORT_DIR:-${REPO_DIR}/build/test-reports/release}"
 FLUTTER_BIN="${FLUTTER_BIN:-flutter}"
 DART_BIN="${DART_BIN:-dart}"
@@ -261,7 +262,7 @@ main() {
 
   run_step "package dependency resolution" "${FLUTTER_BIN}" pub get
   run_step "example dependency resolution" bash -lc "cd '${REPO_DIR}/example' && '${FLUTTER_BIN}' pub get"
-  run_step "format check" "${DART_BIN}" format --set-exit-if-changed lib test tool pigeons
+  run_step "format check" "${DART_BIN}" format --set-exit-if-changed lib test example/integration_test tool pigeons
   run_step "test matrix validation" "${DART_BIN}" run tool/validate_test_matrix.dart
   run_step "bridge behavior vector validation" "${DART_BIN}" run tool/validate_bridge_vectors.dart
   run_step "codebase hardening validation" "${DART_BIN}" run tool/validate_codebase_hardening.dart

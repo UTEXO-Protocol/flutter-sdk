@@ -13,6 +13,7 @@ void main() {
 
   final tracker = _read(_trackerPath, errors);
   final rows = _parseIssueRows(tracker);
+  _validateIssueRows(rows, errors);
   _validateRollup(tracker, rows, errors);
   _validateOpenGroups(tracker, rows, errors);
 
@@ -33,6 +34,7 @@ void main() {
     'API-017',
     'API-019',
     'API-030',
+    'MODEL-014',
     'SEC-007',
     'SEC-009',
     'TEST-017',
@@ -100,6 +102,34 @@ void main() {
   }
 
   stdout.writeln('Release governance validation passed.');
+}
+
+void _validateIssueRows(List<_IssueRow> rows, List<String> errors) {
+  final seen = <String>{};
+  final duplicates = <String>{};
+  for (final row in rows) {
+    if (!seen.add(row.id)) duplicates.add(row.id);
+  }
+  if (duplicates.isNotEmpty) {
+    final sorted = duplicates.toList()..sort();
+    errors.add(
+      'Master issue ledger contains duplicate IDs: ${sorted.join(', ')}.',
+    );
+  }
+
+  const allowedStatuses = <String>{
+    'Open',
+    'In progress',
+    'Blocked upstream',
+    'Accepted constraint',
+    'Needs decision',
+    'Verified',
+  };
+  for (final row in rows) {
+    if (!allowedStatuses.contains(row.status)) {
+      errors.add('${row.id} has unsupported status "${row.status}".');
+    }
+  }
 }
 
 String _read(String path, List<String> errors) {

@@ -78,25 +78,68 @@ class RlnSeedHexKeyMaterial extends RlnKeyMaterial {
   }
 }
 
+/// Narrow node-operation boundary available to custom [RlnSigner] strategies.
+///
+/// The wallet supplies this host. Implementations must not retain it beyond an
+/// operation because its native node ownership follows the wallet lifecycle.
+abstract interface class RlnSignerHost {
+  Future<void> initPasswordNode({
+    required int nodeId,
+    required String password,
+    String? mnemonic,
+  });
+
+  Future<void> unlockPasswordNode({
+    required int nodeId,
+    required String password,
+    required UtexoUnlockConfig config,
+  });
+
+  Future<int> createNativeExternalSigner({
+    required String seedHex,
+    required String network,
+    required bool permissivePolicy,
+    required String storageDirPath,
+  });
+
+  Future<void> initNodeWithNativeExternalSigner({
+    required int nodeId,
+    required int signerId,
+  });
+
+  Future<void> attachNativeExternalSigner({
+    required int nodeId,
+    required int signerId,
+  });
+
+  Future<void> unlockNodeWithNativeExternalSigner({
+    required int nodeId,
+    required int signerId,
+    required UtexoUnlockConfig config,
+  });
+
+  Future<void> destroyNativeExternalSigner(int signerId);
+}
+
 /// RN-compatible signer strategy used by [UtexoWallet].
 abstract class RlnSigner {
   const RlnSigner();
 
   Future<void> initNode({
-    required RlnClient client,
+    required RlnSignerHost host,
     required int nodeId,
     required String storageDirPath,
   });
 
   Future<void> unlockNode({
-    required RlnClient client,
+    required RlnSignerHost host,
     required int nodeId,
     required UtexoUnlockConfig config,
     required String storageDirPath,
   });
 
   Future<void> dispose({
-    required RlnClient client,
+    required RlnSignerHost host,
     required int nodeId,
   }) async {}
 }
@@ -119,12 +162,12 @@ class PasswordRlnSigner extends RlnSigner {
 
   @override
   Future<void> initNode({
-    required RlnClient client,
+    required RlnSignerHost host,
     required int nodeId,
     required String storageDirPath,
   }) async {
     final password = _requirePassword();
-    await client.initNode(
+    await host.initPasswordNode(
       nodeId: nodeId,
       password: password,
       mnemonic: _mnemonic,
@@ -134,25 +177,17 @@ class PasswordRlnSigner extends RlnSigner {
 
   @override
   Future<void> unlockNode({
-    required RlnClient client,
+    required RlnSignerHost host,
     required int nodeId,
     required UtexoUnlockConfig config,
     required String storageDirPath,
   }) async {
     final password = _requirePassword();
     try {
-      await client.unlockNode(
+      await host.unlockPasswordNode(
         nodeId: nodeId,
         password: password,
-        bitcoindRpcUsername: config.bitcoindRpcUsername,
-        bitcoindRpcPassword: config.bitcoindRpcPassword,
-        bitcoindRpcHost: config.bitcoindRpcHost,
-        bitcoindRpcPort: config.bitcoindRpcPort,
-        indexerUrl: config.indexerUrl,
-        proxyEndpoint: config.proxyEndpoint,
-        announceAddresses: config.announceAddresses,
-        announceAlias: config.announceAlias,
-        gossipRgsServerUrl: config.gossipRgsServerUrl,
+        config: config,
       );
     } finally {
       _password = null;
@@ -192,7 +227,7 @@ class NativeExternalRlnSigner extends RlnSigner {
 
   @override
   Future<void> initNode({
-    required RlnClient client,
+    required RlnSignerHost host,
     required int nodeId,
     required String storageDirPath,
   }) async {
@@ -202,15 +237,15 @@ class NativeExternalRlnSigner extends RlnSigner {
         'Native external signer is already initialized.',
       );
     }
-    final signerId = await _createSigner(client, storageDirPath);
+    final signerId = await _createSigner(host, storageDirPath);
     try {
-      await client.initNodeWithNativeExternalSigner(
+      await host.initNodeWithNativeExternalSigner(
         nodeId: nodeId,
         signerId: signerId,
       );
     } catch (error, stackTrace) {
       await _cleanupFailedSigner(
-        client: client,
+        host: host,
         signerId: signerId,
         operationError: error,
         operationStackTrace: stackTrace,
@@ -221,7 +256,7 @@ class NativeExternalRlnSigner extends RlnSigner {
 
   @override
   Future<void> unlockNode({
-    required RlnClient client,
+    required RlnSignerHost host,
     required int nodeId,
     required UtexoUnlockConfig config,
     required String storageDirPath,
@@ -229,15 +264,15 @@ class NativeExternalRlnSigner extends RlnSigner {
     _ensureNoOrphanedSigner();
     _bindStorageDirPath(storageDirPath);
     if (_signerId == null) {
-      final signerId = await _createSigner(client, storageDirPath);
+      final signerId = await _createSigner(host, storageDirPath);
       try {
-        await client.attachNativeExternalSigner(
+        await host.attachNativeExternalSigner(
           nodeId: nodeId,
           signerId: signerId,
         );
       } catch (error, stackTrace) {
         await _cleanupFailedSigner(
-          client: client,
+          host: host,
           signerId: signerId,
           operationError: error,
           operationStackTrace: stackTrace,
@@ -245,29 +280,24 @@ class NativeExternalRlnSigner extends RlnSigner {
       }
       _signerId = signerId;
     }
-    await client.unlockNodeWithNativeExternalSigner(
+    await host.unlockNodeWithNativeExternalSigner(
       nodeId: nodeId,
       signerId: _signerId!,
-      bitcoindRpcUsername: config.bitcoindRpcUsername,
-      bitcoindRpcPassword: config.bitcoindRpcPassword,
-      bitcoindRpcHost: config.bitcoindRpcHost,
-      bitcoindRpcPort: config.bitcoindRpcPort,
-      indexerUrl: config.indexerUrl,
-      proxyEndpoint: config.proxyEndpoint,
-      announceAddresses: config.announceAddresses,
-      announceAlias: config.announceAlias,
-      gossipRgsServerUrl: config.gossipRgsServerUrl,
+      config: config,
     );
   }
 
   @override
-  Future<void> dispose({required RlnClient client, required int nodeId}) async {
+  Future<void> dispose({
+    required RlnSignerHost host,
+    required int nodeId,
+  }) async {
     final signerId = _signerId ?? _orphanedSignerId;
     if (signerId == null) {
       _storageDirPath = null;
       return;
     }
-    await client.destroyNativeExternalSigner(signerId);
+    await host.destroyNativeExternalSigner(signerId);
     if (_signerId == signerId) {
       _signerId = null;
     }
@@ -277,7 +307,7 @@ class NativeExternalRlnSigner extends RlnSigner {
     _storageDirPath = null;
   }
 
-  Future<int> _createSigner(RlnClient client, String storageDirPath) async {
+  Future<int> _createSigner(RlnSignerHost host, String storageDirPath) async {
     _ensureNoOrphanedSigner();
     _bindStorageDirPath(storageDirPath);
     final seedHex = _seedHex;
@@ -288,7 +318,7 @@ class NativeExternalRlnSigner extends RlnSigner {
       );
     }
     try {
-      return await client.createNativeExternalSigner(
+      return await host.createNativeExternalSigner(
         seedHex: seedHex,
         network: network,
         permissivePolicy: permissivePolicy,
@@ -325,13 +355,13 @@ class NativeExternalRlnSigner extends RlnSigner {
   }
 
   Future<Never> _cleanupFailedSigner({
-    required RlnClient client,
+    required RlnSignerHost host,
     required int signerId,
     required Object operationError,
     required StackTrace operationStackTrace,
   }) async {
     try {
-      await client.destroyNativeExternalSigner(signerId);
+      await host.destroyNativeExternalSigner(signerId);
     } catch (cleanupError) {
       _orphanedSignerId = signerId;
       Error.throwWithStackTrace(
@@ -344,5 +374,142 @@ class NativeExternalRlnSigner extends RlnSigner {
       );
     }
     Error.throwWithStackTrace(operationError, operationStackTrace);
+  }
+}
+
+Future<void> initializeRlnSigner({
+  required RlnSigner signer,
+  required RlnClient client,
+  required int nodeId,
+  required String storageDirPath,
+}) {
+  return signer.initNode(
+    host: _RlnClientSignerHost(client),
+    nodeId: nodeId,
+    storageDirPath: storageDirPath,
+  );
+}
+
+Future<void> unlockRlnSigner({
+  required RlnSigner signer,
+  required RlnClient client,
+  required int nodeId,
+  required UtexoUnlockConfig config,
+  required String storageDirPath,
+}) {
+  return signer.unlockNode(
+    host: _RlnClientSignerHost(client),
+    nodeId: nodeId,
+    config: config,
+    storageDirPath: storageDirPath,
+  );
+}
+
+Future<void> disposeRlnSigner({
+  required RlnSigner signer,
+  required RlnClient client,
+  required int nodeId,
+}) {
+  return signer.dispose(host: _RlnClientSignerHost(client), nodeId: nodeId);
+}
+
+final class _RlnClientSignerHost implements RlnSignerHost {
+  const _RlnClientSignerHost(this._client);
+
+  final RlnClient _client;
+
+  @override
+  Future<void> initPasswordNode({
+    required int nodeId,
+    required String password,
+    String? mnemonic,
+  }) {
+    return _client
+        .initNode(nodeId: nodeId, password: password, mnemonic: mnemonic)
+        .then((_) {});
+  }
+
+  @override
+  Future<void> unlockPasswordNode({
+    required int nodeId,
+    required String password,
+    required UtexoUnlockConfig config,
+  }) {
+    return _client.unlockNode(
+      nodeId: nodeId,
+      password: password,
+      bitcoindRpcUsername: config.bitcoindRpcUsername,
+      bitcoindRpcPassword: config.bitcoindRpcPassword,
+      bitcoindRpcHost: config.bitcoindRpcHost,
+      bitcoindRpcPort: config.bitcoindRpcPort,
+      indexerUrl: config.indexerUrl,
+      proxyEndpoint: config.proxyEndpoint,
+      announceAddresses: config.announceAddresses,
+      announceAlias: config.announceAlias,
+      gossipRgsServerUrl: config.gossipRgsServerUrl,
+    );
+  }
+
+  @override
+  Future<int> createNativeExternalSigner({
+    required String seedHex,
+    required String network,
+    required bool permissivePolicy,
+    required String storageDirPath,
+  }) {
+    return _client.createNativeExternalSigner(
+      seedHex: seedHex,
+      network: network,
+      permissivePolicy: permissivePolicy,
+      storageDirPath: storageDirPath,
+    );
+  }
+
+  @override
+  Future<void> initNodeWithNativeExternalSigner({
+    required int nodeId,
+    required int signerId,
+  }) {
+    return _client.initNodeWithNativeExternalSigner(
+      nodeId: nodeId,
+      signerId: signerId,
+    );
+  }
+
+  @override
+  Future<void> attachNativeExternalSigner({
+    required int nodeId,
+    required int signerId,
+  }) {
+    return _client.attachNativeExternalSigner(
+      nodeId: nodeId,
+      signerId: signerId,
+    );
+  }
+
+  @override
+  Future<void> unlockNodeWithNativeExternalSigner({
+    required int nodeId,
+    required int signerId,
+    required UtexoUnlockConfig config,
+  }) {
+    return _client.unlockNodeWithNativeExternalSigner(
+      nodeId: nodeId,
+      signerId: signerId,
+      bitcoindRpcUsername: config.bitcoindRpcUsername,
+      bitcoindRpcPassword: config.bitcoindRpcPassword,
+      bitcoindRpcHost: config.bitcoindRpcHost,
+      bitcoindRpcPort: config.bitcoindRpcPort,
+      indexerUrl: config.indexerUrl,
+      proxyEndpoint: config.proxyEndpoint,
+      announceAddresses: config.announceAddresses,
+      announceAlias: config.announceAlias,
+      gossipRgsServerUrl: config.gossipRgsServerUrl,
+    );
+  }
+
+  @override
+  Future<void> destroyNativeExternalSigner(int signerId) {
+    return _client.destroyNativeExternalSigner(signerId);
   }
 }

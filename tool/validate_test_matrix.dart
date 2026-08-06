@@ -61,6 +61,7 @@ void main() {
     matrix: rlnMatrix,
     errors: errors,
   );
+  _validateCoreExportCoverage(coreMatrix, errors);
   _validateSourceCoverage(
     name: 'UtexoWallet',
     className: 'UtexoWallet',
@@ -84,6 +85,118 @@ void main() {
     'Test matrix valid: '
     '$rlnCount RlnClient, $walletCount UtexoWallet, $coreCount core exports.',
   );
+}
+
+void _validateCoreExportCoverage(
+  Map<String, Object?> matrix,
+  List<String> errors,
+) {
+  final stable = _collectEntrypointSymbols('lib/rgb_sdk_flutter.dart', errors);
+  final advanced = _collectEntrypointSymbols(
+    'lib/rgb_sdk_flutter_advanced.dart',
+    errors,
+  );
+  final methods = matrix['methods'];
+  if (methods is! List<Object?>) return;
+
+  for (final row in methods.whereType<Map<String, Object?>>()) {
+    final id = row['id'];
+    final implementation = row['implementation'];
+    if (id is! String || implementation is! String) continue;
+    final separator = implementation.indexOf('::');
+    if (separator < 0) continue;
+    final entrypoint = implementation.substring(0, separator);
+    final symbol = implementation.substring(separator + 2);
+    final exported = switch (entrypoint) {
+      'lib/rgb_sdk_flutter.dart' => stable,
+      'lib/rgb_sdk_flutter_advanced.dart' => advanced,
+      _ => null,
+    };
+    if (exported == null) {
+      errors.add(
+        'core_exports.json/$id must reference a package entrypoint, not '
+        '$entrypoint.',
+      );
+    } else if (symbol != id || !exported.contains(symbol)) {
+      errors.add(
+        'core_exports.json/$id claims $implementation, but `$symbol` is not '
+        'exported by that entrypoint.',
+      );
+    }
+  }
+}
+
+Set<String> _collectEntrypointSymbols(
+  String entrypointPath,
+  List<String> errors,
+) {
+  final entrypoint = File(entrypointPath);
+  if (!entrypoint.existsSync()) {
+    errors.add('Missing package entrypoint: $entrypointPath');
+    return <String>{};
+  }
+  final symbols = _publicTopLevelSymbols(entrypoint);
+  final exportPattern = RegExp(r"export\s+'([^']+)'([^;]*);");
+  for (final match in exportPattern.allMatches(entrypoint.readAsStringSync())) {
+    final target = File('${entrypoint.parent.path}/${match.group(1)!}');
+    if (!target.existsSync()) {
+      errors.add('$entrypointPath exports missing file ${target.path}.');
+      continue;
+    }
+    final available = <String>{};
+    for (final libraryFile in _dartLibraryFiles(target)) {
+      available.addAll(_publicTopLevelSymbols(libraryFile));
+    }
+    final combinators = match.group(2)!;
+    final show = _combinatorSymbols(combinators, 'show');
+    final hide = _combinatorSymbols(combinators, 'hide') ?? const <String>{};
+    symbols.addAll(
+      available.where(
+        (name) => (show == null || show.contains(name)) && !hide.contains(name),
+      ),
+    );
+  }
+  return symbols;
+}
+
+Set<String> _publicTopLevelSymbols(File file) {
+  final symbols = <String>{};
+  final declaration = RegExp(
+    r'^(?:abstract\s+final\s+class|abstract\s+interface\s+class|'
+    r'abstract\s+class|sealed\s+class|class|enum|typedef|extension)\s+'
+    r'([A-Za-z_][A-Za-z0-9_]*)',
+  );
+  final callable = RegExp(
+    r'^(?:[A-Za-z][A-Za-z0-9_<>,? ]*\s+)'
+    r'([a-zA-Z][A-Za-z0-9_]*)\s*\(',
+  );
+  final variable = RegExp(
+    r'^(?:const|final)\s+[A-Za-z][A-Za-z0-9_<>,? ]*\s+'
+    r'([A-Za-z_][A-Za-z0-9_]*)\s*[=;]',
+  );
+  for (final line in file.readAsLinesSync()) {
+    if (line.startsWith(' ') || line.startsWith('\t')) continue;
+    for (final pattern in <RegExp>[declaration, callable, variable]) {
+      final match = pattern.firstMatch(line);
+      if (match != null && !match.group(1)!.startsWith('_')) {
+        symbols.add(match.group(1)!);
+        break;
+      }
+    }
+  }
+  return symbols;
+}
+
+Set<String>? _combinatorSymbols(String source, String keyword) {
+  final match = RegExp('(?:^|\\s)$keyword\\s+([^;]+)').firstMatch(source);
+  if (match == null) return null;
+  final raw = match.group(1)!;
+  final stop = RegExp(r'\s(?:show|hide)\s').firstMatch(raw);
+  return (stop == null ? raw : raw.substring(0, stop.start))
+      .split(',')
+      .map((value) => value.trim())
+      .where((value) => value.isNotEmpty)
+      .toSet();
 }
 
 Map<String, Object?> _readMatrix(
@@ -279,6 +392,13 @@ Set<String> _extractPublicClassMethods(String relativePath, String className) {
     for (final libraryFile in files) {
       methods.addAll(
         _extractPublicMembersFromScope(libraryFile, 'mixin', '_UtexoWallet'),
+      );
+      methods.addAll(
+        _extractPublicMembersFromScope(
+          libraryFile,
+          'extension',
+          'UtexoWalletRawApi',
+        ),
       );
     }
   }

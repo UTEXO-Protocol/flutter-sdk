@@ -31,6 +31,7 @@ void main() {
     'lib/src/wallet/utexo_wallet_lsp_apay.dart',
     'lib/src/wallet/utexo_wallet_onchain.dart',
     'lib/src/wallet/utexo_wallet_lightning.dart',
+    'lib/src/wallet/utexo_wallet_raw.dart',
     'lib/src/wallet/utexo_unlock_config_resolver.dart',
     'lib/src/wallet/wallet_policy.dart',
     'lib/src/binding/rln_binding_types.dart',
@@ -65,6 +66,29 @@ void main() {
         '${_relative(file.path)} has $lineCount lines; split hand-written Dart '
         'files before exceeding $_maxHandWrittenDartLines.',
       );
+    }
+  }
+
+  for (final file
+      in Directory('lib')
+          .listSync(recursive: true)
+          .whereType<File>()
+          .where((file) => file.path.endsWith('.dart'))
+          .where((file) => !file.path.contains('/src/pigeon/'))) {
+    final source = file.readAsStringSync();
+    for (final forbidden in <String>[
+      'throw ArgumentError',
+      'throw StateError',
+      'throw FormatException',
+      'throw UnsupportedError',
+      'throw Exception(',
+    ]) {
+      if (source.contains(forbidden)) {
+        failures.add(
+          '${_relative(file.path)} exposes an untyped Dart exception through '
+          'hand-written package code: `$forbidden`.',
+        );
+      }
     }
   }
 
@@ -116,7 +140,6 @@ void main() {
   final lspClient = File(
     'lib/src/lsp/utexo_lsp_client.dart',
   ).readAsStringSync();
-  final utexoBridge = File('lib/src/utexo/bridge.dart').readAsStringSync();
 
   for (final removed in <String>[
     'lib/rgb_sdk_flutter_platform_interface.dart',
@@ -152,12 +175,6 @@ void main() {
       'RLNBinding must not classify lifecycle conflicts by parsing error strings.',
     );
   }
-  if (utexoBridge.contains('throw ArgumentError') ||
-      utexoBridge.contains('implements Exception')) {
-    failures.add(
-      'UTEXO bridge helper failures must use SDK exception taxonomy.',
-    );
-  }
   for (final type in <String>[
     'class UtexoWalletConfig',
     'class UtexoUnlockConfig',
@@ -178,6 +195,31 @@ void main() {
     if (!wallet.contains(required)) {
       failures.add(
         'lib/src/wallet/utexo_wallet.dart must delegate validation through `$required`.',
+      );
+    }
+  }
+  for (final required in <String>[
+    "_requiredNativeString(response, 'txid', 'RlnSendBtcResponse')",
+    "'RlnFailTransfersResponse'",
+    "'RlnClaimHodlInvoiceResponse'",
+    "'RlnSendPaymentResponse.paymentHash'",
+  ]) {
+    if (!wallet.contains(required)) {
+      failures.add(
+        'Stable wallet native success decoding must retain `$required`.',
+      );
+    }
+  }
+  for (final forbidden in <String>[
+    "response['txid']! as String",
+    "response['transfersChanged'] == true",
+    "response['changed'] == true",
+    "payment.paymentHash ?? payment.paymentId ?? ''",
+  ]) {
+    if (wallet.contains(forbidden)) {
+      failures.add(
+        'Stable wallet must not fabricate or loosely cast native success '
+        'fields: `$forbidden`.',
       );
     }
   }
@@ -259,7 +301,6 @@ void main() {
     'lib/src/models/rln_models.dart',
     'lib/src/models/utexo_core_models.dart',
     'lib/src/lsp/lsp_types.dart',
-    'lib/src/utexo/network.dart',
     'lib/src/binding/rln_binding.dart',
   ]) {
     final text = File(file).readAsStringSync();

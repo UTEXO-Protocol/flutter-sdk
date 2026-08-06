@@ -18,14 +18,11 @@ export 'src/models/utexo_core_models.dart';
 export 'src/utils/logger.dart';
 export 'src/wallet/network_defaults.dart';
 export 'src/wallet/rln_manager.dart';
+export 'src/wallet/utexo_wallet.dart';
 
 /// RN spelling kept behind the advanced/parity import boundary.
 extension UtexoWalletRnCompatibility on UtexoWallet {
   Future<CoreInvoiceData> decodeRGBInvoice(String invoice) {
-    return decodeRgbInvoice(invoice);
-  }
-
-  Future<CoreInvoiceData> decodeRGBInvoiceCore(String invoice) {
     return decodeRgbInvoice(invoice);
   }
 }

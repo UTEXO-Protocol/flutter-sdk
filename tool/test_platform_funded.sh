@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+source "${SCRIPT_DIR}/regtest/config.sh"
 FUNDED_SMOKE="${SCRIPT_DIR}/regtest/flutter_funded_smoke.sh"
 DEVICE="${DEVICE:-}"
 REPORT_DIR="${REPORT_DIR:-${REPO_DIR}/build/test-reports/platform}"
@@ -80,9 +81,9 @@ cat >"${REPORT_FILE}" <<JSON
   "startedAt": "${STARTED_AT}",
   "finishedAt": "${FINISHED_AT}",
   "regtest": {
-    "bitcoindRpcPort": ${BITCOIND_RPC_PORT:-18444},
-    "electrsPort": ${ELECTRS_PORT:-50002},
-    "rgbProxyPort": ${RGB_PROXY_PORT:-3003}
+    "bitcoindRpcPort": ${BITCOIND_RPC_PORT},
+    "electrsPort": ${ELECTRS_PORT},
+    "rgbProxyPort": ${RGB_PROXY_PORT}
   },
   "logPath": "$(json_escape "$(repo_label_path "${LOG_FILE}")")",
   "logSha256": "$(json_escape "$(sha256_file "${LOG_FILE}")")",

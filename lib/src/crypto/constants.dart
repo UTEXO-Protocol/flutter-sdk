@@ -2,6 +2,8 @@
 
 import 'package:bip32/bip32.dart';
 
+import '../errors/rgb_sdk_exception.dart';
+
 /// Bitcoin network type alias used by the RN core package.
 typedef Network = String;
 
@@ -105,10 +107,10 @@ NetworkVersions getNetworkVersions(Object bitcoinNetwork) {
 Network toNetworkName(Object bitcoinNetwork) {
   final exact = NETWORK_MAP[bitcoinNetwork.toString()];
   if (exact != null) return exact;
-  throw ArgumentError.value(
-    bitcoinNetwork,
+  throw ValidationError(
+    'bitcoinNetwork must be one of: ${NETWORK_MAP.keys.join(', ')}; '
+        'received $bitcoinNetwork.',
     'bitcoinNetwork',
-    'Must be one of: ${NETWORK_MAP.keys.join(', ')}',
   );
 }
 

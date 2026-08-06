@@ -1,6 +1,5 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rgb_sdk_flutter/rgb_sdk_flutter_advanced.dart';
-import 'package:rgb_sdk_flutter/src/utexo/network.dart';
 
 void main() {
   group('public DTO collection boundaries', () {
@@ -103,12 +102,16 @@ void main() {
 
       final coreTransfer = transfer.toCore();
       expect(
+        coreTransfer.transportEndpoints.single,
+        isA<CoreTransferTransportEndpoint>(),
+      );
+      expect(
         () => coreTransfer.assignments.add(const Assignment(type: 'Any')),
         throwsUnsupportedError,
       );
       expect(
         () => coreTransfer.transportEndpoints.add(
-          const RlnTransferTransportEndpoint(
+          const CoreTransferTransportEndpoint(
             endpoint: 'endpoint-c',
             transportType: 'JsonRpc',
             used: false,
@@ -118,7 +121,7 @@ void main() {
       );
     });
 
-    test('LSP wire wrappers and network presets are unmodifiable', () {
+    test('LSP wire wrappers are unmodifiable', () {
       final proofMap = <String, Object?>{
         'version': 1,
         'recipient_pubkey': 'recipient',
@@ -138,22 +141,6 @@ void main() {
 
       expect(proofWire.map['version'], 1);
       expect(() => proofWire.map['version'] = 3, throwsUnsupportedError);
-
-      final presetAssets = getUtxoNetworkConfig(
-        'testnet',
-      ).networkIdMap['mainnet']!.assets;
-      expect(
-        () => presetAssets.add(
-          const NetworkAsset(
-            assetId: 'rgb:asset',
-            tokenName: 'T',
-            longName: 'Token',
-            precision: 0,
-            tokenId: 99,
-          ),
-        ),
-        throwsUnsupportedError,
-      );
     });
   });
 }

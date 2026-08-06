@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+source "${SCRIPT_DIR}/regtest/config.sh"
 RESTART_SMOKE="${SCRIPT_DIR}/regtest/flutter_external_signer_restart.sh"
 DEVICE="${DEVICE:-}"
 REPORT_DIR="${REPORT_DIR:-${REPO_DIR}/build/test-reports/platform}"
@@ -95,9 +96,9 @@ ruby -rjson -e '
   "${RUN_ID}" \
   "${STARTED_AT}" \
   "${FINISHED_AT}" \
-  "${BITCOIND_RPC_PORT:-18444}" \
-  "${ELECTRS_PORT:-50002}" \
-  "${RGB_PROXY_PORT:-3003}" \
+  "${BITCOIND_RPC_PORT}" \
+  "${ELECTRS_PORT}" \
+  "${RGB_PROXY_PORT}" \
   "$(repo_label_path "${LOG_FILE}")" \
   "$(sha256_file "${LOG_FILE}")" \
   "${REPORT_FILE}" \

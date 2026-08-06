@@ -20,7 +20,7 @@ const _electrsPort = int.fromEnvironment(
 );
 const _rgbProxyPort = int.fromEnvironment(
   'RGB_SDK_FLUTTER_RGB_PROXY_PORT',
-  defaultValue: 3003,
+  defaultValue: 3013,
 );
 const _password = 'password';
 
@@ -193,7 +193,7 @@ void main() {
       await wallet.syncWallet();
       expect(await wallet.getAddress(), startsWith('bcrt'));
 
-      final balance = await wallet.getBtcBalance(skipSync: true);
+      final balance = await wallet.getBtcBalance();
       expect(balance.vanilla.settled, greaterThanOrEqualTo(0));
       expect(balance.colored.settled, greaterThanOrEqualTo(0));
 
@@ -203,7 +203,7 @@ void main() {
       expect(assets.cfa, isEmpty);
       expect(assets.ifa, isEmpty);
 
-      await wallet.refreshWallet(skipSync: true);
+      await wallet.refreshWallet();
       expect(
         await wallet.failTransfers(noAssetOnly: true, skipSync: true),
         isA<bool>(),
@@ -333,8 +333,8 @@ void main() {
       expect(walletABalance.spendable, lessThanOrEqualTo(900));
 
       _step('read node info');
-      final walletAInfo = await walletA.nodeInfo();
-      final walletBInfo = await walletB.nodeInfo();
+      final walletAInfo = await walletA.getNodeInfo();
+      final walletBInfo = await walletB.getNodeInfo();
       final walletAPeer = '${walletAInfo.pubkey}@127.0.0.1:34033';
       final walletBPeer = '${walletBInfo.pubkey}@127.0.0.1:34034';
       _step('connect wallet A to wallet B');
@@ -346,13 +346,13 @@ void main() {
 
       _step('open RGB channel');
       final opened = await walletA.openChannel(
-        peerPubkeyAndOptAddr: walletBPeer,
+        peerPubkey: walletBPeer,
         capacitySat: 500000,
         pushMsat: 0,
-        publicChannel: false,
+        isPublic: false,
         withAnchors: true,
         assetId: issued.assetId,
-        assetAmount: 200,
+        assetLocalAmount: 200,
       );
       expect(opened.temporaryChannelId, isNotEmpty);
 
@@ -363,20 +363,19 @@ void main() {
 
       _step('create RGB lightning invoice');
       final lnInvoice = await walletB.createLightningInvoice(
-        amtMsat: 3000000,
-        assetId: issued.assetId,
-        assetAmount: 50,
+        amountSats: 3000,
+        asset: LightningAsset(assetId: issued.assetId, amount: 50),
       );
-      expect(lnInvoice.invoice, isNotEmpty);
+      expect(lnInvoice.lnInvoice, isNotEmpty);
 
       _step('pay RGB lightning invoice');
       final payment = await walletA.payLightningInvoice(
-        invoice: lnInvoice.invoice,
+        lnInvoice: lnInvoice.lnInvoice,
       );
       expect(payment.status, isNotEmpty);
 
       _step('wait RGB lightning invoice final');
-      await _waitForInvoiceFinal(walletB, lnInvoice.invoice);
+      await _waitForInvoiceFinal(walletB, lnInvoice.lnInvoice);
       completed = true;
     } finally {
       final cleanupFailures = <String>[];
@@ -491,7 +490,7 @@ void _requestMine(int blocks) {
 }
 
 Future<void> _mineAndWait(UtexoWallet wallet, {required int blocks}) async {
-  final startHeight = (await wallet.networkInfo()).height;
+  final startHeight = (await wallet.getNetworkInfo()).height;
   _requestMine(blocks);
   await _waitForHeight(wallet, startHeight + blocks);
 }
@@ -499,7 +498,7 @@ Future<void> _mineAndWait(UtexoWallet wallet, {required int blocks}) async {
 Future<void> _waitForHeight(UtexoWallet wallet, int targetHeight) async {
   for (var attempt = 0; attempt < 60; attempt++) {
     await wallet.syncWallet();
-    final height = (await wallet.networkInfo()).height;
+    final height = (await wallet.getNetworkInfo()).height;
     if (height >= targetHeight) return;
     await Future<void>.delayed(const Duration(seconds: 1));
   }
@@ -592,7 +591,7 @@ String _channelSummary(List<LightningChannel> channels) {
 
 Future<void> _waitForInvoiceFinal(UtexoWallet wallet, String invoice) async {
   for (var attempt = 0; attempt < 90; attempt++) {
-    final status = (await wallet.invoiceStatus(invoice)).status.toLowerCase();
+    final status = (await wallet.invoiceStatus(invoice)).toLowerCase();
     if (status == 'succeeded') return;
     if (status == 'failed' || status == 'expired' || status == 'cancelled') {
       fail('Invoice reached terminal failure state: $status.');

@@ -1,4 +1,5 @@
 import '../errors/rgb_sdk_exception.dart';
+import '../wallet/utexo_wallet_types.dart';
 import 'rln_models.dart';
 import 'utexo_domain_policy.dart';
 
@@ -18,6 +19,70 @@ class Outpoint {
 
   final String txid;
   final int vout;
+}
+
+class CoreBlockTime {
+  const CoreBlockTime({required this.height, required this.timestamp});
+
+  final int height;
+
+  /// Block Unix timestamp in seconds.
+  final int timestamp;
+}
+
+class CoreTransferTransportEndpoint {
+  const CoreTransferTransportEndpoint({
+    required this.endpoint,
+    required this.transportType,
+    required this.used,
+  });
+
+  final String endpoint;
+  final String transportType;
+  final bool used;
+}
+
+class CoreMedia {
+  const CoreMedia({this.filePath, this.mime});
+
+  final String? filePath;
+  final String? mime;
+}
+
+class CoreTokenAttachment {
+  const CoreTokenAttachment({
+    required this.key,
+    required this.filePath,
+    required this.mime,
+    required this.digest,
+  });
+
+  final int key;
+  final String filePath;
+  final String mime;
+  final String digest;
+}
+
+class CoreAssetToken {
+  CoreAssetToken({
+    required this.index,
+    this.ticker,
+    this.name,
+    this.details,
+    required this.embeddedMedia,
+    this.media,
+    required List<CoreTokenAttachment> attachments,
+    required this.reserves,
+  }) : attachments = List<CoreTokenAttachment>.unmodifiable(attachments);
+
+  final int index;
+  final String? ticker;
+  final String? name;
+  final String? details;
+  final bool embeddedMedia;
+  final CoreMedia? media;
+  final List<CoreTokenAttachment> attachments;
+  final bool reserves;
 }
 
 class CoreBalance {
@@ -126,7 +191,7 @@ class CoreTransaction {
   final int fee;
 
   /// Confirmation height plus Unix timestamp in seconds.
-  final RlnBlockTime? confirmationTime;
+  final CoreBlockTime? confirmationTime;
 }
 
 class CoreTransfer {
@@ -143,9 +208,9 @@ class CoreTransfer {
     this.receiveUtxo,
     this.changeUtxo,
     this.expiration,
-    required List<RlnTransferTransportEndpoint> transportEndpoints,
+    required List<CoreTransferTransportEndpoint> transportEndpoints,
   }) : assignments = List<Assignment>.unmodifiable(assignments),
-       transportEndpoints = List<RlnTransferTransportEndpoint>.unmodifiable(
+       transportEndpoints = List<CoreTransferTransportEndpoint>.unmodifiable(
          transportEndpoints,
        );
 
@@ -167,7 +232,7 @@ class CoreTransfer {
 
   /// Transfer expiration Unix timestamp in seconds, when native provides it.
   final int? expiration;
-  final List<RlnTransferTransportEndpoint> transportEndpoints;
+  final List<CoreTransferTransportEndpoint> transportEndpoints;
 }
 
 class CoreInvoiceReceiveData {
@@ -233,7 +298,7 @@ class CoreAsset {
   /// Asset wallet-addition Unix timestamp in seconds.
   final int addedAt;
   final CoreBalance balance;
-  final RlnMedia? media;
+  final CoreMedia? media;
 }
 
 class CoreAssetNia extends CoreAsset {
@@ -305,7 +370,7 @@ class CoreAssetUda extends CoreAsset {
     this.token,
   });
 
-  final RlnTokenLight? token;
+  final CoreAssetToken? token;
 }
 
 class CoreListAssets {
@@ -508,23 +573,6 @@ class DecodedLightningInvoice {
   final String network;
 }
 
-/// Stable wallet-facing Lightning payment/send result.
-class LightningPaymentResult {
-  const LightningPaymentResult({
-    this.paymentId,
-    this.paymentHash,
-    this.paymentSecret,
-    this.paymentPreimage,
-    required this.status,
-  });
-
-  final String? paymentId;
-  final String? paymentHash;
-  final String? paymentSecret;
-  final String? paymentPreimage;
-  final String status;
-}
-
 /// Stable wallet-facing stored Lightning payment.
 class LightningPayment {
   const LightningPayment({
@@ -533,9 +581,11 @@ class LightningPayment {
     this.assetId,
     required this.paymentHash,
     this.paymentType,
-    this.status,
-    required this.createdAt,
-    required this.updatedAt,
+    required this.status,
+    this.invoice,
+    this.inbound,
+    this.createdAt,
+    this.updatedAt,
     this.payeePubkey,
     this.preimage,
   });
@@ -548,22 +598,28 @@ class LightningPayment {
   final String? assetId;
   final String paymentHash;
   final String? paymentType;
-  final String? status;
+  final String status;
+  final String? invoice;
+
+  /// Whether this is an inbound payment, when its direction is known.
+  final bool? inbound;
 
   /// Payment creation Unix timestamp in seconds.
-  final int createdAt;
+  final int? createdAt;
 
   /// Payment update Unix timestamp in seconds.
-  final int updatedAt;
+  final int? updatedAt;
   final String? payeePubkey;
   final String? preimage;
 }
 
-/// Stable wallet-facing Lightning invoice status.
-class LightningInvoiceStatus {
-  const LightningInvoiceStatus({required this.status});
-
-  final String status;
+/// Result returned by a direct Lightning keysend operation.
+class SendPaymentResult extends LightningPayment {
+  const SendPaymentResult({
+    required super.paymentHash,
+    required super.status,
+    super.preimage,
+  });
 }
 
 extension RlnWalletNodeInfoMapper on RlnNodeInfo {
@@ -626,14 +682,19 @@ extension RlnDecodedLightningInvoiceMapper on RlnDecodedLnInvoice {
   }
 }
 
-extension RlnLightningPaymentResultMapper on RlnPaymentResult {
-  LightningPaymentResult toLightningPaymentResult() {
-    return LightningPaymentResult(
-      paymentId: paymentId,
+extension RlnSendPaymentResultMapper on RlnPaymentResult {
+  SendPaymentResult toSendPaymentResult() {
+    final paymentHash = this.paymentHash;
+    if (paymentHash == null || paymentHash.isEmpty) {
+      throw const NativeProtocolException(
+        'RlnKeysendResponse.paymentHash must be a non-empty string.',
+        field: 'RlnKeysendResponse.paymentHash',
+      );
+    }
+    return SendPaymentResult(
       paymentHash: paymentHash,
-      paymentSecret: paymentSecret,
-      paymentPreimage: paymentPreimage,
-      status: status,
+      status: tryNormalizePaymentStatus(status) ?? RlnPaymentStatuses.pending,
+      preimage: paymentPreimage,
     );
   }
 }
@@ -646,18 +707,13 @@ extension RlnLightningPaymentMapper on RlnPayment {
       assetId: assetId,
       paymentHash: paymentHash,
       paymentType: paymentType,
-      status: status,
+      status: tryNormalizePaymentStatus(status) ?? RlnPaymentStatuses.pending,
+      inbound: paymentType == null ? null : paymentType != 'Outbound',
       createdAt: createdAt,
       updatedAt: updatedAt,
       payeePubkey: payeePubkey,
       preimage: preimage,
     );
-  }
-}
-
-extension RlnLightningInvoiceStatusMapper on RlnInvoiceStatus {
-  LightningInvoiceStatus toLightningInvoiceStatus() {
-    return LightningInvoiceStatus(status: status);
   }
 }
 
@@ -718,6 +774,92 @@ extension RlnCoreAssetBalanceMapper on RlnAssetBalance {
   }
 }
 
+extension RlnCoreMediaMapper on RlnMedia {
+  CoreMedia toCore() => CoreMedia(filePath: filePath, mime: mime);
+}
+
+extension RlnCoreBlockTimeMapper on RlnBlockTime {
+  CoreBlockTime toCore() => CoreBlockTime(height: height, timestamp: timestamp);
+}
+
+extension RlnCoreTransferEndpointMapper on RlnTransferTransportEndpoint {
+  CoreTransferTransportEndpoint toCore() {
+    return CoreTransferTransportEndpoint(
+      endpoint: endpoint,
+      transportType: transportType,
+      used: used,
+    );
+  }
+}
+
+extension RlnCoreAssetTokenMapper on RlnTokenLight {
+  CoreAssetToken toCore() {
+    return CoreAssetToken(
+      index: index,
+      ticker: ticker,
+      name: name,
+      details: details,
+      embeddedMedia: embeddedMedia,
+      media: media?.toCore(),
+      attachments: attachments
+          .map((attachment) {
+            final attachmentMedia = attachment.media;
+            if (attachmentMedia == null) {
+              throw const NativeProtocolException(
+                'Asset token attachment is missing required media.',
+                field: 'token.attachments.media',
+              );
+            }
+            return CoreTokenAttachment(
+              key: attachment.key,
+              filePath: attachmentMedia.filePath,
+              mime: attachmentMedia.mime,
+              digest: attachmentMedia.digest,
+            );
+          })
+          .toList(growable: false),
+      reserves: reserves,
+    );
+  }
+}
+
+extension RlnCoreAssetNiaMapper on RlnAssetNia {
+  CoreAssetNia toCore() {
+    return CoreAssetNia(
+      assetId: assetId,
+      ticker: ticker,
+      name: name,
+      details: details,
+      precision: precision,
+      timestamp: timestamp,
+      addedAt: addedAt,
+      balance: balance.toCore(),
+      media: media?.toCore(),
+      issuedSupply: issuedSupply,
+    );
+  }
+}
+
+extension RlnCoreAssetIfaMapper on RlnAssetIfa {
+  CoreAssetIfa toCore() {
+    return CoreAssetIfa(
+      assetId: assetId,
+      ticker: ticker,
+      name: name,
+      details: details,
+      precision: precision,
+      timestamp: timestamp,
+      addedAt: addedAt,
+      balance: balance.toCore(),
+      media: media?.toCore(),
+      initialSupply: initialSupply,
+      maxSupply: maxSupply,
+      knownCirculatingSupply: knownCirculatingSupply,
+      rejectListUrl: rejectListUrl,
+    );
+  }
+}
+
 extension RlnCoreBtcBalanceMapper on RlnBtcBalance {
   CoreBtcBalance toCore() {
     return CoreBtcBalance(vanilla: vanilla.toCore(), colored: colored.toCore());
@@ -754,7 +896,7 @@ extension RlnCoreTransactionMapper on RlnTransaction {
       received: received,
       sent: sent,
       fee: fee,
-      confirmationTime: confirmationTime,
+      confirmationTime: confirmationTime?.toCore(),
     );
   }
 }
@@ -775,7 +917,9 @@ extension RlnCoreTransferMapper on RlnTransfer {
       receiveUtxo: receiveUtxo == null ? null : parseCoreOutpoint(receiveUtxo!),
       changeUtxo: changeUtxo == null ? null : parseCoreOutpoint(changeUtxo!),
       expiration: expiration,
-      transportEndpoints: transportEndpoints,
+      transportEndpoints: transportEndpoints
+          .map((endpoint) => endpoint.toCore())
+          .toList(growable: false),
     );
   }
 }
@@ -809,22 +953,7 @@ extension RlnCoreDecodedRgbInvoiceMapper on RlnDecodedRgbInvoice {
 extension RlnCoreAssetsMapper on RlnAssets {
   CoreListAssets toCore() {
     return CoreListAssets(
-      nia: nia
-          .map(
-            (source) => CoreAssetNia(
-              assetId: source.assetId,
-              ticker: source.ticker,
-              name: source.name,
-              details: source.details,
-              precision: source.precision,
-              timestamp: source.timestamp,
-              addedAt: source.addedAt,
-              balance: source.balance.toCore(),
-              media: source.media,
-              issuedSupply: source.issuedSupply,
-            ),
-          )
-          .toList(growable: false),
+      nia: nia.map((source) => source.toCore()).toList(growable: false),
       cfa: cfa
           .map(
             (source) => CoreAssetCfa(
@@ -835,30 +964,12 @@ extension RlnCoreAssetsMapper on RlnAssets {
               timestamp: source.timestamp,
               addedAt: source.addedAt,
               balance: source.balance.toCore(),
-              media: source.media,
+              media: source.media?.toCore(),
               issuedSupply: source.issuedSupply,
             ),
           )
           .toList(growable: false),
-      ifa: ifa
-          .map(
-            (source) => CoreAssetIfa(
-              assetId: source.assetId,
-              ticker: source.ticker,
-              name: source.name,
-              details: source.details,
-              precision: source.precision,
-              timestamp: source.timestamp,
-              addedAt: source.addedAt,
-              balance: source.balance.toCore(),
-              media: source.media,
-              initialSupply: source.initialSupply,
-              maxSupply: source.maxSupply,
-              knownCirculatingSupply: source.knownCirculatingSupply,
-              rejectListUrl: source.rejectListUrl,
-            ),
-          )
-          .toList(growable: false),
+      ifa: ifa.map((source) => source.toCore()).toList(growable: false),
       uda: uda
           .map(
             (source) => CoreAssetUda(
@@ -870,7 +981,7 @@ extension RlnCoreAssetsMapper on RlnAssets {
               timestamp: source.timestamp,
               addedAt: source.addedAt,
               balance: source.balance.toCore(),
-              token: source.token,
+              token: source.token?.toCore(),
             ),
           )
           .toList(growable: false),

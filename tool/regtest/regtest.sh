@@ -2,6 +2,7 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+source "${SCRIPT_DIR}/config.sh"
 COMPOSE=(docker compose -f "${SCRIPT_DIR}/compose.yaml")
 BITCOIN_CLI=("${COMPOSE[@]}" exec -T -u blits bitcoind /opt/bitcoin/bin/bitcoin-cli -regtest)
 INITIAL_BLOCKS="${INITIAL_BLOCKS:-103}"
@@ -26,7 +27,7 @@ wait_for_bitcoind() {
 
 wait_for_host_bitcoind_rpc() {
   local start
-  local rpc_port="${BITCOIND_RPC_PORT:-18444}"
+  local rpc_port="${BITCOIND_RPC_PORT}"
   start="$(date +%s)"
   until curl --fail --silent \
     --user user:password \
@@ -43,7 +44,7 @@ wait_for_host_bitcoind_rpc() {
 
 wait_for_electrs() {
   local start
-  local electrs_port="${ELECTRS_PORT:-50002}"
+  local electrs_port="${ELECTRS_PORT}"
   local response
   start="$(date +%s)"
   until response="$(
@@ -140,9 +141,9 @@ send_to_address() {
 }
 
 info() {
-  local proxy_port="${RGB_PROXY_PORT:-3003}"
-  local electrs_port="${ELECTRS_PORT:-50002}"
-  local rpc_port="${BITCOIND_RPC_PORT:-18444}"
+  local proxy_port="${RGB_PROXY_PORT}"
+  local electrs_port="${ELECTRS_PORT}"
+  local rpc_port="${BITCOIND_RPC_PORT}"
   echo "rgb-sdk-flutter regtest:"
   echo "  bitcoind RPC: 127.0.0.1:${rpc_port} user/password"
   echo "  electrs:      127.0.0.1:${electrs_port}"

@@ -1,5 +1,4 @@
 import '../errors/rgb_sdk_exception.dart';
-import '../models/rln_models.dart';
 
 /// Configuration used to create an RLN node.
 ///
@@ -167,6 +166,7 @@ class RgbInvoiceRequest {
     this.amount,
     this.durationSeconds,
     this.minConfirmations = 0,
+    this.witness = true,
   });
 
   /// Optional RGB asset ID.
@@ -180,6 +180,11 @@ class RgbInvoiceRequest {
 
   /// Required minimum Bitcoin confirmations.
   final int minConfirmations;
+
+  /// Whether `onchainReceive` creates a witness invoice. Dedicated
+  /// `blindReceive` and `witnessReceive` methods ignore this field and enforce
+  /// their named receive mode.
+  final bool witness;
 }
 
 /// Request for an atomic RGB on-chain transfer.
@@ -253,6 +258,28 @@ class InflateAssetIfaRequest {
 
   /// Required minimum Bitcoin confirmations.
   final int minConfirmations;
+}
+
+/// Result of atomically inflating an IFA asset.
+class InflateAssetIfaResponse {
+  const InflateAssetIfaResponse({required this.txid});
+
+  final String txid;
+}
+
+/// Fee-rate estimate for a target confirmation window.
+class FeeEstimationResponse {
+  const FeeEstimationResponse({required this.feeRate});
+
+  /// Satoshis per virtual byte.
+  final double feeRate;
+}
+
+/// Capability information reported for an indexer endpoint.
+class IndexerCheckResponse {
+  const IndexerCheckResponse({required this.indexerProtocol});
+
+  final String indexerProtocol;
 }
 
 /// RN-core transfer status returned by UTEXO status helpers.
@@ -425,25 +452,13 @@ String _toPascalCase(String raw) {
       .join();
 }
 
-/// RN-style Lightning payment list item.
-class LightningPaymentSummary {
-  const LightningPaymentSummary({required this.txid, required this.status});
-
-  /// Native Lightning payment transaction or payment hash identifier.
-  final String txid;
-
-  /// Canonical PascalCase payment status.
-  final String status;
-}
-
 /// RN-style wrapper returned by `listLightningPayments`.
 class ListLightningPaymentsResponse {
-  ListLightningPaymentsResponse({
-    required List<LightningPaymentSummary> payments,
-  }) : payments = List<LightningPaymentSummary>.unmodifiable(payments);
+  ListLightningPaymentsResponse({required List<LightningSendRequest> payments})
+    : payments = List<LightningSendRequest>.unmodifiable(payments);
 
-  /// Payment summaries. The list is defensively copied.
-  final List<LightningPaymentSummary> payments;
+  /// Payment send records. The list is defensively copied.
+  final List<LightningSendRequest> payments;
 }
 
 /// RN-style response returned by `createBackup`.
@@ -485,20 +500,24 @@ class LightningReceiveRequest {
 
   /// BOLT11 Lightning invoice.
   final String lnInvoice;
-
-  /// Compatibility alias for earlier Flutter facade callers.
-  String get invoice => lnInvoice;
 }
 
 /// RN-style Lightning send request/status response.
 class LightningSendRequest {
-  const LightningSendRequest({required this.txid, required this.status});
+  const LightningSendRequest({
+    required this.txid,
+    this.status,
+    this.consignmentEndpoint,
+  });
 
   /// Native payment transaction or payment hash identifier.
   final String txid;
 
-  /// Canonical PascalCase payment status.
-  final String status;
+  /// Canonical PascalCase payment status, when native reports one.
+  final String? status;
+
+  /// Optional RGB consignment endpoint associated with the payment.
+  final String? consignmentEndpoint;
 }
 
 /// RN-style on-chain receive response.
@@ -509,16 +528,6 @@ class OnchainReceiveResponse {
     this.expirationTimestamp,
     required this.batchTransferIdx,
   });
-
-  /// Converts native RLN invoice metadata to the wallet response.
-  factory OnchainReceiveResponse.fromRln(RlnInvoice invoice) {
-    return OnchainReceiveResponse(
-      invoice: invoice.invoice,
-      recipientId: invoice.recipientId,
-      expirationTimestamp: invoice.expirationTimestamp,
-      batchTransferIdx: invoice.batchTransferIdx,
-    );
-  }
 
   /// RGB invoice string.
   final String invoice;
@@ -539,14 +548,6 @@ class OnchainSendResponse {
     required this.txid,
     required this.batchTransferIdx,
   });
-
-  /// Converts native RLN send metadata to the wallet response.
-  factory OnchainSendResponse.fromRln(RlnSendResult result) {
-    return OnchainSendResponse(
-      txid: result.txid,
-      batchTransferIdx: result.batchTransferIdx,
-    );
-  }
 
   /// Bitcoin transaction ID.
   final String txid;

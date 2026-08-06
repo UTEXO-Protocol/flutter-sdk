@@ -10,17 +10,51 @@ The release verdict remains controlled by
 | Tier | Symbols | Contract |
 | --- | --- | --- |
 | Stable wallet facade | `package:rgb_sdk_flutter/rgb_sdk_flutter.dart`: `RgbSdkFlutter`, `UtexoWallet`, wallet config/request/response types, signer strategies, domain DTOs, public wallet errors | Intended for app code, subject to documented breaking-change policy. |
-| Advanced/native bridge | `package:rgb_sdk_flutter/rgb_sdk_flutter_advanced.dart`: `RlnClient`, `RLNBinding`, `RLNManager`, `IRLN*`, raw `Rln*` native models, native bridge error mapper, logger, and RN compatibility extensions | Available for RN/native parity, diagnostics, migration tools, and explicit escape hatches; shape follows the pinned RN/native baseline. |
+| Advanced/native bridge | `package:rgb_sdk_flutter/rgb_sdk_flutter_advanced.dart`: `RlnClient`, `RLNBinding`, `RLNManager`, `IRLN*`, raw `Rln*` native models, `createAdvancedUtexoWallet`, native bridge error mapper, logger, and RN/raw compatibility extensions | Available for RN/native parity, diagnostics, migration tools, and explicit escape hatches; shape follows the pinned RN/native baseline. |
 | Core/domain adapters | Stable domain `Core*`/`Lightning*` DTOs are root-exported; raw mapper extensions remain advanced-only | Flutter domain adaptation of current RN/core concepts. |
-| Compatibility stubs | PSBT and backup/recovery-related symbols | Present for compatibility only when the tracker marks the feature unsupported or native-blocked. |
+| Capability and blocked boundaries | Absent PSBT/begin-end carriers and native-blocked backup/recovery | Optional carriers are `null`; backup fails explicitly while the tracker marks it native-blocked. |
 
 Canonical `UtexoWallet` methods return stable wallet/domain DTOs, not raw
 native wire DTOs. Advanced callers that need the pinned native shape for parity
 debugging must use the matching explicit `Raw` method, for example
 `listChannelsRaw()`, `getBtcBalanceRaw()`, `decodeLnInvoiceRaw()`, or
-`listTransfersRaw()`. Import `rgb_sdk_flutter_advanced.dart` for raw bridge
-classes, RN-uppercase compatibility spellings such as `decodeRGBInvoice`, or
-RN-style managers. The root import intentionally does not export those names.
+`listTransfersRaw()`. Those methods are members of the advanced-only
+`UtexoWalletRawApi` extension; importing the stable root alone cannot resolve
+them. Import `rgb_sdk_flutter_advanced.dart` for raw bridge classes,
+dependency-injected test wallets, RN-uppercase compatibility spellings such as
+`decodeRGBInvoice`, or RN-style managers. The root import intentionally does
+not export those names or expose `RlnClient`/`RLNBinding` in the stable wallet
+constructor.
+
+Custom signer strategies implement `RlnSigner` against the stable
+`RlnSignerHost` protocol. The wallet supplies that host and retains native
+client ownership; signer implementations must not retain it after an
+operation. `IUtexoLspClient` is likewise a stable transport protocol because
+RN exports that contract and `UtexoLsp` accepts injected implementations. The
+concrete HTTP client and raw native client remain advanced-only.
+
+Asset issuance returns `CoreAssetNia`/`CoreAssetIfa`, `inflate()` returns
+`InflateAssetIfaResponse`, `estimateFeeRate()` returns
+`FeeEstimationResponse`, and `checkIndexerUrl()` returns
+`IndexerCheckResponse`. Their native `Rln*` equivalents are available only
+through the advanced raw extension.
+
+Canonical wallet inputs follow RN/core semantics with Dart named parameters or
+typed requests. Read/list/refresh methods do not expose raw bridge sync/filter
+knobs. Lightning invoice creation accepts sats plus an optional
+`LightningAsset`; payment accepts required `lnInvoice` plus optional sats and
+asset fields. Channel opening uses `peerPubkey`, `isPublic`, and
+`assetLocalAmount`. `RgbInvoiceRequest.witness` selects the `onchainReceive`
+mode; the dedicated blind/witness methods enforce their named mode.
+
+Lightning methods use the core beta.7 domain shapes. `listPayments()` returns
+`LightningPayment` records with a required canonical PascalCase status and
+optional Unix-second timestamps. `listLightningPayments()` wraps
+`LightningSendRequest` records, whose status and RGB consignment endpoint are
+optional. `keysend()` returns `SendPaymentResult`. Missing required native
+identifiers and malformed boolean/string success fields throw
+`NativeProtocolException`; the facade never substitutes an empty identifier or
+silently treats malformed data as `false`.
 
 ## Lifecycle Prerequisites
 
@@ -29,6 +63,11 @@ RN-style managers. The root import intentionally does not export those names.
 need a running native node. After `shutdown()`, regular operations fail until
 `reinit()` succeeds. After `destroy()`, the wallet is disposed and cannot be
 reused.
+
+`vssClearFence(password)` is the deliberate exception to the general unlock
+rule: call it after `init()` but before `unlock()` when recovering a stale VSS
+single-writer fence. It fails before initialization and does not require an
+unlocked node. `backupNow()` still requires an unlocked node.
 
 Internally, the wallet facade routes native node operations through its binding
 owner so app-facing calls share one serialized lifecycle/operation queue. Signer
@@ -74,8 +113,8 @@ example `RlnNodeInfo.channelAssetMaxAmount` is `BigInt?`.
 
 `NetworkEndpoints` and `getNetworkDefaults()` are stable root helpers for
 app-facing network defaults. They expose the selected indexer URL and RGB proxy
-endpoint after SDK network normalization; lower-level UTEXO preset maps remain
-advanced/internal compatibility surface.
+endpoint after SDK network normalization. Removed UTEXO bridge/network preset
+maps are not retained as dead compatibility code.
 
 `UtexoWallet.listTransfers()` calls the native unfiltered listing path. If the
 pinned native artifact rejects that call, the SDK throws
@@ -161,15 +200,18 @@ root checklist and are snapshotted by `tool/api_snapshot.json`.
 - `ApayNewResponse`, `Assignment`, `BadRequestError`, `BeginEndWalletCarrier`
 - `ChannelReadyInfo`, `ClaimResult`, `ConfigurationError`, `ConflictError`
 - `CoreAsset`, `CoreAssetBalance`, `CoreAssetCfa`, `CoreAssetIfa`
-- `CoreAssetNia`, `CoreAssetUda`, `CoreBalance`, `CoreBtcBalance`
-- `CoreInvoiceData`, `CoreInvoiceReceiveData`, `CoreListAssets`, `CoreRgbAllocation`
-- `CoreTransaction`, `CoreTransfer`, `CoreTransferStatus`, `CoreTransferStatuses`
+- `CoreAssetNia`, `CoreAssetToken`, `CoreAssetUda`, `CoreBalance`, `CoreBlockTime`
+- `CoreBtcBalance`, `CoreInvoiceData`, `CoreInvoiceReceiveData`, `CoreListAssets`, `CoreMedia`
+- `CoreRgbAllocation`, `CoreTokenAttachment`, `CoreTransaction`, `CoreTransfer`
+- `CoreTransferStatus`, `CoreTransferStatuses`, `CoreTransferTransportEndpoint`
 - `CoreUnspent`, `CoreUtxo`, `CreateHodlInvoiceParams`, `CryptoError`
 - `DecodedLightningInvoice`, `GeneratedKeys`, `HodlInvoice`, `HodlInvoiceResult`
 - `ExperimentalCryptoException`
-- `InflateAssetIfaRequest`, `LightningAddressInfo`, `LightningAsset`, `LightningChannel`
-- `LightningChannelOpenResult`, `LightningInvoiceStatus`, `LightningPayment`, `LightningPaymentResult`
-- `LightningPaymentSummary`, `LightningPeer`, `LightningReceiveRequest`, `LightningSendRequest`
+- `FeeEstimationResponse`, `IndexerCheckResponse`, `InflateAssetIfaRequest`, `InflateAssetIfaResponse`
+- `IUtexoLspClient`
+- `LightningAddressInfo`, `LightningAsset`, `LightningChannel`
+- `LightningChannelOpenResult`, `LightningPayment`, `LightningPeer`
+- `LightningReceiveRequest`, `LightningSendRequest`, `SendPaymentResult`
 - `ListLightningPaymentsResponse`, `LspAmountOutOfRangeException`, `LspApayInvoiceProofWire`, `LspChannelTimeoutException`
 - `LspClientConfig`, `LspError`, `LspGetInfoResponse`, `LspLightningAddressByPubkeyResponse`
 - `LspLightningReceiveRequest`, `LspLightningReceiveResponse`, `LspLiquidityTimeoutException`, `LspLnParams`
@@ -184,7 +226,7 @@ root checklist and are snapshotted by `tool/api_snapshot.json`.
 - `RgbNodeError`, `RgbSdkException`, `RgbSdkFlutter`, `RgbSendRequest`
 - `RlnInvoiceStatusValue`, `RlnInvoiceStatuses`, `RlnKeyMaterial`, `RlnMnemonicKeyMaterial`
 - `RlnOperationTimeoutException`, `RlnOperationTimeoutPolicy`, `RlnPaymentStatusValue`, `RlnPaymentStatuses`
-- `RlnSeedBytesKeyMaterial`, `RlnSeedHexKeyMaterial`, `RlnSigner`, `SDKError`
+- `RlnSeedBytesKeyMaterial`, `RlnSeedHexKeyMaterial`, `RlnSigner`, `RlnSignerHost`, `SDKError`
 - `SchnorrSigningMode`, `SendAssetOptions`, `SendAssetResult`, `SignMessageParams`
 - `UnsupportedWalletFeatureException`
 - `UtexoLsp`, `UtexoLspConfig`, `UtexoUnlockConfig`, `UtexoWallet`
@@ -198,7 +240,7 @@ root checklist and are snapshotted by `tool/api_snapshot.json`.
 - `isSameLspHost`, `isTerminalPaymentStatus`, `isUmaAddress`, `lnurlDiscoveryUri`
 - `normalizeInvoiceStatus`, `normalizeLightningAddress`, `normalizeNetwork`, `normalizePaymentStatus`
 - `normalizeReceiveStatus`, `normalizeSeedInput`, `parseCoreAssignment`, `parseCoreOutpoint`
-- `parseLightningAddress`, `peerUri`, `redactSupportText`, `resolveUnlockConfig`
+- `parseLightningAddress`, `peerUri`, `redactSupportText`
 - `resolveUnlockParams`, `restoreKeys`, `seedFromMnemonic`, `signMessage`
 - `signSchnorr`, `toUnitsNumber`, `tryNormalizeInvoiceStatus`, `tryNormalizePaymentStatus`
 - `validateBase64`, `validateBip39Mnemonic`, `validateHex`, `validateMnemonic`

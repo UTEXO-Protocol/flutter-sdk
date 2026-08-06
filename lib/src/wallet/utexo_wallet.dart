@@ -1,9 +1,12 @@
+// Private mixin contracts are implemented across this library's part files;
+// the analyzer does not count those cross-part references as direct uses.
 // ignore_for_file: unused_element, unused_element_parameter
 
 import '../binding/rln_binding.dart';
 import '../client/rln_client.dart';
 import '../errors/native_bridge_error_mapper.dart';
 import '../errors/rgb_sdk_exception.dart';
+import '../lsp/lsp_native_decoders.dart';
 import '../lsp/lsp_types.dart';
 import '../lsp/utexo_lsp.dart';
 import '../lsp/utexo_lsp_client.dart';
@@ -18,8 +21,27 @@ part 'utexo_wallet_lifecycle.dart';
 part 'utexo_wallet_lsp_apay.dart';
 part 'utexo_wallet_onchain.dart';
 part 'utexo_wallet_lightning.dart';
+part 'utexo_wallet_raw.dart';
 part 'utexo_wallet_guards.dart';
 part 'utexo_unlock_config_resolver.dart';
+
+String _requiredNativeString(RlnMap response, String field, String typeName) {
+  final value = response[field];
+  if (value is String && value.isNotEmpty) return value;
+  throw NativeProtocolException(
+    '$typeName.$field must be a non-empty string.',
+    field: '$typeName.$field',
+  );
+}
+
+bool _requiredNativeBool(RlnMap response, String field, String typeName) {
+  final value = response[field];
+  if (value is bool) return value;
+  throw NativeProtocolException(
+    '$typeName.$field must be a boolean.',
+    field: '$typeName.$field',
+  );
+}
 
 enum _WalletLifecycleState {
   uninitialized,
@@ -116,6 +138,16 @@ class UtexoWallet extends _UtexoWalletInternals
 
   UtexoWallet({
     required UtexoWalletConfig config,
+    RlnOperationTimeoutPolicy? operationTimeouts,
+    RlnSigner? signer,
+  }) : this._(
+         config: config,
+         operationTimeouts: operationTimeouts,
+         signer: signer,
+       );
+
+  UtexoWallet._({
+    required UtexoWalletConfig config,
     RlnClient? client,
     RLNBinding? binding,
     RlnOperationTimeoutPolicy? operationTimeouts,
@@ -204,4 +236,25 @@ class UtexoWallet extends _UtexoWalletInternals
     _ensureActive();
     return _config.network;
   }
+}
+
+/// Creates a wallet with injectable bridge dependencies for advanced
+/// integrations and tests.
+///
+/// This factory is exported only by `rgb_sdk_flutter_advanced.dart`. Stable
+/// app code should use [UtexoWallet.new] or the stable package factory.
+UtexoWallet createAdvancedUtexoWallet({
+  required UtexoWalletConfig config,
+  RlnClient? client,
+  RLNBinding? binding,
+  RlnOperationTimeoutPolicy? operationTimeouts,
+  RlnSigner? signer,
+}) {
+  return UtexoWallet._(
+    config: config,
+    client: client,
+    binding: binding,
+    operationTimeouts: operationTimeouts,
+    signer: signer,
+  );
 }

@@ -14,6 +14,12 @@ class NativeArtifactInfoReader {
 
   Future<NativeArtifactInfo> getNativeArtifactInfo() async {
     final info = await (_hostApi ?? RlnHostApi()).getNativeArtifactInfo();
-    return NativeArtifactInfo.fromPigeon(info);
+    return NativeArtifactInfo(
+      platform: info.platform,
+      rlnVersion: info.rlnVersion,
+      reactNativeParityVersion: info.reactNativeParityVersion,
+      bridge: info.bridge,
+      nativeArtifact: info.nativeArtifact,
+    );
   }
 }

@@ -15,10 +15,14 @@ The current source/static parity pass compares this repository with:
 - `@utexo/rgb-sdk-core` `1.0.0-beta.7`
 - RGB Lightning Node `0.10.0-beta.3`
 
-The source baseline now targets those exact versions, and the pinned native
-artifact remains unchanged from the RN package. The SDK still has confirmed
-packaging, code-quality, supply-chain, and exact runtime evidence gaps, so
-baseline alignment must not be mistaken for release readiness.
+The source baseline targets those exact versions, and the pinned native
+artifact remains unchanged from the RN package. Repository-owned API, model,
+lifecycle, code-quality, and packaging findings are closed; the final source
+still requires its exact clean-candidate local runtime rerun. Production
+remains blocked by `PKG-006`: the upstream
+native artifacts do not yet have the required verified signatures, trusted-key
+policy, and reproducible-build/source attestations. Baseline alignment and
+internal-beta evidence must not be mistaken for production readiness.
 
 The authoritative verdict and issue ledger are in the
 [Release Readiness Tracker](doc/RELEASE_READINESS_TRACKER.md). Do not infer
@@ -81,7 +85,7 @@ await wallet.unlock(
     bitcoindRpcHost: '127.0.0.1',
     bitcoindRpcPort: 18444,
     indexerUrl: '127.0.0.1:50002',
-    proxyEndpoint: 'rpc://127.0.0.1:3003/json-rpc',
+    proxyEndpoint: 'rpc://127.0.0.1:3013/json-rpc',
   ),
 );
 ```
@@ -95,7 +99,7 @@ toolchain and must fail when required local gates are skipped.
 flutter --version
 dart --version
 flutter pub get
-dart format --output=none --set-exit-if-changed lib test pigeons tool
+dart format --output=none --set-exit-if-changed lib test example/integration_test pigeons tool
 dart run tool/validate_release_governance.dart
 dart run tool/validate_codebase_hardening.dart
 dart run tool/validate_public_api_docs.dart

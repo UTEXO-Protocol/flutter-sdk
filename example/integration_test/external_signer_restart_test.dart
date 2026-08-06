@@ -4,7 +4,7 @@ import 'dart:io';
 import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
-import 'package:rgb_sdk_flutter/rgb_sdk_flutter.dart';
+import 'package:rgb_sdk_flutter/rgb_sdk_flutter_advanced.dart';
 
 const _configuredPhase = String.fromEnvironment(
   'RGB_SDK_FLUTTER_RESTART_PHASE',
@@ -20,7 +20,7 @@ const _electrsPort = int.fromEnvironment(
 );
 const _rgbProxyPort = int.fromEnvironment(
   'RGB_SDK_FLUTTER_RGB_PROXY_PORT',
-  defaultValue: 3003,
+  defaultValue: 3013,
 );
 const _deviceSeed = String.fromEnvironment(
   'RGB_SDK_FLUTTER_RESTART_DEVICE_SEED_HEX',
@@ -115,7 +115,7 @@ Future<void> _prepareRestartFixture(Directory root, File stateFile) async {
   try {
     _step('initialize durable external-signer device');
     await _initialize(device);
-    final deviceInfo = await device.nodeInfo();
+    final deviceInfo = await device.getNodeInfo();
 
     final initializedHost = _passwordWallet(
       storageDirPath: '${root.path}/host',
@@ -126,7 +126,7 @@ Future<void> _prepareRestartFixture(Directory root, File stateFile) async {
     host = initializedHost;
     _step('initialize password-backed virtual-channel host');
     await _initialize(initializedHost);
-    final hostInfo = await initializedHost.nodeInfo();
+    final hostInfo = await initializedHost.getNodeInfo();
 
     _step('fund external-signer device');
     await _requestFunding(await device.getAddress(), '0.003');
@@ -136,10 +136,10 @@ Future<void> _prepareRestartFixture(Directory root, File stateFile) async {
     _step('open trusted virtual BTC channel');
     await _ensurePeer(device, hostInfo.pubkey, hostPeer);
     final opened = await device.openChannel(
-      peerPubkeyAndOptAddr: hostPeer,
+      peerPubkey: hostPeer,
       capacitySat: _virtualChannelCapacitySat,
       pushMsat: _virtualChannelPushMsat,
-      publicChannel: false,
+      isPublic: false,
       withAnchors: true,
       virtualOpenMode: _virtualOpenMode,
     );
@@ -240,8 +240,8 @@ Future<void> _verifyRestartFixture(Directory root, File stateFile) async {
     await _reinitialize(host, password: _hostPassword);
     await _reinitialize(device);
 
-    final hostInfo = await host.nodeInfo();
-    final deviceInfo = await device.nodeInfo();
+    final hostInfo = await host.getNodeInfo();
+    final deviceInfo = await device.getNodeInfo();
     expect(hostInfo.pubkey, expectedHostPubkey);
     expect(deviceInfo.pubkey, expectedDevicePubkey);
 
@@ -507,7 +507,7 @@ Future<void> _waitForPaymentFinal(
     final payments = await wallet.listPayments();
     for (final payment in payments) {
       if (payment.paymentHash != paymentHash) continue;
-      final status = payment.status?.toLowerCase();
+      final status = payment.status.toLowerCase();
       if (status == 'succeeded') return;
       if (status == 'failed' || status == 'expired' || status == 'cancelled') {
         fail('$label payment reached terminal failure state: $status.');
@@ -524,7 +524,7 @@ Future<void> _waitForInvoiceFinal(
   required String label,
 }) async {
   for (var attempt = 0; attempt < 120; attempt++) {
-    final status = (await wallet.invoiceStatus(invoice)).status.toLowerCase();
+    final status = (await wallet.invoiceStatus(invoice)).toLowerCase();
     if (status == 'succeeded') return;
     if (status == 'failed' || status == 'expired' || status == 'cancelled') {
       fail('$label invoice reached terminal failure state: $status.');

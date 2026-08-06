@@ -5,25 +5,15 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
     int? amountSats,
     LightningAsset? asset,
     int expirySeconds = 3600,
-    int? amtMsat,
-    int? expirySec,
-    String? assetId,
-    int? assetAmount,
     int? minFinalCltvExpiryDelta,
     String? descriptionHash,
   }) async {
     _requireNonNegativeOptional(amountSats, 'amountSats');
-    final resolvedAmtMsat = amountSats == null ? amtMsat : amountSats * 1000;
-    final resolvedExpirySec = expirySec ?? expirySeconds;
-    final resolvedAssetId = asset?.assetId ?? assetId;
-    final resolvedAssetAmount = resolvedAssetId == null
-        ? null
-        : (asset?.amount ?? assetAmount);
-    final invoice = await createRlnLightningInvoice(
-      amtMsat: resolvedAmtMsat,
-      expirySec: resolvedExpirySec,
-      assetId: resolvedAssetId,
-      assetAmount: resolvedAssetAmount,
+    final invoice = await _createRlnLightningInvoice(
+      amtMsat: amountSats == null ? null : amountSats * 1000,
+      expirySec: expirySeconds,
+      assetId: asset?.assetId,
+      assetAmount: asset?.amount,
       paymentHash: null,
       minFinalCltvExpiryDelta: minFinalCltvExpiryDelta,
       descriptionHash: descriptionHash,
@@ -31,7 +21,7 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
     return LightningReceiveRequest(lnInvoice: invoice.invoice);
   }
 
-  Future<RlnLnInvoice> createRlnLightningInvoice({
+  Future<RlnLnInvoice> _createRlnLightningInvoice({
     int? amtMsat,
     int expirySec = 3600,
     String? assetId,
@@ -65,7 +55,7 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
       params.minFinalCltvExpiryDelta,
       'minFinalCltvExpiryDelta',
     );
-    final invoice = await createRlnLightningInvoice(
+    final invoice = await _createRlnLightningInvoice(
       amtMsat: params.amtMsat,
       expirySec: params.expirySec,
       assetId: params.assetId,
@@ -94,7 +84,13 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
     _requireNonEmpty(preimage, 'preimage');
     _requireUnlockedNode();
     final response = await _binding.rlnClaimHodlInvoice(paymentHash, preimage);
-    return HodlInvoiceResult(changed: response['changed'] == true);
+    return HodlInvoiceResult(
+      changed: _requiredNativeBool(
+        response,
+        'changed',
+        'RlnClaimHodlInvoiceResponse',
+      ),
+    );
   }
 
   Future<HodlInvoiceResult> cancelHodlInvoice(String paymentHash) async {
@@ -104,47 +100,45 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
     return const HodlInvoiceResult(changed: true);
   }
 
-  Future<RlnDecodedLnInvoice> decodeLnInvoiceRaw(String invoice) async {
+  Future<RlnDecodedLnInvoice> _decodeLnInvoiceRaw(String invoice) async {
     _requireNonEmpty(invoice, 'invoice');
     _requireUnlockedNode();
     return _binding.rlnDecodeLnInvoice(invoice);
   }
 
   Future<DecodedLightningInvoice> decodeLnInvoice(String invoice) async {
-    return (await decodeLnInvoiceRaw(invoice)).toDecodedLightningInvoice();
+    return (await _decodeLnInvoiceRaw(invoice)).toDecodedLightningInvoice();
   }
 
   Future<LightningSendRequest> payLightningInvoice({
-    String? lnInvoice,
-    String? invoice,
+    required String lnInvoice,
     int? amount,
-    int? amtMsat,
     String? assetId,
     int? assetAmount,
   }) async {
-    final resolvedInvoice = lnInvoice ?? invoice;
-    if (resolvedInvoice == null) {
-      throw const WalletValidationException(
-        'lnInvoice is required.',
-        field: 'lnInvoice',
-      );
-    }
-    _requireNonEmpty(resolvedInvoice, 'lnInvoice');
+    _requireNonEmpty(lnInvoice, 'lnInvoice');
     _requireNonNegativeOptional(amount, 'amount');
-    final resolvedAmtMsat = amount == null ? amtMsat : amount * 1000;
-    final payment = await payRlnLightningInvoice(
-      invoice: resolvedInvoice,
-      amtMsat: resolvedAmtMsat,
+    final payment = await _payRlnLightningInvoice(
+      invoice: lnInvoice,
+      amtMsat: amount == null ? null : amount * 1000,
       assetId: assetId,
       assetAmount: assetAmount,
     );
+    final txid = payment.paymentHash ?? payment.paymentId;
+    if (txid == null || txid.isEmpty) {
+      throw const NativeProtocolException(
+        'RlnSendPaymentResponse must contain a non-empty paymentHash or '
+        'paymentId.',
+        field: 'RlnSendPaymentResponse.paymentHash',
+      );
+    }
     return LightningSendRequest(
-      txid: payment.paymentHash ?? payment.paymentId ?? '',
-      status: payment.status,
+      txid: txid,
+      status: tryNormalizePaymentStatus(payment.status),
     );
   }
 
-  Future<RlnPaymentResult> payRlnLightningInvoice({
+  Future<RlnPaymentResult> _payRlnLightningInvoice({
     required String invoice,
     int? amtMsat,
     String? assetId,
@@ -159,44 +153,44 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
 
   Future<RlnInvoiceStatusValue> getLightningReceiveStatus(String id) async {
     _requireNonEmpty(id, 'id');
-    return normalizeInvoiceStatus((await invoiceStatusRaw(id)).status);
+    return normalizeInvoiceStatus((await _invoiceStatusRaw(id)).status);
   }
 
   Future<RlnPaymentStatusValue?> getLightningSendStatus(String id) async {
     _requireNonEmpty(id, 'id');
-    final payment = await getPaymentRaw(id);
+    final payment = await _getPaymentRaw(id);
     return tryNormalizePaymentStatus(payment.status);
   }
 
-  Future<RlnInvoiceStatus> invoiceStatusRaw(String invoice) async {
+  Future<RlnInvoiceStatus> _invoiceStatusRaw(String invoice) async {
     _requireNonEmpty(invoice, 'invoice');
     _requireUnlockedNode();
     return _binding.rlnInvoiceStatus(invoice);
   }
 
-  Future<LightningInvoiceStatus> invoiceStatus(String invoice) async {
-    return (await invoiceStatusRaw(invoice)).toLightningInvoiceStatus();
+  Future<RlnInvoiceStatusValue> invoiceStatus(String invoice) async {
+    return normalizeInvoiceStatus((await _invoiceStatusRaw(invoice)).status);
   }
 
-  Future<List<RlnPayment>> listPaymentsRaw() async {
+  Future<List<RlnPayment>> _listPaymentsRaw() async {
     _requireUnlockedNode();
     return _binding.rlnListPayments();
   }
 
   Future<List<LightningPayment>> listPayments() async {
-    return (await listPaymentsRaw())
+    return (await _listPaymentsRaw())
         .map((payment) => payment.toLightningPayment())
         .toList(growable: false);
   }
 
   Future<ListLightningPaymentsResponse> listLightningPayments() async {
-    final payments = await listPayments();
+    final payments = await _listPaymentsRaw();
     return ListLightningPaymentsResponse(
       payments: payments
           .map(
-            (payment) => LightningPaymentSummary(
+            (payment) => LightningSendRequest(
               txid: payment.paymentHash,
-              status: payment.status ?? RlnPaymentStatuses.pending,
+              status: tryNormalizePaymentStatus(payment.status),
             ),
           )
           .toList(growable: false),
@@ -215,33 +209,29 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
     return _binding.rlnDisconnectPeer(peerPubkey);
   }
 
-  Future<List<RlnPeer>> listPeersRaw() async {
+  Future<List<RlnPeer>> _listPeersRaw() async {
     _requireUnlockedNode();
     return _binding.rlnListPeers();
   }
 
   Future<List<LightningPeer>> listPeers() async {
-    return (await listPeersRaw())
+    return (await _listPeersRaw())
         .map((peer) => peer.toLightningPeer())
         .toList(growable: false);
   }
 
-  Future<List<RlnChannel>> listChannelsRaw() async {
+  Future<List<RlnChannel>> _listChannelsRaw() async {
     _requireUnlockedNode();
     return _binding.rlnListChannels();
   }
 
   Future<List<LightningChannel>> listChannels() async {
-    return (await listChannelsRaw())
+    return (await _listChannelsRaw())
         .map((channel) => channel.toLightningChannel())
         .toList(growable: false);
   }
 
-  Future<List<LightningChannel>> listLightningChannels() {
-    return listChannels();
-  }
-
-  Future<RlnOpenChannelResult> openChannelRaw({
+  Future<RlnOpenChannelResult> _openChannelRaw({
     required String peerPubkeyAndOptAddr,
     required int capacitySat,
     int pushMsat = 0,
@@ -285,30 +275,30 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
   }
 
   Future<LightningChannelOpenResult> openChannel({
-    required String peerPubkeyAndOptAddr,
+    required String peerPubkey,
     required int capacitySat,
     int pushMsat = 0,
-    bool publicChannel = false,
+    bool isPublic = false,
     bool withAnchors = true,
     int? feeBaseMsat,
     int? feeProportionalMillionths,
     String? temporaryChannelId,
     String? assetId,
-    int? assetAmount,
+    int? assetLocalAmount,
     int? pushAssetAmount,
     String? virtualOpenMode,
   }) async {
-    return (await openChannelRaw(
-      peerPubkeyAndOptAddr: peerPubkeyAndOptAddr,
+    return (await _openChannelRaw(
+      peerPubkeyAndOptAddr: peerPubkey,
       capacitySat: capacitySat,
       pushMsat: pushMsat,
-      publicChannel: publicChannel,
+      publicChannel: isPublic,
       withAnchors: withAnchors,
       feeBaseMsat: feeBaseMsat,
       feeProportionalMillionths: feeProportionalMillionths,
       temporaryChannelId: temporaryChannelId,
       assetId: assetId,
-      assetAmount: assetAmount,
+      assetAmount: assetLocalAmount,
       pushAssetAmount: pushAssetAmount,
       virtualOpenMode: virtualOpenMode,
     )).toLightningChannelOpenResult();
@@ -331,7 +321,7 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
     return _binding.rlnGetChannelId(temporaryChannelId);
   }
 
-  Future<RlnPaymentResult> keysendRaw({
+  Future<RlnPaymentResult> _keysendRaw({
     required String destPubkey,
     required int amtMsat,
     String? assetId,
@@ -344,28 +334,24 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
     return _binding.rlnKeysend(destPubkey, amtMsat, assetId, assetAmount);
   }
 
-  Future<LightningPaymentResult> keysend({
+  Future<SendPaymentResult> keysend({
     required String destPubkey,
     required int amtMsat,
     String? assetId,
     int? assetAmount,
   }) async {
-    return (await keysendRaw(
+    return (await _keysendRaw(
       destPubkey: destPubkey,
       amtMsat: amtMsat,
       assetId: assetId,
       assetAmount: assetAmount,
-    )).toLightningPaymentResult();
+    )).toSendPaymentResult();
   }
 
-  Future<RlnPayment> getPaymentRaw(String paymentHash) async {
+  Future<RlnPayment> _getPaymentRaw(String paymentHash) async {
     _requireNonEmpty(paymentHash, 'paymentHash');
     _requireUnlockedNode();
     return _binding.rlnGetPayment(paymentHash);
-  }
-
-  Future<LightningPayment> getPayment(String paymentHash) async {
-    return (await getPaymentRaw(paymentHash)).toLightningPayment();
   }
 
   Future<String> signNodeMessage(String message) async {
@@ -388,7 +374,7 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
 
   Future<void> vssClearFence(String password) {
     _requireNonEmpty(password, 'password');
-    _requireUnlockedNode();
+    _ensureInitialized();
     return _binding.rlnVssClearFence(password);
   }
 

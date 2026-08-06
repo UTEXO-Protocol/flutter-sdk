@@ -6,7 +6,6 @@ const _forbiddenStableRootSymbols = <String>{
   'IRLNExternalSignerBootstrap',
   'IRLNNodeCreateParams',
   'IRLNUnlockParams',
-  'IUtexoLspClient',
   'Logger',
   'NativeBridgeFailure',
   'RLNBinding',
@@ -88,6 +87,26 @@ void main() {
     }
   }
 
+  const checklistHeader = '## Symbol Coverage Checklist';
+  final checklistStart = doc.indexOf(checklistHeader);
+  if (checklistStart >= 0) {
+    final checklist = doc.substring(checklistStart + checklistHeader.length);
+    final documented = RegExp(r'`([^`]+)`')
+        .allMatches(checklist)
+        .map((match) => match.group(1)!)
+        .where((value) => RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(value))
+        .toSet();
+    final stale = documented.difference(exportedSymbols).toList()..sort();
+    if (stale.isNotEmpty) {
+      errors.add(
+        '$_docPath checklist contains stale non-exported symbols: '
+        '${stale.join(', ')}.',
+      );
+    }
+  }
+
+  _validateStableWalletBoundary(errors);
+
   if (errors.isNotEmpty) {
     stderr.writeln('Public API documentation validation failed:');
     for (final error in errors) {
@@ -99,6 +118,183 @@ void main() {
   stdout.writeln(
     'Public API documentation valid: ${exportedSymbols.length} symbols.',
   );
+}
+
+void _validateStableWalletBoundary(List<String> errors) {
+  final root = File(_barrelPath).readAsStringSync();
+  if (!RegExp(
+    r"export 'src/wallet/utexo_wallet\.dart'\s+show\s+"
+    r'UtexoWallet\s*,\s*resolveUnlockParams\s*;',
+  ).hasMatch(root)) {
+    errors.add(
+      'The stable root must export only UtexoWallet and the current RN root '
+      'helper resolveUnlockParams from utexo_wallet.dart.',
+    );
+  }
+
+  final advanced = File('lib/rgb_sdk_flutter_advanced.dart').readAsStringSync();
+  if (!advanced.contains("export 'src/wallet/utexo_wallet.dart';")) {
+    errors.add(
+      'The advanced entrypoint must export the complete wallet library.',
+    );
+  }
+
+  const stableWalletFiles = <String>[
+    'lib/src/wallet/utexo_wallet.dart',
+    'lib/src/wallet/utexo_wallet_lifecycle.dart',
+    'lib/src/wallet/utexo_wallet_lsp_apay.dart',
+    'lib/src/wallet/utexo_wallet_onchain.dart',
+    'lib/src/wallet/utexo_wallet_lightning.dart',
+  ];
+  final stableSource = stableWalletFiles
+      .map((path) => File(path).readAsStringSync())
+      .join('\n');
+  final methodPattern = RegExp(
+    r'^\s{2}([A-Za-z][A-Za-z0-9_<>, ?]*)\s+'
+    r'([A-Za-z_][A-Za-z0-9_]*)\s*(?:<[^>]+>)?\s*\(',
+    multiLine: true,
+  );
+  final methods = <String, String>{};
+  for (final match in methodPattern.allMatches(stableSource)) {
+    final name = match.group(2)!;
+    if (name.startsWith('_')) continue;
+    methods[name] = match.group(1)!.replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+
+  for (final entry in methods.entries) {
+    final name = entry.key;
+    final returnType = entry.value;
+    if (name.endsWith('Raw') ||
+        name.startsWith('rln') ||
+        name.startsWith('createRln') ||
+        name.startsWith('payRln')) {
+      errors.add('Stable UtexoWallet exposes advanced method `$name`.');
+    }
+    final exposesRawReturn = RegExp(
+      r'^Future<(?:List<)?Rln(?!InvoiceStatusValue|PaymentStatusValue)',
+    ).hasMatch(returnType);
+    if (exposesRawReturn) {
+      errors.add(
+        'Stable UtexoWallet.$name returns raw/native type `$returnType`.',
+      );
+    }
+  }
+
+  const requiredReturns = <String, String>{
+    'issueAssetNia': 'Future<CoreAssetNia>',
+    'issueAssetIfa': 'Future<CoreAssetIfa>',
+    'inflate': 'Future<InflateAssetIfaResponse>',
+    'estimateFeeRate': 'Future<FeeEstimationResponse>',
+    'checkIndexerUrl': 'Future<IndexerCheckResponse>',
+    'getBtcBalance': 'Future<CoreBtcBalance>',
+    'listAssets': 'Future<CoreListAssets>',
+    'listPayments': 'Future<List<LightningPayment>>',
+    'listChannels': 'Future<List<LightningChannel>>',
+  };
+  for (final entry in requiredReturns.entries) {
+    if (methods[entry.key] != entry.value) {
+      errors.add(
+        'Stable UtexoWallet.${entry.key} must return ${entry.value}; found '
+        '${methods[entry.key] ?? 'no declaration'}.',
+      );
+    }
+  }
+
+  final walletSource = File(
+    'lib/src/wallet/utexo_wallet.dart',
+  ).readAsStringSync();
+  final constructor = RegExp(
+    r'\n  UtexoWallet\(\{([\s\S]*?)\n  \}\)\s*:\s*this\._\(',
+  ).firstMatch(walletSource);
+  if (constructor == null) {
+    errors.add('Stable UtexoWallet constructor shape could not be verified.');
+  } else {
+    final parameters = constructor.group(1)!;
+    for (final forbidden in <String>['RlnClient', 'RLNBinding']) {
+      if (parameters.contains(forbidden)) {
+        errors.add(
+          'Stable UtexoWallet constructor exposes advanced type `$forbidden`.',
+        );
+      }
+    }
+  }
+
+  final rawSource = File(
+    'lib/src/wallet/utexo_wallet_raw.dart',
+  ).readAsStringSync();
+  if (!rawSource.contains('extension UtexoWalletRawApi on UtexoWallet')) {
+    errors.add('Missing advanced-only UtexoWalletRawApi extension.');
+  }
+  for (final required in <String>[
+    'issueAssetNiaRaw',
+    'issueAssetIfaRaw',
+    'inflateRaw',
+    'estimateFeeRateRaw',
+    'checkIndexerUrlRaw',
+    'createRlnLightningInvoice',
+    'payRlnLightningInvoice',
+  ]) {
+    if (!RegExp('\\b${RegExp.escape(required)}\\s*\\(').hasMatch(rawSource)) {
+      errors.add('Advanced wallet API is missing `$required`.');
+    }
+  }
+
+  final coreModels = File(
+    'lib/src/models/utexo_core_models.dart',
+  ).readAsStringSync();
+  final mapperBoundary = coreModels.indexOf('extension Rln');
+  final stableModelDeclarations = mapperBoundary < 0
+      ? coreModels
+      : coreModels.substring(0, mapperBoundary);
+  final rawModelReference = RegExp(
+    r'\bRln[A-Z][A-Za-z0-9_]*\b',
+  ).firstMatch(stableModelDeclarations);
+  if (rawModelReference != null) {
+    errors.add(
+      'Stable core DTO declarations expose raw type '
+      '`${rawModelReference.group(0)}`.',
+    );
+  }
+
+  final walletTypes = File(
+    'lib/src/wallet/utexo_wallet_types.dart',
+  ).readAsStringSync();
+  if (walletTypes.contains('.fromRln(') ||
+      walletTypes.contains("import '../models/rln_models.dart';")) {
+    errors.add(
+      'Stable wallet DTOs must not expose native Rln conversion factories or '
+      'import raw model declarations.',
+    );
+  }
+
+  final signerSource = File(
+    'lib/src/wallet/rln_signers.dart',
+  ).readAsStringSync();
+  final signerAdapterBoundary = signerSource.indexOf(
+    'Future<void> initializeRlnSigner',
+  );
+  final stableSignerDeclarations = signerAdapterBoundary < 0
+      ? signerSource
+      : signerSource.substring(0, signerAdapterBoundary);
+  if (!stableSignerDeclarations.contains(
+        'abstract interface class RlnSignerHost',
+      ) ||
+      stableSignerDeclarations.contains('RlnClient')) {
+    errors.add(
+      'Stable signer declarations must use RlnSignerHost and must not expose '
+      'the advanced RlnClient type.',
+    );
+  }
+
+  final nativeArtifactInfo = File(
+    'lib/src/native_artifact_info.dart',
+  ).readAsStringSync();
+  if (nativeArtifactInfo.contains('RlnNativeArtifactInfo') ||
+      nativeArtifactInfo.contains("import 'pigeon/")) {
+    errors.add(
+      'Stable NativeArtifactInfo must not expose generated Pigeon types.',
+    );
+  }
 }
 
 Set<String> _exportedPublicSymbols() {

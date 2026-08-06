@@ -22,32 +22,6 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     )
   }
 
-  private func unsupported<T>(_ operation: String) throws -> T {
-    throw PigeonError(
-      code: "unsupported",
-      message: "\(operation) is not implemented yet.",
-      details: bridgeErrorDetails(
-        operation,
-        category: "unsupported",
-        retryable: false,
-        extra: ["phase": "rln-parity", "feature": operation]
-      )
-    )
-  }
-
-  private func unsupportedVoid(_ operation: String) throws {
-    throw PigeonError(
-      code: "unsupported",
-      message: "\(operation) is not implemented yet.",
-      details: bridgeErrorDetails(
-        operation,
-        category: "unsupported",
-        retryable: false,
-        extra: ["phase": "rln-parity", "feature": operation]
-      )
-    )
-  }
-
   private func runRln<T>(_ operation: String, _ block: () throws -> T) throws -> T {
     do {
       return try block()

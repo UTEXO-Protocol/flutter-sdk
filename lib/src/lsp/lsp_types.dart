@@ -1,5 +1,6 @@
 import '../errors/rgb_sdk_exception.dart';
-import '../models/rln_models.dart';
+
+const _maxUnsigned64Decimal = '18446744073709551615';
 
 class LspClientConfig {
   const LspClientConfig({
@@ -566,13 +567,6 @@ class HodlInvoiceResult {
 class ApayHashEntry {
   const ApayHashEntry({required this.hashIndex, required this.paymentHash});
 
-  factory ApayHashEntry.fromMap(RlnMap map) {
-    return ApayHashEntry(
-      hashIndex: _requiredRlnInt(map, 'hashIndex', 'ApayHashEntry'),
-      paymentHash: _requiredRlnString(map, 'paymentHash', 'ApayHashEntry'),
-    );
-  }
-
   final int hashIndex;
   final String paymentHash;
 }
@@ -592,43 +586,6 @@ class ApayNewResponse {
     required this.lastHashIndex,
     required this.hashes,
   });
-
-  factory ApayNewResponse.fromMap(RlnMap map) {
-    final hashes = map['hashes'];
-    return ApayNewResponse(
-      requestId: _requiredRlnString(map, 'requestId', 'ApayNewResponse'),
-      hostNodeId: _requiredRlnString(map, 'hostNodeId', 'ApayNewResponse'),
-      protocolVersion: _requiredRlnInt(
-        map,
-        'protocolVersion',
-        'ApayNewResponse',
-      ),
-      orderId: _requiredRlnString(map, 'orderId', 'ApayNewResponse'),
-      status: _requiredRlnString(map, 'status', 'ApayNewResponse'),
-      acceptedThroughIndex: _requiredRlnInt(
-        map,
-        'acceptedThroughIndex',
-        'ApayNewResponse',
-      ),
-      nextIndexExpected: _requiredRlnInt(
-        map,
-        'nextIndexExpected',
-        'ApayNewResponse',
-      ),
-      unusedHashes: _requiredRlnInt(map, 'unusedHashes', 'ApayNewResponse'),
-      refillBatchSize: _requiredRlnInt(
-        map,
-        'refillBatchSize',
-        'ApayNewResponse',
-      ),
-      firstHashIndex: _requiredRlnInt(map, 'firstHashIndex', 'ApayNewResponse'),
-      lastHashIndex: _requiredRlnInt(map, 'lastHashIndex', 'ApayNewResponse'),
-      hashes: _rlnMapListValue(
-        hashes,
-        'ApayNewResponse.hashes',
-      ).map(ApayHashEntry.fromMap).toList(growable: false),
-    );
-  }
 
   final String requestId;
   final String hostNodeId;
@@ -652,14 +609,6 @@ int _requiredInt(Map<String, Object?> map, String key, String typeName) {
   return value;
 }
 
-int _requiredRlnInt(RlnMap map, String key, String typeName) {
-  final value = _intValue(map[key]);
-  if (value == null) {
-    throw _malformed('$typeName.$key must be an integer.');
-  }
-  return value;
-}
-
 int? _intValue(Object? value) {
   if (value is int) return value;
   if (value is double && value.isFinite && value % 1 == 0) return value.toInt();
@@ -668,14 +617,6 @@ int? _intValue(Object? value) {
 }
 
 String _requiredString(Map<String, Object?> map, String key, String typeName) {
-  final value = _stringValue(map[key]);
-  if (value == null || value.isEmpty) {
-    throw _malformed('$typeName.$key must be a non-empty string.');
-  }
-  return value;
-}
-
-String _requiredRlnString(RlnMap map, String key, String typeName) {
   final value = _stringValue(map[key]);
   if (value == null || value.isEmpty) {
     throw _malformed('$typeName.$key must be a non-empty string.');
@@ -715,7 +656,7 @@ BigInt _requiredUInt64(Map<String, Object?> map, String key, String typeName) {
     String() => BigInt.tryParse(value),
     _ => null,
   };
-  final max = BigInt.parse(rlnMaxUnsigned64Decimal);
+  final max = BigInt.parse(_maxUnsigned64Decimal);
   if (parsed == null || parsed < BigInt.zero || parsed > max) {
     throw _malformed('$typeName.$key must be a u64 decimal string.');
   }
@@ -757,20 +698,6 @@ List<Map<String, Object?>> _mapListValue(Object? value, String field) {
         throw _malformed('$field entries must be maps.');
       }
       return Map<String, Object?>.from(item);
-    }),
-  );
-}
-
-List<RlnMap> _rlnMapListValue(Object? value, String field) {
-  if (value is! List) {
-    throw _malformed('$field must be a list.');
-  }
-  return List<RlnMap>.unmodifiable(
-    value.map((item) {
-      if (item is! Map) {
-        throw _malformed('$field entries must be maps.');
-      }
-      return Map<Object?, Object?>.from(item);
     }),
   );
 }

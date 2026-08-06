@@ -632,6 +632,12 @@ void _validateWalletMethods(
     errors,
   );
   _validateAdvancedWalletAliases(root, advancedAliases, errors);
+  _validateCanonicalWalletReturnShapes(
+    root,
+    rnRoot,
+    advancedAliases.keys.toSet(),
+    errors,
+  );
 
   final missing =
       rnMethods
@@ -650,6 +656,283 @@ void _validateWalletMethods(
       );
     }
   }
+}
+
+void _validateCanonicalWalletReturnShapes(
+  Directory root,
+  Directory rnRoot,
+  Set<String> advancedAliases,
+  List<String> errors,
+) {
+  final rnSource = File(
+    '${rnRoot.path}/src/wallet/utexo-wallet.ts',
+  ).readAsStringSync();
+  final dartSource = <String>[
+    'lib/src/wallet/utexo_wallet.dart',
+    'lib/src/wallet/utexo_wallet_lifecycle.dart',
+    'lib/src/wallet/utexo_wallet_lsp_apay.dart',
+    'lib/src/wallet/utexo_wallet_onchain.dart',
+    'lib/src/wallet/utexo_wallet_lightning.dart',
+  ].map((path) => File('${root.path}/$path').readAsStringSync()).join('\n');
+  const expected = <String, (String, String)>{
+    'init': ('void', 'Future<void>'),
+    'unlock': ('void', 'Future<void>'),
+    'reinit': ('void', 'Future<void>'),
+    'shutdown': ('void', 'Future<void>'),
+    'destroy': ('void', 'Future<void>'),
+    'initialize': ('void', 'Future<void>'),
+    'getNetwork': ('Network', 'String'),
+    'dispose': ('void', 'Future<void>'),
+    'isDisposed': ('boolean', 'bool'),
+    'getBtcBalance': ('BtcBalance', 'Future<CoreBtcBalance>'),
+    'getAddress': ('string', 'Future<String>'),
+    'rotateVanillaAddress': ('string', 'Future<String>'),
+    'listUnspents': ('Unspent[]', 'Future<List<CoreUnspent>>'),
+    'createUtxos': ('number', 'Future<int>'),
+    'listAssets': ('ListAssets', 'Future<CoreListAssets>'),
+    'getAssetBalance': ('AssetBalance', 'Future<CoreAssetBalance>'),
+    'issueAssetNia': ('AssetNIA', 'Future<CoreAssetNia>'),
+    'issueAssetIfa': ('AssetIfa', 'Future<CoreAssetIfa>'),
+    'inflate': ('{ txid: string }', 'Future<InflateAssetIfaResponse>'),
+    'sendBtc': ('string', 'Future<String>'),
+    'blindReceive': ('InvoiceReceiveData', 'Future<CoreInvoiceReceiveData>'),
+    'witnessReceive': ('InvoiceReceiveData', 'Future<CoreInvoiceReceiveData>'),
+    'listTransactions': ('Transaction[]', 'Future<List<CoreTransaction>>'),
+    'listTransactionsByTxid': (
+      'Transaction[]',
+      'Future<List<CoreTransaction>>',
+    ),
+    'listTransfers': ('Transfer[]', 'Future<List<CoreTransfer>>'),
+    'listTransfersByTxid': ('Transfer[]', 'Future<List<CoreTransfer>>'),
+    'failTransfers': ('boolean', 'Future<bool>'),
+    'refreshWallet': ('void', 'Future<void>'),
+    'syncWallet': ('void', 'Future<void>'),
+    'estimateFeeRate': (
+      'GetFeeEstimationResponse',
+      'Future<FeeEstimationResponse>',
+    ),
+    'createBackup': ('WalletBackupResponse', 'Future<WalletBackupResponse>'),
+    'signMessage': ('string', 'Future<String>'),
+    'verifyMessage': ('boolean', 'Future<bool>'),
+    'createLightningInvoice': (
+      'LightningReceiveRequest',
+      'Future<LightningReceiveRequest>',
+    ),
+    'createHodlInvoice': ('LightningInvoice', 'Future<HodlInvoice>'),
+    'claimHodlInvoice': ('HodlInvoiceResult', 'Future<HodlInvoiceResult>'),
+    'cancelHodlInvoice': ('HodlInvoiceResult', 'Future<HodlInvoiceResult>'),
+    'listPayments': ('LightningPayment[]', 'Future<List<LightningPayment>>'),
+    'apayNew': ('ApayNewResponse', 'Future<ApayNewResponse>'),
+    'apayNewWithAddress': ('ApayNewResponse', 'Future<ApayNewResponse>'),
+    'createLsp': ('UtexoLsp', 'Future<UtexoLsp>'),
+    'getLspConfig': (
+      '{ baseUrl: string | null; bearerToken: string | null }',
+      'UtexoLspConfig',
+    ),
+    'getLightningReceiveStatus': (
+      'RlnInvoiceStatus',
+      'Future<RlnInvoiceStatusValue>',
+    ),
+    'getLightningSendStatus': (
+      'RlnPaymentStatus | null',
+      'Future<RlnPaymentStatusValue?>',
+    ),
+    'payLightningInvoice': (
+      'LightningSendRequest',
+      'Future<LightningSendRequest>',
+    ),
+    'listLightningPayments': (
+      'ListLightningPaymentsResponse',
+      'Future<ListLightningPaymentsResponse>',
+    ),
+    'onchainReceive': (
+      'OnchainReceiveResponse',
+      'Future<OnchainReceiveResponse>',
+    ),
+    'onchainSend': ('OnchainSendResponse', 'Future<OnchainSendResponse>'),
+    'listOnchainTransfers': ('Transfer[]', 'Future<List<CoreTransfer>>'),
+    'getNodeInfo': ('LightningNodeInfo', 'Future<WalletNodeInfo>'),
+    'getNetworkInfo': ('LightningNetworkInfo', 'Future<WalletNetworkInfo>'),
+    'connectPeer': ('void', 'Future<void>'),
+    'listPeers': ('LightningPeer[]', 'Future<List<LightningPeer>>'),
+    'disconnectPeer': ('void', 'Future<void>'),
+    'listChannels': ('LightningChannel[]', 'Future<List<LightningChannel>>'),
+    'openChannel': ('OpenChannelResult', 'Future<LightningChannelOpenResult>'),
+    'closeChannel': ('void', 'Future<void>'),
+    'getChannelId': ('string', 'Future<String>'),
+    'keysend': ('SendPaymentResult', 'Future<SendPaymentResult>'),
+    'decodeLnInvoice': ('DecodedLnInvoice', 'Future<DecodedLightningInvoice>'),
+    'invoiceStatus': ('RlnInvoiceStatus', 'Future<RlnInvoiceStatusValue>'),
+    'checkIndexerUrl': (
+      'RlnCheckIndexerUrlResponse',
+      'Future<IndexerCheckResponse>',
+    ),
+    'checkProxyEndpoint': ('void', 'Future<void>'),
+    'vssClearFence': ('void', 'Future<void>'),
+    'backupNow': ('number', 'Future<int>'),
+  };
+
+  final rnMethods = _extractRnWalletMethods(
+    File('${rnRoot.path}/src/wallet/utexo-wallet.ts'),
+    errors,
+  );
+  final covered = expected.keys.toSet()..addAll(advancedAliases);
+  for (final method in rnMethods.difference(covered).toList()..sort()) {
+    errors.add(
+      'RN UTEXOWallet.$method has no canonical return-shape contract.',
+    );
+  }
+  for (final method in covered.difference(rnMethods).toList()..sort()) {
+    errors.add('Canonical wallet contract contains stale method $method.');
+  }
+
+  final dartMethodPattern = RegExp(
+    r'^\s{2}([A-Za-z][A-Za-z0-9_<>, ?]*)\s+'
+    r'([A-Za-z][A-Za-z0-9_]*)\s*\(',
+    multiLine: true,
+  );
+  final dartReturns = <String, String>{};
+  for (final match in dartMethodPattern.allMatches(dartSource)) {
+    final method = match.group(2)!;
+    if (!method.startsWith('_')) {
+      dartReturns[method] = match.group(1)!.replaceAll(RegExp(r'\s+'), ' ');
+    }
+  }
+
+  for (final entry in expected.entries) {
+    final rnReturn = _rnWalletReturnType(rnSource, entry.key);
+    if (rnReturn != entry.value.$1) {
+      errors.add(
+        'RN UTEXOWallet.${entry.key} return changed: expected '
+        '${entry.value.$1}, found ${rnReturn ?? 'no declaration'}.',
+      );
+    }
+    final dartReturn = dartReturns[entry.key];
+    if (dartReturn != entry.value.$2) {
+      errors.add(
+        'Flutter UtexoWallet.${entry.key} must map to ${entry.value.$2}; '
+        'found ${dartReturn ?? 'no declaration'}.',
+      );
+    }
+  }
+
+  const expectedDartParameters = <String, String>{
+    'getBtcBalance': '',
+    'listUnspents': '',
+    'createUtxos': '{boolupTo=true,int?num,int?size,doublefeeRate=1,}',
+    'listAssets': '',
+    'listTransactions': '',
+    'refreshWallet': '',
+    'createLightningInvoice':
+        '{int?amountSats,LightningAsset?asset,intexpirySeconds=3600,'
+        'int?minFinalCltvExpiryDelta,String?descriptionHash,}',
+    'payLightningInvoice':
+        '{requiredStringlnInvoice,int?amount,String?assetId,'
+        'int?assetAmount,}',
+    'onchainReceive': 'RgbInvoiceRequestrequest,',
+    'openChannel':
+        '{requiredStringpeerPubkey,requiredintcapacitySat,intpushMsat=0,'
+        'boolisPublic=false,boolwithAnchors=true,int?feeBaseMsat,'
+        'int?feeProportionalMillionths,String?temporaryChannelId,'
+        'String?assetId,int?assetLocalAmount,int?pushAssetAmount,'
+        'String?virtualOpenMode,}',
+  };
+  for (final entry in expectedDartParameters.entries) {
+    final actual = _dartWalletParameters(dartSource, entry.key);
+    if (actual != entry.value) {
+      errors.add(
+        'Flutter UtexoWallet.${entry.key} input contract changed: expected '
+        '${entry.value}, found ${actual ?? 'no declaration'}.',
+      );
+    }
+  }
+
+  final walletTypes = File(
+    '${root.path}/lib/src/wallet/utexo_wallet_types.dart',
+  ).readAsStringSync();
+  if (!RegExp(
+    r'class RgbInvoiceRequest[\s\S]*?final bool witness;',
+  ).hasMatch(walletTypes)) {
+    errors.add(
+      'RgbInvoiceRequest must preserve the RN onchainReceive witness option.',
+    );
+  }
+}
+
+String? _dartWalletParameters(String source, String method) {
+  final declaration = RegExp(
+    '^  [A-Za-z][A-Za-z0-9_<>, ?]*\\s+${RegExp.escape(method)}\\s*\\(',
+    multiLine: true,
+  ).firstMatch(source);
+  if (declaration == null) return null;
+  final opening = source.indexOf('(', declaration.start);
+  final closing = _matchingDelimiter(source, opening, 40, 41);
+  if (closing < 0) return null;
+  return source.substring(opening + 1, closing).replaceAll(RegExp(r'\s+'), '');
+}
+
+String? _rnWalletReturnType(String source, String method) {
+  final declaration = RegExp(
+    '^  (?! )(?:async\\s+)?${RegExp.escape(method)}\\s*\\(',
+    multiLine: true,
+  ).firstMatch(source);
+  if (declaration == null) return null;
+  final openingParenthesis = source.indexOf('(', declaration.start);
+  final closingParenthesis = _matchingDelimiter(
+    source,
+    openingParenthesis,
+    40,
+    41,
+  );
+  if (closingParenthesis < 0) return null;
+  final colon = source.indexOf(':', closingParenthesis);
+  if (colon < 0) return null;
+  final returnStart = colon + 1;
+  final promise = source.indexOf('Promise<', returnStart);
+  if (promise < 0 || promise - returnStart > 16) {
+    var index = returnStart;
+    while (index < source.length && source[index].trim().isEmpty) {
+      index += 1;
+    }
+    if (index >= source.length) return null;
+    if (source[index] == '{') {
+      final closing = _matchingDelimiter(source, index, 123, 125);
+      if (closing < 0) return null;
+      return source
+          .substring(index, closing + 1)
+          .replaceAll(RegExp(r'\s+'), ' ')
+          .trim();
+    }
+    final body = source.indexOf('{', index);
+    if (body < 0) return null;
+    return source.substring(index, body).replaceAll(RegExp(r'\s+'), ' ').trim();
+  }
+  final openingAngle = source.indexOf('<', promise);
+  final closingAngle = _matchingDelimiter(source, openingAngle, 60, 62);
+  if (closingAngle < 0) return null;
+  return source
+      .substring(openingAngle + 1, closingAngle)
+      .replaceAll(RegExp(r'\s+'), ' ')
+      .trim();
+}
+
+int _matchingDelimiter(
+  String source,
+  int openingIndex,
+  int openingCodeUnit,
+  int closingCodeUnit,
+) {
+  if (openingIndex < 0) return -1;
+  var depth = 0;
+  for (var index = openingIndex; index < source.length; index++) {
+    final codeUnit = source.codeUnitAt(index);
+    if (codeUnit == openingCodeUnit) depth += 1;
+    if (codeUnit == closingCodeUnit) {
+      depth -= 1;
+      if (depth == 0) return index;
+    }
+  }
+  return -1;
 }
 
 void _validateAdvancedWalletAliases(
@@ -701,57 +984,32 @@ Set<String> _extractRnWalletMethods(File file, List<String> errors) {
     return <String>{};
   }
 
-  final lines = file.readAsLinesSync();
+  final source = file.readAsStringSync();
   final methods = <String>{};
-  var inClass = false;
-  var braceDepth = 0;
+  final classMatch = RegExp(
+    r'export\s+class\s+UTEXOWallet\b',
+  ).firstMatch(source);
+  if (classMatch == null) {
+    errors.add('RN source does not declare export class UTEXOWallet.');
+    return methods;
+  }
+  final classOpen = source.indexOf('{', classMatch.end);
+  final classClose = _matchingDelimiter(source, classOpen, 123, 125);
+  if (classOpen < 0 || classClose < 0) {
+    errors.add('RN UTEXOWallet class body could not be parsed.');
+    return methods;
+  }
+  final classSource = source.substring(classOpen + 1, classClose);
   final methodRegex = RegExp(
-    r'^\s*(?:async\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*\([^;]*\)\s*(?::|{)',
+    r'^  (?! )(?:(?:async|public)\s+)*([A-Za-z_][A-Za-z0-9_]*)\s*\(',
+    multiLine: true,
   );
-
-  for (final line in lines) {
-    if (!inClass) {
-      if (line.contains(RegExp(r'export\s+class\s+UTEXOWallet\b'))) {
-        inClass = true;
-        braceDepth += _braceDelta(line);
-      }
-      continue;
-    }
-
-    braceDepth += _braceDelta(line);
-    final trimmed = line.trimLeft();
-    if (trimmed.startsWith('private ') ||
-        trimmed.startsWith('protected ') ||
-        trimmed.startsWith('constructor(') ||
-        trimmed.startsWith('if ') ||
-        trimmed.startsWith('for ') ||
-        trimmed.startsWith('while ') ||
-        trimmed.startsWith('switch ')) {
-      if (braceDepth <= 0) break;
-      continue;
-    }
-
-    final match = methodRegex.firstMatch(line);
-    if (match != null) {
-      final method = match.group(1)!;
-      if (!method.startsWith('_') && method != 'constructor') {
-        methods.add(method);
-      }
-    }
-
-    if (braceDepth <= 0) break;
+  for (final match in methodRegex.allMatches(classSource)) {
+    final method = match.group(1)!;
+    if (method != 'constructor') methods.add(method);
   }
 
   return methods;
-}
-
-int _braceDelta(String line) {
-  var delta = 0;
-  for (final codeUnit in line.codeUnits) {
-    if (codeUnit == 123) delta += 1; // {
-    if (codeUnit == 125) delta -= 1; // }
-  }
-  return delta;
 }
 
 void _validateRuntimeExports(

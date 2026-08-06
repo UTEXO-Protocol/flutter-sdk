@@ -1,51 +1,31 @@
 part of 'utexo_wallet.dart';
 
 mixin _UtexoWalletOnchain on _UtexoWalletInternals {
-  Future<RlnNodeInfo> nodeInfoRaw() async {
+  Future<RlnNodeInfo> _nodeInfoRaw() async {
     _requireNode();
     return _binding.rlnNodeInfo();
   }
 
-  Future<WalletNodeInfo> nodeInfo() async {
-    return (await nodeInfoRaw()).toWalletNodeInfo();
+  Future<WalletNodeInfo> getNodeInfo() async {
+    return (await _nodeInfoRaw()).toWalletNodeInfo();
   }
 
-  Future<WalletNodeInfo> getNodeInfo() {
-    return nodeInfo();
-  }
-
-  Future<RlnNodeInfo> getNodeInfoRaw() {
-    return nodeInfoRaw();
-  }
-
-  Future<RlnNetworkInfo> networkInfoRaw() async {
+  Future<RlnNetworkInfo> _networkInfoRaw() async {
     _requireUnlockedNode();
     return _binding.rlnNetworkInfo();
   }
 
-  Future<WalletNetworkInfo> networkInfo() async {
-    return (await networkInfoRaw()).toWalletNetworkInfo();
+  Future<WalletNetworkInfo> getNetworkInfo() async {
+    return (await _networkInfoRaw()).toWalletNetworkInfo();
   }
 
-  Future<WalletNetworkInfo> getNetworkInfo() {
-    return networkInfo();
-  }
-
-  Future<RlnNetworkInfo> getNetworkInfoRaw() {
-    return networkInfoRaw();
-  }
-
-  Future<RlnBtcBalance> getBtcBalanceRaw({bool skipSync = false}) async {
+  Future<RlnBtcBalance> _getBtcBalanceRaw({bool skipSync = false}) async {
     _requireUnlockedNode();
     return _binding.rlnBtcBalance(skipSync);
   }
 
-  Future<CoreBtcBalance> getBtcBalance({bool skipSync = false}) async {
-    return (await getBtcBalanceRaw(skipSync: skipSync)).toCore();
-  }
-
-  Future<CoreBtcBalance> getBtcBalanceCore({bool skipSync = false}) {
-    return getBtcBalance(skipSync: skipSync);
+  Future<CoreBtcBalance> getBtcBalance() async {
+    return (await _getBtcBalanceRaw()).toCore();
   }
 
   Future<String> getAddress() async {
@@ -53,19 +33,15 @@ mixin _UtexoWalletOnchain on _UtexoWalletInternals {
     return (await _binding.rlnAddress()).address;
   }
 
-  Future<List<RlnUnspent>> listUnspentsRaw({bool skipSync = false}) async {
+  Future<List<RlnUnspent>> _listUnspentsRaw({bool skipSync = false}) async {
     _requireUnlockedNode();
     return _binding.rlnListUnspents(skipSync);
   }
 
-  Future<List<CoreUnspent>> listUnspents({bool skipSync = false}) async {
-    return (await listUnspentsRaw(
-      skipSync: skipSync,
-    )).map((unspent) => unspent.toCore()).toList(growable: false);
-  }
-
-  Future<List<CoreUnspent>> listUnspentsCore({bool skipSync = false}) {
-    return listUnspents(skipSync: skipSync);
+  Future<List<CoreUnspent>> listUnspents() async {
+    return (await _listUnspentsRaw())
+        .map((unspent) => unspent.toCore())
+        .toList(growable: false);
   }
 
   Future<int> createUtxos({
@@ -73,50 +49,35 @@ mixin _UtexoWalletOnchain on _UtexoWalletInternals {
     int? num,
     int? size,
     double feeRate = 1,
-    bool skipSync = false,
   }) async {
     _requireUInt8Optional(num, 'num');
     _requireUInt32Optional(size, 'size');
     _requireFeeRate(feeRate, 'feeRate');
     _ensureRgbUtxoCreationSupported();
     _requireUnlockedNode();
-    await _binding.rlnCreateUtxos(upTo, num, size, feeRate, skipSync);
+    await _binding.rlnCreateUtxos(upTo, num, size, feeRate, false);
     return num ?? 0;
   }
 
-  Future<RlnAssets> listAssetsRaw({
+  Future<RlnAssets> _listAssetsRaw({
     List<String> filterAssetSchemas = const [],
   }) async {
     _requireUnlockedNode();
     return _binding.rlnListAssets(filterAssetSchemas);
   }
 
-  Future<CoreListAssets> listAssets({
-    List<String> filterAssetSchemas = const [],
-  }) async {
-    return (await listAssetsRaw(
-      filterAssetSchemas: filterAssetSchemas,
-    )).toCore();
+  Future<CoreListAssets> listAssets() async {
+    return (await _listAssetsRaw()).toCore();
   }
 
-  Future<CoreListAssets> listAssetsCore({
-    List<String> filterAssetSchemas = const [],
-  }) {
-    return listAssets(filterAssetSchemas: filterAssetSchemas);
-  }
-
-  Future<RlnAssetBalance> getAssetBalanceRaw(String assetId) async {
+  Future<RlnAssetBalance> _getAssetBalanceRaw(String assetId) async {
     _requireNonEmpty(assetId, 'assetId');
     _requireUnlockedNode();
     return _binding.rlnAssetBalance(assetId);
   }
 
   Future<CoreAssetBalance> getAssetBalance(String assetId) async {
-    return (await getAssetBalanceRaw(assetId)).toCore();
-  }
-
-  Future<CoreAssetBalance> getAssetBalanceCore(String assetId) {
-    return getAssetBalance(assetId);
+    return (await _getAssetBalanceRaw(assetId)).toCore();
   }
 
   Future<String> rotateVanillaAddress() async {
@@ -124,7 +85,7 @@ mixin _UtexoWalletOnchain on _UtexoWalletInternals {
     return (await _binding.rlnRotateAddress()).address;
   }
 
-  Future<RlnAssetNia> issueAssetNia({
+  Future<RlnAssetNia> _issueAssetNiaRaw({
     required String ticker,
     required String name,
     required int precision,
@@ -143,7 +104,21 @@ mixin _UtexoWalletOnchain on _UtexoWalletInternals {
     );
   }
 
-  Future<RlnAssetIfa> issueAssetIfa({
+  Future<CoreAssetNia> issueAssetNia({
+    required String ticker,
+    required String name,
+    required int precision,
+    required List<int> amounts,
+  }) async {
+    return (await _issueAssetNiaRaw(
+      ticker: ticker,
+      name: name,
+      precision: precision,
+      amounts: amounts,
+    )).toCore();
+  }
+
+  Future<RlnAssetIfa> _issueAssetIfaRaw({
     required String ticker,
     required String name,
     required int precision,
@@ -172,46 +147,56 @@ mixin _UtexoWalletOnchain on _UtexoWalletInternals {
     );
   }
 
-  Future<RlnInvoice> blindReceiveRaw(RgbInvoiceRequest request) {
+  Future<CoreAssetIfa> issueAssetIfa({
+    required String ticker,
+    required String name,
+    required int precision,
+    required List<int> amounts,
+    required List<int> inflationAmounts,
+    String? rejectListUrl,
+  }) async {
+    return (await _issueAssetIfaRaw(
+      ticker: ticker,
+      name: name,
+      precision: precision,
+      amounts: amounts,
+      inflationAmounts: inflationAmounts,
+      rejectListUrl: rejectListUrl,
+    )).toCore();
+  }
+
+  Future<RlnInvoice> _blindReceiveRaw(RgbInvoiceRequest request) {
     return _rgbInvoice(request, witness: false);
   }
 
   Future<CoreInvoiceReceiveData> blindReceive(RgbInvoiceRequest request) async {
-    return (await blindReceiveRaw(request)).toCore();
+    return (await _blindReceiveRaw(request)).toCore();
   }
 
-  Future<CoreInvoiceReceiveData> blindReceiveCore(RgbInvoiceRequest request) {
-    return blindReceive(request);
-  }
-
-  Future<RlnInvoice> witnessReceiveRaw(RgbInvoiceRequest request) {
+  Future<RlnInvoice> _witnessReceiveRaw(RgbInvoiceRequest request) {
     return _rgbInvoice(request, witness: true);
   }
 
   Future<CoreInvoiceReceiveData> witnessReceive(
     RgbInvoiceRequest request,
   ) async {
-    return (await witnessReceiveRaw(request)).toCore();
+    return (await _witnessReceiveRaw(request)).toCore();
   }
 
-  Future<CoreInvoiceReceiveData> witnessReceiveCore(RgbInvoiceRequest request) {
-    return witnessReceive(request);
-  }
-
-  Future<RlnDecodedRgbInvoice> decodeRgbInvoiceRaw(String invoice) async {
+  Future<RlnDecodedRgbInvoice> _decodeRgbInvoiceRaw(String invoice) async {
     _requireNonEmpty(invoice, 'invoice');
     _requireUnlockedNode();
     return _binding.rlnDecodeRgbInvoice(invoice);
   }
 
   Future<CoreInvoiceData> decodeRgbInvoice(String invoice) async {
-    return (await decodeRgbInvoiceRaw(invoice)).toCore(invoice);
+    return (await _decodeRgbInvoiceRaw(invoice)).toCore(invoice);
   }
 
   @override
   Future<RlnSendResult> _sendRgb(RgbSendRequest request) async {
     _requireNonEmpty(request.invoice, 'invoice');
-    final decoded = await decodeRgbInvoiceRaw(request.invoice);
+    final decoded = await _decodeRgbInvoiceRaw(request.invoice);
     final assetId = request.assetId ?? decoded.assetId;
     final recipientId = decoded.recipientId;
     final amount = request.amount;
@@ -261,7 +246,7 @@ mixin _UtexoWalletOnchain on _UtexoWalletInternals {
     );
   }
 
-  Future<RlnInflateResult> inflate(InflateAssetIfaRequest request) async {
+  Future<RlnInflateResult> _inflateRaw(InflateAssetIfaRequest request) async {
     _requireNonEmpty(request.assetId, 'assetId');
     if (request.inflationAmounts.isEmpty) {
       throw const WalletValidationException(
@@ -287,6 +272,13 @@ mixin _UtexoWalletOnchain on _UtexoWalletInternals {
     );
   }
 
+  Future<InflateAssetIfaResponse> inflate(
+    InflateAssetIfaRequest request,
+  ) async {
+    final result = await _inflateRaw(request);
+    return InflateAssetIfaResponse(txid: result.txid);
+  }
+
   Future<String> sendBtc({
     required int amount,
     required String address,
@@ -303,29 +295,23 @@ mixin _UtexoWalletOnchain on _UtexoWalletInternals {
       feeRate,
       skipSync,
     );
-    return response['txid']! as String;
+    return _requiredNativeString(response, 'txid', 'RlnSendBtcResponse');
   }
 
-  Future<List<RlnTransaction>> listTransactionsRaw({
+  Future<List<RlnTransaction>> _listTransactionsRaw({
     bool skipSync = false,
   }) async {
     _requireUnlockedNode();
     return _binding.rlnListTransactions(skipSync);
   }
 
-  Future<List<CoreTransaction>> listTransactions({
-    bool skipSync = false,
-  }) async {
-    return (await listTransactionsRaw(
-      skipSync: skipSync,
-    )).map((transaction) => transaction.toCore()).toList(growable: false);
+  Future<List<CoreTransaction>> listTransactions() async {
+    return (await _listTransactionsRaw())
+        .map((transaction) => transaction.toCore())
+        .toList(growable: false);
   }
 
-  Future<List<CoreTransaction>> listTransactionsCore({bool skipSync = false}) {
-    return listTransactions(skipSync: skipSync);
-  }
-
-  Future<List<RlnTransaction>> listTransactionsByTxidRaw(
+  Future<List<RlnTransaction>> _listTransactionsByTxidRaw(
     String txid, {
     bool skipSync = false,
   }) async {
@@ -338,13 +324,13 @@ mixin _UtexoWalletOnchain on _UtexoWalletInternals {
     String txid, {
     bool skipSync = false,
   }) async {
-    return (await listTransactionsByTxidRaw(
+    return (await _listTransactionsByTxidRaw(
       txid,
       skipSync: skipSync,
     )).map((transaction) => transaction.toCore()).toList(growable: false);
   }
 
-  Future<List<RlnTransfer>> listTransfersRaw({String? assetId}) async {
+  Future<List<RlnTransfer>> _listTransfersRaw({String? assetId}) async {
     if (assetId != null) {
       _requireUnlockedNode();
       return _binding.rlnListTransfers(assetId);
@@ -366,23 +352,19 @@ mixin _UtexoWalletOnchain on _UtexoWalletInternals {
   }
 
   Future<List<CoreTransfer>> listTransfers({String? assetId}) async {
-    return (await listTransfersRaw(
+    return (await _listTransfersRaw(
       assetId: assetId,
     )).map((transfer) => transfer.toCore()).toList(growable: false);
   }
 
-  Future<List<CoreTransfer>> listTransfersCore({String? assetId}) {
-    return listTransfers(assetId: assetId);
-  }
-
-  Future<List<RlnTransfer>> listTransfersByTxidRaw(String txid) async {
+  Future<List<RlnTransfer>> _listTransfersByTxidRaw(String txid) async {
     _requireNonEmpty(txid, 'txid');
     _requireUnlockedNode();
     return _binding.rlnListTransfersByTxid(txid);
   }
 
   Future<List<CoreTransfer>> listTransfersByTxid(String txid) async {
-    return (await listTransfersByTxidRaw(
+    return (await _listTransfersByTxidRaw(
       txid,
     )).map((transfer) => transfer.toCore()).toList(growable: false);
   }
@@ -399,12 +381,16 @@ mixin _UtexoWalletOnchain on _UtexoWalletInternals {
       noAssetOnly,
       skipSync,
     );
-    return response['transfersChanged'] == true;
+    return _requiredNativeBool(
+      response,
+      'transfersChanged',
+      'RlnFailTransfersResponse',
+    );
   }
 
-  Future<void> refreshWallet({bool skipSync = false}) {
+  Future<void> refreshWallet() {
     _requireUnlockedNode();
-    return _binding.rlnRefreshTransfers(skipSync);
+    return _binding.rlnRefreshTransfers(false);
   }
 
   Future<void> syncWallet() {
@@ -412,22 +398,26 @@ mixin _UtexoWalletOnchain on _UtexoWalletInternals {
     return _binding.rlnSync();
   }
 
-  Future<RlnFeeRate> estimateFeeRate(int blocks) async {
+  Future<RlnFeeRate> _estimateFeeRateRaw(int blocks) async {
     _requireUInt16(blocks, 'blocks');
     _requireUnlockedNode();
     return _binding.rlnEstimateFee(blocks);
   }
 
-  Future<double> estimateFeeRateValue(int blocks) async {
-    return (await estimateFeeRate(blocks)).feeRate;
+  Future<FeeEstimationResponse> estimateFeeRate(int blocks) async {
+    final result = await _estimateFeeRateRaw(blocks);
+    return FeeEstimationResponse(feeRate: result.feeRate);
   }
 
-  Future<RlnFeeRate> rlnEstimateFeeRate(int blocks) => estimateFeeRate(blocks);
-
-  Future<RlnIndexerCheck> checkIndexerUrl(String url) async {
+  Future<RlnIndexerCheck> _checkIndexerUrlRaw(String url) async {
     _requireNonEmpty(url, 'url');
     _requireUnlockedNode();
     return _binding.rlnCheckIndexerUrl(url);
+  }
+
+  Future<IndexerCheckResponse> checkIndexerUrl(String url) async {
+    final result = await _checkIndexerUrlRaw(url);
+    return IndexerCheckResponse(indexerProtocol: result.indexerProtocol);
   }
 
   Future<void> checkProxyEndpoint(String endpoint) {
@@ -452,12 +442,21 @@ mixin _UtexoWalletOnchain on _UtexoWalletInternals {
   Future<OnchainReceiveResponse> onchainReceive(
     RgbInvoiceRequest request,
   ) async {
-    final invoice = await _rgbInvoice(request, witness: true);
-    return OnchainReceiveResponse.fromRln(invoice);
+    final invoice = await _rgbInvoice(request, witness: request.witness);
+    return OnchainReceiveResponse(
+      invoice: invoice.invoice,
+      recipientId: invoice.recipientId,
+      expirationTimestamp: invoice.expirationTimestamp,
+      batchTransferIdx: invoice.batchTransferIdx,
+    );
   }
 
   Future<OnchainSendResponse> onchainSend(RgbSendRequest request) async {
-    return OnchainSendResponse.fromRln(await _sendRgb(request));
+    final result = await _sendRgb(request);
+    return OnchainSendResponse(
+      txid: result.txid,
+      batchTransferIdx: result.batchTransferIdx,
+    );
   }
 
   Future<List<CoreTransfer>> listOnchainTransfers({String? assetId}) {
@@ -496,6 +495,9 @@ mixin _UtexoWalletOnchain on _UtexoWalletInternals {
   RlnMap _asRlnMap(Object? value) {
     if (value is RlnMap) return value;
     if (value is Map) return Map<Object?, Object?>.from(value);
-    throw const WalletException('Native response was not a map.');
+    throw const NativeProtocolException(
+      'Native asset response must be a map.',
+      field: 'assetResponse',
+    );
   }
 }

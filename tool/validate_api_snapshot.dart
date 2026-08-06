@@ -22,6 +22,8 @@ void main(List<String> args) {
       final expected =
           jsonDecode(snapshotFile.readAsStringSync()) as Map<String, Object?>;
       _compareSection('dartExportedSurface', expected, current, errors);
+      _compareSection('stableWalletSurface', expected, current, errors);
+      _compareSection('advancedWalletRawSurface', expected, current, errors);
       _compareSection('pigeonSchema', expected, current, errors);
       _compareSection('generatedPigeonSurface', expected, current, errors);
       _compareSection('nativeBridgeSurface', expected, current, errors);
@@ -94,10 +96,106 @@ Map<String, Object?> _buildSnapshot() {
       exportedFiles.keys.toList(growable: false),
       dartExports: exportedFiles,
     ),
+    'stableWalletSurface': _dartMemberSurface(<String>[
+      'lib/src/wallet/utexo_wallet.dart',
+      'lib/src/wallet/utexo_wallet_lifecycle.dart',
+      'lib/src/wallet/utexo_wallet_lsp_apay.dart',
+      'lib/src/wallet/utexo_wallet_onchain.dart',
+      'lib/src/wallet/utexo_wallet_lightning.dart',
+    ]),
+    'advancedWalletRawSurface': _dartMemberSurface(<String>[
+      'lib/src/wallet/utexo_wallet_raw.dart',
+    ]),
     'pigeonSchema': _surface(<String>['pigeons/rln_api.dart']),
     'generatedPigeonSurface': _surface(generatedPigeonFiles),
     'nativeBridgeSurface': _surface(nativeFiles),
   };
+}
+
+Map<String, Object?> _dartMemberSurface(List<String> files) {
+  final members = <String>[];
+  for (final path in files) {
+    final file = File(path);
+    if (!file.existsSync()) {
+      throw StateError('Snapshot source does not exist: $path');
+    }
+    members.addAll(_topLevelDartMembers(file.readAsLinesSync()));
+  }
+  final uniqueMembers = members.toSet().toList()..sort();
+  final normalized = uniqueMembers.join('\n');
+  return <String, Object?>{
+    'count': uniqueMembers.length,
+    'hash': crypto.sha256.convert(utf8.encode(normalized)).toString(),
+    'files': files,
+    'members': uniqueMembers,
+  };
+}
+
+List<String> _topLevelDartMembers(List<String> lines) {
+  final members = <String>[];
+  final methodStart = RegExp(
+    r'^  ([A-Za-z][A-Za-z0-9_<>, ?]*)\s+'
+    r'([A-Za-z][A-Za-z0-9_]*)\s*(?:<[^>]+>)?\s*\(',
+  );
+  final getter = RegExp(
+    r'^  ([A-Za-z][A-Za-z0-9_<>, ?]*)\s+get\s+'
+    r'([A-Za-z][A-Za-z0-9_]*)\b',
+  );
+  final constructor = RegExp(r'^  UtexoWallet\(');
+
+  for (var index = 0; index < lines.length; index++) {
+    final line = lines[index];
+    final getterMatch = getter.firstMatch(line);
+    if (getterMatch != null) {
+      members.add(
+        '${getterMatch.group(1)!.trim()} get ${getterMatch.group(2)!}',
+      );
+      continue;
+    }
+    if (!methodStart.hasMatch(line) && !constructor.hasMatch(line)) continue;
+
+    final signature = StringBuffer(line.trim());
+    var parentheses = _characterDelta(line, 40, 41);
+    while (parentheses > 0 && index + 1 < lines.length) {
+      index += 1;
+      final next = lines[index];
+      signature.write(' ${next.trim()}');
+      parentheses += _characterDelta(next, 40, 41);
+    }
+    final text = signature.toString();
+    final closing = _matchingClosingParenthesis(text);
+    members.add(
+      (closing < 0 ? text : text.substring(0, closing + 1)).replaceAll(
+        RegExp(r'\s+'),
+        ' ',
+      ),
+    );
+  }
+  return members;
+}
+
+int _matchingClosingParenthesis(String value) {
+  final opening = value.indexOf('(');
+  if (opening < 0) return -1;
+  var depth = 0;
+  for (var index = opening; index < value.length; index++) {
+    final codeUnit = value.codeUnitAt(index);
+    if (codeUnit == 40) depth += 1;
+    if (codeUnit == 41) {
+      depth -= 1;
+      if (depth == 0) return index;
+    }
+  }
+  return -1;
+}
+
+int _characterDelta(String value, int opening, int closing) {
+  var delta = 0;
+  for (final codeUnit in value.codeUnits) {
+    if (codeUnit == opening) delta += 1;
+    if (codeUnit == closing) delta -= 1;
+  }
+  return delta;
 }
 
 Map<String, Object?> _surface(

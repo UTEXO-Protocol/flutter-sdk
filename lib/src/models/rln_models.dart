@@ -167,6 +167,10 @@ String _pascalEnum(Object? value, String field) {
         .map((part) => part[0].toUpperCase() + part.substring(1))
         .join();
   }
+  if (raw == raw.toUpperCase()) {
+    final lower = raw.toLowerCase();
+    return lower[0].toUpperCase() + lower.substring(1);
+  }
   return raw[0].toUpperCase() + raw.substring(1);
 }
 

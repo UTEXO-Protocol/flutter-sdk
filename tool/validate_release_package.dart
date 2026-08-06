@@ -3,6 +3,7 @@ import 'dart:io';
 
 const _expectedVersion = '0.1.0';
 const _expectedFlutterVersion = '3.41.9';
+const _expectedRegtestProxyPort = 3013;
 const _publicTestMnemonic =
     'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';
 
@@ -150,6 +151,52 @@ void main() {
     'iOS artifact downloader must support explicit path, cache, and offline mode.',
   );
 
+  final regtestConfig = _read('tool/regtest/config.sh');
+  check(
+    regtestConfig.contains(
+      r': "${RGB_PROXY_PORT:='
+      '$_expectedRegtestProxyPort'
+      r'}"',
+    ),
+    'regtest config must reserve RGB proxy port $_expectedRegtestProxyPort.',
+  );
+  check(
+    _read('tool/regtest/compose.yaml').contains(
+      r'${RGB_PROXY_PORT:-'
+      '$_expectedRegtestProxyPort'
+      r'}:3000',
+    ),
+    'regtest compose fallback must match the reserved RGB proxy port.',
+  );
+  for (final path in <String>[
+    'tool/regtest/regtest.sh',
+    'tool/regtest/flutter_funded_smoke.sh',
+    'tool/regtest/flutter_external_signer_restart.sh',
+    'tool/test_platform_unfunded.sh',
+    'tool/test_platform_funded.sh',
+    'tool/test_external_signer_restart.sh',
+    'tool/test_release_candidate.sh',
+  ]) {
+    check(
+      _read(path).contains('regtest/config.sh') ||
+          _read(path).contains(r'${SCRIPT_DIR}/config.sh'),
+      '$path must source the shared regtest configuration.',
+    );
+  }
+  for (final path in <String>[
+    'README.md',
+    'example/integration_test/plugin_integration_test.dart',
+    'example/integration_test/external_signer_restart_test.dart',
+  ]) {
+    final source = _read(path);
+    check(
+      source.contains('$_expectedRegtestProxyPort') &&
+          !source.contains('defaultValue: 3003') &&
+          !source.contains('127.0.0.1:3003/json-rpc'),
+      '$path must use the SDK-owned RGB proxy port $_expectedRegtestProxyPort.',
+    );
+  }
+
   check(File('LICENSE').existsSync(), 'LICENSE must exist.');
   check(File('SECURITY.md').existsSync(), 'SECURITY.md must exist.');
   check(
@@ -233,6 +280,12 @@ void main() {
   check(
     File('tool/test_clean_consumer_matrix.sh').existsSync(),
     'clean consumer matrix gate must exist.',
+  );
+  check(
+    _read('tool/test_release_candidate.sh').contains(
+      'format --set-exit-if-changed lib test example/integration_test tool pigeons',
+    ),
+    'release candidate format gate must include integration test sources.',
   );
   check(
     _read(

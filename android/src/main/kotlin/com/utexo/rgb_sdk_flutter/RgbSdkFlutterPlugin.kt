@@ -34,19 +34,6 @@ class RgbSdkFlutterPlugin :
         )
     }
 
-    private fun unsupported(operation: String): Nothing {
-        throw FlutterError(
-            code = "unsupported",
-            message = "$operation is not implemented yet.",
-            details = bridgeErrorDetails(
-                operation = operation,
-                category = "unsupported",
-                retryable = false,
-                extra = mapOf("phase" to "rln-parity", "feature" to operation)
-            )
-        )
-    }
-
     private fun <T> runRln(operation: String, block: () -> T): T {
         try {
             @Suppress("UNCHECKED_CAST")

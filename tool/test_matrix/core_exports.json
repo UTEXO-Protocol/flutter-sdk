@@ -192,30 +192,12 @@
       "evidenceBucket": "unit_vectors"
     },
     {
-      "id": "normalizeNativeRlnNetwork",
-      "group": "validation",
-      "support": "supported",
-      "fixture": "unit_vectors",
-      "contract": "covered",
-      "implementation": "lib/rgb_sdk_flutter.dart::normalizeNativeRlnNetwork",
-      "evidenceBucket": "unit_vectors"
-    },
-    {
       "id": "getNetworkDefaults",
       "group": "validation",
       "support": "supported",
       "fixture": "unit_vectors",
       "contract": "covered",
       "implementation": "lib/rgb_sdk_flutter.dart::getNetworkDefaults",
-      "evidenceBucket": "unit_vectors"
-    },
-    {
-      "id": "resolveUnlockConfig",
-      "group": "validation",
-      "support": "supported",
-      "fixture": "unit_vectors",
-      "contract": "covered",
-      "implementation": "lib/rgb_sdk_flutter.dart::resolveUnlockConfig",
       "evidenceBucket": "unit_vectors"
     },
     {
@@ -246,48 +228,12 @@
       "evidenceBucket": "unit_vectors"
     },
     {
-      "id": "getUtxoNetworkConfig",
-      "group": "utexo",
-      "support": "supported",
-      "fixture": "unit_vectors",
-      "contract": "covered",
-      "implementation": "lib/rgb_sdk_flutter.dart::getUtxoNetworkConfig",
-      "evidenceBucket": "unit_vectors"
-    },
-    {
-      "id": "getDestinationAsset",
-      "group": "utexo",
-      "support": "supported",
-      "fixture": "unit_vectors",
-      "contract": "covered",
-      "implementation": "lib/rgb_sdk_flutter.dart::getDestinationAsset",
-      "evidenceBucket": "unit_vectors"
-    },
-    {
-      "id": "decodeBridgeInvoice",
-      "group": "utexo",
-      "support": "supported",
-      "fixture": "unit_vectors",
-      "contract": "covered",
-      "implementation": "lib/rgb_sdk_flutter.dart::decodeBridgeInvoice",
-      "evidenceBucket": "unit_vectors"
-    },
-    {
-      "id": "encodeTransferStatus",
-      "group": "utexo",
-      "support": "supported",
-      "fixture": "unit_vectors",
-      "contract": "covered",
-      "implementation": "lib/rgb_sdk_flutter.dart::encodeTransferStatus",
-      "evidenceBucket": "unit_vectors"
-    },
-    {
       "id": "isUmaAddress",
       "group": "lightning_address",
       "support": "supported",
       "fixture": "unit_validation",
       "contract": "covered",
-      "implementation": "lib/src/crypto/validation.dart::isUmaAddress",
+      "implementation": "lib/rgb_sdk_flutter.dart::isUmaAddress",
       "evidenceBucket": "unit_validation"
     },
     {
@@ -296,7 +242,7 @@
       "support": "supported",
       "fixture": "unit_validation",
       "contract": "covered",
-      "implementation": "lib/src/crypto/validation.dart::normalizeLightningAddress",
+      "implementation": "lib/rgb_sdk_flutter.dart::normalizeLightningAddress",
       "evidenceBucket": "unit_validation"
     },
     {
@@ -305,7 +251,7 @@
       "support": "supported",
       "fixture": "unit_validation",
       "contract": "covered",
-      "implementation": "lib/src/crypto/validation.dart::parseLightningAddress",
+      "implementation": "lib/rgb_sdk_flutter.dart::parseLightningAddress",
       "evidenceBucket": "unit_validation"
     },
     {
@@ -314,7 +260,7 @@
       "support": "supported",
       "fixture": "unit_validation",
       "contract": "covered",
-      "implementation": "lib/src/crypto/validation.dart::UMA_PREFIX",
+      "implementation": "lib/rgb_sdk_flutter.dart::UMA_PREFIX",
       "evidenceBucket": "unit_validation"
     },
     {
@@ -323,7 +269,7 @@
       "support": "supported",
       "fixture": "unit_validation",
       "contract": "covered",
-      "implementation": "lib/src/crypto/validation.dart::UMA_MAX_USERNAME_LENGTH",
+      "implementation": "lib/rgb_sdk_flutter.dart::UMA_MAX_USERNAME_LENGTH",
       "evidenceBucket": "unit_validation"
     }
   ]

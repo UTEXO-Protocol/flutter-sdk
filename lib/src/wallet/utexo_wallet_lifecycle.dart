@@ -31,7 +31,8 @@ mixin _UtexoWalletLifecycle on _UtexoWalletInternals {
           }
           final signer = _ensureSigner(password: password, mnemonic: mnemonic);
           try {
-            await signer.initNode(
+            await initializeRlnSigner(
+              signer: signer,
               client: _client,
               nodeId: _nodeId!,
               storageDirPath: _config.storageDirPath,
@@ -82,7 +83,8 @@ mixin _UtexoWalletLifecycle on _UtexoWalletInternals {
           final resolvedConfig = _resolveUnlockConfig(config);
           _lifecycleState = _WalletLifecycleState.unlocking;
           try {
-            await signer.unlockNode(
+            await unlockRlnSigner(
+              signer: signer,
               client: _client,
               nodeId: _nodeId!,
               config: resolvedConfig,
@@ -140,7 +142,8 @@ mixin _UtexoWalletLifecycle on _UtexoWalletInternals {
         final resolvedConfig = _resolveUnlockConfig(unlockConfig);
         _lifecycleState = _WalletLifecycleState.unlocking;
         try {
-          await signer.unlockNode(
+          await unlockRlnSigner(
+            signer: signer,
             client: _client,
             nodeId: _nodeId!,
             config: resolvedConfig,
@@ -209,7 +212,10 @@ mixin _UtexoWalletLifecycle on _UtexoWalletInternals {
       var signerDisposed = true;
       if (id != null) {
         try {
-          await _signer?.dispose(client: _client, nodeId: id);
+          final signer = _signer;
+          if (signer != null) {
+            await disposeRlnSigner(signer: signer, client: _client, nodeId: id);
+          }
         } catch (error) {
           signerDisposed = false;
           errors.add(error);

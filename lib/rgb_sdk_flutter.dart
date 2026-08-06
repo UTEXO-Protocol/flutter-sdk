@@ -55,6 +55,7 @@ export 'src/lsp/lsp_types.dart';
 export 'src/lsp/utexo_lsp.dart';
 export 'src/lsp/utexo_lsp_client.dart'
     show
+        IUtexoLspClient,
         LspError,
         hostnameOf,
         isLoopbackHost,
@@ -69,24 +70,28 @@ export 'src/models/utexo_core_models.dart'
         CoreAssetCfa,
         CoreAssetIfa,
         CoreAssetNia,
+        CoreAssetToken,
         CoreAssetUda,
         CoreBalance,
+        CoreBlockTime,
         CoreBtcBalance,
         CoreInvoiceData,
         CoreInvoiceReceiveData,
         CoreListAssets,
+        CoreMedia,
         CoreRgbAllocation,
+        CoreTokenAttachment,
         CoreTransaction,
         CoreTransfer,
+        CoreTransferTransportEndpoint,
         CoreUnspent,
         CoreUtxo,
         DecodedLightningInvoice,
         LightningChannel,
         LightningChannelOpenResult,
-        LightningInvoiceStatus,
         LightningPayment,
-        LightningPaymentResult,
         LightningPeer,
+        SendPaymentResult,
         Outpoint,
         WalletNetworkInfo,
         WalletNodeInfo,
@@ -95,8 +100,17 @@ export 'src/models/utexo_core_models.dart'
 export 'src/native_artifact_info.dart';
 export 'src/wallet/network_defaults.dart'
     show NetworkEndpoints, getNetworkDefaults;
-export 'src/wallet/rln_signers.dart';
-export 'src/wallet/utexo_wallet.dart';
+export 'src/wallet/rln_signers.dart'
+    show
+        NativeExternalRlnSigner,
+        PasswordRlnSigner,
+        RlnKeyMaterial,
+        RlnMnemonicKeyMaterial,
+        RlnSeedBytesKeyMaterial,
+        RlnSeedHexKeyMaterial,
+        RlnSigner,
+        RlnSignerHost;
+export 'src/wallet/utexo_wallet.dart' show UtexoWallet, resolveUnlockParams;
 export 'src/wallet/utexo_wallet_types.dart';
 
 /// Flutter entry point for RGB Lightning Node bindings.

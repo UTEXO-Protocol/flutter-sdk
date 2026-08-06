@@ -32,4 +32,4 @@ services:
     image: ghcr.io/rgb-tools/rgb-proxy-server:0.3.0
     platform: linux/amd64
     ports:
-      - "${RGB_PROXY_PORT:-3003}:3000"
+      - "${RGB_PROXY_PORT:-3013}:3000"

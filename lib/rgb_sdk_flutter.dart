@@ -93,6 +93,8 @@ export 'src/models/utexo_core_models.dart'
         parseCoreAssignment,
         parseCoreOutpoint;
 export 'src/native_artifact_info.dart';
+export 'src/wallet/network_defaults.dart'
+    show NetworkEndpoints, getNetworkDefaults;
 export 'src/wallet/rln_signers.dart';
 export 'src/wallet/utexo_wallet.dart';
 export 'src/wallet/utexo_wallet_types.dart';

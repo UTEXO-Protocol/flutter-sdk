@@ -309,7 +309,9 @@ void main() {
         100,
         label: 'wallet B',
       );
-      final walletBTransfers = await walletB.listTransfers();
+      final walletBTransfers = await walletB.listTransfers(
+        assetId: issued.assetId,
+      );
       expect(walletBTransfers, isNotEmpty);
       expect(
         walletBTransfers.any(

@@ -72,6 +72,11 @@ Numeric inputs must fit the current signed 64-bit Pigeon bridge boundary.
 Native UInt64 outputs that may exceed that boundary use exact domain types; for
 example `RlnNodeInfo.channelAssetMaxAmount` is `BigInt?`.
 
+`NetworkEndpoints` and `getNetworkDefaults()` are stable root helpers for
+app-facing network defaults. They expose the selected indexer URL and RGB proxy
+endpoint after SDK network normalization; lower-level UTEXO preset maps remain
+advanced/internal compatibility surface.
+
 `UtexoWallet.listTransfers()` calls the native unfiltered listing path. If the
 pinned native artifact rejects that call, the SDK throws
 `UnsupportedWalletFeatureException` instead of falling back to known asset IDs,
@@ -171,7 +176,7 @@ root checklist and are snapshotted by `tool/api_snapshot.json`.
 - `LspLnurlpCallbackResponse`, `LspLnurlpCallbackWire`, `LspOnchainSendRequest`, `LspOnchainSendResponse`
 - `LspPeer`, `LspRgbParams`, `LspSettlementException`, `LspSupportedAsset`, `LspTransportPolicyException`
 - `NativeArtifactInfo`, `NativeExternalRlnSigner`, `NativeProtocolException`, `Network`
-- `NetworkError`, `NetworkVersions`, `NotFoundError`, `OnchainReceiveResponse`
+- `NetworkEndpoints`, `NetworkError`, `NetworkVersions`, `NotFoundError`, `OnchainReceiveResponse`
 - `OnchainSendResponse`, `OperationCancelledError`, `Outpoint`, `ParsedLightningAddress`, `PasswordRlnSigner`
 - `PayAddressAsset`, `PayAddressOptions`, `PayAddressResult`, `PsbtType`
 - `PsbtWalletCarrier`, `ReceiveAssetOptions`, `ReceiveAssetResult`, `ReceiveSettlementOutcome`
@@ -188,7 +193,7 @@ root checklist and are snapshotted by `tool/api_snapshot.json`.
 - `WalletInitParams`, `WalletNetworkInfo`, `WalletNodeInfo`, `WalletValidationException`
 - `accountDerivationPath`, `accountXpubsFromMnemonic`, `createWallet`, `deriveKeysFromMnemonic`
 - `deriveKeysFromMnemonicOrSeed`, `deriveKeysFromSeed`, `deriveKeysFromXpriv`, `fromUnitsNumber`
-- `generateKeys`, `getNetworkVersions`, `getXprivFromMnemonic`, `getXpubFromXpriv`
+- `generateKeys`, `getNetworkDefaults`, `getNetworkVersions`, `getXprivFromMnemonic`, `getXpubFromXpriv`
 - `hostnameOf`, `isClaimablePaymentStatus`, `isLoopbackHost`, `isNetwork`
 - `isSameLspHost`, `isTerminalPaymentStatus`, `isUmaAddress`, `lnurlDiscoveryUri`
 - `normalizeInvoiceStatus`, `normalizeLightningAddress`, `normalizeNetwork`, `normalizePaymentStatus`

@@ -147,15 +147,15 @@ provenance/signatures, and exact immutable release commit remain failed gates.
 
 | Measure | Count |
 | --- | ---: |
-| Total tracked findings | 166 |
+| Total tracked findings | 170 |
 | P0 | 4 |
-| P1 | 109 |
+| P1 | 113 |
 | P2 | 53 |
 | Open | 2 |
 | In progress | 0 |
 | Needs decision | 0 |
 | Accepted constraint | 6 |
-| Verified | 158 |
+| Verified | 162 |
 
 This rollup is a snapshot of the master ledger below. Update it in the same
 change whenever an issue is added or its priority/status changes.
@@ -453,6 +453,10 @@ superseded by the ledger below. The remaining current gaps are:
 | TEST-026 | P1 | Verified | The combined release-candidate runner assumed Android was already attached and stable before the run, but local AVDs can exit while earlier iOS/package gates are still running. | `tool/test_release_candidate.sh` now supports `ANDROID_EMULATOR=<avd-name>`, boots that AVD headlessly immediately before Android platform smokes, waits for `sys.boot_completed`, resolves the live emulator serial, and records the emulator log under the release report directory. |
 | TEST-027 | P1 | Verified | `tool/validate_rn_parity.dart` now fails on stale RN checkouts before local source parsing: it runs `git ls-remote origin refs/heads/dev`, compares fetched `origin/dev` when present, checks the configured remote URL, and then checks local `HEAD`, package/core versions, and RN RLN artifact pins against `tool/release_baseline.json`. `tool/test_release_candidate.sh` now records RN repository/ref/commit/version plus core/RLN versions in its report baseline object. | Evidence: local RN dev fast-forwarded to `63cbf9a01030a8a10eb1b04b2734cd8c5d23aec1`; `RGB_SDK_RN_PATH=/Users/hardik/Projects/rgb-sdk-rn dart run tool/validate_rn_parity.dart` passes and reports upstream drift checking. |
 | TEST-028 | P1 | Open | The last exact clean all-up release-candidate proof is run `20260805T163000Z` on commit `bb1fe028c49ff307dcccfa68e4157623ccf2fce7`. The current candidate has dirty source changes from later lifecycle/API/error/docs work and has not been rerun against the current beta.27/core beta.7 target. | Commit the exact candidate, then rerun `./tool/test_release_candidate.sh` with full local native/platform coverage: iOS XCTest, Android bridge tests, iOS funded/unfunded regtest smokes, Android funded/unfunded regtest smokes, and iOS/Android external-signer restart. Attach reports with `releaseEligible: true` and `dirty: false`. |
+| TEST-029 | P1 | Verified | The first exact clean beta.27 release run failed the clean consumer matrix because the stable root did not export `NetworkEndpoints`/`getNetworkDefaults()`, even though public docs and consumer fixtures treated network defaults as stable app-facing API. | `lib/rgb_sdk_flutter.dart` now exports only `NetworkEndpoints` and `getNetworkDefaults()` from `network_defaults.dart`, `doc/PUBLIC_API_REFERENCE.md` documents both symbols, and `dart run tool/validate_public_api_docs.dart` plus `dart run tool/validate_api_snapshot.dart` pass after refreshing `tool/api_snapshot.json`. |
+| TEST-030 | P1 | Verified | The first exact clean beta.27 release run failed `tool/validate_coverage_policy.dart`: `lib/src/crypto/` coverage had regressed to `66.7%`, below the release floor. | Added `test/crypto_validation_contract_test.dart` for network/Lightning Address validation, primitive value validation, unit conversion boundaries, seed normalization, wallet key derivation helpers, and malformed extended-key errors. `flutter test --coverage` and `dart run tool/validate_coverage_policy.dart` now pass with package `78.0%`, wallet `82.9%`, LSP `67.9%`, crypto `89.2%`, and models `72.6%`. |
+| TEST-031 | P1 | Verified | When Android device preparation failed in the first clean beta.27 release run, `tool/test_release_candidate.sh` dereferenced unset `ANDROID_DEVICE` and aborted with an unbound-variable shell error instead of recording dependent Android gates cleanly. | The runner now checks that Android preparation actually resolved `ANDROID_DEVICE` before launching Android smokes/restart; otherwise it records required skipped Android gates with explicit reasons. `bash -n tool/test_release_candidate.sh` passes. |
+| TEST-032 | P1 | Verified | The first exact clean beta.27 release run started with less than 1 GiB free, which poisoned clean-consumer iOS RLN extraction and prevented the Android AVD from booting. Without an early gate, this creates noisy partial release evidence. | The runner now has a `release disk-space preflight` gate before clean consumer/platform-heavy work and requires at least `RELEASE_MIN_FREE_KB` KiB free, defaulting to 10 GiB. Generated Flutter/Xcode/Pub cache state was cleared before rerun; `df` showed roughly 21 GiB free afterward. |
 
 ### Code Quality, Modularity, and Documentation
 

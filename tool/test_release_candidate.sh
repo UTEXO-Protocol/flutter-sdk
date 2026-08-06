@@ -26,6 +26,7 @@ STEP_CODES=()
 STEP_DURATIONS=()
 STEP_NOTES=()
 FAILED=0
+RELEASE_MIN_FREE_KB="${RELEASE_MIN_FREE_KB:-10485760}"
 
 baseline_value() {
   local dotted_path="$1"
@@ -186,6 +187,18 @@ ensure_android_device_visible() {
   return 1
 }
 
+ensure_release_disk_space() {
+  local path="${1:-${REPO_DIR}}"
+  local available_kb
+
+  available_kb="$(df -Pk "${path}" | awk 'NR == 2 {print $4}')"
+  if [[ -z "${available_kb}" || "${available_kb}" -lt "${RELEASE_MIN_FREE_KB}" ]]; then
+    echo "Release runner requires at least ${RELEASE_MIN_FREE_KB} KiB free on ${path}; available: ${available_kb:-unknown} KiB." >&2
+    echo "Clean generated Flutter/Xcode/Pub caches before collecting release-candidate evidence." >&2
+    return 1
+  fi
+}
+
 write_report() {
   local finished_at
   local status
@@ -260,6 +273,7 @@ main() {
   run_step "release package validation" "${DART_BIN}" run tool/validate_release_package.dart
   run_step "native artifact checksum verification" ./tool/verify_native_artifacts.sh --require-android
   run_step "supply-chain provenance, SBOM, license, and ABI gate" "${DART_BIN}" run tool/validate_supply_chain.dart
+  run_step "release disk-space preflight" ensure_release_disk_space "${REPO_DIR}"
   if [[ "${RUN_CONSUMER_MATRIX:-1}" == "1" ]]; then
     run_step "clean consumer install and archive matrix" bash -lc "REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_clean_consumer_matrix.sh'"
   else
@@ -291,9 +305,14 @@ main() {
 
     if [[ -n "${ANDROID_DEVICE:-}" || -n "${ANDROID_EMULATOR:-}" ]]; then
       run_step "prepare Android device for Flutter platform smokes" ensure_android_device_visible "${ANDROID_DEVICE:-}"
-      run_step "Android unfunded regtest smoke" bash -lc "DEVICE='${ANDROID_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_platform_unfunded.sh'"
-      run_step "Android funded regtest smoke" bash -lc "DEVICE='${ANDROID_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_platform_funded.sh'"
-      run_step "Android external-signer process restart" bash -lc "DEVICE='${ANDROID_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_external_signer_restart.sh'"
+      if [[ -n "${ANDROID_DEVICE:-}" ]]; then
+        run_step "Android unfunded regtest smoke" bash -lc "DEVICE='${ANDROID_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_platform_unfunded.sh'"
+        run_step "Android funded regtest smoke" bash -lc "DEVICE='${ANDROID_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_platform_funded.sh'"
+        run_step "Android external-signer process restart" bash -lc "DEVICE='${ANDROID_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_external_signer_restart.sh'"
+      else
+        mark_required_skip "Android platform regtest smokes" "Android device preparation failed"
+        mark_required_skip "Android external-signer process restart" "Android device preparation failed"
+      fi
     else
       mark_required_skip "Android platform regtest smokes" "RUN_PLATFORM=1 but ANDROID_DEVICE is unset"
       mark_required_skip "Android external-signer process restart" "RUN_PLATFORM=1 but ANDROID_DEVICE is unset"

@@ -74,7 +74,7 @@ immutable commit in consuming apps.
 dependencies:
   rgb_sdk_flutter:
     git:
-      url: https://github.com/zeusbuilds/rgb-sdk-flutter.git
+      url: https://github.com/UTEXO-Protocol/flutter-sdk.git
       ref: <immutable-commit>
 ```
 

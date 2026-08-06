@@ -20,7 +20,7 @@ Flutter SDK bridge for Bitcoin RGB Protocol and RGB Lightning Node. This
 package consumes the same RLN native artifacts as @utexo/rgb-sdk-rn.
 Pinned RLN artifact: #{rln_version}.
                        DESC
-  s.homepage         = 'https://github.com/zeusbuilds/rgb-sdk-flutter'
+  s.homepage         = 'https://github.com/UTEXO-Protocol/flutter-sdk'
   s.license          = { :type => 'MIT', :file => '../LICENSE' }
   s.author           = { 'UTEXO Protocol' => 'https://github.com/UTEXO-Protocol' }
   s.source           = { :path => '.' }

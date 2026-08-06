@@ -2,9 +2,9 @@ name: rgb_sdk_flutter
 description: Flutter SDK for Bitcoin, RGB assets, and RGB Lightning wallets backed by RGB Lightning Node.
 version: 0.1.0
 publish_to: 'none'
-homepage: https://github.com/zeusbuilds/rgb-sdk-flutter
-repository: https://github.com/zeusbuilds/rgb-sdk-flutter
-issue_tracker: https://github.com/zeusbuilds/rgb-sdk-flutter/issues
+homepage: https://github.com/UTEXO-Protocol/flutter-sdk
+repository: https://github.com/UTEXO-Protocol/flutter-sdk
+issue_tracker: https://github.com/UTEXO-Protocol/flutter-sdk/issues
 topics:
   - bitcoin
   - rgb

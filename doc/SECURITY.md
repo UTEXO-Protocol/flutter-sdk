@@ -1,8 +1,8 @@
 # Security Policy
 
-This repository is public. Report suspected vulnerabilities through a
-project-owner security channel, not through public issues, discussions, or
-support logs.
+The public source mirror is `UTEXO-Protocol/flutter-sdk`. Report suspected
+vulnerabilities through a project-owner security channel, not through public
+issues, discussions, or support logs.
 
 ## Current Security Status
 

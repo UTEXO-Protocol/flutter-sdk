@@ -5,6 +5,8 @@ import 'package:bip39/bip39.dart' as bip39;
 import '../errors/rgb_sdk_exception.dart';
 import 'constants.dart';
 
+const int _maxJsSafeInteger = 9007199254740991;
+
 const List<Network> _validNetworks = <Network>[
   'mainnet',
   'testnet',
@@ -162,7 +164,7 @@ void validateBase64(Object? base64, [String field = 'data']) {
   }
   try {
     base64Decode(normalized);
-  } catch (_) {
+  } on FormatException {
     throw ValidationError('Invalid base64 encoding for $field', field);
   }
 }
@@ -199,21 +201,77 @@ void validateString(Object? value, String field) {
 }
 
 int toUnitsNumber(String value, int precision) {
+  final units = toUnitsBigInt(value, precision);
+  if (units.abs() > BigInt.from(_maxJsSafeInteger)) {
+    throw ValidationError(
+      'Amount exceeds MAX_SAFE_INTEGER. Use toUnitsBigInt instead.',
+      'value',
+    );
+  }
+  return units.toInt();
+}
+
+double fromUnitsNumber(int units, int precision) {
+  final base = BigInt.from(10).pow(precision).toDouble();
+  return units / base;
+}
+
+BigInt toUnitsBigInt(String value, int precision) {
+  if (precision < 0) {
+    throw const ValidationError('precision must be non-negative', 'precision');
+  }
   final normalized = value.trim();
   final negative = normalized.startsWith('-');
   final body = negative ? normalized.substring(1) : normalized;
   final parts = body.split('.');
+  if (parts.length > 2) {
+    throw ValidationError('Invalid decimal amount: $value', 'value');
+  }
   final integerPart = parts.isEmpty || parts.first.isEmpty ? '0' : parts.first;
   final fractionalPart = parts.length > 1 ? parts[1] : '';
   final paddedFraction = (fractionalPart + '0' * precision).substring(
     0,
     precision,
   );
-  final units = int.parse(integerPart + paddedFraction);
+  final units = BigInt.tryParse(integerPart + paddedFraction);
+  if (units == null) {
+    throw ValidationError('Invalid decimal amount: $value', 'value');
+  }
   return negative ? -units : units;
 }
 
-double fromUnitsNumber(int units, int precision) {
-  final base = BigInt.from(10).pow(precision).toDouble();
-  return units / base;
+String fromUnitsBigInt(BigInt units, int precision) {
+  if (precision < 0) {
+    throw const ValidationError('precision must be non-negative', 'precision');
+  }
+  final negative = units < BigInt.zero;
+  final absolute = negative ? -units : units;
+  final padded = absolute.toString().padLeft(precision + 1, '0');
+  final integerPart = padded.substring(0, padded.length - precision);
+  final fractionalDigits = precision > 0
+      ? padded.substring(padded.length - precision)
+      : '';
+  final fractionalPart = fractionalDigits.replaceFirst(RegExp(r'0+$'), '');
+  return '${negative ? '-' : ''}$integerPart'
+      '${fractionalPart.isEmpty ? '' : '.$fractionalPart'}';
+}
+
+int? toNumber(Object? value) {
+  if (value == null) return null;
+  if (value is int) return value;
+  if (value is BigInt) return value.toInt();
+  throw ValidationError(
+    'value must be an int, BigInt, null, or omitted.',
+    'value',
+  );
+}
+
+BigInt? toBigInt(Object? value) {
+  if (value == null) return null;
+  if (value is BigInt) return value;
+  if (value is int) return BigInt.from(value);
+  throw ValidationError(
+    'value must be an int, BigInt, null, or omitted.',
+    'value',
+  );
 }

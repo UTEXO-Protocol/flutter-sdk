@@ -64,7 +64,8 @@ Every low-level bridge family must declare evidence for:
 - Native unknown-node/signer error shape where the method requires a handle.
 - Platform smoke or regtest success evidence for actual native execution.
 
-Critical methods changed during the beta.26 catch-up also have method-specific
+Critical methods changed during the beta.26 and beta.27 catch-up also have
+method-specific
 vectors in `bridge_behavior_vectors.json`, including `rotateAddress`,
 `signMessage`, `verifyMessage`, txid-filtered history methods, `lnInvoice`,
 `rgbInvoice`, and `inflate`.

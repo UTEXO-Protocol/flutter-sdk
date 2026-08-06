@@ -221,6 +221,16 @@ void main() {
     'supply-chain validation gate must exist.',
   );
   check(
+    File('tool/native_artifact_provenance.json').existsSync(),
+    'native artifact provenance manifest must exist.',
+  );
+  check(
+    _read(
+      'tool/validate_supply_chain.dart',
+    ).contains('native_artifact_provenance.json'),
+    'supply-chain validation must consume the native artifact provenance manifest.',
+  );
+  check(
     File('tool/test_clean_consumer_matrix.sh').existsSync(),
     'clean consumer matrix gate must exist.',
   );

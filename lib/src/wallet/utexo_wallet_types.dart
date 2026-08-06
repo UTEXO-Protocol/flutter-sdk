@@ -182,13 +182,16 @@ class RgbInvoiceRequest {
   final int minConfirmations;
 }
 
-/// Request for an RGB transfer.
+/// Request for an atomic RGB on-chain transfer.
 ///
-/// [assetId] and [amount] can be omitted when the invoice encodes them. For
-/// asset-less donation invoices, pass them explicitly and set [donation].
-/// [feeRate] is sats/vbyte and must be integer-equivalent for the current
-/// native bridge. [skipSync] is fail-fast because the pinned native artifacts
-/// accept the RN argument but do not implement a corresponding RLN request field.
+/// [assetId] may be omitted when the invoice encodes it. [amount] is always
+/// required by the stable wallet facade, matching the current RN
+/// `UTEXOWallet.onchainSend` contract rather than falling back to the decoded
+/// invoice assignment. For asset-less donation invoices, pass [assetId] and
+/// [amount] explicitly and set [donation]. [feeRate] is sats/vbyte and must be
+/// integer-equivalent for the current native bridge. [skipSync] is fail-fast
+/// because the pinned native artifacts accept the RN argument but do not
+/// implement a corresponding RLN request field.
 class RgbSendRequest {
   const RgbSendRequest({
     required this.invoice,

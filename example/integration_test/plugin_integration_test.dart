@@ -4,7 +4,7 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:integration_test/integration_test.dart';
 
-import 'package:rgb_sdk_flutter/rgb_sdk_flutter.dart';
+import 'package:rgb_sdk_flutter/rgb_sdk_flutter_advanced.dart';
 
 const _runRegtest = bool.fromEnvironment('RGB_SDK_FLUTTER_REGTEST');
 const _runFundedRegtest = bool.fromEnvironment(
@@ -49,19 +49,21 @@ void main() {
       return;
     }
 
-    final client = const RgbSdkFlutter().rlnClient();
+    final client = RlnClient();
     final storageDir = await Directory.systemTemp.createTemp(
       'rgb-sdk-flutter-regtest-',
     );
-    final nodeId = await client.createNode(
-      storageDirPath: storageDir.path,
-      daemonListeningPort: 34011,
-      ldkPeerListeningPort: 34012,
-      network: 'regtest',
-      maxMediaUploadSizeMb: 5,
-    );
+    int? nodeId;
+    var completed = false;
 
     try {
+      nodeId = await client.createNode(
+        storageDirPath: storageDir.path,
+        daemonListeningPort: 34011,
+        ldkPeerListeningPort: 34012,
+        network: 'regtest',
+        maxMediaUploadSizeMb: 5,
+      );
       final pubkey = await client.initNode(nodeId: nodeId, password: _password);
       expect(pubkey, isNotEmpty);
 
@@ -127,12 +129,27 @@ void main() {
         skipSync: true,
       );
       expect(failed['transfersChanged'], isA<bool>());
+      completed = true;
     } finally {
-      await client.shutdown(nodeId).catchError((_) {});
-      await client.destroyNode(nodeId).catchError((_) {});
-      try {
-        await storageDir.delete(recursive: true);
-      } catch (_) {}
+      final cleanupFailures = <String>[];
+      final id = nodeId;
+      if (id != null) {
+        await _recordCleanup(
+          cleanupFailures,
+          'low-level shutdown',
+          () => client.shutdown(id),
+        );
+        await _recordCleanup(
+          cleanupFailures,
+          'low-level destroy',
+          () => client.destroyNode(id),
+        );
+      }
+      await _deleteForCleanup(storageDir, cleanupFailures);
+      _reportCleanupFailures(cleanupFailures);
+      if (completed && cleanupFailures.isNotEmpty) {
+        fail('Low-level regtest cleanup failed: ${cleanupFailures.join('; ')}');
+      }
     }
   });
 
@@ -155,6 +172,7 @@ void main() {
       ),
     );
 
+    var completed = false;
     try {
       await wallet.init(password: _password);
       expect(wallet.isInitialized, true);
@@ -209,11 +227,19 @@ void main() {
       expect(wallet.isUnlocked, true);
       await wallet.syncWallet();
       expect(await wallet.getAddress(), startsWith('bcrt'));
+      completed = true;
     } finally {
-      await wallet.destroy().catchError((_) {});
-      try {
-        await storageDir.delete(recursive: true);
-      } catch (_) {}
+      final cleanupFailures = <String>[];
+      await _recordCleanup(
+        cleanupFailures,
+        'wallet destroy',
+        () => wallet.destroy(),
+      );
+      await _deleteForCleanup(storageDir, cleanupFailures);
+      _reportCleanupFailures(cleanupFailures);
+      if (completed && cleanupFailures.isNotEmpty) {
+        fail('Wallet regtest cleanup failed: ${cleanupFailures.join('; ')}');
+      }
     }
   });
   testWidgets('funded regtest RGB send smoke', (WidgetTester tester) async {
@@ -224,9 +250,12 @@ void main() {
       return;
     }
 
-    final walletA = await _makeRegtestWallet('a', 34031, 34032);
-    final walletB = await _makeRegtestWallet('b', 34033, 34034);
+    final fixtureA = await _makeRegtestWallet('a', 34031, 34032);
+    final fixtureB = await _makeRegtestWallet('b', 34033, 34034);
+    final walletA = fixtureA.wallet;
+    final walletB = fixtureB.wallet;
 
+    var completed = false;
     try {
       await _startWallet(walletA);
       await _startWallet(walletB);
@@ -260,7 +289,7 @@ void main() {
       _step('blind receive asset');
       final invoice = await walletB.blindReceive(const RgbInvoiceRequest());
       _step('send RGB asset');
-      final send = await walletA.send(
+      final send = await walletA.onchainSend(
         RgbSendRequest(
           invoice: invoice.invoice,
           assetId: issued.assetId,
@@ -285,7 +314,7 @@ void main() {
       expect(
         walletBTransfers.any(
           (transfer) => transfer.assignments.any(
-            (assignment) => assignment.contains('100'),
+            (assignment) => assignment.amount == 100,
           ),
         ),
         true,
@@ -346,14 +375,34 @@ void main() {
 
       _step('wait RGB lightning invoice final');
       await _waitForInvoiceFinal(walletB, lnInvoice.invoice);
+      completed = true;
     } finally {
-      await walletA.destroy().catchError((_) {});
-      await walletB.destroy().catchError((_) {});
+      final cleanupFailures = <String>[];
+      await fixtureA.cleanup(cleanupFailures);
+      await fixtureB.cleanup(cleanupFailures);
+      _reportCleanupFailures(cleanupFailures);
+      if (completed && cleanupFailures.isNotEmpty) {
+        fail('Funded regtest cleanup failed: ${cleanupFailures.join('; ')}');
+      }
     }
   }, timeout: const Timeout(Duration(minutes: 12)));
 }
 
-Future<UtexoWallet> _makeRegtestWallet(
+class _RegtestWalletFixture {
+  _RegtestWalletFixture({required this.wallet, required this.storageDir});
+
+  final UtexoWallet wallet;
+  final Directory storageDir;
+
+  Future<void> cleanup(List<String> failures) async {
+    await _recordCleanup(failures, '${storageDir.path} wallet destroy', () {
+      return wallet.destroy();
+    });
+    await _deleteForCleanup(storageDir, failures);
+  }
+}
+
+Future<_RegtestWalletFixture> _makeRegtestWallet(
   String label,
   int daemonPort,
   int peerPort,
@@ -361,15 +410,52 @@ Future<UtexoWallet> _makeRegtestWallet(
   final storageDir = await Directory.systemTemp.createTemp(
     'rgb-sdk-flutter-funded-$label-',
   );
-  return UtexoWallet(
-    config: UtexoWalletConfig(
-      storageDirPath: storageDir.path,
-      daemonListeningPort: daemonPort,
-      ldkPeerListeningPort: peerPort,
-      network: 'regtest',
-      maxMediaUploadSizeMb: 5,
+  return _RegtestWalletFixture(
+    storageDir: storageDir,
+    wallet: UtexoWallet(
+      config: UtexoWalletConfig(
+        storageDirPath: storageDir.path,
+        daemonListeningPort: daemonPort,
+        ldkPeerListeningPort: peerPort,
+        network: 'regtest',
+        maxMediaUploadSizeMb: 5,
+      ),
     ),
   );
+}
+
+Future<void> _recordCleanup(
+  List<String> failures,
+  String label,
+  Future<void> Function() cleanup,
+) async {
+  try {
+    await cleanup();
+  } catch (error) {
+    failures.add('$label: $error');
+  }
+}
+
+Future<void> _deleteForCleanup(
+  Directory directory,
+  List<String> failures,
+) async {
+  try {
+    if (await directory.exists()) {
+      await directory.delete(recursive: true);
+    }
+    if (await directory.exists()) {
+      failures.add('${directory.path}: directory still exists after cleanup');
+    }
+  } catch (error) {
+    failures.add('${directory.path}: $error');
+  }
+}
+
+void _reportCleanupFailures(List<String> failures) {
+  for (final failure in failures) {
+    debugPrintSynchronously('RGB_SDK_FLUTTER_CLEANUP_ERROR $failure');
+  }
 }
 
 Future<void> _startWallet(UtexoWallet wallet) async {
@@ -461,8 +547,8 @@ Future<void> _waitForUsableChannelPair(
   UtexoWallet walletB,
   String assetId,
 ) async {
-  var lastA = const <RlnChannel>[];
-  var lastB = const <RlnChannel>[];
+  var lastA = const <LightningChannel>[];
+  var lastB = const <LightningChannel>[];
   for (var attempt = 0; attempt < 90; attempt++) {
     await walletA.syncWallet();
     await walletB.syncWallet();
@@ -483,7 +569,7 @@ Future<void> _waitForUsableChannelPair(
   );
 }
 
-bool _hasUsableRgbChannel(List<RlnChannel> channels, String assetId) {
+bool _hasUsableRgbChannel(List<LightningChannel> channels, String assetId) {
   return channels.any(
     (channel) =>
         channel.assetId == assetId &&
@@ -491,7 +577,7 @@ bool _hasUsableRgbChannel(List<RlnChannel> channels, String assetId) {
   );
 }
 
-String _channelSummary(List<RlnChannel> channels) {
+String _channelSummary(List<LightningChannel> channels) {
   return channels
       .map(
         (channel) =>

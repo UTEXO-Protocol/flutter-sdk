@@ -59,6 +59,9 @@
     "UMA_PREFIX": "UMA_PREFIX",
     "UMA_MAX_USERNAME_LENGTH": "UMA_MAX_USERNAME_LENGTH"
   },
+  "advancedWalletMethodAliases": {
+    "decodeRGBInvoice": "UtexoWalletRnCompatibility.decodeRGBInvoice"
+  },
   "scopedOutRuntimeExports": {},
   "scopedOutTypeStars": {
     "./binding/rln-types": "RN re-exports TypeScript-only response interfaces. Dart exposes equivalent concrete model classes from lib/src/models/rln_models.dart and validates the runtime NativeRgb method surface separately."

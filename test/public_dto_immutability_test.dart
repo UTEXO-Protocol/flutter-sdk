@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rgb_sdk_flutter/rgb_sdk_flutter.dart';
+import 'package:rgb_sdk_flutter/rgb_sdk_flutter_advanced.dart';
+import 'package:rgb_sdk_flutter/src/utexo/network.dart';
 
 void main() {
   group('public DTO collection boundaries', () {

@@ -38,7 +38,12 @@ class RgbSdkFlutterPlugin :
         throw FlutterError(
             code = "unsupported",
             message = "$operation is not implemented yet.",
-            details = mapOf("operation" to operation, "phase" to "rln-parity")
+            details = bridgeErrorDetails(
+                operation = operation,
+                category = "unsupported",
+                retryable = false,
+                extra = mapOf("phase" to "rln-parity", "feature" to operation)
+            )
         )
     }
 
@@ -84,7 +89,12 @@ class RgbSdkFlutterPlugin :
         throw FlutterError(
             code = "invalidArgument",
             message = message,
-            details = mapOf("operation" to operation, "field" to field)
+            details = bridgeErrorDetails(
+                operation = operation,
+                category = "invalidRequest",
+                retryable = false,
+                extra = mapOf("field" to field)
+            )
         )
     }
 
@@ -179,16 +189,51 @@ class RgbSdkFlutterPlugin :
     }
 
     private fun bridgeError(exception: Exception, operation: String): FlutterError {
+        val code = errorClassName(exception)
+        val category = nativeErrorCategory(code)
         return FlutterError(
-            code = errorClassName(exception),
+            code = code,
             message = parseErrorMessage(exception.message),
-            details = mapOf("operation" to operation)
+            details = bridgeErrorDetails(
+                operation = operation,
+                category = category,
+                retryable = nativeErrorRetryable(category)
+            )
         )
+    }
+
+    private fun bridgeErrorDetails(
+        operation: String,
+        category: String,
+        retryable: Boolean,
+        extra: Map<String, Any?> = emptyMap()
+    ): Map<String, Any?> {
+        return mapOf(
+            "operation" to operation,
+            "category" to category,
+            "retryable" to retryable
+        ) + extra
     }
 
     private fun errorClassName(exception: Exception): String {
         val className = exception.javaClass.name
         return className.split('$').last().split('.').last()
+    }
+
+    private fun nativeErrorCategory(code: String): String {
+        return when (code) {
+            "NodeNotFound", "SignerNotFound", "NotFound" -> "notFound"
+            "Conflict", "AlreadyExists", "ResourceBusy" -> "conflict"
+            "Network", "Transport", "Timeout" -> "network"
+            "Configuration", "RlnStorageDirectoryPolicyException" -> "configuration"
+            "InvalidArgument", "InvalidRequest", "BadRequest" -> "invalidRequest"
+            "Unsupported", "UnsupportedOperation" -> "unsupported"
+            else -> "native"
+        }
+    }
+
+    private fun nativeErrorRetryable(category: String): Boolean {
+        return category == "network" || category == "conflict"
     }
 
     private fun parseErrorMessage(message: String?): String {
@@ -840,7 +885,12 @@ class RgbSdkFlutterPlugin :
         throw FlutterError(
             code = "UnsupportedOperationException",
             message = "rlnBackup is not available in current Android RLN bindings",
-            details = mapOf("operation" to "rlnBackup", "phase" to "rln-parity")
+            details = bridgeErrorDetails(
+                operation = "rlnBackup",
+                category = "unsupported",
+                retryable = false,
+                extra = mapOf("phase" to "rln-parity", "feature" to "rlnBackup")
+            )
         )
     }
 
@@ -1161,7 +1211,12 @@ class RgbSdkFlutterPlugin :
                 throw FlutterError(
                     code = "UnsupportedOperationException",
                     message = "rlnSendRgb skipSync=true is not supported by the pinned RLN native artifact.",
-                    details = mapOf("operation" to "rlnSendRgb", "field" to "skipSync")
+                    details = bridgeErrorDetails(
+                        operation = "rlnSendRgb",
+                        category = "unsupported",
+                        retryable = false,
+                        extra = mapOf("field" to "skipSync", "feature" to "sendRgb.skipSync")
+                    )
                 )
             }
             val witnessData = witnessAmountSat?.let {

@@ -31,6 +31,7 @@ void main() {
           message,
           _hexToBytes(secretKey),
           auxRand: auxRand,
+          signingMode: SchnorrSigningMode.experimentalDart,
         );
         expect(
           _bytesToHex(signature),
@@ -79,18 +80,39 @@ void main() {
     final publicKey = _hexToBytes(
       'F9308A019258C31049344F85F89D5229B531C845836F99B08601F113BCE036F9',
     );
-    final signature = signSchnorr(message, privateKey);
+    final signature = signSchnorr(
+      message,
+      privateKey,
+      signingMode: SchnorrSigningMode.experimentalDart,
+    );
 
     expect(verifySchnorr(message, publicKey, signature), true);
     expect(verifySchnorr(message, Uint8List(31), signature), false);
     expect(verifySchnorr(message, publicKey, Uint8List(63)), false);
     expect(
-      () => signSchnorr(message, Uint8List(32), auxRand: Uint8List(32)),
+      () => signSchnorr(
+        message,
+        Uint8List(32),
+        auxRand: Uint8List(32),
+        signingMode: SchnorrSigningMode.experimentalDart,
+      ),
       throwsA(isA<ValidationError>()),
     );
     expect(
-      () => signSchnorr(message, privateKey, auxRand: Uint8List(31)),
+      () => signSchnorr(
+        message,
+        privateKey,
+        auxRand: Uint8List(31),
+        signingMode: SchnorrSigningMode.experimentalDart,
+      ),
       throwsA(isA<ValidationError>()),
+    );
+  });
+
+  test('standalone Schnorr signing fails closed without explicit opt in', () {
+    expect(
+      () => signSchnorr(Uint8List(32), Uint8List(32)..[31] = 1),
+      throwsA(isA<ExperimentalCryptoException>()),
     );
   });
 }

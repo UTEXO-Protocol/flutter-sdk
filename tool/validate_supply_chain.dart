@@ -4,6 +4,7 @@ import 'dart:io';
 const _osvQueryBatchUrl = 'https://api.osv.dev/v1/querybatch';
 const _osvTimeout = Duration(seconds: 20);
 const _allowNetworkSkipEnv = 'ALLOW_SUPPLY_CHAIN_NETWORK_SKIP';
+const _provenanceManifestPath = 'tool/native_artifact_provenance.json';
 const _allowedLicenseClassifications = <String>{
   'Apache-2.0',
   'BSD-2-Clause-like',
@@ -88,25 +89,15 @@ Future<void> main(List<String> args) async {
   );
   report['nativeArtifacts'] = nativeReport;
 
-  final provenance = <String, Object?>{
-    'sourcePins': 'present',
-    'checksums': 'present',
-    'upstreamSignatures': 'absent',
-    'reproducibleBuildAttestation': 'absent',
-    'productionReady': false,
-  };
-  report['provenance'] = provenance;
-  if (production) {
-    failures.add(
-      'production provenance is not satisfied: upstream artifact signatures '
-      'and reproducible build attestations are absent.',
-    );
-  } else {
-    warnings.add(
-      'upstream artifact signatures and reproducible build attestations are '
-      'absent; this can only pass as an internal-beta gate.',
-    );
-  }
+  report['provenance'] = _validateProvenanceManifest(
+    baseline: baseline,
+    rln: rln,
+    ios: ios,
+    android: android,
+    production: production,
+    failures: failures,
+    warnings: warnings,
+  );
 
   report['warnings'] = warnings;
   report['failures'] = failures;
@@ -128,6 +119,322 @@ Future<void> main(List<String> args) async {
       stdout.writeln('- $warning');
     }
   }
+}
+
+Map<String, Object?> _validateProvenanceManifest({
+  required Map<String, Object?> baseline,
+  required Map<String, Object?> rln,
+  required Map<String, Object?> ios,
+  required Map<String, Object?> android,
+  required bool production,
+  required List<String> failures,
+  required List<String> warnings,
+}) {
+  final file = File(_provenanceManifestPath);
+  if (!file.existsSync()) {
+    failures.add('native artifact provenance manifest is missing.');
+    return <String, Object?>{'status': 'missing'};
+  }
+
+  final decoded = jsonDecode(file.readAsStringSync());
+  if (decoded is! Map<String, Object?>) {
+    failures.add('native artifact provenance manifest must be a JSON object.');
+    return <String, Object?>{'status': 'malformed'};
+  }
+  if (decoded['schemaVersion'] != 1) {
+    failures.add('native artifact provenance schemaVersion must be 1.');
+  }
+
+  final reviewedAgainst = _at<Map<String, Object?>>(decoded, 'reviewedAgainst');
+  if (reviewedAgainst == null) {
+    failures.add('native artifact provenance reviewedAgainst is missing.');
+  } else {
+    _expectEqual(
+      reviewedAgainst['releaseBaselineSchemaVersion'],
+      baseline['schemaVersion'],
+      'provenance reviewedAgainst.releaseBaselineSchemaVersion',
+      failures,
+    );
+    _expectEqual(
+      reviewedAgainst['rlnVersion'],
+      rln['version'],
+      'provenance reviewedAgainst.rlnVersion',
+      failures,
+    );
+    _expectEqual(
+      reviewedAgainst['rlnCommit'],
+      rln['commit'],
+      'provenance reviewedAgainst.rlnCommit',
+      failures,
+    );
+  }
+
+  final artifactObjects = decoded['artifacts'];
+  if (artifactObjects is! List<Object?> || artifactObjects.isEmpty) {
+    failures.add('native artifact provenance artifacts must be non-empty.');
+    return <String, Object?>{'status': 'malformed'};
+  }
+
+  final expectedArtifacts = <String, Map<String, Object?>>{
+    'rln-ios-swift': <String, Object?>{
+      'platform': 'ios',
+      'artifactUrl': ios['archiveUrl'],
+      'artifactSha256': ios['archiveSha256'],
+      'artifactSizeBytes': ios['archiveSizeBytes'],
+    },
+    'rln-android-aar': <String, Object?>{
+      'platform': 'android',
+      'artifactUrl': android['archiveUrl'],
+      'artifactSha256': android['archiveSha256'],
+      'artifactSizeBytes': android['archiveSizeBytes'],
+    },
+  };
+
+  final artifactsById = <String, Map<String, Object?>>{};
+  for (final artifactObject in artifactObjects) {
+    if (artifactObject is! Map<String, Object?>) {
+      failures.add('native artifact provenance entries must be objects.');
+      continue;
+    }
+    final id = artifactObject['id']?.toString();
+    if (id == null || id.isEmpty) {
+      failures.add('native artifact provenance entry is missing id.');
+      continue;
+    }
+    if (artifactsById.containsKey(id)) {
+      failures.add('duplicate native artifact provenance id: $id.');
+      continue;
+    }
+    artifactsById[id] = artifactObject;
+  }
+
+  final reports = <Map<String, Object?>>[];
+  var verifiedSignatures = 0;
+  var absentSignatures = 0;
+  var unverifiedSignatures = 0;
+  var verifiedAttestations = 0;
+  var verifiedReproducibleBuilds = 0;
+
+  for (final entry in expectedArtifacts.entries) {
+    final artifact = artifactsById[entry.key];
+    if (artifact == null) {
+      failures.add('missing native artifact provenance entry: ${entry.key}.');
+      continue;
+    }
+    final expected = entry.value;
+    _expectEqual(
+      artifact['platform'],
+      expected['platform'],
+      'provenance ${entry.key}.platform',
+      failures,
+    );
+    _expectEqual(
+      artifact['artifactUrl'],
+      expected['artifactUrl'],
+      'provenance ${entry.key}.artifactUrl',
+      failures,
+    );
+    _expectEqual(
+      artifact['artifactSha256'],
+      expected['artifactSha256'],
+      'provenance ${entry.key}.artifactSha256',
+      failures,
+    );
+    _expectEqual(
+      artifact['artifactSizeBytes'],
+      expected['artifactSizeBytes'],
+      'provenance ${entry.key}.artifactSizeBytes',
+      failures,
+    );
+
+    final signature = _requiredObject(
+      artifact,
+      'signature',
+      'provenance ${entry.key}.signature',
+      failures,
+    );
+    final signatureStatus = signature?['status']?.toString() ?? 'missing';
+    if (signatureStatus == 'verified') {
+      verifiedSignatures += 1;
+    } else if (signatureStatus == 'absent') {
+      absentSignatures += 1;
+      _addProvenanceBlocker(
+        production: production,
+        failures: failures,
+        warnings: warnings,
+        message: '${entry.key} has no upstream detached signature.',
+      );
+    } else if (signatureStatus == 'present-unverified') {
+      unverifiedSignatures += 1;
+      _validateSignatureMetadata(entry.key, signature!, failures);
+      _addProvenanceBlocker(
+        production: production,
+        failures: failures,
+        warnings: warnings,
+        message:
+            '${entry.key} has a detached signature, but this candidate has '
+            'not verified it against a pinned trusted signing key.',
+      );
+    } else {
+      failures.add(
+        'provenance ${entry.key}.signature.status must be absent, '
+        'present-unverified, or verified.',
+      );
+    }
+
+    final attestation = _requiredObject(
+      artifact,
+      'attestation',
+      'provenance ${entry.key}.attestation',
+      failures,
+    );
+    final attestationStatus = attestation?['status']?.toString() ?? 'missing';
+    if (attestationStatus == 'verified') {
+      verifiedAttestations += 1;
+    } else if (attestationStatus == 'absent') {
+      _addProvenanceBlocker(
+        production: production,
+        failures: failures,
+        warnings: warnings,
+        message:
+            '${entry.key} has no upstream provenance/SLSA attestation for '
+            'source, builder identity, and build inputs.',
+      );
+    } else {
+      failures.add(
+        'provenance ${entry.key}.attestation.status must be absent or verified.',
+      );
+    }
+
+    final reproducible = _requiredObject(
+      artifact,
+      'reproducibleBuild',
+      'provenance ${entry.key}.reproducibleBuild',
+      failures,
+    );
+    final reproducibleStatus = reproducible?['status']?.toString() ?? 'missing';
+    if (reproducibleStatus == 'verified') {
+      verifiedReproducibleBuilds += 1;
+    } else if (reproducibleStatus == 'absent') {
+      _addProvenanceBlocker(
+        production: production,
+        failures: failures,
+        warnings: warnings,
+        message:
+            '${entry.key} has no reproducible-build evidence tying the '
+            'published bytes back to the pinned RLN source.',
+      );
+    } else {
+      failures.add(
+        'provenance ${entry.key}.reproducibleBuild.status must be absent or '
+        'verified.',
+      );
+    }
+
+    reports.add(<String, Object?>{
+      'id': entry.key,
+      'platform': artifact['platform'],
+      'source': artifact['source'],
+      'artifactUrl': artifact['artifactUrl'],
+      'artifactSha256': artifact['artifactSha256'],
+      'signatureStatus': signatureStatus,
+      'attestationStatus': attestationStatus,
+      'reproducibleBuildStatus': reproducibleStatus,
+    });
+  }
+
+  final unexpected =
+      artifactsById.keys
+          .where((id) => !expectedArtifacts.containsKey(id))
+          .toList()
+        ..sort();
+  if (unexpected.isNotEmpty) {
+    failures.add(
+      'native artifact provenance contains unexpected artifact ids: '
+      '${unexpected.join(', ')}.',
+    );
+  }
+
+  final artifactCount = expectedArtifacts.length;
+  final productionReady =
+      verifiedSignatures == artifactCount &&
+      verifiedAttestations == artifactCount &&
+      verifiedReproducibleBuilds == artifactCount;
+  if (production && !productionReady) {
+    failures.add(
+      'production provenance is not satisfied for all native artifacts.',
+    );
+  }
+
+  return <String, Object?>{
+    'status': productionReady ? 'production-ready' : 'internal-beta-only',
+    'manifest': _provenanceManifestPath,
+    'sourcePins': 'present',
+    'checksums': 'present',
+    'artifactCount': artifactCount,
+    'verifiedSignatures': verifiedSignatures,
+    'absentSignatures': absentSignatures,
+    'unverifiedSignatures': unverifiedSignatures,
+    'verifiedAttestations': verifiedAttestations,
+    'verifiedReproducibleBuilds': verifiedReproducibleBuilds,
+    'productionReady': productionReady,
+    'artifacts': reports,
+  };
+}
+
+Map<String, Object?>? _requiredObject(
+  Map<String, Object?> source,
+  String key,
+  String label,
+  List<String> failures,
+) {
+  final value = source[key];
+  if (value is Map<String, Object?>) return value;
+  failures.add('$label must be an object.');
+  return null;
+}
+
+void _validateSignatureMetadata(
+  String artifactId,
+  Map<String, Object?> signature,
+  List<String> failures,
+) {
+  final signatureUrl = signature['signatureUrl']?.toString() ?? '';
+  final signatureSha256 = signature['signatureSha256']?.toString() ?? '';
+  final uri = Uri.tryParse(signatureUrl);
+  if (uri == null || uri.scheme != 'https' || uri.host.isEmpty) {
+    failures.add(
+      'provenance $artifactId.signature.signatureUrl must be an HTTPS URL.',
+    );
+  }
+  if (!_sha256Pattern.hasMatch(signatureSha256)) {
+    failures.add(
+      'provenance $artifactId.signature.signatureSha256 must be a SHA-256.',
+    );
+  }
+}
+
+void _addProvenanceBlocker({
+  required bool production,
+  required List<String> failures,
+  required List<String> warnings,
+  required String message,
+}) {
+  if (production) {
+    failures.add(message);
+  } else {
+    warnings.add('$message This can only pass as an internal-beta gate.');
+  }
+}
+
+void _expectEqual(
+  Object? actual,
+  Object? expected,
+  String label,
+  List<String> failures,
+) {
+  if (actual == expected) return;
+  failures.add('$label mismatch. Expected "$expected", got "$actual".');
 }
 
 void _validateBaseline({

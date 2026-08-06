@@ -23,7 +23,6 @@ dependencies:
     sdk: flutter
   http: ^1.6.0
   meta: ^1.17.0
-  plugin_platform_interface: ^2.0.2
   pointycastle: ^3.9.1
 
 dev_dependencies:

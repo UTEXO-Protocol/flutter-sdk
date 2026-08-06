@@ -46,18 +46,31 @@ abstract class IUtexoLspClient {
   );
 }
 
-class LspError implements Exception {
+class LspError extends NetworkError {
   const LspError({
     required this.endpoint,
     required this.status,
     required this.body,
-    this.cause,
-  });
+    Object? cause,
+  }) : super(
+         status == 0
+             ? 'LSP request failed.'
+             : 'LSP request failed with HTTP status.',
+         statusCode: status == 0 ? null : status,
+         cause: cause,
+       );
 
   final String endpoint;
   final int status;
   final String body;
-  final Object? cause;
+
+  @override
+  Map<String, Object?> toJson() => <String, Object?>{
+    ...super.toJson(),
+    'endpoint': endpoint,
+    'status': status,
+    'body': redactSupportText(body),
+  };
 
   @override
   String toString() {
@@ -209,11 +222,7 @@ class UtexoLspClient implements IUtexoLspClient {
   ) async {
     final pubkey = peerPubkey.trim();
     if (pubkey.isEmpty) {
-      throw ArgumentError.value(
-        peerPubkey,
-        'peerPubkey',
-        'peerPubkey is required',
-      );
+      throw const ValidationError('peerPubkey is required', 'peerPubkey');
     }
     return LspLightningAddressByPubkeyResponse.fromWire(
       await _requestMap(
@@ -367,7 +376,7 @@ class UtexoLspClient implements IUtexoLspClient {
       final query = callback.hasQuery ? '?${callback.query}' : '';
       final fragment = callback.hasFragment ? '#${callback.fragment}' : '';
       return '${callback.path}$query$fragment';
-    } catch (_) {
+    } on FormatException {
       return callbackUrl;
     }
   }
@@ -434,7 +443,7 @@ String hostnameOf(String hostOrUrl) {
       return Uri.parse(
         raw,
       ).host.replaceAll(RegExp(r'^\[|\]$'), '').toLowerCase();
-    } catch (_) {
+    } on FormatException {
       return '';
     }
   }

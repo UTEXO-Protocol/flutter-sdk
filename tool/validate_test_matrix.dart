@@ -269,23 +269,62 @@ Set<String> _extractPublicClassMethods(String relativePath, String className) {
   if (!file.existsSync()) return <String>{};
 
   final methods = <String>{};
+  final files = _dartLibraryFiles(file);
+  for (final libraryFile in files) {
+    methods.addAll(
+      _extractPublicMembersFromScope(libraryFile, 'class', className),
+    );
+  }
+  if (className == 'UtexoWallet') {
+    for (final libraryFile in files) {
+      methods.addAll(
+        _extractPublicMembersFromScope(libraryFile, 'mixin', '_UtexoWallet'),
+      );
+    }
+  }
+  return methods;
+}
+
+List<File> _dartLibraryFiles(File file) {
+  final source = file.readAsStringSync();
+  final directory = file.parent.path;
+  final partPattern = RegExp(r"part '([^']+)';");
+  return <File>[
+    file,
+    for (final match in partPattern.allMatches(source))
+      File('$directory/${match.group(1)!}'),
+  ];
+}
+
+Set<String> _extractPublicMembersFromScope(
+  File file,
+  String keyword,
+  String scopeName,
+) {
+  final methods = <String>{};
   final methodRegex = RegExp(
     r'^\s*(?:[A-Za-z_][A-Za-z0-9_<>, ?]*[>?]*\s+)+([A-Za-z_][A-Za-z0-9_]*)(?:<[^>]+>)?\s*\(',
   );
-  var inClass = false;
+  var inScope = false;
+  var seenBody = false;
   var braceDepth = 0;
 
   for (final line in file.readAsLinesSync()) {
-    if (!inClass) {
-      if (line.contains(RegExp('class\\s+$className\\b'))) {
-        inClass = true;
+    if (!inScope) {
+      if (line.contains(RegExp('$keyword\\s+$scopeName'))) {
+        inScope = true;
         braceDepth += _braceDelta(line);
       }
       continue;
     }
 
     braceDepth += _braceDelta(line);
-    if (braceDepth <= 0) break;
+    if (!seenBody) {
+      if (braceDepth <= 0) continue;
+      seenBody = true;
+    } else if (braceDepth <= 0) {
+      break;
+    }
 
     final trimmed = line.trimLeft();
     if (trimmed.startsWith('_') ||
@@ -311,7 +350,7 @@ Set<String> _extractPublicClassMethods(String relativePath, String className) {
     if (match == null) continue;
 
     final methodName = match.group(1)!;
-    if (methodName.startsWith('_') || methodName == className) continue;
+    if (methodName.startsWith('_') || methodName == scopeName) continue;
     methods.add(methodName);
   }
   return methods;

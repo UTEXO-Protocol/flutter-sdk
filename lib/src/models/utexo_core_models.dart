@@ -1,11 +1,15 @@
 import '../errors/rgb_sdk_exception.dart';
 import 'rln_models.dart';
+import 'utexo_domain_policy.dart';
 
 /// RGB assignment shape used by the RN package's core model layer.
 class Assignment {
   const Assignment({required this.type, this.amount});
 
+  /// Assignment kind, for example `Fungible`.
   final String type;
+
+  /// RGB asset amount in the asset's smallest unit.
   final int? amount;
 }
 
@@ -23,8 +27,16 @@ class CoreBalance {
     required this.spendable,
   });
 
+  /// Settled balance. Bitcoin balances are sats; RGB balances are asset
+  /// smallest units according to precision.
   final int settled;
+
+  /// Pending/future balance. Bitcoin balances are sats; RGB balances are asset
+  /// smallest units according to precision.
   final int future;
+
+  /// Spendable balance. Bitcoin balances are sats; RGB balances are asset
+  /// smallest units according to precision.
   final int spendable;
 }
 
@@ -44,7 +56,10 @@ class CoreAssetBalance extends CoreBalance {
     required this.offchainInbound,
   });
 
+  /// Off-chain outbound RGB amount in the asset's smallest unit.
   final int offchainOutbound;
+
+  /// Off-chain inbound RGB amount in the asset's smallest unit.
   final int offchainInbound;
 }
 
@@ -57,6 +72,8 @@ class CoreUtxo {
   });
 
   final Outpoint outpoint;
+
+  /// Bitcoin UTXO value in sats.
   final int btcAmount;
   final bool colorable;
   final bool exists;
@@ -98,9 +115,17 @@ class CoreTransaction {
 
   final String txid;
   final String transactionType;
+
+  /// Received Bitcoin amount in sats.
   final int received;
+
+  /// Sent Bitcoin amount in sats.
   final int sent;
+
+  /// Transaction fee in sats.
   final int fee;
+
+  /// Confirmation height plus Unix timestamp in seconds.
   final RlnBlockTime? confirmationTime;
 }
 
@@ -126,7 +151,11 @@ class CoreTransfer {
 
   final int idx;
   final int? batchTransferIdx;
+
+  /// Transfer creation Unix timestamp in seconds, when native provides it.
   final int? createdAt;
+
+  /// Transfer update Unix timestamp in seconds, when native provides it.
   final int? updatedAt;
   final String status;
   final List<Assignment> assignments;
@@ -135,6 +164,8 @@ class CoreTransfer {
   final String? recipientId;
   final Outpoint? receiveUtxo;
   final Outpoint? changeUtxo;
+
+  /// Transfer expiration Unix timestamp in seconds, when native provides it.
   final int? expiration;
   final List<RlnTransferTransportEndpoint> transportEndpoints;
 }
@@ -149,6 +180,8 @@ class CoreInvoiceReceiveData {
 
   final String invoice;
   final String? recipientId;
+
+  /// Invoice expiration Unix timestamp in seconds.
   final int? expirationTimestamp;
   final int batchTransferIdx;
 }
@@ -193,7 +226,11 @@ class CoreAsset {
   final String name;
   final String? details;
   final int precision;
+
+  /// Asset issuance Unix timestamp in seconds.
   final int timestamp;
+
+  /// Asset wallet-addition Unix timestamp in seconds.
   final int addedAt;
   final CoreBalance balance;
   final RlnMedia? media;
@@ -286,6 +323,82 @@ class CoreListAssets {
   final List<CoreAssetCfa> cfa;
   final List<CoreAssetIfa> ifa;
   final List<CoreAssetUda> uda;
+
+  Iterable<String> get assetIds sync* {
+    yield* nia.map((asset) => asset.assetId);
+    yield* cfa.map((asset) => asset.assetId);
+    yield* ifa.map((asset) => asset.assetId);
+    yield* uda.map((asset) => asset.assetId);
+  }
+}
+
+/// Stable wallet-facing node metadata.
+class WalletNodeInfo {
+  const WalletNodeInfo({
+    required this.pubkey,
+    required this.numChannels,
+    required this.numUsableChannels,
+    required this.localBalanceSat,
+    this.eventualCloseFeesSat,
+    this.pendingOutboundPaymentsSat,
+    required this.numPeers,
+    this.accountXpubVanilla,
+    this.accountXpubColored,
+    this.maxMediaUploadSizeMb,
+    this.rgbHtlcMinMsat,
+    this.rgbChannelCapacityMinSat,
+    this.channelCapacityMinSat,
+    this.channelCapacityMaxSat,
+    this.channelAssetMinAmount,
+    this.channelAssetMaxAmount,
+    this.networkNodes,
+    this.networkChannels,
+    this.latestRgsSnapshotTimestamp,
+  });
+
+  final String pubkey;
+  final int numChannels;
+  final int numUsableChannels;
+
+  /// Local on-chain/channel wallet balance in sats.
+  final int localBalanceSat;
+  final int? eventualCloseFeesSat;
+  final int? pendingOutboundPaymentsSat;
+  final int numPeers;
+  final String? accountXpubVanilla;
+  final String? accountXpubColored;
+  final int? maxMediaUploadSizeMb;
+
+  /// Minimum RGB HTLC value in millisats.
+  final int? rgbHtlcMinMsat;
+
+  /// Minimum RGB channel capacity in sats.
+  final int? rgbChannelCapacityMinSat;
+
+  /// Minimum channel capacity in sats.
+  final int? channelCapacityMinSat;
+
+  /// Maximum channel capacity in sats.
+  final int? channelCapacityMaxSat;
+
+  /// Minimum channel RGB asset amount in the asset's smallest unit.
+  final int? channelAssetMinAmount;
+
+  /// Maximum channel RGB asset amount in the asset's smallest unit.
+  final BigInt? channelAssetMaxAmount;
+  final int? networkNodes;
+  final int? networkChannels;
+
+  /// Latest RGS snapshot Unix timestamp in seconds.
+  final int? latestRgsSnapshotTimestamp;
+}
+
+/// Stable wallet-facing chain/network metadata.
+class WalletNetworkInfo {
+  const WalletNetworkInfo({required this.network, required this.height});
+
+  final String network;
+  final int height;
 }
 
 /// Canonical Lightning channel shape used by the RN/core contract.
@@ -314,23 +427,238 @@ class LightningChannel {
 
   final String channelId;
   final String peerPubkey;
+
+  /// Channel capacity in sats.
   final int capacitySat;
   final bool ready;
   final bool isPublic;
   final bool? isUsable;
   final String? status;
+
+  /// Local Lightning balance in millisats.
   final int? localBalanceMsat;
+
+  /// Outbound Lightning balance in millisats.
   final int? outboundBalanceMsat;
+
+  /// Inbound Lightning balance in millisats.
   final int? inboundBalanceMsat;
+
+  /// Next outbound HTLC maximum in millisats.
   final int? nextOutboundHtlcLimitMsat;
+
+  /// Next outbound HTLC minimum in millisats.
   final int? nextOutboundHtlcMinimumMsat;
   final String? fundingTxid;
   final String? peerAlias;
   final int? shortChannelId;
   final String? assetId;
+
+  /// Local RGB asset amount in the asset's smallest unit.
   final int? assetLocalAmount;
+
+  /// Remote RGB asset amount in the asset's smallest unit.
   final int? assetRemoteAmount;
   final String? virtualOpenMode;
+}
+
+/// Stable wallet-facing connected peer metadata.
+class LightningPeer {
+  const LightningPeer({required this.pubkey});
+
+  final String pubkey;
+}
+
+/// Stable wallet-facing channel-open response.
+class LightningChannelOpenResult {
+  const LightningChannelOpenResult({required this.temporaryChannelId});
+
+  final String temporaryChannelId;
+}
+
+/// Stable wallet-facing decoded BOLT11 invoice.
+class DecodedLightningInvoice {
+  const DecodedLightningInvoice({
+    this.amtMsat,
+    required this.expirySec,
+    required this.timestamp,
+    this.assetId,
+    this.assetAmount,
+    required this.paymentHash,
+    required this.paymentSecret,
+    this.payeePubkey,
+    required this.network,
+  });
+
+  /// Lightning invoice amount in millisats.
+  final int? amtMsat;
+
+  /// Lightning invoice expiry duration in seconds.
+  final int expirySec;
+
+  /// Lightning invoice creation Unix timestamp in seconds.
+  final int timestamp;
+  final String? assetId;
+
+  /// RGB asset amount in the asset's smallest unit.
+  final int? assetAmount;
+  final String paymentHash;
+  final String paymentSecret;
+  final String? payeePubkey;
+  final String network;
+}
+
+/// Stable wallet-facing Lightning payment/send result.
+class LightningPaymentResult {
+  const LightningPaymentResult({
+    this.paymentId,
+    this.paymentHash,
+    this.paymentSecret,
+    this.paymentPreimage,
+    required this.status,
+  });
+
+  final String? paymentId;
+  final String? paymentHash;
+  final String? paymentSecret;
+  final String? paymentPreimage;
+  final String status;
+}
+
+/// Stable wallet-facing stored Lightning payment.
+class LightningPayment {
+  const LightningPayment({
+    this.amtMsat,
+    this.assetAmount,
+    this.assetId,
+    required this.paymentHash,
+    this.paymentType,
+    this.status,
+    required this.createdAt,
+    required this.updatedAt,
+    this.payeePubkey,
+    this.preimage,
+  });
+
+  /// Lightning payment amount in millisats.
+  final int? amtMsat;
+
+  /// RGB asset amount in the asset's smallest unit.
+  final int? assetAmount;
+  final String? assetId;
+  final String paymentHash;
+  final String? paymentType;
+  final String? status;
+
+  /// Payment creation Unix timestamp in seconds.
+  final int createdAt;
+
+  /// Payment update Unix timestamp in seconds.
+  final int updatedAt;
+  final String? payeePubkey;
+  final String? preimage;
+}
+
+/// Stable wallet-facing Lightning invoice status.
+class LightningInvoiceStatus {
+  const LightningInvoiceStatus({required this.status});
+
+  final String status;
+}
+
+extension RlnWalletNodeInfoMapper on RlnNodeInfo {
+  WalletNodeInfo toWalletNodeInfo() {
+    return WalletNodeInfo(
+      pubkey: pubkey,
+      numChannels: numChannels,
+      numUsableChannels: numUsableChannels,
+      localBalanceSat: localBalanceSat,
+      eventualCloseFeesSat: eventualCloseFeesSat,
+      pendingOutboundPaymentsSat: pendingOutboundPaymentsSat,
+      numPeers: numPeers,
+      accountXpubVanilla: accountXpubVanilla,
+      accountXpubColored: accountXpubColored,
+      maxMediaUploadSizeMb: maxMediaUploadSizeMb,
+      rgbHtlcMinMsat: rgbHtlcMinMsat,
+      rgbChannelCapacityMinSat: rgbChannelCapacityMinSat,
+      channelCapacityMinSat: channelCapacityMinSat,
+      channelCapacityMaxSat: channelCapacityMaxSat,
+      channelAssetMinAmount: channelAssetMinAmount,
+      channelAssetMaxAmount: channelAssetMaxAmount,
+      networkNodes: networkNodes,
+      networkChannels: networkChannels,
+      latestRgsSnapshotTimestamp: latestRgsSnapshotTimestamp,
+    );
+  }
+}
+
+extension RlnWalletNetworkInfoMapper on RlnNetworkInfo {
+  WalletNetworkInfo toWalletNetworkInfo() {
+    return WalletNetworkInfo(network: network, height: height);
+  }
+}
+
+extension RlnLightningPeerMapper on RlnPeer {
+  LightningPeer toLightningPeer() {
+    return LightningPeer(pubkey: pubkey);
+  }
+}
+
+extension RlnLightningChannelOpenResultMapper on RlnOpenChannelResult {
+  LightningChannelOpenResult toLightningChannelOpenResult() {
+    return LightningChannelOpenResult(temporaryChannelId: temporaryChannelId);
+  }
+}
+
+extension RlnDecodedLightningInvoiceMapper on RlnDecodedLnInvoice {
+  DecodedLightningInvoice toDecodedLightningInvoice() {
+    return DecodedLightningInvoice(
+      amtMsat: amtMsat,
+      expirySec: expirySec,
+      timestamp: timestamp,
+      assetId: assetId,
+      assetAmount: assetAmount,
+      paymentHash: paymentHash,
+      paymentSecret: paymentSecret,
+      payeePubkey: payeePubkey,
+      network: network,
+    );
+  }
+}
+
+extension RlnLightningPaymentResultMapper on RlnPaymentResult {
+  LightningPaymentResult toLightningPaymentResult() {
+    return LightningPaymentResult(
+      paymentId: paymentId,
+      paymentHash: paymentHash,
+      paymentSecret: paymentSecret,
+      paymentPreimage: paymentPreimage,
+      status: status,
+    );
+  }
+}
+
+extension RlnLightningPaymentMapper on RlnPayment {
+  LightningPayment toLightningPayment() {
+    return LightningPayment(
+      amtMsat: amtMsat,
+      assetAmount: assetAmount,
+      assetId: assetId,
+      paymentHash: paymentHash,
+      paymentType: paymentType,
+      status: status,
+      createdAt: createdAt,
+      updatedAt: updatedAt,
+      payeePubkey: payeePubkey,
+      preimage: preimage,
+    );
+  }
+}
+
+extension RlnLightningInvoiceStatusMapper on RlnInvoiceStatus {
+  LightningInvoiceStatus toLightningInvoiceStatus() {
+    return LightningInvoiceStatus(status: status);
+  }
 }
 
 Assignment parseCoreAssignment(String assignment) {
@@ -420,23 +748,9 @@ extension RlnCoreUnspentMapper on RlnUnspent {
 
 extension RlnCoreTransactionMapper on RlnTransaction {
   CoreTransaction toCore() {
-    const typeMap = <String, String>{
-      'RGB_SEND': 'RgbSend',
-      'DRAIN': 'Drain',
-      'CREATE_UTXOS': 'CreateUtxos',
-      'SEND_BTC': 'SendBtc',
-      'INCOMING': 'Incoming',
-    };
-    final mappedType = typeMap[transactionType];
-    if (mappedType == null) {
-      throw NativeProtocolException(
-        'Unsupported transaction type "$transactionType".',
-        field: 'transactionType',
-      );
-    }
     return CoreTransaction(
       txid: txid,
-      transactionType: mappedType,
+      transactionType: UtexoDomainPolicy.mapTransactionType(transactionType),
       received: received,
       sent: sent,
       fee: fee,
@@ -447,41 +761,13 @@ extension RlnCoreTransactionMapper on RlnTransaction {
 
 extension RlnCoreTransferMapper on RlnTransfer {
   CoreTransfer toCore() {
-    const validStatuses = <String>{
-      'WaitingCounterparty',
-      'WaitingSafeHeight',
-      'WaitingConfirmations',
-      'Settled',
-      'Failed',
-      'Initiated',
-    };
-    const validKinds = <String>{
-      'Issuance',
-      'ReceiveBlind',
-      'ReceiveWitness',
-      'Send',
-      'Inflation',
-      'Burn',
-    };
-    final kind = this.kind;
-    if (!validStatuses.contains(status)) {
-      throw NativeProtocolException(
-        'Unsupported transfer status "$status".',
-        field: 'status',
-      );
-    }
-    if (kind == null || !validKinds.contains(kind)) {
-      throw NativeProtocolException(
-        'Unsupported transfer kind "$kind".',
-        field: 'kind',
-      );
-    }
+    final kind = UtexoDomainPolicy.requireTransferKind(this.kind);
     return CoreTransfer(
       idx: idx,
       batchTransferIdx: batchTransferIdx,
       createdAt: createdAt,
       updatedAt: updatedAt,
-      status: status,
+      status: UtexoDomainPolicy.requireTransferStatus(status),
       assignments: assignments.map(parseCoreAssignment).toList(growable: false),
       kind: kind,
       txid: txid,
@@ -621,17 +907,5 @@ extension RlnLightningChannelMapper on RlnChannel {
 }
 
 String _normalizeChannelStatus(String status) {
-  const statuses = <String, String>{
-    'opening': 'Opening',
-    'opened': 'Opened',
-    'closing': 'Closing',
-  };
-  final normalized = statuses[status.toLowerCase()];
-  if (normalized == null) {
-    throw NativeProtocolException(
-      'Unsupported channel status "$status".',
-      field: 'status',
-    );
-  }
-  return normalized;
+  return UtexoDomainPolicy.normalizeChannelStatus(status);
 }

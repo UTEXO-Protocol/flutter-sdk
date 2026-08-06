@@ -1,7 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rgb_sdk_flutter/rgb_sdk_flutter.dart';
+import 'package:rgb_sdk_flutter/rgb_sdk_flutter_advanced.dart';
 import 'package:rgb_sdk_flutter/src/pigeon/rln_api.g.dart';
 
 class _Call {
@@ -15,6 +15,7 @@ class _BindingHostApi extends RlnHostApi {
   final calls = <_Call>[];
   bool throwConflictOnUnlock = false;
   int nodeInfoFailuresRemaining = 0;
+  Duration createNodeDelay = Duration.zero;
 
   void _record(String method, List<Object?> args) {
     calls.add(_Call(method, args));
@@ -55,6 +56,9 @@ class _BindingHostApi extends RlnHostApi {
       lspBearerToken,
       reuseAddresses,
     ]);
+    if (createNodeDelay != Duration.zero) {
+      await Future<void>.delayed(createNodeDelay);
+    }
     return 42;
   }
 
@@ -96,7 +100,7 @@ class _BindingHostApi extends RlnHostApi {
       gossipRgsServerUrl,
     ]);
     if (throwConflictOnUnlock) {
-      throw Exception('already in use');
+      throw const ConflictError('node unlock already active');
     }
   }
 
@@ -105,7 +109,7 @@ class _BindingHostApi extends RlnHostApi {
     _record('rlnNodeInfo', <Object?>[nodeId]);
     if (nodeInfoFailuresRemaining > 0) {
       nodeInfoFailuresRemaining -= 1;
-      throw Exception('node not ready');
+      throw const WalletException('node not ready');
     }
     return _wireMap(<Object?, Object?>{
       'pubkey': 'node-pubkey',
@@ -279,33 +283,56 @@ void main() {
     },
   );
 
-  test('createRLNManager and RNSigner are exported compatibility APIs', () async {
-    const seedHex =
-        '000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f000102030405060708090a0b0c0d0e0f';
-    final keys = await deriveKeysFromSeed('regtest', seedHex);
-    final signer = RNSigner();
-
-    final signature = await signer.signMessage(
-      message: 'hello',
-      seed: seedHex,
-      network: 'regtest',
-    );
-    final verified = await signer.verifyMessage(
-      message: 'hello',
-      signature: signature,
-      accountXpub: keys.accountXpubVanilla,
-      network: 'regtest',
+  test('native operation timeout quarantines binding until destroy', () async {
+    final hostApi = _BindingHostApi()
+      ..createNodeDelay = const Duration(milliseconds: 30);
+    final binding = RLNBinding(
+      client: RlnClient(hostApi: hostApi),
+      operationTimeouts: const RlnOperationTimeoutPolicy(
+        lifecycleTimeout: Duration(milliseconds: 1),
+        defaultTimeout: null,
+        unlockTimeout: null,
+        networkTimeout: null,
+        channelTimeout: null,
+        sendTimeout: null,
+        syncTimeout: null,
+      ),
     );
 
+    await expectLater(
+      binding.rlnCreateNode(
+        IRLNNodeCreateParams(
+          storageDirPath: '/tmp/rgb-node',
+          daemonListeningPort: 9735,
+          ldkPeerListeningPort: 9736,
+          network: 'regtest',
+          maxMediaUploadSizeMb: 20,
+        ),
+      ),
+      throwsA(
+        isA<RlnOperationTimeoutException>()
+            .having((error) => error.operation, 'operation', 'rlnCreateNode')
+            .having(
+              (error) => error.timeout,
+              'timeout',
+              const Duration(milliseconds: 1),
+            ),
+      ),
+    );
+
+    await expectLater(
+      binding.rlnCreateUtxos(true, 1, null, 1, false),
+      throwsA(isA<WalletError>()),
+    );
+    await binding.rlnDestroyNode();
+
+    expect(hostApi.calls.map((call) => call.method), <String>[
+      'rlnCreateNode',
+      'rlnDestroyNode',
+    ]);
+  });
+
+  test('createRLNManager remains the exported RN-style manager factory', () {
     expect(createRLNManager(), isA<RLNManager>());
-    expect(verified, true);
-    expect(
-      () => signer.signPsbtWithMnemonic('mnemonic', 'psbt'),
-      throwsA(isA<UnsupportedWalletFeatureException>()),
-    );
-    expect(
-      () => signer.estimateFee('psbt'),
-      throwsA(isA<UnsupportedWalletFeatureException>()),
-    );
   });
 }

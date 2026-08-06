@@ -23,6 +23,7 @@ void main() {
     _finish(errors);
   }
 
+  final upstreamCommit = _validateRnUpstreamBaseline(rnRoot, baseline, errors);
   _validateRnBaseline(rnRoot, baseline, errors);
   _validateLowLevelNativeMethods(root, rnRoot, errors);
   _validateTypedPigeonWire(root, errors);
@@ -34,7 +35,8 @@ void main() {
 
   stdout.writeln(
     'RN parity valid against ${_shortCommit(_nestedString(baseline, <String>['reactNative', 'commit']))}: '
-    'NativeRgb methods, UTEXOWallet methods, and runtime package exports.',
+    'NativeRgb methods, UTEXOWallet methods, and runtime package exports. '
+    'Upstream dev ${_shortCommit(upstreamCommit)} was checked for drift.',
   );
 }
 
@@ -57,6 +59,142 @@ Map<String, Object?> _readJsonObject(File file, List<String> errors) {
     errors.add('${file.path} is not valid JSON: $error');
   }
   return <String, Object?>{};
+}
+
+String? _validateRnUpstreamBaseline(
+  Directory rnRoot,
+  Map<String, Object?> baseline,
+  List<String> errors,
+) {
+  final expectedCommit = _nestedString(baseline, <String>[
+    'reactNative',
+    'commit',
+  ]);
+  final expectedRepository = _nestedString(baseline, <String>[
+    'reactNative',
+    'repository',
+  ]);
+  if (expectedCommit == null || expectedRepository == null) {
+    errors.add(
+      'release_baseline.json must define reactNative.repository and '
+      'reactNative.commit before upstream drift can be checked.',
+    );
+    return null;
+  }
+
+  final remoteRef =
+      Platform.environment['RGB_SDK_RN_UPSTREAM_REF']?.trim().isNotEmpty == true
+      ? Platform.environment['RGB_SDK_RN_UPSTREAM_REF']!.trim()
+      : 'refs/heads/dev';
+  final remoteName =
+      Platform.environment['RGB_SDK_RN_REMOTE']?.trim().isNotEmpty == true
+      ? Platform.environment['RGB_SDK_RN_REMOTE']!.trim()
+      : 'origin';
+
+  final upstream = _readRemoteCommit(rnRoot, remoteName, remoteRef, errors);
+  if (upstream != null && upstream != expectedCommit) {
+    errors.add(
+      'RN upstream $remoteName/$remoteRef drifted. Expected baseline '
+      '$expectedCommit, remote has $upstream. Fetch/audit the current RN dev '
+      'branch and update tool/release_baseline.json before claiming parity.',
+    );
+  }
+
+  final fetched = _readFetchedCommit(rnRoot, remoteName, remoteRef);
+  if (fetched != null && fetched != expectedCommit) {
+    errors.add(
+      'Fetched RN $remoteName/$remoteRef is $fetched, but baseline expects '
+      '$expectedCommit. Run git -C ${rnRoot.path} fetch $remoteName '
+      '${remoteRef.replaceFirst('refs/heads/', '')} and update/audit the '
+      'baseline if upstream intentionally moved.',
+    );
+  }
+
+  final configuredUrl = _readGitConfig(rnRoot, 'remote.$remoteName.url');
+  if (configuredUrl != null &&
+      !_sameRepository(configuredUrl, expectedRepository)) {
+    errors.add(
+      'RN checkout $remoteName URL is $configuredUrl, but baseline expects '
+      '$expectedRepository. Point RGB_SDK_RN_PATH at the intended upstream '
+      'checkout.',
+    );
+  }
+
+  return upstream;
+}
+
+String? _readRemoteCommit(
+  Directory rnRoot,
+  String remoteName,
+  String remoteRef,
+  List<String> errors,
+) {
+  final result = Process.runSync('git', <String>[
+    '-C',
+    rnRoot.path,
+    'ls-remote',
+    remoteName,
+    remoteRef,
+  ]);
+  if (result.exitCode != 0) {
+    errors.add(
+      'Unable to check RN upstream drift with git ls-remote $remoteName '
+      '$remoteRef: ${result.stderr}',
+    );
+    return null;
+  }
+  final output = result.stdout.toString().trim();
+  if (output.isEmpty) {
+    errors.add('RN upstream $remoteName does not expose $remoteRef.');
+    return null;
+  }
+  return output.split(RegExp(r'\s+')).first;
+}
+
+String? _readFetchedCommit(
+  Directory rnRoot,
+  String remoteName,
+  String remoteRef,
+) {
+  final remoteBranch = remoteRef.startsWith('refs/heads/')
+      ? '$remoteName/${remoteRef.substring('refs/heads/'.length)}'
+      : remoteRef;
+  final result = Process.runSync('git', <String>[
+    '-C',
+    rnRoot.path,
+    'rev-parse',
+    '--verify',
+    '$remoteBranch^{commit}',
+  ]);
+  if (result.exitCode != 0) return null;
+  return result.stdout.toString().trim();
+}
+
+String? _readGitConfig(Directory root, String key) {
+  final result = Process.runSync('git', <String>[
+    '-C',
+    root.path,
+    'config',
+    '--get',
+    key,
+  ]);
+  if (result.exitCode != 0) return null;
+  return result.stdout.toString().trim();
+}
+
+bool _sameRepository(String configured, String expected) {
+  String normalize(String value) {
+    var normalized = value.trim();
+    if (normalized.startsWith('git@github.com:')) {
+      normalized = 'https://github.com/${normalized.substring(15)}';
+    }
+    if (normalized.endsWith('.git')) {
+      normalized = normalized.substring(0, normalized.length - 4);
+    }
+    return normalized.toLowerCase();
+  }
+
+  return normalize(configured) == normalize(expected);
 }
 
 void _validateRnBaseline(
@@ -484,10 +622,76 @@ void _validateWalletMethods(
     errors,
   );
   final walletMatrixIds = _matrixIds(matrix);
+  final manifest = _readJsonObject(
+    File('${root.path}/tool/rn_parity_manifest.json'),
+    errors,
+  );
+  final advancedAliases = _stringMap(
+    manifest,
+    'advancedWalletMethodAliases',
+    errors,
+  );
+  _validateAdvancedWalletAliases(root, advancedAliases, errors);
 
-  final missing = rnMethods.difference(walletMatrixIds).toList()..sort();
+  final missing =
+      rnMethods
+          .difference(walletMatrixIds)
+          .difference(advancedAliases.keys.toSet())
+          .toList()
+        ..sort();
   for (final method in missing) {
     errors.add('RN UTEXOWallet.$method is missing from wallet_methods.json.');
+  }
+
+  for (final method in advancedAliases.keys) {
+    if (!rnMethods.contains(method)) {
+      errors.add(
+        'advancedWalletMethodAliases contains stale RN method $method.',
+      );
+    }
+  }
+}
+
+void _validateAdvancedWalletAliases(
+  Directory root,
+  Map<String, String> aliases,
+  List<String> errors,
+) {
+  final advanced = File('${root.path}/lib/rgb_sdk_flutter_advanced.dart');
+  if (!advanced.existsSync()) {
+    errors.add('Missing advanced Dart entrypoint: ${advanced.path}');
+    return;
+  }
+  final source = advanced.readAsStringSync();
+  for (final entry in aliases.entries) {
+    final parts = entry.value.split('.');
+    if (parts.length != 2 ||
+        parts.any((part) => part.trim().isEmpty) ||
+        !RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(parts[0]) ||
+        !RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(parts[1])) {
+      errors.add(
+        'advancedWalletMethodAliases/${entry.key} must be Extension.method.',
+      );
+      continue;
+    }
+    final extensionName = parts[0];
+    final methodName = parts[1];
+    if (!RegExp(
+      'extension\\s+${RegExp.escape(extensionName)}\\s+on\\s+UtexoWallet',
+    ).hasMatch(source)) {
+      errors.add(
+        'advancedWalletMethodAliases/${entry.key} references missing '
+        'extension $extensionName.',
+      );
+    }
+    if (!RegExp(
+      '[A-Za-z0-9_<>, ?]+\\s+${RegExp.escape(methodName)}\\s*\\(',
+    ).hasMatch(source)) {
+      errors.add(
+        'advancedWalletMethodAliases/${entry.key} references missing '
+        'method $methodName.',
+      );
+    }
   }
 }
 
@@ -562,7 +766,7 @@ void _validateRuntimeExports(
   );
   final aliases = _stringMap(manifest, 'runtimeExportAliases', errors);
   final scopedOut = _stringMap(manifest, 'scopedOutRuntimeExports', errors);
-  final dartSymbols = _collectDartBarrelSymbols(root, errors);
+  final dartSymbols = _collectDartEntrypointSymbols(root, errors);
 
   for (final exportName in rnExports) {
     if (aliases.containsKey(exportName)) {
@@ -633,15 +837,30 @@ Set<String> _extractRnRuntimeExports(File file, List<String> errors) {
   return exports;
 }
 
-Set<String> _collectDartBarrelSymbols(Directory root, List<String> errors) {
-  final barrel = File('${root.path}/lib/rgb_sdk_flutter.dart');
+Set<String> _collectDartEntrypointSymbols(Directory root, List<String> errors) {
+  return <String>{
+    ..._collectDartLibrarySymbols(root, 'lib/rgb_sdk_flutter.dart', errors),
+    ..._collectDartLibrarySymbols(
+      root,
+      'lib/rgb_sdk_flutter_advanced.dart',
+      errors,
+    ),
+  };
+}
+
+Set<String> _collectDartLibrarySymbols(
+  Directory root,
+  String relativePath,
+  List<String> errors,
+) {
+  final barrel = File('${root.path}/$relativePath');
   if (!barrel.existsSync()) {
-    errors.add('Missing Dart barrel: ${barrel.path}');
+    errors.add('Missing Dart entrypoint: ${barrel.path}');
     return <String>{};
   }
 
   final symbols = <String>{};
-  final exportRegex = RegExp(r"export\s+'([^']+)';");
+  final exportRegex = RegExp(r"export\s+'([^']+)'([^;]*);");
   for (final match in exportRegex.allMatches(barrel.readAsStringSync())) {
     final relative = match.group(1)!;
     final file = File('${root.path}/lib/$relative');
@@ -649,10 +868,56 @@ Set<String> _collectDartBarrelSymbols(Directory root, List<String> errors) {
       errors.add('Dart barrel exports missing file: $relative');
       continue;
     }
-    symbols.addAll(_extractDartSymbols(file));
+    final librarySymbols = <String>{};
+    for (final libraryFile in _dartLibraryFiles(file)) {
+      librarySymbols.addAll(_extractDartSymbols(libraryFile));
+    }
+    symbols.addAll(
+      _filterDartSymbols(
+        librarySymbols,
+        show: _symbolsFromCombinator(match.group(2)!, 'show'),
+        hide: _symbolsFromCombinator(match.group(2)!, 'hide'),
+      ),
+    );
   }
   symbols.addAll(_extractDartSymbols(barrel));
   return symbols;
+}
+
+List<File> _dartLibraryFiles(File file) {
+  final source = file.readAsStringSync();
+  final directory = file.parent.path;
+  final partPattern = RegExp(r"part '([^']+)';");
+  return <File>[
+    file,
+    for (final match in partPattern.allMatches(source))
+      File('$directory/${match.group(1)!}'),
+  ];
+}
+
+Set<String> _filterDartSymbols(
+  Set<String> symbols, {
+  required Set<String>? show,
+  required Set<String>? hide,
+}) {
+  final hidden = hide ?? const <String>{};
+  return symbols
+      .where((symbol) => show == null || show.contains(symbol))
+      .where((symbol) => !hidden.contains(symbol))
+      .toSet();
+}
+
+Set<String>? _symbolsFromCombinator(String source, String keyword) {
+  final match = RegExp('(?:^|\\s)$keyword\\s+([^;]+)').firstMatch(source);
+  if (match == null) return null;
+  final raw = match.group(1)!;
+  final stop = RegExp(r'\s(?:show|hide)\s').firstMatch(raw);
+  final values = stop == null ? raw : raw.substring(0, stop.start);
+  return values
+      .split(',')
+      .map((value) => value.trim())
+      .where((value) => value.isNotEmpty)
+      .toSet();
 }
 
 Set<String> _extractDartSymbols(File file) {

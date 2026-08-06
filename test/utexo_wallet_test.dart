@@ -4,12 +4,63 @@ import 'dart:io';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:http/http.dart' as http;
-import 'package:rgb_sdk_flutter/rgb_sdk_flutter.dart';
+import 'package:rgb_sdk_flutter/rgb_sdk_flutter_advanced.dart';
 import 'package:rgb_sdk_flutter/src/pigeon/rln_api.g.dart';
+
+LspGetInfoResponse lspGetInfoResponse({
+  String pubkey = 'lsp-peer',
+  String network = 'regtest',
+  String? host,
+  int? port,
+}) {
+  return LspGetInfoResponse.fromWire(
+    lspGetInfoWire(
+      pubkey: pubkey,
+      overrides: <String, Object?>{
+        'network': network,
+        'host': ?host,
+        'port': ?port,
+      },
+    ),
+  );
+}
+
+Map<String, Object?> lspGetInfoWire({
+  String pubkey = 'lsp-peer',
+  Map<String, Object?> overrides = const <String, Object?>{},
+}) {
+  return <String, Object?>{
+    'api_version': 1,
+    'pubkey': pubkey,
+    'network': 'regtest',
+    'supported_assets': <Object?>[
+      <String, Object?>{
+        'asset_id': 'rgb-asset',
+        'schema': 'Nia',
+        'ticker': 'RGB',
+        'name': 'RGB Asset',
+        'precision': 8,
+      },
+    ],
+    'min_payment_size_msat': '3000000',
+    'max_payment_size_msat': '1000000000',
+    'min_channel_balance_sat': '1000',
+    'max_channel_balance_sat': '10000000',
+    'min_initial_client_balance_msat': '0',
+    'max_initial_client_balance_msat': '1000000000',
+    'min_channel_asset_amount': '0',
+    'max_channel_asset_amount': '18446744073709551615',
+    'virtual_channel_mode': 'trusted_no_broadcast',
+    'lightning_address_min_sendable_msat': '3000000',
+    'lightning_address_max_sendable_msat': '1000000000',
+    ...overrides,
+  };
+}
 
 class FakeRlnHostApi extends RlnHostApi {
   int? createdNodeId;
   int createNodeCount = 0;
+  final List<String> lifecycleCalls = <String>[];
   int? createdSignerId;
   int createSignerCount = 0;
   final List<int> createdSignerIds = <int>[];
@@ -95,6 +146,22 @@ class FakeRlnHostApi extends RlnHostApi {
   String paymentStatus = 'CLAIMING';
   List<Map<Object?, Object?>>? channelRows;
   List<Map<Object?, Object?>>? paymentRows;
+  Duration lifecycleDelay = Duration.zero;
+  Object? createNodeError;
+  Object? initNodeError;
+  Object? unlockNodeError;
+  Object? shutdownError;
+  Object? destroyNodeError;
+
+  Future<void> _delayLifecycle() async {
+    if (lifecycleDelay != Duration.zero) {
+      await Future<void>.delayed(lifecycleDelay);
+    }
+  }
+
+  Never _throw(Object error) {
+    Error.throwWithStackTrace(error, StackTrace.current);
+  }
 
   RlnWireResponse _wireMap(Map<Object?, Object?> map) {
     return RlnWireResponse(json: jsonEncode(map));
@@ -203,6 +270,10 @@ class FakeRlnHostApi extends RlnHostApi {
     String? lspBearerToken,
     bool reuseAddresses,
   ) async {
+    lifecycleCalls.add('createNode');
+    await _delayLifecycle();
+    final error = createNodeError;
+    if (error != null) _throw(error);
     createNodeCount += 1;
     createdNodeId = 6 + createNodeCount;
     createdNodeNetwork = network;
@@ -220,6 +291,10 @@ class FakeRlnHostApi extends RlnHostApi {
     String password,
     String? mnemonic,
   ) async {
+    lifecycleCalls.add('initNode');
+    await _delayLifecycle();
+    final error = initNodeError;
+    if (error != null) _throw(error);
     initNodeCount += 1;
     initializedPassword = password;
     return 'pubkey';
@@ -304,6 +379,10 @@ class FakeRlnHostApi extends RlnHostApi {
     String? announceAlias,
     String? gossipRgsServerUrl,
   ) async {
+    lifecycleCalls.add('unlockNode');
+    await _delayLifecycle();
+    final error = unlockNodeError;
+    if (error != null) _throw(error);
     unlockNodeCount += 1;
     unlockedHost = bitcoindRpcHost;
     unlockedIndexerUrl = indexerUrl;
@@ -964,7 +1043,11 @@ class FakeRlnHostApi extends RlnHostApi {
       throw PlatformException(
         code: emptyListTransfersErrorCode,
         message: emptyListTransfersErrorMessage,
-        details: <Object?, Object?>{'operation': 'rlnListTransfers'},
+        details: <Object?, Object?>{
+          'operation': 'rlnListTransfers',
+          'category': 'invalidRequest',
+          'retryable': false,
+        },
       );
     }
     return _wireList(<Map<Object?, Object?>>[
@@ -990,6 +1073,10 @@ class FakeRlnHostApi extends RlnHostApi {
 
   @override
   Future<void> rlnShutdown(int nodeId) async {
+    lifecycleCalls.add('shutdown');
+    await _delayLifecycle();
+    final error = shutdownError;
+    if (error != null) _throw(error);
     shutdownCount += 1;
   }
 
@@ -998,6 +1085,10 @@ class FakeRlnHostApi extends RlnHostApi {
 
   @override
   Future<void> rlnDestroyNode(int nodeId) async {
+    lifecycleCalls.add('destroyNode');
+    await _delayLifecycle();
+    final error = destroyNodeError;
+    if (error != null) _throw(error);
     destroyNodeCount += 1;
   }
 
@@ -1038,11 +1129,7 @@ class FakeLspClient extends IUtexoLspClient {
     getInfoCalls += 1;
     final error = getInfoError;
     if (error != null) throw error;
-    return const LspGetInfoResponse(
-      pubkey: 'lsp-peer',
-      numChannels: 1,
-      numUsableChannels: 1,
-    );
+    return lspGetInfoResponse(pubkey: 'lsp-peer');
   }
 
   @override
@@ -1138,10 +1225,15 @@ class _StaticHttpClient extends http.BaseClient {
 }
 
 void main() {
-  UtexoWallet walletWith(FakeRlnHostApi hostApi) {
+  UtexoWallet walletWith(
+    FakeRlnHostApi hostApi, {
+    RlnOperationTimeoutPolicy operationTimeouts =
+        const RlnOperationTimeoutPolicy(),
+  }) {
     return UtexoWallet(
       config: UtexoWalletConfig(storageDirPath: '/tmp/rgb-wallet-test'),
       client: RlnClient(hostApi: hostApi),
+      operationTimeouts: operationTimeouts,
     );
   }
 
@@ -1169,7 +1261,8 @@ void main() {
       final wallet = walletWith(hostApi);
       await wallet.init(password: 'password');
 
-      expect(await wallet.nodeInfo(), isA<RlnNodeInfo>());
+      expect(await wallet.nodeInfo(), isA<WalletNodeInfo>());
+      expect(await wallet.nodeInfoRaw(), isA<RlnNodeInfo>());
       await expectLater(wallet.networkInfo(), throwsA(isA<WalletException>()));
       await expectLater(wallet.getAddress(), throwsA(isA<WalletException>()));
       await expectLater(wallet.listAssets(), throwsA(isA<WalletException>()));
@@ -1473,6 +1566,135 @@ void main() {
     expect(wallet.isUnlocked, true);
   });
 
+  test(
+    'serializes contested lifecycle operations into one terminal destroy',
+    () async {
+      final hostApi = FakeRlnHostApi()
+        ..lifecycleDelay = const Duration(milliseconds: 1);
+      final wallet = walletWith(hostApi);
+
+      await Future.wait(<Future<void>>[
+        wallet.init(password: 'password'),
+        wallet.unlock(
+          password: 'password',
+          config: UtexoUnlockConfig(
+            bitcoindRpcHost: '127.0.0.1',
+            bitcoindRpcUsername: 'user',
+          ),
+        ),
+        wallet.shutdown(),
+        wallet.destroy(),
+      ]);
+
+      expect(wallet.isDisposed(), true);
+      expect(hostApi.createNodeCount, 1);
+      expect(hostApi.initNodeCount, 1);
+      expect(hostApi.unlockNodeCount, 1);
+      expect(hostApi.shutdownCount, 1);
+      expect(hostApi.destroyNodeCount, 1);
+      expect(hostApi.lifecycleCalls, <String>[
+        'createNode',
+        'initNode',
+        'unlockNode',
+        'shutdown',
+        'destroyNode',
+      ]);
+    },
+  );
+
+  test('failed init cleans up the temporary node before retry', () async {
+    final hostApi = FakeRlnHostApi()..initNodeError = StateError('init failed');
+    final wallet = walletWith(hostApi);
+
+    await expectLater(wallet.init(password: 'password'), throwsStateError);
+
+    expect(wallet.isInitialized, false);
+    expect(hostApi.createNodeCount, 1);
+    expect(hostApi.initNodeCount, 0);
+    expect(hostApi.destroyNodeCount, 1);
+
+    hostApi.initNodeError = null;
+    await wallet.init(password: 'password');
+
+    expect(wallet.isInitialized, true);
+    expect(hostApi.createNodeCount, 2);
+    expect(hostApi.destroyNodeCount, 1);
+    expect(hostApi.lifecycleCalls, <String>[
+      'createNode',
+      'initNode',
+      'destroyNode',
+      'createNode',
+      'initNode',
+    ]);
+  });
+
+  test(
+    'timed-out create can still be destroyed after native completion',
+    () async {
+      final hostApi = FakeRlnHostApi()
+        ..lifecycleDelay = const Duration(milliseconds: 30);
+      final wallet = walletWith(
+        hostApi,
+        operationTimeouts: const RlnOperationTimeoutPolicy(
+          lifecycleTimeout: Duration(milliseconds: 1),
+          defaultTimeout: null,
+          unlockTimeout: null,
+          networkTimeout: null,
+          channelTimeout: null,
+          sendTimeout: null,
+          syncTimeout: null,
+        ),
+      );
+
+      await expectLater(
+        wallet.init(password: 'password'),
+        throwsA(isA<RlnOperationTimeoutException>()),
+      );
+
+      expect(wallet.isInitialized, false);
+      await expectLater(wallet.getAddress(), throwsA(isA<WalletException>()));
+
+      await wallet.destroy();
+
+      expect(wallet.isDisposed(), true);
+      expect(hostApi.createNodeCount, 1);
+      expect(hostApi.initNodeCount, 0);
+      expect(hostApi.destroyNodeCount, 1);
+      expect(hostApi.lifecycleCalls, <String>['createNode', 'destroyNode']);
+    },
+  );
+
+  test(
+    'destroy surfaces shutdown faults after completing node cleanup',
+    () async {
+      final hostApi = FakeRlnHostApi()
+        ..shutdownError = StateError('shutdown failed');
+      final wallet = walletWith(hostApi);
+      await unlockWallet(wallet);
+
+      await expectLater(
+        wallet.destroy(),
+        throwsA(
+          isA<WalletException>().having(
+            (error) => error.cause,
+            'aggregated cleanup cause',
+            isA<List<Object>>().having((causes) => causes.length, 'length', 1),
+          ),
+        ),
+      );
+
+      expect(wallet.isDisposed(), true);
+      expect(hostApi.destroyNodeCount, 1);
+
+      hostApi.shutdownError = null;
+      await wallet.destroy();
+
+      expect(wallet.isDisposed(), true);
+      expect(hostApi.shutdownCount, 0);
+      expect(hostApi.destroyNodeCount, 1);
+    },
+  );
+
   test('password signer consumes password after unlock', () async {
     final hostApi = FakeRlnHostApi();
     final wallet = walletWith(hostApi);
@@ -1551,6 +1773,78 @@ void main() {
     expect(wallet.isInitialized, true);
     expect(wallet.isUnlocked, true);
   });
+
+  test('reinit stops before create when shutdown fails', () async {
+    final hostApi = FakeRlnHostApi();
+    final wallet = walletWith(hostApi);
+    await unlockWallet(wallet);
+
+    hostApi.shutdownError = StateError('shutdown failed');
+    await expectLater(
+      wallet.reinit(password: 'password', unlockConfig: UtexoUnlockConfig()),
+      throwsStateError,
+    );
+
+    expect(hostApi.createNodeCount, 1);
+    expect(hostApi.unlockNodeCount, 1);
+    expect(wallet.isUnlocked, true);
+    expect(await wallet.getAddress(), 'bcrt1address');
+  });
+
+  test('reinit leaves shutdown wallet retryable when create fails', () async {
+    final hostApi = FakeRlnHostApi();
+    final wallet = walletWith(hostApi);
+    await wallet.init(password: 'password');
+    await wallet.shutdown();
+
+    hostApi.createNodeError = StateError('create failed');
+    await expectLater(
+      wallet.reinit(password: 'password', unlockConfig: UtexoUnlockConfig()),
+      throwsStateError,
+    );
+
+    expect(hostApi.createNodeCount, 1);
+    expect(hostApi.destroyNodeCount, 0);
+    expect(wallet.isShutdown, true);
+    await expectLater(wallet.getAddress(), throwsA(isA<WalletException>()));
+
+    hostApi.createNodeError = null;
+    await wallet.reinit(
+      password: 'password',
+      unlockConfig: UtexoUnlockConfig(),
+    );
+    expect(hostApi.createNodeCount, 2);
+    expect(wallet.isUnlocked, true);
+  });
+
+  test(
+    'reinit cleans replacement and retired nodes when unlock fails',
+    () async {
+      final hostApi = FakeRlnHostApi();
+      final wallet = walletWith(hostApi);
+      await unlockWallet(wallet);
+
+      hostApi.unlockNodeError = StateError('unlock failed');
+      await expectLater(
+        wallet.reinit(password: 'password', unlockConfig: UtexoUnlockConfig()),
+        throwsStateError,
+      );
+
+      expect(hostApi.createNodeCount, 2);
+      expect(hostApi.destroyNodeCount, 2);
+      expect(wallet.isInitialized, false);
+      expect(wallet.isUnlocked, false);
+      await expectLater(wallet.getAddress(), throwsA(isA<WalletException>()));
+
+      hostApi.unlockNodeError = null;
+      await wallet.reinit(
+        password: 'password',
+        unlockConfig: UtexoUnlockConfig(),
+      );
+      expect(hostApi.createNodeCount, 3);
+      expect(wallet.isUnlocked, true);
+    },
+  );
 
   test('reinit supports a cold-process persisted wallet session', () async {
     final hostApi = FakeRlnHostApi();
@@ -1801,27 +2095,6 @@ void main() {
     );
   });
 
-  test(
-    'returns constructor xpubs when provided like RN wallet params',
-    () async {
-      final wallet = UtexoWallet(
-        config: UtexoWalletConfig(
-          storageDirPath: '/tmp/rgb-wallet-test',
-          xpubVan: 'constructor-van',
-          xpubCol: 'constructor-col',
-          masterFingerprint: 'f23f9fd2',
-        ),
-        client: RlnClient(hostApi: FakeRlnHostApi()),
-      );
-      await wallet.init(password: 'password');
-
-      final xpubs = await wallet.getXpub();
-
-      expect(xpubs.vanilla, 'constructor-van');
-      expect(xpubs.colored, 'constructor-col');
-    },
-  );
-
   test('creates blind and witness RGB receive invoices', () async {
     final hostApi = FakeRlnHostApi();
     final wallet = walletWith(hostApi);
@@ -1842,8 +2115,8 @@ void main() {
     await wallet.init(password: 'password');
     await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
-    final response = await wallet.send(
-      const RgbSendRequest(invoice: 'rgb:invoice'),
+    final response = await wallet.onchainSend(
+      const RgbSendRequest(invoice: 'rgb:invoice', amount: 100),
     );
 
     expect(response.txid, 'txid');
@@ -1854,6 +2127,29 @@ void main() {
     expect(hostApi.lastSendRgb?['minConfirmations'], 1);
   });
 
+  test(
+    'requires explicit onchainSend amount instead of decoded fallback',
+    () async {
+      final hostApi = FakeRlnHostApi();
+      final wallet = walletWith(hostApi);
+      await wallet.init(password: 'password');
+      await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
+
+      await expectLater(
+        wallet.onchainSend(const RgbSendRequest(invoice: 'rgb:invoice')),
+        throwsA(
+          isA<WalletValidationException>().having(
+            (error) => error.field,
+            'field',
+            'amount',
+          ),
+        ),
+      );
+
+      expect(hostApi.lastSendRgb, isNull);
+    },
+  );
+
   test('fails fast instead of ignoring RGB send skipSync', () async {
     final hostApi = FakeRlnHostApi();
     final wallet = walletWith(hostApi);
@@ -1861,7 +2157,13 @@ void main() {
     await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
     await expectLater(
-      wallet.send(const RgbSendRequest(invoice: 'rgb:invoice', skipSync: true)),
+      wallet.onchainSend(
+        const RgbSendRequest(
+          invoice: 'rgb:invoice',
+          amount: 100,
+          skipSync: true,
+        ),
+      ),
       throwsA(isA<UnsupportedWalletFeatureException>()),
     );
 
@@ -1990,6 +2292,74 @@ void main() {
       'RGB_SEND',
     );
   });
+
+  test(
+    'documents and preserves timestamp and amount units at model boundaries',
+    () {
+      final invoice = RlnDecodedLnInvoice.fromMap(<Object?, Object?>{
+        'amtMsat': 2500,
+        'expirySec': 3600,
+        'timestamp': 1710000000,
+        'assetId': 'asset',
+        'assetAmount': 42,
+        'paymentHash': 'hash',
+        'paymentSecret': 'secret',
+        'network': 'regtest',
+      }).toDecodedLightningInvoice();
+      expect(invoice.amtMsat, 2500);
+      expect(invoice.expirySec, 3600);
+      expect(invoice.timestamp, 1710000000);
+      expect(invoice.assetAmount, 42);
+
+      final payment = RlnPayment.fromMap(<Object?, Object?>{
+        'amtMsat': 5000,
+        'assetAmount': 7,
+        'assetId': 'asset',
+        'paymentHash': 'payment-hash',
+        'createdAt': 1710000100,
+        'updatedAt': 1710000200,
+      }).toLightningPayment();
+      expect(payment.amtMsat, 5000);
+      expect(payment.assetAmount, 7);
+      expect(payment.createdAt, 1710000100);
+      expect(payment.updatedAt, 1710000200);
+
+      final channel = RlnChannel.fromMap(<Object?, Object?>{
+        'channelId': 'channel',
+        'peerPubkey': 'peer',
+        'ready': true,
+        'capacitySat': 100000,
+        'localBalanceSat': 25,
+        'outboundBalanceMsat': 3000,
+        'inboundBalanceMsat': 4000,
+        'nextOutboundHtlcLimitMsat': 2000,
+        'nextOutboundHtlcMinimumMsat': 1,
+        'public': false,
+        'assetLocalAmount': 9,
+        'assetRemoteAmount': 10,
+      }).toLightningChannel();
+      expect(channel.capacitySat, 100000);
+      expect(channel.localBalanceMsat, 25000);
+      expect(channel.outboundBalanceMsat, 3000);
+      expect(channel.inboundBalanceMsat, 4000);
+      expect(channel.assetLocalAmount, 9);
+      expect(channel.assetRemoteAmount, 10);
+
+      final transfer = RlnTransfer.fromMap(<Object?, Object?>{
+        'idx': 1,
+        'createdAt': 1710000300,
+        'updatedAt': 1710000400,
+        'expiration': 1710000500,
+        'status': 'Settled',
+        'kind': 'Send',
+        'assignments': <String>['Fungible(123)'],
+      }).toCore();
+      expect(transfer.createdAt, 1710000300);
+      expect(transfer.updatedAt, 1710000400);
+      expect(transfer.expiration, 1710000500);
+      expect(transfer.assignments.single.amount, 123);
+    },
+  );
 
   test('parses and bounds native integer strings at model boundaries', () {
     expect(rlnPigeonMaxSignedInt64, 9223372036854775807);
@@ -2120,11 +2490,6 @@ void main() {
       await wallet.getLightningSendStatus('payment-hash'),
       RlnPaymentStatuses.claiming,
     );
-    expect(
-      await wallet.getLightningReceiveRequest('invoice'),
-      CoreTransferStatuses.settled,
-    );
-
     final payments = await wallet.listLightningPayments();
     expect(payments.payments.single.txid, 'hash-1');
     expect(payments.payments.single.status, 'SUCCEEDED');
@@ -2158,17 +2523,29 @@ void main() {
   });
 
   test(
-    'listTransfers falls back when current native artifact rejects empty id',
+    'listTransfers fails closed when unfiltered native listing is rejected',
     () async {
       final hostApi = FakeRlnHostApi()..throwOnEmptyListTransfers = true;
       final wallet = walletWith(hostApi);
       await wallet.init(password: 'password');
       await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
-      final transfers = await wallet.listTransfers();
+      await expectLater(
+        wallet.listTransfers(),
+        throwsA(
+          isA<UnsupportedWalletFeatureException>().having(
+            (error) => error.feature,
+            'feature',
+            'listTransfers',
+          ),
+        ),
+      );
+      expect(hostApi.lastTransferAssetId, '');
+      expect(hostApi.listAssetsCalls, 0);
 
+      final assetTransfers = await wallet.listTransfers(assetId: 'asset');
+      expect(assetTransfers.single.idx, 1);
       expect(hostApi.lastTransferAssetId, 'asset');
-      expect(transfers.single.idx, 1);
     },
   );
 
@@ -2183,10 +2560,12 @@ void main() {
       await wallet.init(password: 'password');
       await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
-      final transfers = await wallet.listTransfers();
+      await expectLater(
+        wallet.listTransfers(),
+        throwsA(isA<UnsupportedWalletFeatureException>()),
+      );
 
-      expect(hostApi.lastTransferAssetId, 'asset');
-      expect(transfers.single.idx, 1);
+      expect(hostApi.lastTransferAssetId, '');
     },
   );
 
@@ -2216,18 +2595,6 @@ void main() {
     expect(wallet.beginEnd, isNull);
     expect(wallet.capabilities.psbtSigning, false);
     expect(wallet.capabilities.beginEndFlows, false);
-    expect(
-      () => signPsbt('mnemonic', 'psbt'),
-      throwsA(isA<UnsupportedWalletFeatureException>()),
-    );
-    expect(
-      () => signPsbtFromSeed('seed', 'psbt'),
-      throwsA(isA<UnsupportedWalletFeatureException>()),
-    );
-    expect(
-      () => estimatePsbt('psbt'),
-      throwsA(isA<UnsupportedWalletFeatureException>()),
-    );
   });
 
   test('uses RN-shaped Lightning and on-chain wrapper contracts', () async {
@@ -2251,7 +2618,7 @@ void main() {
       const RgbInvoiceRequest(assetId: 'asset', amount: 10),
     );
     final onchainSend = await wallet.onchainSend(
-      const RgbSendRequest(invoice: 'rgb:invoice'),
+      const RgbSendRequest(invoice: 'rgb:invoice', amount: 100),
     );
 
     expect(lnReceive.lnInvoice, 'lnbc-invoice');
@@ -2389,11 +2756,7 @@ void main() {
         if (request.uri.path == '/get_info') {
           request.response.headers.contentType = ContentType.json;
           request.response.write(
-            jsonEncode(<String, Object?>{
-              'pubkey': 'lsp-peer',
-              'num_channels': 1,
-              'num_usable_channels': 1,
-            }),
+            jsonEncode(lspGetInfoWire(pubkey: 'lsp-peer')),
           );
         } else {
           request.response.statusCode = HttpStatus.notFound;
@@ -2430,6 +2793,137 @@ void main() {
       }
     },
   );
+
+  test('createLsp discovers peer host and port from beta.7 get_info', () async {
+    Future<LspPeer> createPeer(Map<String, Object?> overrides) async {
+      final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
+      server.listen((request) {
+        request.response.headers.contentType = ContentType.json;
+        request.response.write(
+          jsonEncode(lspGetInfoWire(overrides: overrides)),
+        );
+        request.response.close();
+      });
+
+      try {
+        final wallet = UtexoWallet(
+          config: UtexoWalletConfig(
+            storageDirPath: '/tmp/rgb-wallet-test',
+            lspBaseUrl: 'http://${server.address.host}:${server.port}',
+          ),
+          client: RlnClient(hostApi: FakeRlnHostApi()),
+        );
+        return (await wallet.createLsp(null, 9737)).peer;
+      } finally {
+        await server.close(force: true);
+      }
+    }
+
+    final both = await createPeer(<String, Object?>{
+      'host': 'p2p.lsp.example',
+      'port': 9736,
+    });
+    expect(both.peerHost, 'p2p.lsp.example');
+    expect(both.peerPort, 9736);
+
+    final hostOnly = await createPeer(<String, Object?>{
+      'host': 'host-only.lsp.example',
+    });
+    expect(hostOnly.peerHost, 'host-only.lsp.example');
+    expect(hostOnly.peerPort, 9737);
+
+    final portOnly = await createPeer(<String, Object?>{'port': 19735});
+    expect(portOnly.peerHost, InternetAddress.loopbackIPv4.host);
+    expect(portOnly.peerPort, 19735);
+
+    final absent = await createPeer(<String, Object?>{});
+    expect(absent.peerHost, InternetAddress.loopbackIPv4.host);
+    expect(absent.peerPort, 9737);
+  });
+
+  test('LSP get_info parser matches beta.7 shape and preserves u64', () {
+    final info = LspGetInfoResponse.fromWire(
+      lspGetInfoWire(
+        overrides: <String, Object?>{
+          'host': 'p2p.lsp.example',
+          'port': 9736,
+          'min_payment_size_msat': '18446744073709551615',
+          'supported_assets': <Object?>[
+            <String, Object?>{
+              'asset_id': 'rgb-asset',
+              'schema': 'Nia',
+              'ticker': 'RGB',
+              'name': 'RGB Asset',
+              'precision': 8,
+            },
+          ],
+        },
+      ),
+    );
+
+    expect(info.apiVersion, 1);
+    expect(info.pubkey, 'lsp-peer');
+    expect(info.network, 'regtest');
+    expect(info.host, 'p2p.lsp.example');
+    expect(info.port, 9736);
+    expect(info.supportedAssets.single.assetId, 'rgb-asset');
+    expect(info.supportedAssets.single.schema, 'Nia');
+    expect(info.supportedAssets.single.ticker, 'RGB');
+    expect(info.supportedAssets.single.precision, 8);
+    expect(info.minPaymentSizeMsat, BigInt.parse('18446744073709551615'));
+    expect(info.virtualChannelMode, 'trusted_no_broadcast');
+  });
+
+  test('LSP DTO parsers fail closed for malformed required fields', () {
+    expect(
+      () => LspGetInfoResponse.fromWire(
+        lspGetInfoWire(overrides: <String, Object?>{'pubkey': null}),
+      ),
+      throwsA(isA<NativeProtocolException>()),
+    );
+    expect(
+      () => LspGetInfoResponse.fromWire(
+        lspGetInfoWire(
+          overrides: <String, Object?>{'min_payment_size_msat': 'not-u64'},
+        ),
+      ),
+      throwsA(isA<NativeProtocolException>()),
+    );
+    expect(
+      () => LspGetInfoResponse.fromWire(
+        lspGetInfoWire(
+          overrides: <String, Object?>{
+            'supported_assets': <Object?>['not-a-map'],
+          },
+        ),
+      ),
+      throwsA(isA<NativeProtocolException>()),
+    );
+    expect(
+      () => LspLnurlpCallbackResponse.fromWire(<String, Object?>{
+        'pr': 'lnbc1invoice',
+        'routes': 'not-a-list',
+      }),
+      throwsA(isA<NativeProtocolException>()),
+    );
+    expect(
+      () => ApayInvoiceProof.fromWire(<String, Object?>{
+        'version': 1,
+        'recipient_pubkey': 'recipient',
+        'host_pubkey': 'host',
+        'batch_id': 'batch',
+        'hash_index': 0,
+        'payment_hash': 'hash',
+        'batch_root': 'root',
+        'batch_size': 1,
+        'merkle_proof': <Object?>['not-a-map'],
+        'batch_sig': 'sig',
+        'created_at': 1,
+        'expires_at': 2,
+      }),
+      throwsA(isA<NativeProtocolException>()),
+    );
+  });
 
   test(
     'utexo network default LSP URL is passed to native node creation',
@@ -2869,25 +3363,35 @@ void main() {
     expect(wallet.isInitialized, false);
   });
 
-  test('maps Bitcoin list methods and core DTO aliases', () async {
-    final hostApi = FakeRlnHostApi();
-    final wallet = walletWith(hostApi);
-    await wallet.init(password: 'password');
-    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
+  test(
+    'maps Bitcoin list methods to domain DTOs and raw escape hatches',
+    () async {
+      final hostApi = FakeRlnHostApi();
+      final wallet = walletWith(hostApi);
+      await wallet.init(password: 'password');
+      await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
-    final unspents = await wallet.listUnspents(skipSync: true);
-    final coreUnspents = await wallet.listUnspentsCore(skipSync: true);
-    final transactions = await wallet.listTransactions(skipSync: true);
-    final coreTransactions = await wallet.listTransactionsCore(skipSync: true);
+      final unspents = await wallet.listUnspents(skipSync: true);
+      final rawUnspents = await wallet.listUnspentsRaw(skipSync: true);
+      final coreUnspents = await wallet.listUnspentsCore(skipSync: true);
+      final transactions = await wallet.listTransactions(skipSync: true);
+      final rawTransactions = await wallet.listTransactionsRaw(skipSync: true);
+      final coreTransactions = await wallet.listTransactionsCore(
+        skipSync: true,
+      );
 
-    expect(hostApi.lastListUnspentsSkipSync, true);
-    expect(unspents.single.utxo.outpoint, 'txid:0');
-    expect(coreUnspents.single.utxo.outpoint.txid, 'txid');
-    expect(coreUnspents.single.utxo.outpoint.vout, 0);
-    expect(transactions.single.txid, 'btc-txid');
-    expect(hostApi.lastListTransactionsSkipSync, true);
-    expect(coreTransactions.single.transactionType, 'SendBtc');
-  });
+      expect(hostApi.lastListUnspentsSkipSync, true);
+      expect(unspents.single.utxo.outpoint.txid, 'txid');
+      expect(rawUnspents.single.utxo.outpoint, 'txid:0');
+      expect(coreUnspents.single.utxo.outpoint.txid, 'txid');
+      expect(coreUnspents.single.utxo.outpoint.vout, 0);
+      expect(transactions.single.transactionType, 'SendBtc');
+      expect(rawTransactions.single.transactionType, 'SEND_BTC');
+      expect(rawTransactions.single.txid, 'btc-txid');
+      expect(hostApi.lastListTransactionsSkipSync, true);
+      expect(coreTransactions.single.transactionType, 'SendBtc');
+    },
+  );
 
   test('maps RGB asset balance and issuance methods', () async {
     final hostApi = FakeRlnHostApi();
@@ -2895,6 +3399,7 @@ void main() {
     await unlockWallet(wallet);
 
     final balance = await wallet.getAssetBalance('asset');
+    final rawBalance = await wallet.getAssetBalanceRaw('asset');
     final coreBalance = await wallet.getAssetBalanceCore('asset');
     final nia = await wallet.issueAssetNia(
       ticker: 'RGB',
@@ -2912,6 +3417,7 @@ void main() {
     );
     expect(hostApi.lastAssetBalanceId, 'asset');
     expect(balance.offchainInbound, 3);
+    expect(rawBalance.offchainInbound, 3);
     expect(coreBalance.offchainOutbound, 2);
     expect(nia.ticker, 'RGB');
     expect(hostApi.lastIssueAssetNia?['amounts'], const <int>[1000]);
@@ -2921,14 +3427,17 @@ void main() {
     expect(hostApi.lastIssueAssetUda, isNull);
   });
 
-  test('maps Lightning, peer, and channel methods', () async {
+  test('maps Lightning, peer, and channel methods to stable DTOs', () async {
     final hostApi = FakeRlnHostApi();
     final wallet = walletWith(hostApi);
     await unlockWallet(wallet);
 
     final decoded = await wallet.decodeLnInvoice('lnbc-invoice');
+    final rawDecoded = await wallet.decodeLnInvoiceRaw('lnbc-invoice');
     final peers = await wallet.listPeers();
+    final rawPeers = await wallet.listPeersRaw();
     final channels = await wallet.listChannels();
+    final rawChannels = await wallet.listChannelsRaw();
     final lightningChannels = await wallet.listLightningChannels();
     await wallet.connectPeer('peer@127.0.0.1:9735');
     await wallet.disconnectPeer('peer');
@@ -2953,8 +3462,11 @@ void main() {
 
     expect(hostApi.lastDecodeLnInvoice, 'lnbc-invoice');
     expect(decoded.paymentHash, 'payment-hash');
+    expect(rawDecoded.paymentHash, 'payment-hash');
     expect(peers.single.pubkey, 'peer');
+    expect(rawPeers.single.pubkey, 'peer');
     expect(channels.single.channelId, 'channel-id');
+    expect(rawChannels.single.channelId, 'channel-id');
     expect(lightningChannels.single.isPublic, false);
     expect(lightningChannels.single.status, 'Opened');
     expect(lightningChannels.single.localBalanceMsat, 90000000);
@@ -2968,6 +3480,10 @@ void main() {
     expect(channelId, 'channel-id');
     expect(keysend.paymentHash, 'keysend-hash');
     expect(hostApi.lastKeysend?['assetAmount'], 10);
+    expect(
+      (await wallet.keysendRaw(destPubkey: 'peer', amtMsat: 1000)).paymentHash,
+      'keysend-hash',
+    );
   });
 
   test('listOnchainTransfers delegates to RGB transfer listing', () async {
@@ -3002,9 +3518,9 @@ void main() {
       expect(hostApi.lastTransactionTxid, 'btc-txid');
       expect((await wallet.listTransfersByTxid('btc-txid')).single.idx, 1);
       expect(hostApi.lastTransferTxid, 'btc-txid');
-      final signature = await wallet.signMessage('message');
+      final signature = await wallet.signNodeMessage('message');
       expect(signature, 'signed:message');
-      expect(await wallet.verifyMessage('message', signature), true);
+      expect(await wallet.verifyNodeMessage('message', signature), true);
       expect(await wallet.backupNow(), 42);
     },
   );
@@ -3128,11 +3644,19 @@ void main() {
       () => normalizeNetwork('signet_custom'),
       throwsA(isA<ValidationError>()),
     );
+    expect(
+      () => getNetworkVersions('signet_custom'),
+      throwsA(isA<ArgumentError>()),
+    );
     expect(getNetworkDefaults('regtest')?.indexerUrl, 'http://127.0.0.1:3002');
     expect(accountDerivationPath('regtest', false), "m/86'/1'/0'");
     expect(accountDerivationPath('regtest', true), "m/86'/827167'/0'");
     expect(toUnitsNumber('123.4567', 2), 12345);
     expect(fromUnitsNumber(123456000, 6), 123.456);
+    expect(
+      () => toUnitsNumber('9007199254740992', 0),
+      throwsA(isA<ValidationError>()),
+    );
   });
 
   test('signs and verifies RN-core compatible Schnorr messages', () async {
@@ -3143,7 +3667,11 @@ void main() {
     final keys = await deriveKeysFromSeed('regtest', seedHex);
 
     final signature = await signMessage(
-      const SignMessageParams(message: 'hello', seed: seedHex),
+      const SignMessageParams(
+        message: 'hello',
+        seed: seedHex,
+        signingMode: SchnorrSigningMode.experimentalDart,
+      ),
     );
 
     expect(
@@ -3166,21 +3694,106 @@ void main() {
       ),
       isTrue,
     );
+    await expectLater(
+      signMessage(const SignMessageParams(message: 'hello', seed: seedHex)),
+      throwsA(isA<ExperimentalCryptoException>()),
+    );
   });
 
-  test('exports RN-core UTEXO network and bridge helpers', () {
-    final destination = getDestinationAsset(
-      'mainnet',
-      'mainnetLightning',
-      testnetPreset.networkIdMap['mainnet']!.assets.first.assetId,
+  test('serializes core-compatible SDK errors', () {
+    const error = BadRequestError('bad request', statusCode: 400);
+
+    expect(error.code, 'BAD_REQUEST');
+    expect(error.statusCode, 400);
+    expect(error.toJson(), <String, Object?>{
+      'name': 'BadRequestError',
+      'message': 'bad request',
+      'code': 'BAD_REQUEST',
+      'statusCode': 400,
+    });
+    expect(
+      const ValidationError('missing invoice', 'invoice').toJson()['field'],
+      'invoice',
+    );
+  });
+
+  test('public facade and LSP failures use SDK error taxonomy', () async {
+    expect(
+      () => UtexoWallet(
+        config: UtexoWalletConfig(storageDirPath: '/tmp/rgb'),
+        client: RlnClient(hostApi: FakeRlnHostApi()),
+        binding: RLNBinding(client: RlnClient(hostApi: FakeRlnHostApi())),
+      ),
+      throwsA(isA<ConfigurationError>()),
     );
 
-    expect(utexoNetworkMap['mainnet'], 'testnet');
-    expect(getUtxoNetworkConfig('mainnet').networkMap['mainnet'], 'mainnet');
-    expect(destination?.tokenName, 'tUSD');
-    expect(decodeBridgeInvoice('0x7267623a696e766f696365'), 'rgb:invoice');
-    expect(encodeTransferStatus('Finished'), 3);
-    expect(() => encodeTransferStatus('unknown'), throwsArgumentError);
+    expect(
+      const LspError(endpoint: '/pay', status: 503, body: 'down'),
+      isA<RgbSdkException>(),
+    );
+    expect(
+      const LspChannelTimeoutException(assetId: 'asset', elapsedMs: 1),
+      isA<NetworkError>(),
+    );
+    expect(
+      const LspLiquidityTimeoutException(minMsat: 1, elapsedMs: 1),
+      isA<NetworkError>(),
+    );
+    expect(
+      const LspSettlementException(
+        step: 'ln_invoice',
+        status: ReceiveStatuses.failed,
+      ),
+      isA<WalletException>(),
+    );
+    expect(
+      const LspAmountOutOfRangeException(
+        amtMsat: 1,
+        minSendable: 2,
+        maxSendable: 3,
+      ),
+      isA<ValidationError>(),
+    );
+    expect(
+      LspTransportPolicyException(
+        'HTTPS required',
+        uri: Uri.parse('http://example.com'),
+      ),
+      isA<ConfigurationError>(),
+    );
+
+    final wallet = walletWith(FakeRlnHostApi());
+    final lsp = UtexoLsp(
+      wallet: wallet,
+      peer: const LspPeer(
+        baseUrl: 'http://127.0.0.1:3000',
+        peerPubkey: 'lsp-peer',
+        peerHost: '127.0.0.1',
+        peerPort: 9735,
+      ),
+      httpClient: FakeLspClient(),
+    );
+    await expectLater(lsp.waitForChannel(''), throwsA(isA<ValidationError>()));
+    await expectLater(
+      lsp.waitForChannel(
+        'asset',
+        options: WaitOptions(isCancelled: () => true),
+      ),
+      throwsA(isA<OperationCancelledError>()),
+    );
+
+    final client = UtexoLspClient(
+      baseUrl: 'http://127.0.0.1:3000',
+      httpClient: _StaticHttpClient((_) async => http.Response('{}', 200)),
+    );
+    await expectLater(
+      client.getLightningAddressByPubkey(''),
+      throwsA(isA<ValidationError>()),
+    );
+    client.close();
+  });
+
+  test('exports current RN package utility helpers without bridge maps', () {
     expect(getNetworkDefaults('signet')?.proxyEndpoint, contains('utexo.com'));
     expect(UMA_PREFIX, r'$');
     expect(UMA_MAX_USERNAME_LENGTH, 64);

@@ -129,39 +129,12 @@
       "evidenceBucket": "unit_vectors"
     },
     {
-      "id": "signPsbt",
-      "group": "psbt",
-      "support": "unsupported-parity",
-      "fixture": "expected_failure",
-      "contract": "covered",
-      "implementation": "lib/rgb_sdk_flutter.dart::signPsbt",
-      "evidenceBucket": "expected_failure"
-    },
-    {
-      "id": "signPsbtFromSeed",
-      "group": "psbt",
-      "support": "unsupported-parity",
-      "fixture": "expected_failure",
-      "contract": "covered",
-      "implementation": "lib/rgb_sdk_flutter.dart::signPsbtFromSeed",
-      "evidenceBucket": "expected_failure"
-    },
-    {
-      "id": "estimatePsbt",
-      "group": "psbt",
-      "support": "unsupported-parity",
-      "fixture": "expected_failure",
-      "contract": "covered",
-      "implementation": "lib/rgb_sdk_flutter.dart::estimatePsbt",
-      "evidenceBucket": "expected_failure"
-    },
-    {
       "id": "RLNBinding",
       "group": "rln-advanced",
       "support": "supported",
       "fixture": "unit_contract",
       "contract": "covered",
-      "implementation": "lib/rgb_sdk_flutter.dart::RLNBinding",
+      "implementation": "lib/rgb_sdk_flutter_advanced.dart::RLNBinding",
       "evidenceBucket": "unit_contract"
     },
     {
@@ -170,7 +143,7 @@
       "support": "supported",
       "fixture": "unit_contract",
       "contract": "covered",
-      "implementation": "lib/rgb_sdk_flutter.dart::RLNManager",
+      "implementation": "lib/rgb_sdk_flutter_advanced.dart::RLNManager",
       "evidenceBucket": "unit_contract"
     },
     {
@@ -179,16 +152,7 @@
       "support": "supported",
       "fixture": "unit_contract",
       "contract": "covered",
-      "implementation": "lib/rgb_sdk_flutter.dart::createRLNManager",
-      "evidenceBucket": "unit_contract"
-    },
-    {
-      "id": "RNSigner",
-      "group": "rln-advanced",
-      "support": "supported",
-      "fixture": "unit_contract",
-      "contract": "covered",
-      "implementation": "lib/rgb_sdk_flutter.dart::RNSigner",
+      "implementation": "lib/rgb_sdk_flutter_advanced.dart::createRLNManager",
       "evidenceBucket": "unit_contract"
     },
     {
@@ -197,7 +161,7 @@
       "support": "supported",
       "fixture": "unit_contract",
       "contract": "covered",
-      "implementation": "lib/rgb_sdk_flutter.dart::IRLNNodeCreateParams",
+      "implementation": "lib/rgb_sdk_flutter_advanced.dart::IRLNNodeCreateParams",
       "evidenceBucket": "unit_contract"
     },
     {
@@ -206,7 +170,7 @@
       "support": "supported",
       "fixture": "unit_contract",
       "contract": "covered",
-      "implementation": "lib/rgb_sdk_flutter.dart::IRLNUnlockParams",
+      "implementation": "lib/rgb_sdk_flutter_advanced.dart::IRLNUnlockParams",
       "evidenceBucket": "unit_contract"
     },
     {
@@ -215,7 +179,7 @@
       "support": "supported",
       "fixture": "unit_contract",
       "contract": "covered",
-      "implementation": "lib/rgb_sdk_flutter.dart::IRLNExternalSignerBootstrap",
+      "implementation": "lib/rgb_sdk_flutter_advanced.dart::IRLNExternalSignerBootstrap",
       "evidenceBucket": "unit_contract"
     },
     {

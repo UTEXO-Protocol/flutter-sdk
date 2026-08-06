@@ -27,6 +27,28 @@ STEP_DURATIONS=()
 STEP_NOTES=()
 FAILED=0
 
+baseline_value() {
+  local dotted_path="$1"
+  python3 - "${REPO_DIR}/tool/release_baseline.json" "${dotted_path}" <<'PY'
+import json
+import sys
+
+with open(sys.argv[1], encoding="utf-8") as handle:
+    value = json.load(handle)
+
+for segment in sys.argv[2].split("."):
+    value = value[segment]
+
+print(value)
+PY
+}
+
+BASELINE_RN_REPOSITORY="$(baseline_value reactNative.repository)"
+BASELINE_RN_COMMIT="$(baseline_value reactNative.commit)"
+BASELINE_RN_VERSION="$(baseline_value reactNative.version)"
+BASELINE_CORE_VERSION="$(baseline_value core.version)"
+BASELINE_RLN_VERSION="$(baseline_value rln.version)"
+
 json_escape() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
 }
@@ -194,7 +216,12 @@ write_report() {
     echo "  \"evidenceId\": \"$(json_escape "rgb-sdk-flutter/release-candidate/${RUN_ID}/${FULL_COMMIT}/local")\","
     echo "  \"repository\": {\"commit\": \"$(json_escape "${FULL_COMMIT}")\", \"shortCommit\": \"$(json_escape "${SHORT_COMMIT}")\"},"
     echo "  \"workingTree\": {\"dirty\": ${WORKTREE_DIRTY}},"
-    echo "  \"baseline\": {\"file\": \"tool/release_baseline.json\"},"
+    echo "  \"baseline\": {"
+    echo "    \"file\": \"tool/release_baseline.json\","
+    echo "    \"reactNative\": {\"repository\": \"$(json_escape "${BASELINE_RN_REPOSITORY}")\", \"ref\": \"refs/heads/dev\", \"commit\": \"$(json_escape "${BASELINE_RN_COMMIT}")\", \"version\": \"$(json_escape "${BASELINE_RN_VERSION}")\"},"
+    echo "    \"core\": {\"version\": \"$(json_escape "${BASELINE_CORE_VERSION}")\"},"
+    echo "    \"rln\": {\"version\": \"$(json_escape "${BASELINE_RLN_VERSION}")\"}"
+    echo "  },"
     echo "  \"startedAt\": \"${STARTED_AT}\","
     echo "  \"finishedAt\": \"${finished_at}\","
     echo "  \"logPath\": \"$(json_escape "$(repo_label_path "${LOG_FILE}")")\","

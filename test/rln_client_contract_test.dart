@@ -2,7 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:rgb_sdk_flutter/rgb_sdk_flutter.dart';
+import 'package:rgb_sdk_flutter/rgb_sdk_flutter_advanced.dart';
 import 'package:rgb_sdk_flutter/src/pigeon/rln_api.g.dart';
 
 class _RecordedCall {
@@ -800,8 +800,12 @@ class _ThrowingRlnHostApi extends _RecordingRlnHostApi {
   Future<RlnWireResponse> rlnNodeInfo(int nodeId) async {
     throw PlatformException(
       code: 'RlnError',
-      message: 'InvalidRequest: malformed node info request',
-      details: <String, Object?>{'operation': 'rlnNodeInfo'},
+      message: 'native message text can change without changing taxonomy',
+      details: <String, Object?>{
+        'operation': 'rlnNodeInfo',
+        'category': 'invalidRequest',
+        'retryable': false,
+      },
     );
   }
 }
@@ -1647,6 +1651,41 @@ void main() {
           ),
         ),
       );
+    });
+
+    test('maps structured native taxonomy without message heuristics', () {
+      final unsupported = mapNativeBridgeException(
+        PlatformException(
+          code: 'RlnError',
+          message: 'this text intentionally contains conflict and not found',
+          details: <String, Object?>{
+            'operation': 'rlnSendRgb',
+            'category': 'unsupported',
+            'retryable': false,
+            'feature': 'sendRgb.skipSync',
+          },
+        ),
+        operation: 'rlnSendRgb',
+      );
+      expect(
+        unsupported,
+        isA<UnsupportedWalletFeatureException>().having(
+          (error) => error.feature,
+          'feature',
+          'sendRgb.skipSync',
+        ),
+      );
+      expect((unsupported.cause! as NativeBridgeFailure).structured, true);
+
+      final legacy = mapNativeBridgeException(
+        PlatformException(
+          code: 'RlnError',
+          message: 'InvalidRequest: this legacy text must not classify',
+        ),
+        operation: 'rlnNodeInfo',
+      );
+      expect(legacy, isA<RgbNodeError>());
+      expect((legacy.cause! as NativeBridgeFailure).structured, false);
     });
 
     test('rejects malformed native wire responses', () async {

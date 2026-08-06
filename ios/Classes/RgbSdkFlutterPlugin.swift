@@ -26,7 +26,12 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     throw PigeonError(
       code: "unsupported",
       message: "\(operation) is not implemented yet.",
-      details: ["operation": operation, "phase": "rln-parity"]
+      details: bridgeErrorDetails(
+        operation,
+        category: "unsupported",
+        retryable: false,
+        extra: ["phase": "rln-parity", "feature": operation]
+      )
     )
   }
 
@@ -34,7 +39,12 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     throw PigeonError(
       code: "unsupported",
       message: "\(operation) is not implemented yet.",
-      details: ["operation": operation, "phase": "rln-parity"]
+      details: bridgeErrorDetails(
+        operation,
+        category: "unsupported",
+        retryable: false,
+        extra: ["phase": "rln-parity", "feature": operation]
+      )
     )
   }
 
@@ -131,7 +141,11 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     return PigeonError(
       code: errorClassName(error),
       message: errorMessage(error),
-      details: ["operation": operation]
+      details: bridgeErrorDetails(
+        operation,
+        category: nativeErrorCategory(errorClassName(error)),
+        retryable: nativeErrorRetryable(nativeErrorCategory(errorClassName(error)))
+      )
     )
   }
 
@@ -139,7 +153,12 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     return PigeonError(
       code: "invalidArgument",
       message: message,
-      details: ["operation": operation, "field": field]
+      details: bridgeErrorDetails(
+        operation,
+        category: "invalidRequest",
+        retryable: false,
+        extra: ["field": field]
+      )
     )
   }
 
@@ -941,7 +960,12 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     throw PigeonError(
       code: "RlnError",
       message: "rlnBackup is not supported in this version of the RLN node",
-      details: ["operation": "rlnBackup", "phase": "rln-parity"]
+      details: bridgeErrorDetails(
+        "rlnBackup",
+        category: "unsupported",
+        retryable: false,
+        extra: ["phase": "rln-parity", "feature": "rlnBackup"]
+      )
     )
   }
 
@@ -1279,7 +1303,12 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
         throw PigeonError(
           code: "UnsupportedOperationException",
           message: "rlnSendRgb skipSync=true is not supported by the pinned RLN native artifact.",
-          details: ["operation": "rlnSendRgb", "field": "skipSync"]
+          details: bridgeErrorDetails(
+            "rlnSendRgb",
+            category: "unsupported",
+            retryable: false,
+            extra: ["field": "skipSync", "feature": "sendRgb.skipSync"]
+          )
         )
       }
       let witnessData: WitnessData?
@@ -1418,7 +1447,11 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
         throw PigeonError(
           code: "integerOverflow",
           message: "VSS backup version exceeds the Dart Int64 bridge range.",
-          details: ["operation": "rlnVssBackup"]
+          details: bridgeErrorDetails(
+            "rlnVssBackup",
+            category: "invalidRequest",
+            retryable: false
+          )
         )
       }
       return value

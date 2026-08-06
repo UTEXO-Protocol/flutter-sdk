@@ -1,13 +1,13 @@
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rgb_sdk_flutter/rgb_sdk_flutter.dart';
-import 'package:rgb_sdk_flutter/rgb_sdk_flutter_method_channel.dart';
+import 'package:rgb_sdk_flutter/src/native_artifact_provider.dart';
 import 'package:rgb_sdk_flutter/src/pigeon/rln_api.g.dart';
 
 void main() {
   TestWidgetsFlutterBinding.ensureInitialized();
 
-  MethodChannelRgbSdkFlutter platform = MethodChannelRgbSdkFlutter();
+  final reader = NativeArtifactInfoReader();
   final channel = BasicMessageChannel<Object?>(
     'dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.getNativeArtifactInfo',
     RlnHostApi.pigeonChannelCodec,
@@ -37,7 +37,7 @@ void main() {
   });
 
   test('getNativeArtifactInfo', () async {
-    final info = await platform.getNativeArtifactInfo();
+    final info = await reader.getNativeArtifactInfo();
 
     expect(info.platform, 'test');
     expect(info.rlnVersion, RgbSdkFlutter.rlnVersion);

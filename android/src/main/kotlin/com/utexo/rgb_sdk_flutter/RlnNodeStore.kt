@@ -58,9 +58,11 @@ internal object RlnNodeStore {
     fun markInitialized(id: Long) {
         when (val state = getState(id)) {
             NodeLifecycleState.CREATED -> states[id] = NodeLifecycleState.INITIALIZED
-            NodeLifecycleState.INITIALIZED,
+            NodeLifecycleState.INITIALIZED -> Unit
             NodeLifecycleState.UNLOCKED,
-            NodeLifecycleState.SHUTDOWN -> Unit
+            NodeLifecycleState.SHUTDOWN -> throw IllegalStateException(
+                "RLN init is not allowed while node is in state: $state"
+            )
             NodeLifecycleState.UNLOCKING -> throw IllegalStateException(
                 "Cannot initialize RLN node while unlock is in progress"
             )
@@ -106,10 +108,11 @@ internal object RlnNodeStore {
 
     @Synchronized
     fun remove(id: Long) {
-        nodes.remove(id)?.close()
+        val node = nodes.remove(id)
         states.remove(id)
         preUnlockStates.remove(id)
         storageDirByNodeId.remove(id)
+        node?.close()
     }
 
     @Synchronized
@@ -126,17 +129,51 @@ internal object RlnNodeStore {
 
     @Synchronized
     fun removeSigner(id: Long) {
-        signers.remove(id)?.close()
+        val signer = signers.remove(id)
+        signer?.close()
     }
 
     @Synchronized
     fun clearAll() {
-        nodes.values.forEach { it.close() }
-        signers.values.forEach { it.close() }
+        val nodesToClose = nodes.values.toList()
+        val signersToClose = signers.values.toList()
         nodes.clear()
         states.clear()
         preUnlockStates.clear()
         storageDirByNodeId.clear()
         signers.clear()
+        var firstFailure: RuntimeException? = null
+        nodesToClose.forEach { node ->
+            try {
+                node.close()
+            } catch (error: RuntimeException) {
+                firstFailure = firstFailure ?: error
+            }
+        }
+        signersToClose.forEach { signer ->
+            try {
+                signer.close()
+            } catch (error: RuntimeException) {
+                firstFailure = firstFailure ?: error
+            }
+        }
+        firstFailure?.let { throw it }
+    }
+
+    @Synchronized
+    fun snapshot(): RlnNodeStoreSnapshot {
+        return RlnNodeStoreSnapshot(
+            nodeCount = nodes.size,
+            signerCount = signers.size,
+            states = states.toMap(),
+            storageDirByNodeId = storageDirByNodeId.toMap()
+        )
     }
 }
+
+internal data class RlnNodeStoreSnapshot(
+    val nodeCount: Int,
+    val signerCount: Int,
+    val states: Map<Long, RlnNodeStore.NodeLifecycleState>,
+    val storageDirByNodeId: Map<Long, String>
+)

@@ -414,8 +414,8 @@ Future<String> _waitForUsableChannelPair({
   required String devicePeerPubkey,
   required String hostPeerPubkey,
 }) async {
-  var lastDevice = const <RlnChannel>[];
-  var lastHost = const <RlnChannel>[];
+  var lastDevice = const <LightningChannel>[];
+  var lastHost = const <LightningChannel>[];
   for (var attempt = 0; attempt < 120; attempt++) {
     lastDevice = await device.listChannels();
     lastHost = await host.listChannels();
@@ -444,8 +444,8 @@ Future<String> _waitForUsableChannelPair({
   );
 }
 
-RlnChannel? _usableVirtualChannel(
-  List<RlnChannel> channels,
+LightningChannel? _usableVirtualChannel(
+  List<LightningChannel> channels,
   String peerPubkey, {
   required bool requireVirtualMode,
 }) {
@@ -465,7 +465,7 @@ RlnChannel? _usableVirtualChannel(
   return null;
 }
 
-String _channelSummary(List<RlnChannel> channels) {
+String _channelSummary(List<LightningChannel> channels) {
   return channels
       .map(
         (channel) =>

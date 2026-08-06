@@ -105,12 +105,11 @@ NetworkVersions getNetworkVersions(Object bitcoinNetwork) {
 Network toNetworkName(Object bitcoinNetwork) {
   final exact = NETWORK_MAP[bitcoinNetwork.toString()];
   if (exact != null) return exact;
-  final normalized = bitcoinNetwork.toString().toLowerCase();
-  if (normalized.contains('main')) return 'mainnet';
-  if (normalized.contains('reg')) return 'regtest';
-  if (normalized.contains('sig')) return 'signet';
-  if (normalized.contains('testnet4')) return 'testnet4';
-  return 'testnet';
+  throw ArgumentError.value(
+    bitcoinNetwork,
+    'bitcoinNetwork',
+    'Must be one of: ${NETWORK_MAP.keys.join(', ')}',
+  );
 }
 
 String accountDerivationPath(Object bitcoinNetwork, bool rgb) {

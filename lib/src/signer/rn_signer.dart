@@ -28,12 +28,15 @@ class RNSigner {
     required Object message,
     required Object seed,
     Network network = DEFAULT_NETWORK,
+    message_crypto.SchnorrSigningMode signingMode =
+        message_crypto.SchnorrSigningMode.disabled,
   }) {
     return message_crypto.signMessage(
       message_crypto.SignMessageParams(
         message: message,
         seed: seed,
         network: network,
+        signingMode: signingMode,
       ),
     );
   }

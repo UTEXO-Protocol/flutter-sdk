@@ -42,9 +42,11 @@ The current `releaseTier` is `internal-beta`. That means:
   testing;
 - `dart run tool/validate_supply_chain.dart` must pass and attach an SBOM-style
   dependency inventory, license-file inventory, ABI-symbol checks, and artifact
-  provenance status to local release evidence;
+  provenance status from `tool/native_artifact_provenance.json` to local
+  release evidence;
 - `dart run tool/validate_supply_chain.dart --production` must fail until
-  upstream artifact signatures and reproducible-build attestations are present.
+  every native artifact has a verified upstream signature and a
+  reproducible-build/source attestation.
 
 iOS artifacts are downloaded by the pod `prepare_command` and verified before
 reuse. The downloader supports three deterministic acquisition modes:
@@ -58,13 +60,21 @@ reuse. The downloader supports three deterministic acquisition modes:
 Android artifacts resolve through Gradle/Maven and must be checked against the
 pinned hash before candidate evidence is accepted.
 
+The current provenance manifest records the live upstream status for the pinned
+RLN `0.10.0-beta.3` artifact set:
+
+| Artifact | Signature status | Attestation status | Production effect |
+| --- | --- | --- | --- |
+| iOS Swift archive | No detached signature asset is published with the GitHub release | No SLSA/provenance/SBOM attestation is published with the release asset | Blocks production |
+| Android Maven AAR | Maven Central publishes `.asc` for the AAR, but this SDK has no pinned trusted signing key verification result | No reproducible-build attestation tying the AAR to source, builder identity, and build inputs is published | Blocks production |
+
 Production supply-chain mode is intentionally fail-closed today. Checksums,
 source pins, dependency SBOM, license classification, OSV checks, ABI markers,
-and slice metadata are present, but upstream artifact signatures and
-reproducible-build attestations are not available for the pinned RLN release.
-Do not change `releaseTier` out of `internal-beta` until those upstream
-provenance artifacts exist and `dart run tool/validate_supply_chain.dart
---production` passes.
+and slice metadata are present, but upstream provenance is incomplete for the
+pinned RLN release. Do not change `releaseTier` out of `internal-beta` until
+the manifest records verified signatures and reproducible-build/source
+attestations for every native artifact and `dart run
+tool/validate_supply_chain.dart --production` passes.
 
 ## Artifact Upgrade Procedure
 
@@ -74,15 +84,20 @@ When RN/core/RLN changes, update artifacts in this order:
    RLN tag/commit/version, archive URLs, archive sizes, SHA-256 digests,
    iOS installed-file digests, iOS object minimum, slices, Android ABI set, and
    toolchain requirements.
-2. Run `dart run tool/generate_release_baseline.dart`, then `dart format` on
+2. Update `tool/native_artifact_provenance.json` with signature URLs,
+   signature digests, trusted signing-key verification results,
+   attestation URLs/digests, and reproducible-build evidence for the same
+   artifact bytes. Do not mark a signature or attestation `verified` unless it
+   was checked against pinned trusted identity and source metadata.
+3. Run `dart run tool/generate_release_baseline.dart`, then `dart format` on
    generated Dart files.
-3. Run `tool/download_rln_ios.sh` and `tool/verify_native_artifacts.sh
+4. Run `tool/download_rln_ios.sh` and `tool/verify_native_artifacts.sh
    --require-android` from a clean or explicitly prepared cache.
-4. Run `pod ipc spec ios/rgb_sdk_flutter.podspec` and confirm the platform,
+5. Run `pod ipc spec ios/rgb_sdk_flutter.podspec` and confirm the platform,
    license, privacy bundle, source files, and deployment-target xconfigs match
    the baseline.
-5. Run the clean consumer matrix with archives enabled on macOS.
-6. Update this tracker with the exact evidence paths and keep any new
+6. Run the clean consumer matrix with archives enabled on macOS.
+7. Update this tracker with the exact evidence paths and keep any new
    upstream mismatch open until it has executable proof.
 
 ## Clean Consumer Matrix

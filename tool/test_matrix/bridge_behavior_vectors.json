@@ -1,6 +1,6 @@
 {
   "schemaVersion": 1,
-  "description": "Release-candidate bridge behavior policy. Family rows apply to every rln_methods.json row with the same group; critical methods add method-specific vectors for APIs that were changed or previously missing during the beta.26 parity catch-up.",
+  "description": "Release-candidate bridge behavior policy. Family rows apply to every rln_methods.json row with the same group; critical methods add method-specific vectors for APIs that were changed or previously missing during the beta.26/beta.27 parity catch-up.",
   "numericPolicy": {
     "inputRange": "Pigeon request integers are signed 64-bit: 0..9223372036854775807 for native UInt64 fields, with narrower UInt32/UInt16/UInt8 fields rejected before native mutation.",
     "largeOutputEncoding": "Native UInt64/UInt values greater than Int64.max are serialized as decimal strings by Swift/Kotlin. Public Dart models use signed int only for fields whose release fixtures and domain contracts fit signed 64-bit values; native unsigned capability fields that may exceed signed 64-bit use exact domain types such as BigInt. Decoders must reject values outside the declared field range instead of fabricating zero/null or clamping.",

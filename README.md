@@ -10,15 +10,15 @@ RGB Lightning Node native artifacts.
 The current source/static parity pass compares this repository with:
 
 - `UTEXO-Protocol/rgb-sdk-rn` `dev` at
-  `d5916c142077b501ffb86d028c457a9c21b60d59`
-- `@utexo/rgb-sdk-rn` `1.0.0-beta.26`
-- `@utexo/rgb-sdk-core` `1.0.0-beta.6`
+  `63cbf9a01030a8a10eb1b04b2734cd8c5d23aec1`
+- `@utexo/rgb-sdk-rn` `1.0.0-beta.27`
+- `@utexo/rgb-sdk-core` `1.0.0-beta.7`
 - RGB Lightning Node `0.10.0-beta.3`
 
-The bridge and native artifact baseline now target those exact versions. The
-SDK still has confirmed API, model, threading, lifecycle, packaging, security,
-and test-evidence gaps, so baseline alignment must not be mistaken for release
-readiness.
+The source baseline now targets those exact versions, and the pinned native
+artifact remains unchanged from the RN package. The SDK still has confirmed
+packaging, code-quality, supply-chain, and exact runtime evidence gaps, so
+baseline alignment must not be mistaken for release readiness.
 
 The authoritative verdict and issue ledger are in the
 [Release Readiness Tracker](doc/RELEASE_READINESS_TRACKER.md). Do not infer
@@ -27,15 +27,20 @@ artifact checks, or the presence of an advanced/raw bridge method.
 
 ## Intended Architecture
 
-The package currently exposes:
+The package exposes two Dart entrypoints:
 
-- `UtexoWallet`: app-facing wallet facade.
-- `RlnClient`: low-level Pigeon bridge.
-- `RLNBinding` and `RLNManager`: RN-style advanced lifecycle wrappers.
-- `PasswordRlnSigner` and `NativeExternalRlnSigner`: signer strategies.
+- `package:rgb_sdk_flutter/rgb_sdk_flutter.dart`: stable app-facing wallet,
+  domain DTOs, signer strategies, errors, validation, and crypto helpers.
+- `package:rgb_sdk_flutter/rgb_sdk_flutter_advanced.dart`: explicit
+  RN/native-parity surface for `RlnClient`, `RLNBinding`, `RLNManager`, raw
+  `Rln*` models, native bridge diagnostics, logger access, and migration tests.
 
-This public surface is under review. Raw bridge types, compatibility exports,
-and unsupported methods are not yet a stable API.
+App code should start with the stable root import. Advanced imports are for
+release evidence, diagnostics, and deliberate native/RN escape hatches only.
+Standalone account-key Schnorr signing is disabled by default and requires an
+explicit `SchnorrSigningMode.experimentalDart` opt-in for parity tests/internal
+tooling; production message signing should use the native RLN-backed wallet
+node-key methods.
 
 ## Development Install
 
@@ -101,12 +106,13 @@ flutter analyze
 flutter test --coverage
 dart run tool/validate_coverage_policy.dart
 dart run tool/validate_test_matrix.dart
-RGB_SDK_RN_PATH=<current-rn-checkout> \
+RGB_SDK_RN_PATH=<current-rn-dev-checkout> \
   dart run tool/validate_rn_parity.dart
 ```
 
 The current RN parity command is expected to pass for static method/export
-inventory. It is not behavioral runtime evidence.
+inventory only when the local checkout and live upstream `origin/dev` both
+match `tool/release_baseline.json`. It is not behavioral runtime evidence.
 
 Native builds, iOS XCTest, and funded/unfunded regtest smokes are intentionally
 local-only release gates. A release report must fail when any required local

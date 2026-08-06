@@ -70,12 +70,13 @@ void _compareSection(
 }
 
 Map<String, Object?> _buildSnapshot() {
-  final exportedFiles = _exportedDartFiles();
+  final exportedFiles = _exportedDartDirectives();
   final nativeFiles = <String>[
     'android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPlugin.kt',
     'android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnNodeStore.kt',
     'android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnStorageDirectoryPolicy.kt',
     'ios/Classes/RgbSdkFlutterPlugin.swift',
+    'ios/Classes/RlnBridgeErrorDetails.swift',
     'ios/Classes/RlnNodeStore.swift',
     'ios/Classes/RlnStorageDirectoryPolicy.swift',
   ];
@@ -89,14 +90,21 @@ Map<String, Object?> _buildSnapshot() {
     'schemaVersion': 1,
     'description':
         'Normalized public API and bridge snapshot. Update only with a tracker row and migration note.',
-    'dartExportedSurface': _surface(exportedFiles),
+    'dartExportedSurface': _surface(
+      exportedFiles.keys.toList(growable: false),
+      dartExports: exportedFiles,
+    ),
     'pigeonSchema': _surface(<String>['pigeons/rln_api.dart']),
     'generatedPigeonSurface': _surface(generatedPigeonFiles),
     'nativeBridgeSurface': _surface(nativeFiles),
   };
 }
 
-Map<String, Object?> _surface(List<String> files) {
+Map<String, Object?> _surface(
+  List<String> files, {
+  Map<String, _ExportDirective> dartExports =
+      const <String, _ExportDirective>{},
+}) {
   final entries = <String>[];
   for (final path in files) {
     final file = File(path);
@@ -104,7 +112,13 @@ Map<String, Object?> _surface(List<String> files) {
       throw StateError('Snapshot source does not exist: $path');
     }
     entries.add('### $path');
-    entries.addAll(_normalizedPublicLines(path, file.readAsLinesSync()));
+    entries.addAll(
+      _normalizedPublicLines(
+        path,
+        file.readAsLinesSync(),
+        dartExport: dartExports[path],
+      ),
+    );
   }
   final normalized = entries.join('\n');
   return <String, Object?>{
@@ -114,20 +128,52 @@ Map<String, Object?> _surface(List<String> files) {
   };
 }
 
-List<String> _exportedDartFiles() {
-  final entrypoint = File('lib/rgb_sdk_flutter.dart');
-  final files = <String>['lib/rgb_sdk_flutter.dart'];
-  final exportPattern = RegExp(r"export '([^']+)';");
-  for (final line in entrypoint.readAsLinesSync()) {
-    final match = exportPattern.firstMatch(line);
-    if (match == null) continue;
-    files.add('lib/${match.group(1)!}');
+Map<String, _ExportDirective> _exportedDartDirectives() {
+  const entrypoints = <String>[
+    'lib/rgb_sdk_flutter.dart',
+    'lib/rgb_sdk_flutter_advanced.dart',
+  ];
+  final files = <String, _ExportDirective>{};
+  final exportPattern = RegExp(r"export '([^']+)'([^;]*);");
+  for (final entrypointPath in entrypoints) {
+    final entrypoint = File(entrypointPath);
+    for (final path in _dartLibraryFiles(entrypointPath)) {
+      files[path] = const _ExportDirective();
+    }
+    for (final line in entrypoint.readAsLinesSync()) {
+      final match = exportPattern.firstMatch(line);
+      if (match == null) continue;
+      final directive = _ExportDirective(
+        show: _symbolsFromCombinator(match.group(2)!, 'show'),
+        hide: _symbolsFromCombinator(match.group(2)!, 'hide'),
+      );
+      for (final path in _dartLibraryFiles('lib/${match.group(1)!}')) {
+        files[path] = directive;
+      }
+    }
   }
-  files.sort();
-  return files;
+  return Map<String, _ExportDirective>.fromEntries(
+    files.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
+  );
 }
 
-List<String> _normalizedPublicLines(String path, List<String> lines) {
+List<String> _dartLibraryFiles(String path) {
+  final file = File(path);
+  if (!file.existsSync()) return <String>[path];
+  final directory = file.parent.path == '.' ? '' : '${file.parent.path}/';
+  final partPattern = RegExp(r"part '([^']+)';");
+  final parts = partPattern
+      .allMatches(file.readAsStringSync())
+      .map((match) => '$directory${match.group(1)!}')
+      .toList(growable: false);
+  return <String>[path, ...parts];
+}
+
+List<String> _normalizedPublicLines(
+  String path,
+  List<String> lines, {
+  _ExportDirective? dartExport,
+}) {
   final output = <String>[];
   var inBlockComment = false;
   for (final original in lines) {
@@ -147,7 +193,10 @@ List<String> _normalizedPublicLines(String path, List<String> lines) {
     if (line.startsWith('@') && !line.startsWith('@HostApi')) continue;
 
     if (path.endsWith('.dart')) {
-      if (_isDartPublicSurfaceLine(line)) output.add(line);
+      if (_isDartPublicSurfaceLine(line) &&
+          _isDartSymbolExported(line, dartExport)) {
+        output.add(line);
+      }
       continue;
     }
     if (path.endsWith('.kt')) {
@@ -161,6 +210,39 @@ List<String> _normalizedPublicLines(String path, List<String> lines) {
     output.add(line);
   }
   return output;
+}
+
+bool _isDartSymbolExported(String line, _ExportDirective? directive) {
+  if (directive == null) return true;
+  final symbol = _dartSymbolName(line);
+  if (symbol == null) return true;
+  final show = directive.show;
+  final hide = directive.hide ?? const <String>{};
+  return (show == null || show.contains(symbol)) && !hide.contains(symbol);
+}
+
+String? _dartSymbolName(String line) {
+  if (line.startsWith('export ')) return null;
+  final declaration = RegExp(
+    r'^(?:abstract\s+final\s+class|abstract\s+interface\s+class|'
+    r'abstract\s+class|sealed\s+class|class|enum|extension|typedef|mixin)\s+'
+    r'([A-Za-z_][A-Za-z0-9_]*)',
+  ).firstMatch(line);
+  if (declaration != null) return declaration.group(1);
+
+  final variable = RegExp(
+    r'^(?:const|final|static const|static final)\s+'
+    r'(?:[A-Za-z_][A-Za-z0-9_<>, ?]*\s+)?'
+    r'([A-Za-z_][A-Za-z0-9_]*)\s*[=({]',
+  ).firstMatch(line);
+  if (variable != null) return variable.group(1);
+
+  final member = RegExp(
+    r'^(?:Future<[^>]+>|Future|Stream<[^>]+>|'
+    r'[A-Z][A-Za-z0-9_<>, ?]*|bool|int|double|String|void)\s+'
+    r'([A-Za-z_][A-Za-z0-9_]*)[({=]',
+  ).firstMatch(line);
+  return member?.group(1);
 }
 
 bool _isDartPublicSurfaceLine(String line) {
@@ -205,4 +287,24 @@ bool _isSwiftPublicSurfaceLine(String line) {
       line.startsWith('static func ') ||
       line.startsWith('let ') ||
       line.startsWith('var ');
+}
+
+Set<String>? _symbolsFromCombinator(String source, String keyword) {
+  final match = RegExp('(?:^|\\s)$keyword\\s+([^;]+)').firstMatch(source);
+  if (match == null) return null;
+  final raw = match.group(1)!;
+  final stop = RegExp(r'\s(?:show|hide)\s').firstMatch(raw);
+  final values = stop == null ? raw : raw.substring(0, stop.start);
+  return values
+      .split(',')
+      .map((value) => value.trim())
+      .where((value) => value.isNotEmpty)
+      .toSet();
+}
+
+class _ExportDirective {
+  const _ExportDirective({this.show, this.hide});
+
+  final Set<String>? show;
+  final Set<String>? hide;
 }

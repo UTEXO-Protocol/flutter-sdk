@@ -364,6 +364,93 @@ final class RunnerTests: XCTestCase {
     }
   }
 
+  func testNodeStoreRejectsDuplicateActiveStorageAndReusesShutdownPath() throws {
+    let path = uniquePath("native-store-reuse")
+    let firstNode = CloseTrackingSdkNode()
+    let duplicateNode = CloseTrackingSdkNode()
+    let replacementNode = CloseTrackingSdkNode()
+    var nodeId: Int64?
+    defer {
+      if let nodeId {
+        RlnNodeStore.shared.remove(id: nodeId)
+      }
+    }
+
+    let firstId = try RlnNodeStore.shared.create(node: firstNode, storageDirPath: path)
+    nodeId = firstId
+    XCTAssertIdentical(firstNode, try RlnNodeStore.shared.get(id: firstId))
+    XCTAssertEqual(try RlnNodeStore.shared.getState(id: firstId), .created)
+
+    XCTAssertThrowsError(
+      try RlnNodeStore.shared.create(node: duplicateNode, storageDirPath: path)
+    ) { error in
+      guard case RlnStoreError.nodeAlreadyExists = error else {
+        XCTFail("Expected nodeAlreadyExists, got \(type(of: error)): \(error)")
+        return
+      }
+    }
+    XCTAssertEqual(duplicateNode.shutdownCount, 0)
+
+    RlnNodeStore.shared.markShutdown(id: firstId)
+    let reusedId = try RlnNodeStore.shared.create(node: replacementNode, storageDirPath: path)
+    XCTAssertEqual(reusedId, firstId)
+    XCTAssertIdentical(replacementNode, try RlnNodeStore.shared.get(id: reusedId))
+    XCTAssertEqual(try RlnNodeStore.shared.getState(id: reusedId), .created)
+    XCTAssertEqual(firstNode.shutdownCount, 1)
+
+    let snapshot = RlnNodeStore.shared.snapshot()
+    XCTAssertEqual(snapshot.nodeCount, 1)
+    XCTAssertEqual(snapshot.storageDirByNodeId[reusedId], path)
+  }
+
+  func testNodeStoreLifecycleAndFinalCleanupState() throws {
+    let node = CloseTrackingSdkNode()
+    let nodeId = try RlnNodeStore.shared.create(
+      node: node,
+      storageDirPath: uniquePath("native-store-lifecycle")
+    )
+
+    XCTAssertEqual(try RlnNodeStore.shared.beginUnlock(id: nodeId), .unlocking)
+    RlnNodeStore.shared.rollbackUnlock(id: nodeId)
+    XCTAssertEqual(try RlnNodeStore.shared.getState(id: nodeId), .created)
+
+    try RlnNodeStore.shared.markInitialized(id: nodeId)
+    XCTAssertEqual(try RlnNodeStore.shared.getState(id: nodeId), .initialized)
+
+    XCTAssertEqual(try RlnNodeStore.shared.beginUnlock(id: nodeId), .unlocking)
+    RlnNodeStore.shared.markUnlocked(id: nodeId)
+    XCTAssertEqual(try RlnNodeStore.shared.getState(id: nodeId), .unlocked)
+    XCTAssertThrowsError(try RlnNodeStore.shared.markInitialized(id: nodeId))
+
+    RlnNodeStore.shared.markShutdown(id: nodeId)
+    XCTAssertEqual(try RlnNodeStore.shared.getState(id: nodeId), .shutdown)
+    XCTAssertThrowsError(try RlnNodeStore.shared.markInitialized(id: nodeId))
+
+    RlnNodeStore.shared.remove(id: nodeId)
+    XCTAssertThrowsError(try RlnNodeStore.shared.get(id: nodeId))
+    XCTAssertEqual(RlnNodeStore.shared.snapshot().nodeCount, 0)
+    XCTAssertEqual(node.shutdownCount, 0)
+  }
+
+  func testNodeStoreClearAllRemovesNodesAndSigners() throws {
+    let node = CloseTrackingSdkNode()
+    let signer = NativeExternalSigner(noPointer: NativeExternalSigner.NoPointer())
+    let nodeId = try RlnNodeStore.shared.create(
+      node: node,
+      storageDirPath: uniquePath("native-store-clear")
+    )
+    let signerId = RlnNodeStore.shared.createSigner(signer)
+
+    RlnNodeStore.shared.clearAll()
+
+    let snapshot = RlnNodeStore.shared.snapshot()
+    XCTAssertEqual(snapshot.nodeCount, 0)
+    XCTAssertEqual(snapshot.signerCount, 0)
+    XCTAssertEqual(node.shutdownCount, 1)
+    XCTAssertThrowsError(try RlnNodeStore.shared.get(id: nodeId))
+    XCTAssertThrowsError(try RlnNodeStore.shared.getSigner(id: signerId))
+  }
+
   private func assertInvalidArgument(
     _ error: Error,
     operation: String = "rlnCreateNode",
@@ -395,5 +482,21 @@ final class RunnerTests: XCTestCase {
 
   private func uniquePath(_ label: String) -> String {
     "/tmp/rgb-sdk-flutter-native-test-\(label)-\(UUID().uuidString)"
+  }
+}
+
+private final class CloseTrackingSdkNode: SdkNode {
+  private(set) var shutdownCount = 0
+
+  init() {
+    super.init(noPointer: SdkNode.NoPointer())
+  }
+
+  required init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+    super.init(unsafeFromRawPointer: pointer)
+  }
+
+  override func shutdown() {
+    shutdownCount += 1
   }
 }

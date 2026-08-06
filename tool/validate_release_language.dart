@@ -1,3 +1,4 @@
+import 'dart:convert';
 import 'dart:io';
 
 const _baselinePath = 'tool/release_baseline.json';
@@ -12,7 +13,8 @@ final _forbiddenPatterns = <RegExp>[
 
 void main() {
   final failures = <String>[];
-  final baseline = File(_baselinePath).readAsStringSync();
+  final baselineText = File(_baselinePath).readAsStringSync();
+  final baseline = _readBaseline(baselineText);
 
   for (final path in _trackedTextFiles()) {
     if (_isExcluded(path)) continue;
@@ -33,10 +35,10 @@ void main() {
 
   final readme = File('README.md').readAsStringSync();
   for (final expected in <String>[
-    'd5916c142077b501ffb86d028c457a9c21b60d59',
-    '@utexo/rgb-sdk-rn` `1.0.0-beta.26`',
-    '@utexo/rgb-sdk-core` `1.0.0-beta.6`',
-    'RGB Lightning Node `0.10.0-beta.3`',
+    baseline.reactNativeCommit,
+    '@utexo/rgb-sdk-rn` `${baseline.reactNativeVersion}`',
+    '@utexo/rgb-sdk-core` `${baseline.coreVersion}`',
+    'RGB Lightning Node `${baseline.rlnVersion}`',
     'Not production ready',
   ]) {
     if (!readme.contains(expected)) {
@@ -44,9 +46,9 @@ void main() {
     }
   }
 
-  if (!baseline.contains('"reactNative"') ||
-      !baseline.contains('"core"') ||
-      !baseline.contains('"rln"')) {
+  if (!baselineText.contains('"reactNative"') ||
+      !baselineText.contains('"core"') ||
+      !baselineText.contains('"rln"')) {
     failures.add('$_baselinePath must remain the machine baseline for claims.');
   }
 
@@ -59,6 +61,48 @@ void main() {
   }
 
   stdout.writeln('Release language validation passed.');
+}
+
+_Baseline _readBaseline(String text) {
+  final decoded = jsonDecode(text);
+  if (decoded is! Map<String, Object?>) {
+    throw const FormatException('release_baseline.json must be an object.');
+  }
+  final rn = _object(decoded, 'reactNative');
+  final core = _object(decoded, 'core');
+  final rln = _object(decoded, 'rln');
+  return _Baseline(
+    reactNativeCommit: _string(rn, 'commit'),
+    reactNativeVersion: _string(rn, 'version'),
+    coreVersion: _string(core, 'version'),
+    rlnVersion: _string(rln, 'version'),
+  );
+}
+
+Map<String, Object?> _object(Map<String, Object?> source, String key) {
+  final value = source[key];
+  if (value is Map<String, Object?>) return value;
+  throw FormatException('$_baselinePath/$key must be an object.');
+}
+
+String _string(Map<String, Object?> source, String key) {
+  final value = source[key];
+  if (value is String && value.isNotEmpty) return value;
+  throw FormatException('$_baselinePath/$key must be a non-empty string.');
+}
+
+final class _Baseline {
+  const _Baseline({
+    required this.reactNativeCommit,
+    required this.reactNativeVersion,
+    required this.coreVersion,
+    required this.rlnVersion,
+  });
+
+  final String reactNativeCommit;
+  final String reactNativeVersion;
+  final String coreVersion;
+  final String rlnVersion;
 }
 
 bool _isAllowedNegativeClaim(String line) {

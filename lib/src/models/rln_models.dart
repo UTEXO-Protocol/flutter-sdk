@@ -328,21 +328,41 @@ class RlnNodeInfo {
   final String pubkey;
   final int numChannels;
   final int numUsableChannels;
+
+  /// Local channel balance in sats.
   final int localBalanceSat;
+
+  /// Eventual close fees in sats.
   final int? eventualCloseFeesSat;
+
+  /// Pending outbound payment total in sats.
   final int? pendingOutboundPaymentsSat;
   final int numPeers;
   final String? accountXpubVanilla;
   final String? accountXpubColored;
   final int? maxMediaUploadSizeMb;
+
+  /// Minimum RGB HTLC value in millisats.
   final int? rgbHtlcMinMsat;
+
+  /// Minimum RGB channel capacity in sats.
   final int? rgbChannelCapacityMinSat;
+
+  /// Minimum channel capacity in sats.
   final int? channelCapacityMinSat;
+
+  /// Maximum channel capacity in sats.
   final int? channelCapacityMaxSat;
+
+  /// Minimum channel RGB asset amount in the asset's smallest unit.
   final int? channelAssetMinAmount;
+
+  /// Maximum channel RGB asset amount in the asset's smallest unit.
   final BigInt? channelAssetMaxAmount;
   final int? networkNodes;
   final int? networkChannels;
+
+  /// Latest RGS snapshot Unix timestamp in seconds.
   final int? latestRgsSnapshotTimestamp;
 }
 
@@ -377,8 +397,16 @@ class RlnBalance {
     );
   }
 
+  /// Settled balance. Bitcoin balances are sats; RGB balances are asset
+  /// smallest units according to precision.
   final int settled;
+
+  /// Pending/future balance. Bitcoin balances are sats; RGB balances are asset
+  /// smallest units according to precision.
   final int future;
+
+  /// Spendable balance. Bitcoin balances are sats; RGB balances are asset
+  /// smallest units according to precision.
   final int spendable;
 }
 
@@ -421,7 +449,10 @@ class RlnAssetBalance extends RlnBalance {
     );
   }
 
+  /// Off-chain outbound RGB amount in the asset's smallest unit.
   final int offchainOutbound;
+
+  /// Off-chain inbound RGB amount in the asset's smallest unit.
   final int offchainInbound;
 }
 
@@ -518,7 +549,11 @@ sealed class RlnAsset {
   final String name;
   final String? details;
   final int precision;
+
+  /// Asset issuance Unix timestamp in seconds.
   final int timestamp;
+
+  /// Asset wallet-addition Unix timestamp in seconds.
   final int addedAt;
   final RlnAssetBalance balance;
 }
@@ -831,7 +866,10 @@ class RlnBlockTime {
     );
   }
 
+  /// Confirmation height.
   final int height;
+
+  /// Block Unix timestamp in seconds.
   final int timestamp;
 }
 
@@ -863,8 +901,14 @@ class RlnTransaction {
 
   final String transactionType;
   final String txid;
+
+  /// Received Bitcoin amount in sats.
   final int received;
+
+  /// Sent Bitcoin amount in sats.
   final int sent;
+
+  /// Transaction fee in sats.
   final int fee;
   final RlnBlockTime? confirmationTime;
 }
@@ -942,7 +986,11 @@ class RlnTransfer {
   }
 
   final int idx;
+
+  /// Transfer creation Unix timestamp in seconds.
   final int? createdAt;
+
+  /// Transfer update Unix timestamp in seconds.
   final int? updatedAt;
   final String status;
   final String? requestedAssignment;
@@ -952,6 +1000,8 @@ class RlnTransfer {
   final String? recipientId;
   final String? receiveUtxo;
   final String? changeUtxo;
+
+  /// Transfer expiration Unix timestamp in seconds.
   final int? expiration;
   final List<RlnTransferTransportEndpoint> transportEndpoints;
   final int? batchTransferIdx;
@@ -1053,10 +1103,18 @@ class RlnDecodedLnInvoice {
     );
   }
 
+  /// Lightning invoice amount in millisats.
   final int? amtMsat;
+
+  /// Lightning invoice expiry duration in seconds.
   final int expirySec;
+
+  /// Lightning invoice creation Unix timestamp in seconds.
   final int timestamp;
+
   final String? assetId;
+
+  /// RGB asset amount in the asset's smallest unit.
   final int? assetAmount;
   final String paymentHash;
   final String paymentSecret;
@@ -1141,13 +1199,20 @@ class RlnPayment {
     );
   }
 
+  /// Lightning payment amount in millisats.
   final int? amtMsat;
+
+  /// RGB asset amount in the asset's smallest unit.
   final int? assetAmount;
   final String? assetId;
   final String paymentHash;
   final String? paymentType;
   final String? status;
+
+  /// Payment creation Unix timestamp in seconds.
   final int createdAt;
+
+  /// Payment update Unix timestamp in seconds.
   final int updatedAt;
   final String? payeePubkey;
   final String? preimage;
@@ -1209,11 +1274,23 @@ class RlnChannel {
   final String peerPubkey;
   final String? status;
   final bool ready;
+
+  /// Channel capacity in sats.
   final int capacitySat;
+
+  /// Local channel balance in sats from the native RLN model.
   final int? localBalanceSat;
+
+  /// Outbound Lightning balance in millisats.
   final int? outboundBalanceMsat;
+
+  /// Inbound Lightning balance in millisats.
   final int? inboundBalanceMsat;
+
+  /// Next outbound HTLC maximum in millisats.
   final int? nextOutboundHtlcLimitMsat;
+
+  /// Next outbound HTLC minimum in millisats.
   final int? nextOutboundHtlcMinimumMsat;
   final bool? isUsable;
   final bool public;
@@ -1221,7 +1298,11 @@ class RlnChannel {
   final String? peerAlias;
   final int? shortChannelId;
   final String? assetId;
+
+  /// Local RGB asset amount in the asset's smallest unit.
   final int? assetLocalAmount;
+
+  /// Remote RGB asset amount in the asset's smallest unit.
   final int? assetRemoteAmount;
   final String? virtualOpenMode;
 }

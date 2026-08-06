@@ -10,16 +10,30 @@ import 'constants.dart';
 import 'keys.dart';
 import 'validation.dart';
 
+/// Security posture for standalone account-key Schnorr signing.
+enum SchnorrSigningMode {
+  /// Do not sign with the package's pure-Dart BIP340 implementation.
+  disabled,
+
+  /// Use the package's pure-Dart implementation for parity/testing only.
+  ///
+  /// This mode is not audited, not proven constant-time, and must not be used
+  /// for production funds. Wallet node-message signing uses native RLN instead.
+  experimentalDart,
+}
+
 class SignMessageParams {
   const SignMessageParams({
     required this.message,
     required this.seed,
     this.network = DEFAULT_NETWORK,
+    this.signingMode = SchnorrSigningMode.disabled,
   });
 
   final Object message;
   final Object seed;
   final Network network;
+  final SchnorrSigningMode signingMode;
 }
 
 class VerifyMessageParams {
@@ -123,7 +137,9 @@ Uint8List signSchnorr(
   Uint8List message,
   Uint8List privateKey, {
   Uint8List? auxRand,
+  SchnorrSigningMode signingMode = SchnorrSigningMode.disabled,
 }) {
+  _requireExperimentalDartSigning(signingMode);
   final d0 = _bytesToInt(privateKey);
   if (d0 <= BigInt.zero || d0 >= _n) {
     throw const ValidationError('Invalid private key', 'privateKey');
@@ -166,6 +182,17 @@ Uint8List signSchnorr(
   return Uint8List.fromList(<int>[...r, ..._intToBytes(s)]);
 }
 
+void _requireExperimentalDartSigning(SchnorrSigningMode mode) {
+  if (mode == SchnorrSigningMode.experimentalDart) return;
+  throw const ExperimentalCryptoException(
+    'Standalone Dart BIP340 signing is disabled by default because the current '
+    'implementation is not audited or proven constant-time. Use wallet '
+    'node-message signing backed by native RLN, or pass '
+    'SchnorrSigningMode.experimentalDart only for parity tests/internal tooling.',
+    primitive: 'BIP340 Schnorr signing',
+  );
+}
+
 bool verifySchnorr(
   Uint8List message,
   Uint8List publicKey,
@@ -192,8 +219,13 @@ bool verifySchnorr(
     final rPoint = (_secp.G * s)! + (point * ((_n - e) % _n))!;
     if (rPoint == null || rPoint.isInfinity || _hasOddY(rPoint)) return false;
     return rPoint.x!.toBigInteger() == r;
-  } catch (_) {
-    return false;
+  } catch (error) {
+    if (error is ValidationError ||
+        error is ArgumentError ||
+        error is StateError) {
+      return false;
+    }
+    rethrow;
   }
 }
 
@@ -213,13 +245,36 @@ Future<String> signMessage(SignMessageParams params) async {
     final messageHash = _sha256(_messageBytes(params.message));
     final privateKeyCopy = Uint8List.fromList(privateKey);
     try {
-      return base64Encode(signSchnorr(messageHash, privateKeyCopy));
+      return base64Encode(
+        signSchnorr(
+          messageHash,
+          privateKeyCopy,
+          signingMode: params.signingMode,
+        ),
+      );
     } finally {
       wipeSecretBytes(privateKeyCopy);
     }
   } finally {
     wipeSecretBytes(seed);
   }
+}
+
+bool _isInvalidExtendedKeyError(Object error) {
+  return error is CryptoError ||
+      error is ArgumentError ||
+      error is StateError ||
+      error is FormatException;
+}
+
+ValidationError _invalidAccountXpubError(Object error) {
+  if (_isInvalidExtendedKeyError(error)) {
+    return const ValidationError(
+      'Invalid account xpub provided',
+      'accountXpub',
+    );
+  }
+  throw error;
 }
 
 Future<bool> verifyMessage(VerifyMessageParams params) async {
@@ -241,7 +296,7 @@ Future<bool> verifyMessage(VerifyMessageParams params) async {
     rethrow;
   } on FormatException {
     return false;
-  } catch (_) {
-    throw const ValidationError('Invalid account xpub provided', 'accountXpub');
+  } catch (error) {
+    throw _invalidAccountXpubError(error);
   }
 }

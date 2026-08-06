@@ -2,7 +2,7 @@ import 'dart:async';
 
 import '../crypto/validation.dart';
 import '../errors/rgb_sdk_exception.dart';
-import '../models/rln_models.dart';
+import '../models/utexo_core_models.dart';
 import '../wallet/utexo_wallet.dart';
 import '../wallet/utexo_wallet_types.dart';
 import 'lsp_errors.dart';
@@ -168,7 +168,7 @@ class UtexoLsp {
     WaitOptions options = const WaitOptions(),
   }) async {
     if (assetId.isEmpty) {
-      throw ArgumentError.value(assetId, 'assetId', 'assetId is required');
+      throw const ValidationError('assetId is required', 'assetId');
     }
     final timeoutMs = _validatedTimeoutMs(options, _defaultChannelTimeoutMs);
     final pollIntervalMs = _validatedPollIntervalMs(options);
@@ -273,11 +273,7 @@ class UtexoLsp {
     WaitOptions options = const WaitOptions(),
   }) async {
     if (minMsat < 0) {
-      throw ArgumentError.value(
-        minMsat,
-        'minMsat',
-        'minMsat must be non-negative',
-      );
+      throw const ValidationError('minMsat must be non-negative', 'minMsat');
     }
     final timeoutMs = _validatedTimeoutMs(options, _defaultChannelTimeoutMs);
     final pollIntervalMs = _validatedPollIntervalMs(options);
@@ -365,7 +361,11 @@ class UtexoLsp {
     }
 
     if (invoice.isEmpty) {
-      throw StateError('No invoice returned for Lightning Address');
+      throw const LspError(
+        endpoint: 'lightning-address',
+        status: 200,
+        body: 'No invoice returned for Lightning Address',
+      );
     }
     final sendResult = await wallet.payLightningInvoice(lnInvoice: invoice);
     return PayAddressResult(invoice: invoice, sendResult: sendResult);
@@ -374,7 +374,9 @@ class UtexoLsp {
   Future<LightningAddressInfo> enableLightningAddress() async {
     final nodeInfo = await wallet.getNodeInfo();
     if (nodeInfo.pubkey.isEmpty) {
-      throw StateError('enableLightningAddress: wallet not unlocked');
+      throw const WalletException(
+        'enableLightningAddress: wallet not unlocked',
+      );
     }
 
     final lspInfo = await http.getInfo();
@@ -397,7 +399,7 @@ class UtexoLsp {
   Future<ApayNewResponse> refillHashPool() async {
     final nodeInfo = await wallet.getNodeInfo();
     if (nodeInfo.pubkey.isEmpty) {
-      throw StateError('refillHashPool: wallet not unlocked');
+      throw const WalletException('refillHashPool: wallet not unlocked');
     }
 
     final lspInfo = await http.getInfo();
@@ -428,17 +430,18 @@ class UtexoLsp {
         await Future<void>.delayed(Duration(milliseconds: delayMs));
       }
     }
-    throw StateError(
+    throw NetworkError(
       'enableLightningAddress: LSP did not provision an address for $pubkey '
-      '(ensure the wallet is connected to the LSP). Last error: $lastError',
+      '(ensure the wallet is connected to the LSP).',
+      cause: lastError,
     );
   }
 
   Future<List<ClaimResult>> claimPendingPayments() async {
     final payments = await wallet.listPaymentsRaw();
     final claimable = payments.where((payment) {
-      final status = payment.status?.toUpperCase();
-      return status == 'CLAIMABLE' || status == 'CLAIMING';
+      final status = tryNormalizePaymentStatus(payment.status);
+      return status != null && isClaimablePaymentStatus(status);
     });
 
     final results = <ClaimResult>[];
@@ -472,13 +475,13 @@ class UtexoLsp {
     return results;
   }
 
-  bool _isUsableRgbChannel(RlnChannel channel, String assetId) {
+  bool _isUsableRgbChannel(LightningChannel channel, String assetId) {
     return channel.peerPubkey == peer.peerPubkey &&
         channel.assetId == assetId &&
         _isUsable(channel);
   }
 
-  ChannelReadyInfo _toChannelReadyInfo(RlnChannel channel) {
+  ChannelReadyInfo _toChannelReadyInfo(LightningChannel channel) {
     return ChannelReadyInfo(
       channelId: channel.channelId,
       peerPubkey: channel.peerPubkey,
@@ -490,7 +493,7 @@ class UtexoLsp {
 
   void _checkCancelled(WaitOptions options) {
     if (options.isCancelled?.call() == true) {
-      throw StateError('UtexoLsp: operation cancelled');
+      throw const OperationCancelledError('UtexoLsp: operation cancelled');
     }
   }
 
@@ -505,7 +508,7 @@ class UtexoLsp {
     }
   }
 
-  bool _isUsable(RlnChannel channel) {
+  bool _isUsable(LightningChannel channel) {
     return channel.isUsable ?? channel.ready;
   }
 

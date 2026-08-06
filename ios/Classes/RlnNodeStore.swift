@@ -3,7 +3,7 @@ import Foundation
 final class RlnNodeStore {
   static let shared = RlnNodeStore()
 
-  enum NodeLifecycleState {
+  enum NodeLifecycleState: Equatable {
     case created
     case initialized
     case unlocking
@@ -28,7 +28,7 @@ final class RlnNodeStore {
       if !normalizedPath.isEmpty,
          let existingId = storageDirByNodeId.first(where: { $0.value == normalizedPath })?.key {
         if states[existingId] == .shutdown {
-          nodes[existingId]?.shutdown()
+          nodes.removeValue(forKey: existingId)?.shutdown()
           nodes[existingId] = node
           states[existingId] = .created
           return existingId
@@ -73,8 +73,10 @@ final class RlnNodeStore {
       switch state {
       case .created:
         states[id] = .initialized
-      case .initialized, .unlocked, .shutdown:
+      case .initialized:
         break
+      case .unlocked, .shutdown:
+        throw RlnStoreError.invalidState("RLN init is not allowed while node is in state: \(state)")
       case .unlocking:
         throw RlnStoreError.invalidState("Cannot initialize RLN node while unlock is in progress")
       }
@@ -127,12 +129,14 @@ final class RlnNodeStore {
 
   func remove(id: Int64) {
     queue.sync {
-      if let node = nodes.removeValue(forKey: id), states[id] != .shutdown {
-        node.shutdown()
-      }
+      let state = states[id]
+      let node = nodes.removeValue(forKey: id)
       states.removeValue(forKey: id)
       preUnlockStates.removeValue(forKey: id)
       storageDirByNodeId.removeValue(forKey: id)
+      if let node, state != .shutdown {
+        node.shutdown()
+      }
     }
   }
 
@@ -162,14 +166,33 @@ final class RlnNodeStore {
 
   func clearAll() {
     queue.sync {
-      nodes.values.forEach { $0.shutdown() }
+      let nodesToShutdown = Array(nodes.values)
       nodes.removeAll()
       states.removeAll()
       preUnlockStates.removeAll()
       storageDirByNodeId.removeAll()
       signers.removeAll()
+      nodesToShutdown.forEach { $0.shutdown() }
     }
   }
+
+  func snapshot() -> RlnNodeStoreSnapshot {
+    queue.sync {
+      RlnNodeStoreSnapshot(
+        nodeCount: nodes.count,
+        signerCount: signers.count,
+        states: states,
+        storageDirByNodeId: storageDirByNodeId
+      )
+    }
+  }
+}
+
+struct RlnNodeStoreSnapshot {
+  let nodeCount: Int
+  let signerCount: Int
+  let states: [Int64: RlnNodeStore.NodeLifecycleState]
+  let storageDirByNodeId: [Int64: String]
 }
 
 enum RlnStoreError: Error, LocalizedError {

@@ -152,10 +152,22 @@
       "claimLevel": "platform_smoke",
       "testIds": [
         "test/utexo_wallet_test.dart::coalesces concurrent init and unlock lifecycle calls",
+        "test/utexo_wallet_test.dart::serializes contested lifecycle operations into one terminal destroy",
+        "test/utexo_wallet_test.dart::failed init cleans up the temporary node before retry",
+        "test/utexo_wallet_test.dart::timed-out create can still be destroyed after native completion",
+        "test/utexo_wallet_test.dart::destroy surfaces shutdown faults after completing node cleanup",
         "test/utexo_wallet_test.dart::rejects regular operations after shutdown until reinit",
+        "test/rln_manager_contract_test.dart::native operation timeout quarantines binding until destroy",
+        "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::nodeStoreRemovesHandlesEvenWhenNativeCloseFails",
+        "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::nodeStoreRejectsDuplicateActiveStoragePathAndReusesShutdownPath",
+        "example/ios/RunnerTests/RunnerTests.swift::testNodeStoreRejectsDuplicateActiveStorageAndReusesShutdownPath",
+        "example/ios/RunnerTests/RunnerTests.swift::testNodeStoreLifecycleAndFinalCleanupState",
+        "example/ios/RunnerTests/RunnerTests.swift::testNodeStoreClearAllRemovesNodesAndSigners",
         "tool/test_platform_unfunded.sh::unfunded-lifecycle-flutter-smoke"
       ],
       "platformReportFamilies": [
+        "native-ios-xctest",
+        "native-android-jvm",
         "ios-unfunded-regtest",
         "android-unfunded-regtest"
       ],

@@ -2,17 +2,17 @@
   "schemaVersion": 1,
   "description": "Normalized public API and bridge snapshot. Update only with a tracker row and migration note.",
   "dartExportedSurface": {
-    "count": 1824,
-    "hash": "10eb2b5e3408e8bf060650eee5f0b8852e97c7fac8889aa2bc73f33af516d0e2",
+    "count": 1716,
+    "hash": "ddc4a50ca6601e0b758b05db023d2e5a6d5f1ccd1e06617403dc91e4e2f6453f",
     "files": [
       "lib/rgb_sdk_flutter.dart",
+      "lib/rgb_sdk_flutter_advanced.dart",
       "lib/src/binding/rln_binding.dart",
+      "lib/src/binding/rln_binding_lifecycle.dart",
+      "lib/src/binding/rln_binding_lightning.dart",
+      "lib/src/binding/rln_binding_onchain.dart",
+      "lib/src/binding/rln_binding_types.dart",
       "lib/src/client/rln_client.dart",
-      "lib/src/crypto/constants.dart",
-      "lib/src/crypto/keys.dart",
-      "lib/src/crypto/message.dart",
-      "lib/src/crypto/signer.dart",
-      "lib/src/crypto/validation.dart",
       "lib/src/errors/native_bridge_error_mapper.dart",
       "lib/src/errors/rgb_sdk_exception.dart",
       "lib/src/lsp/lsp_errors.dart",
@@ -22,14 +22,17 @@
       "lib/src/models/rln_models.dart",
       "lib/src/models/utexo_core_models.dart",
       "lib/src/native_artifact_info.dart",
-      "lib/src/signer/rn_signer.dart",
-      "lib/src/utexo/bridge.dart",
-      "lib/src/utexo/network.dart",
       "lib/src/utils/logger.dart",
       "lib/src/wallet/network_defaults.dart",
       "lib/src/wallet/rln_manager.dart",
       "lib/src/wallet/rln_signers.dart",
+      "lib/src/wallet/utexo_unlock_config_resolver.dart",
       "lib/src/wallet/utexo_wallet.dart",
+      "lib/src/wallet/utexo_wallet_guards.dart",
+      "lib/src/wallet/utexo_wallet_lifecycle.dart",
+      "lib/src/wallet/utexo_wallet_lightning.dart",
+      "lib/src/wallet/utexo_wallet_lsp_apay.dart",
+      "lib/src/wallet/utexo_wallet_onchain.dart",
       "lib/src/wallet/utexo_wallet_types.dart"
     ]
   },
@@ -50,13 +53,14 @@
     ]
   },
   "nativeBridgeSurface": {
-    "count": 309,
-    "hash": "ef386532b4837abe3087ad478009f9aa59c85e02f4a279635f5376bf72c6ddb4",
+    "count": 335,
+    "hash": "72e5b29403e04d7af77b2796f284bf256c38bb74ad2f7006be4c2942157f8187",
     "files": [
       "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPlugin.kt",
       "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnNodeStore.kt",
       "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnStorageDirectoryPolicy.kt",
       "ios/Classes/RgbSdkFlutterPlugin.swift",
+      "ios/Classes/RlnBridgeErrorDetails.swift",
       "ios/Classes/RlnNodeStore.swift",
       "ios/Classes/RlnStorageDirectoryPolicy.swift"
     ]

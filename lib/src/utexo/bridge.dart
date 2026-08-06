@@ -4,6 +4,7 @@ import 'dart:convert';
 
 import 'package:http/http.dart' as http;
 
+import '../errors/rgb_sdk_exception.dart';
 import 'network.dart';
 
 const Map<UtxoNetworkPreset, String> DEFAULT_GATEWAY_BASE_URLS =
@@ -26,21 +27,29 @@ const List<String> TransferStatuses = <String>[
 int encodeTransferStatus(String transferStatus) {
   final index = TransferStatuses.indexOf(transferStatus);
   if (index < 0) {
-    throw ArgumentError.value(
-      transferStatus,
+    throw ValidationError(
+      'Unknown UTEXO transfer status: $transferStatus',
       'transferStatus',
-      'Unknown UTEXO transfer status',
     );
   }
   return index;
 }
 
-class BridgeApiException implements Exception {
-  const BridgeApiException(this.message, {this.statusCode, this.uri});
+class BridgeApiException extends NetworkError {
+  const BridgeApiException(
+    super.message, {
+    super.statusCode,
+    super.cause,
+    this.uri,
+  });
 
-  final String message;
-  final int? statusCode;
   final Uri? uri;
+
+  @override
+  Map<String, Object?> toJson() => <String, Object?>{
+    ...super.toJson(),
+    if (uri != null) 'uri': uri.toString(),
+  };
 
   @override
   String toString() {

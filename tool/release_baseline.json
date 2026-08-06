@@ -3,14 +3,14 @@
   "releaseTier": "internal-beta",
   "reactNative": {
     "repository": "https://github.com/UTEXO-Protocol/rgb-sdk-rn.git",
-    "commit": "d5916c142077b501ffb86d028c457a9c21b60d59",
+    "commit": "63cbf9a01030a8a10eb1b04b2734cd8c5d23aec1",
     "package": "@utexo/rgb-sdk-rn",
-    "version": "1.0.0-beta.26"
+    "version": "1.0.0-beta.27"
   },
   "core": {
     "repository": "https://github.com/UTEXO-Protocol/rgb-sdk-core.git",
     "package": "@utexo/rgb-sdk-core",
-    "version": "1.0.0-beta.6"
+    "version": "1.0.0-beta.7"
   },
   "rln": {
     "repository": "https://github.com/UTEXO-Protocol/rgb-lightning-node.git",

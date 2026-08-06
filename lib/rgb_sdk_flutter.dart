@@ -1,33 +1,98 @@
-import 'rgb_sdk_flutter_platform_interface.dart';
-import 'src/client/rln_client.dart';
 import 'src/native_artifact_info.dart';
+import 'src/native_artifact_provider.dart';
 import 'src/release_baseline.g.dart';
-import 'src/wallet/rln_manager.dart';
 import 'src/wallet/utexo_wallet.dart';
 import 'src/wallet/utexo_wallet_types.dart';
 
-export 'src/binding/rln_binding.dart';
-export 'src/client/rln_client.dart';
-export 'src/crypto/constants.dart';
-export 'src/crypto/keys.dart';
-export 'src/crypto/message.dart';
-export 'src/crypto/signer.dart';
-export 'src/crypto/validation.dart';
-export 'src/errors/native_bridge_error_mapper.dart';
+export 'src/binding/rln_binding.dart' show RlnOperationTimeoutPolicy;
+export 'src/crypto/constants.dart'
+    show
+        DEFAULT_API_TIMEOUT,
+        DEFAULT_INDEXER_URLS,
+        DEFAULT_LOG_LEVEL,
+        DEFAULT_MAX_RETRIES,
+        DEFAULT_NETWORK,
+        DEFAULT_TRANSPORT_ENDPOINTS,
+        DEFAULT_VSS_SERVER_URL,
+        Network,
+        NetworkVersions,
+        PsbtType,
+        accountDerivationPath,
+        getNetworkVersions;
+export 'src/crypto/keys.dart'
+    show
+        AccountXpubs,
+        GeneratedKeys,
+        WalletInitParams,
+        accountXpubsFromMnemonic,
+        createWallet,
+        deriveKeysFromMnemonic,
+        deriveKeysFromMnemonicOrSeed,
+        deriveKeysFromSeed,
+        deriveKeysFromXpriv,
+        generateKeys,
+        getXprivFromMnemonic,
+        getXpubFromXpriv,
+        normalizeSeedInput,
+        restoreKeys,
+        seedFromMnemonic,
+        wipeSecretBytes;
+export 'src/crypto/message.dart'
+    show
+        SignMessageParams,
+        SchnorrSigningMode,
+        VerifyMessageParams,
+        signMessage,
+        signSchnorr,
+        verifyMessage,
+        verifySchnorr,
+        xOnlyPointFromPoint;
+export 'src/crypto/validation.dart'
+    hide toBigInt, toNumber, toUnitsBigInt, fromUnitsBigInt;
 export 'src/errors/rgb_sdk_exception.dart';
 export 'src/lsp/lsp_errors.dart';
 export 'src/lsp/lsp_types.dart';
 export 'src/lsp/utexo_lsp.dart';
-export 'src/lsp/utexo_lsp_client.dart';
-export 'src/models/rln_models.dart';
-export 'src/models/utexo_core_models.dart';
+export 'src/lsp/utexo_lsp_client.dart'
+    show
+        LspError,
+        hostnameOf,
+        isLoopbackHost,
+        isSameLspHost,
+        lnurlDiscoveryUri,
+        redactSupportText;
+export 'src/models/utexo_core_models.dart'
+    show
+        Assignment,
+        CoreAsset,
+        CoreAssetBalance,
+        CoreAssetCfa,
+        CoreAssetIfa,
+        CoreAssetNia,
+        CoreAssetUda,
+        CoreBalance,
+        CoreBtcBalance,
+        CoreInvoiceData,
+        CoreInvoiceReceiveData,
+        CoreListAssets,
+        CoreRgbAllocation,
+        CoreTransaction,
+        CoreTransfer,
+        CoreUnspent,
+        CoreUtxo,
+        DecodedLightningInvoice,
+        LightningChannel,
+        LightningChannelOpenResult,
+        LightningInvoiceStatus,
+        LightningPayment,
+        LightningPaymentResult,
+        LightningPeer,
+        Outpoint,
+        WalletNetworkInfo,
+        WalletNodeInfo,
+        parseCoreAssignment,
+        parseCoreOutpoint;
 export 'src/native_artifact_info.dart';
-export 'src/signer/rn_signer.dart';
-export 'src/utexo/bridge.dart';
-export 'src/utexo/network.dart';
-export 'src/utils/logger.dart';
-export 'src/wallet/network_defaults.dart';
-export 'src/wallet/rln_manager.dart';
 export 'src/wallet/rln_signers.dart';
 export 'src/wallet/utexo_wallet.dart';
 export 'src/wallet/utexo_wallet_types.dart';
@@ -35,7 +100,7 @@ export 'src/wallet/utexo_wallet_types.dart';
 /// Flutter entry point for RGB Lightning Node bindings.
 ///
 /// App code should usually create [UtexoWallet] instances through [wallet].
-/// Use [rlnClient] only for low-level RN parity checks or bridge debugging.
+/// Low-level RN/native parity APIs live in `rgb_sdk_flutter_advanced.dart`.
 class RgbSdkFlutter {
   const RgbSdkFlutter();
 
@@ -53,14 +118,8 @@ class RgbSdkFlutter {
 
   /// Returns native artifact metadata for diagnostics and support reports.
   Future<NativeArtifactInfo> nativeArtifactInfo() {
-    return RgbSdkFlutterPlatform.instance.getNativeArtifactInfo();
+    return NativeArtifactInfoReader().getNativeArtifactInfo();
   }
-
-  /// Creates the low-level raw RLN bridge client.
-  RlnClient rlnClient() => RlnClient();
-
-  /// Creates the RN-style stateful RLN manager.
-  RLNManager rlnManager() => createRLNManager();
 
   /// Creates a typed wallet facade for app-level wallet workflows.
   UtexoWallet wallet({required UtexoWalletConfig config}) {

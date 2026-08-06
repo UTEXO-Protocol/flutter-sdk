@@ -352,6 +352,8 @@ internal class RgbSdkFlutterPluginTest {
             assertEquals(firstId, reusedId)
             assertSame(replacementNode, RlnNodeStore.get(reusedId))
             assertEquals(RlnNodeStore.NodeLifecycleState.CREATED, RlnNodeStore.getState(reusedId))
+            assertEquals(1, RlnNodeStore.snapshot().nodeCount)
+            assertEquals(path, RlnNodeStore.snapshot().storageDirByNodeId[reusedId])
 
             assertEquals(1, firstNode.closeCount)
         } finally {
@@ -389,12 +391,55 @@ internal class RgbSdkFlutterPluginTest {
 
         RlnNodeStore.markShutdown(nodeId)
         assertEquals(RlnNodeStore.NodeLifecycleState.SHUTDOWN, RlnNodeStore.getState(nodeId))
+        assertFailsWith<IllegalStateException> {
+            RlnNodeStore.markInitialized(nodeId)
+        }
         assertEquals(RlnNodeStore.NodeLifecycleState.UNLOCKING, RlnNodeStore.beginUnlock(nodeId))
 
         RlnNodeStore.remove(nodeId)
         assertEquals(1, node.closeCount)
         assertFailsWith<IllegalStateException> {
             RlnNodeStore.get(nodeId)
+        }
+    }
+
+    @Test
+    fun nodeStoreRemovesHandlesEvenWhenNativeCloseFails() {
+        val node = ThrowingCloseSdkNode()
+        val signer = ThrowingCloseNativeSigner()
+        val nodeId = RlnNodeStore.create(node, uniquePath("close-failure"))
+        val signerId = RlnNodeStore.createSigner(signer)
+
+        assertFailsWith<RuntimeException> {
+            RlnNodeStore.remove(nodeId)
+        }
+        assertFailsWith<IllegalStateException> {
+            RlnNodeStore.get(nodeId)
+        }
+
+        assertFailsWith<RuntimeException> {
+            RlnNodeStore.removeSigner(signerId)
+        }
+        assertFailsWith<IllegalStateException> {
+            RlnNodeStore.getSigner(signerId)
+        }
+
+        val remainingNodeId = RlnNodeStore.create(
+            ThrowingCloseSdkNode(),
+            uniquePath("clear-close-failure")
+        )
+        val remainingSignerId = RlnNodeStore.createSigner(ThrowingCloseNativeSigner())
+
+        assertFailsWith<RuntimeException> {
+            RlnNodeStore.clearAll()
+        }
+        assertEquals(0, RlnNodeStore.snapshot().nodeCount)
+        assertEquals(0, RlnNodeStore.snapshot().signerCount)
+        assertFailsWith<IllegalStateException> {
+            RlnNodeStore.get(remainingNodeId)
+        }
+        assertFailsWith<IllegalStateException> {
+            RlnNodeStore.getSigner(remainingSignerId)
         }
     }
 
@@ -457,6 +502,18 @@ internal class RgbSdkFlutterPluginTest {
 
         override fun close() {
             closeCount += 1
+        }
+    }
+
+    private class ThrowingCloseSdkNode : SdkNode(NoPointer) {
+        override fun close() {
+            throw RuntimeException("node close failed")
+        }
+    }
+
+    private class ThrowingCloseNativeSigner : NativeExternalSigner(NoPointer) {
+        override fun close() {
+            throw RuntimeException("signer close failed")
         }
     }
 

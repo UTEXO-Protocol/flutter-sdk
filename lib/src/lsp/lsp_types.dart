@@ -1,3 +1,4 @@
+import '../errors/rgb_sdk_exception.dart';
 import '../models/rln_models.dart';
 
 class LspClientConfig {
@@ -13,26 +14,139 @@ class LspClientConfig {
 }
 
 class LspGetInfoResponse {
-  const LspGetInfoResponse({
+  LspGetInfoResponse({
+    required this.apiVersion,
     required this.pubkey,
-    this.alias,
-    required this.numChannels,
-    required this.numUsableChannels,
-  });
+    required this.network,
+    this.host,
+    this.port,
+    required List<LspSupportedAsset> supportedAssets,
+    required this.minPaymentSizeMsat,
+    required this.maxPaymentSizeMsat,
+    required this.minChannelBalanceSat,
+    required this.maxChannelBalanceSat,
+    required this.minInitialClientBalanceMsat,
+    required this.maxInitialClientBalanceMsat,
+    required this.minChannelAssetAmount,
+    required this.maxChannelAssetAmount,
+    this.virtualChannelMode,
+    required this.lightningAddressMinSendableMsat,
+    required this.lightningAddressMaxSendableMsat,
+  }) : supportedAssets = List<LspSupportedAsset>.unmodifiable(supportedAssets);
 
   factory LspGetInfoResponse.fromWire(Map<String, Object?> map) {
     return LspGetInfoResponse(
-      pubkey: map['pubkey']?.toString() ?? '',
-      alias: map['alias']?.toString(),
-      numChannels: _intValue(map['num_channels']),
-      numUsableChannels: _intValue(map['num_usable_channels']),
+      apiVersion: _requiredInt(map, 'api_version', 'LspGetInfoResponse'),
+      pubkey: _requiredString(map, 'pubkey', 'LspGetInfoResponse'),
+      network: _requiredString(map, 'network', 'LspGetInfoResponse'),
+      host: _optionalString(map, 'host', 'LspGetInfoResponse'),
+      port: _optionalPort(map, 'port', 'LspGetInfoResponse'),
+      supportedAssets: _requiredMapList(
+        map,
+        'supported_assets',
+        'LspGetInfoResponse',
+      ).map(LspSupportedAsset.fromWire).toList(growable: false),
+      minPaymentSizeMsat: _requiredUInt64(
+        map,
+        'min_payment_size_msat',
+        'LspGetInfoResponse',
+      ),
+      maxPaymentSizeMsat: _requiredUInt64(
+        map,
+        'max_payment_size_msat',
+        'LspGetInfoResponse',
+      ),
+      minChannelBalanceSat: _requiredUInt64(
+        map,
+        'min_channel_balance_sat',
+        'LspGetInfoResponse',
+      ),
+      maxChannelBalanceSat: _requiredUInt64(
+        map,
+        'max_channel_balance_sat',
+        'LspGetInfoResponse',
+      ),
+      minInitialClientBalanceMsat: _requiredUInt64(
+        map,
+        'min_initial_client_balance_msat',
+        'LspGetInfoResponse',
+      ),
+      maxInitialClientBalanceMsat: _requiredUInt64(
+        map,
+        'max_initial_client_balance_msat',
+        'LspGetInfoResponse',
+      ),
+      minChannelAssetAmount: _requiredUInt64(
+        map,
+        'min_channel_asset_amount',
+        'LspGetInfoResponse',
+      ),
+      maxChannelAssetAmount: _requiredUInt64(
+        map,
+        'max_channel_asset_amount',
+        'LspGetInfoResponse',
+      ),
+      virtualChannelMode: _optionalString(
+        map,
+        'virtual_channel_mode',
+        'LspGetInfoResponse',
+      ),
+      lightningAddressMinSendableMsat: _requiredUInt64(
+        map,
+        'lightning_address_min_sendable_msat',
+        'LspGetInfoResponse',
+      ),
+      lightningAddressMaxSendableMsat: _requiredUInt64(
+        map,
+        'lightning_address_max_sendable_msat',
+        'LspGetInfoResponse',
+      ),
     );
   }
 
+  final int apiVersion;
   final String pubkey;
-  final String? alias;
-  final int numChannels;
-  final int numUsableChannels;
+  final String network;
+  final String? host;
+  final int? port;
+  final List<LspSupportedAsset> supportedAssets;
+  final BigInt minPaymentSizeMsat;
+  final BigInt maxPaymentSizeMsat;
+  final BigInt minChannelBalanceSat;
+  final BigInt maxChannelBalanceSat;
+  final BigInt minInitialClientBalanceMsat;
+  final BigInt maxInitialClientBalanceMsat;
+  final BigInt minChannelAssetAmount;
+  final BigInt maxChannelAssetAmount;
+  final String? virtualChannelMode;
+  final BigInt lightningAddressMinSendableMsat;
+  final BigInt lightningAddressMaxSendableMsat;
+}
+
+class LspSupportedAsset {
+  const LspSupportedAsset({
+    required this.assetId,
+    required this.schema,
+    this.ticker,
+    required this.name,
+    required this.precision,
+  });
+
+  factory LspSupportedAsset.fromWire(Map<String, Object?> map) {
+    return LspSupportedAsset(
+      assetId: _requiredString(map, 'asset_id', 'LspSupportedAsset'),
+      schema: _requiredString(map, 'schema', 'LspSupportedAsset'),
+      ticker: _optionalString(map, 'ticker', 'LspSupportedAsset'),
+      name: _requiredString(map, 'name', 'LspSupportedAsset'),
+      precision: _requiredInt(map, 'precision', 'LspSupportedAsset'),
+    );
+  }
+
+  final String assetId;
+  final String schema;
+  final String? ticker;
+  final String name;
+  final int precision;
 }
 
 class LspLnParams {
@@ -84,9 +198,9 @@ class LspOnchainSendResponse {
 
   factory LspOnchainSendResponse.fromWire(Map<String, Object?> map) {
     return LspOnchainSendResponse(
-      rgbInvoice: map['rgb_invoice']?.toString() ?? '',
-      lnInvoice: map['ln_invoice']?.toString() ?? '',
-      mappingId: map['mapping_id']?.toString() ?? '',
+      rgbInvoice: _requiredString(map, 'rgb_invoice', 'LspOnchainSendResponse'),
+      lnInvoice: _requiredString(map, 'ln_invoice', 'LspOnchainSendResponse'),
+      mappingId: _requiredString(map, 'mapping_id', 'LspOnchainSendResponse'),
     );
   }
 
@@ -140,9 +254,21 @@ class LspLightningReceiveResponse {
 
   factory LspLightningReceiveResponse.fromWire(Map<String, Object?> map) {
     return LspLightningReceiveResponse(
-      lnInvoice: map['ln_invoice']?.toString() ?? '',
-      rgbInvoice: map['rgb_invoice']?.toString() ?? '',
-      mappingId: map['mapping_id']?.toString() ?? '',
+      lnInvoice: _requiredString(
+        map,
+        'ln_invoice',
+        'LspLightningReceiveResponse',
+      ),
+      rgbInvoice: _requiredString(
+        map,
+        'rgb_invoice',
+        'LspLightningReceiveResponse',
+      ),
+      mappingId: _requiredString(
+        map,
+        'mapping_id',
+        'LspLightningReceiveResponse',
+      ),
     );
   }
 
@@ -163,15 +289,15 @@ class LspLnurlpCallbackResponse {
   factory LspLnurlpCallbackResponse.fromWire(Map<String, Object?> map) {
     final proof = map['proof'];
     return LspLnurlpCallbackResponse(
-      pr: map['pr']?.toString() ?? '',
-      routes: map['routes'] is List
-          ? map['routes']! as List<Object?>
-          : const [],
+      pr: _requiredString(map, 'pr', 'LspLnurlpCallbackResponse'),
+      routes: _optionalList(map, 'routes', 'LspLnurlpCallbackResponse'),
       status: map['status']?.toString(),
       reason: map['reason']?.toString(),
-      proof: proof is Map
+      proof: proof == null
+          ? null
+          : proof is Map
           ? ApayInvoiceProof.fromWire(Map<String, Object?>.from(proof))
-          : null,
+          : throw _malformed('LspLnurlpCallbackResponse.proof must be a map.'),
     );
   }
 
@@ -217,8 +343,8 @@ class ApayMerkleProofElement {
 
   factory ApayMerkleProofElement.fromWire(Map<String, Object?> map) {
     return ApayMerkleProofElement(
-      sibling: map['sibling']?.toString() ?? '',
-      side: map['side']?.toString() ?? '',
+      sibling: _requiredString(map, 'sibling', 'ApayMerkleProofElement'),
+      side: _requiredString(map, 'side', 'ApayMerkleProofElement'),
     );
   }
 
@@ -245,27 +371,25 @@ class ApayInvoiceProof {
   factory ApayInvoiceProof.fromWire(Map<String, Object?> map) {
     final merkleProof = map['merkle_proof'];
     return ApayInvoiceProof(
-      version: _intValue(map['version']),
-      recipientPubkey: map['recipient_pubkey']?.toString() ?? '',
-      hostPubkey: map['host_pubkey']?.toString() ?? '',
-      batchId: map['batch_id']?.toString() ?? '',
-      hashIndex: _intValue(map['hash_index']),
-      paymentHash: map['payment_hash']?.toString() ?? '',
-      batchRoot: map['batch_root']?.toString() ?? '',
-      batchSize: _intValue(map['batch_size']),
-      merkleProof: merkleProof is List
-          ? merkleProof
-                .whereType<Map<Object?, Object?>>()
-                .map(
-                  (value) => ApayMerkleProofElement.fromWire(
-                    Map<String, Object?>.from(value),
-                  ),
-                )
-                .toList(growable: false)
-          : const <ApayMerkleProofElement>[],
-      batchSig: map['batch_sig']?.toString() ?? '',
-      createdAt: _intValue(map['created_at']),
-      expiresAt: _intValue(map['expires_at']),
+      version: _requiredInt(map, 'version', 'ApayInvoiceProof'),
+      recipientPubkey: _requiredString(
+        map,
+        'recipient_pubkey',
+        'ApayInvoiceProof',
+      ),
+      hostPubkey: _requiredString(map, 'host_pubkey', 'ApayInvoiceProof'),
+      batchId: _requiredString(map, 'batch_id', 'ApayInvoiceProof'),
+      hashIndex: _requiredInt(map, 'hash_index', 'ApayInvoiceProof'),
+      paymentHash: _requiredString(map, 'payment_hash', 'ApayInvoiceProof'),
+      batchRoot: _requiredString(map, 'batch_root', 'ApayInvoiceProof'),
+      batchSize: _requiredInt(map, 'batch_size', 'ApayInvoiceProof'),
+      merkleProof: _mapListValue(
+        merkleProof,
+        'ApayInvoiceProof.merkle_proof',
+      ).map(ApayMerkleProofElement.fromWire).toList(growable: false),
+      batchSig: _requiredString(map, 'batch_sig', 'ApayInvoiceProof'),
+      createdAt: _requiredInt(map, 'created_at', 'ApayInvoiceProof'),
+      expiresAt: _requiredInt(map, 'expires_at', 'ApayInvoiceProof'),
     );
   }
 
@@ -295,10 +419,26 @@ class LspLightningAddressByPubkeyResponse {
     Map<String, Object?> map,
   ) {
     return LspLightningAddressByPubkeyResponse(
-      username: map['username']?.toString() ?? '',
-      domain: map['domain']?.toString() ?? '',
-      recipientPubkey: map['recipient_pubkey']?.toString(),
-      addressSig: map['address_sig']?.toString(),
+      username: _requiredString(
+        map,
+        'username',
+        'LspLightningAddressByPubkeyResponse',
+      ),
+      domain: _requiredString(
+        map,
+        'domain',
+        'LspLightningAddressByPubkeyResponse',
+      ),
+      recipientPubkey: _optionalString(
+        map,
+        'recipient_pubkey',
+        'LspLightningAddressByPubkeyResponse',
+      ),
+      addressSig: _optionalString(
+        map,
+        'address_sig',
+        'LspLightningAddressByPubkeyResponse',
+      ),
     );
   }
 
@@ -428,8 +568,8 @@ class ApayHashEntry {
 
   factory ApayHashEntry.fromMap(RlnMap map) {
     return ApayHashEntry(
-      hashIndex: _intValue(map['hashIndex']),
-      paymentHash: map['paymentHash']?.toString() ?? '',
+      hashIndex: _requiredRlnInt(map, 'hashIndex', 'ApayHashEntry'),
+      paymentHash: _requiredRlnString(map, 'paymentHash', 'ApayHashEntry'),
     );
   }
 
@@ -456,26 +596,37 @@ class ApayNewResponse {
   factory ApayNewResponse.fromMap(RlnMap map) {
     final hashes = map['hashes'];
     return ApayNewResponse(
-      requestId: map['requestId']?.toString() ?? '',
-      hostNodeId: map['hostNodeId']?.toString() ?? '',
-      protocolVersion: _intValue(map['protocolVersion']),
-      orderId: map['orderId']?.toString() ?? '',
-      status: map['status']?.toString() ?? '',
-      acceptedThroughIndex: _intValue(map['acceptedThroughIndex']),
-      nextIndexExpected: _intValue(map['nextIndexExpected']),
-      unusedHashes: _intValue(map['unusedHashes']),
-      refillBatchSize: _intValue(map['refillBatchSize']),
-      firstHashIndex: _intValue(map['firstHashIndex']),
-      lastHashIndex: _intValue(map['lastHashIndex']),
-      hashes: hashes is List
-          ? hashes
-                .whereType<Map<Object?, Object?>>()
-                .map(
-                  (value) =>
-                      ApayHashEntry.fromMap(Map<Object?, Object?>.from(value)),
-                )
-                .toList(growable: false)
-          : const <ApayHashEntry>[],
+      requestId: _requiredRlnString(map, 'requestId', 'ApayNewResponse'),
+      hostNodeId: _requiredRlnString(map, 'hostNodeId', 'ApayNewResponse'),
+      protocolVersion: _requiredRlnInt(
+        map,
+        'protocolVersion',
+        'ApayNewResponse',
+      ),
+      orderId: _requiredRlnString(map, 'orderId', 'ApayNewResponse'),
+      status: _requiredRlnString(map, 'status', 'ApayNewResponse'),
+      acceptedThroughIndex: _requiredRlnInt(
+        map,
+        'acceptedThroughIndex',
+        'ApayNewResponse',
+      ),
+      nextIndexExpected: _requiredRlnInt(
+        map,
+        'nextIndexExpected',
+        'ApayNewResponse',
+      ),
+      unusedHashes: _requiredRlnInt(map, 'unusedHashes', 'ApayNewResponse'),
+      refillBatchSize: _requiredRlnInt(
+        map,
+        'refillBatchSize',
+        'ApayNewResponse',
+      ),
+      firstHashIndex: _requiredRlnInt(map, 'firstHashIndex', 'ApayNewResponse'),
+      lastHashIndex: _requiredRlnInt(map, 'lastHashIndex', 'ApayNewResponse'),
+      hashes: _rlnMapListValue(
+        hashes,
+        'ApayNewResponse.hashes',
+      ).map(ApayHashEntry.fromMap).toList(growable: false),
     );
   }
 
@@ -493,9 +644,137 @@ class ApayNewResponse {
   final List<ApayHashEntry> hashes;
 }
 
-int _intValue(Object? value, [int fallback = 0]) {
+int _requiredInt(Map<String, Object?> map, String key, String typeName) {
+  final value = _intValue(map[key]);
+  if (value == null) {
+    throw _malformed('$typeName.$key must be an integer.');
+  }
+  return value;
+}
+
+int _requiredRlnInt(RlnMap map, String key, String typeName) {
+  final value = _intValue(map[key]);
+  if (value == null) {
+    throw _malformed('$typeName.$key must be an integer.');
+  }
+  return value;
+}
+
+int? _intValue(Object? value) {
   if (value is int) return value;
-  if (value is double) return value.toInt();
-  if (value is String) return int.tryParse(value) ?? fallback;
-  return fallback;
+  if (value is double && value.isFinite && value % 1 == 0) return value.toInt();
+  if (value is String) return int.tryParse(value);
+  return null;
+}
+
+String _requiredString(Map<String, Object?> map, String key, String typeName) {
+  final value = _stringValue(map[key]);
+  if (value == null || value.isEmpty) {
+    throw _malformed('$typeName.$key must be a non-empty string.');
+  }
+  return value;
+}
+
+String _requiredRlnString(RlnMap map, String key, String typeName) {
+  final value = _stringValue(map[key]);
+  if (value == null || value.isEmpty) {
+    throw _malformed('$typeName.$key must be a non-empty string.');
+  }
+  return value;
+}
+
+String? _optionalString(Map<String, Object?> map, String key, String typeName) {
+  final value = map[key];
+  if (value == null) return null;
+  final string = _stringValue(value);
+  if (string == null) {
+    throw _malformed('$typeName.$key must be a string when present.');
+  }
+  return string;
+}
+
+String? _stringValue(Object? value) {
+  if (value is String) return value;
+  return null;
+}
+
+int? _optionalPort(Map<String, Object?> map, String key, String typeName) {
+  final value = map[key];
+  if (value == null) return null;
+  final port = _intValue(value);
+  if (port == null || port < 1 || port > 65535) {
+    throw _malformed('$typeName.$key must be a TCP port in range 1..65535.');
+  }
+  return port;
+}
+
+BigInt _requiredUInt64(Map<String, Object?> map, String key, String typeName) {
+  final value = map[key];
+  final parsed = switch (value) {
+    int() when value >= 0 => BigInt.from(value),
+    String() => BigInt.tryParse(value),
+    _ => null,
+  };
+  final max = BigInt.parse(rlnMaxUnsigned64Decimal);
+  if (parsed == null || parsed < BigInt.zero || parsed > max) {
+    throw _malformed('$typeName.$key must be a u64 decimal string.');
+  }
+  return parsed;
+}
+
+List<Map<String, Object?>> _requiredMapList(
+  Map<String, Object?> map,
+  String key,
+  String typeName,
+) {
+  final value = map[key];
+  if (value == null) {
+    throw _malformed('$typeName.$key must be a list.');
+  }
+  return _mapListValue(value, '$typeName.$key');
+}
+
+List<Object?> _optionalList(
+  Map<String, Object?> map,
+  String key,
+  String typeName,
+) {
+  final value = map[key];
+  if (value == null) return const <Object?>[];
+  if (value is! List<Object?>) {
+    throw _malformed('$typeName.$key must be a list when present.');
+  }
+  return List<Object?>.unmodifiable(value);
+}
+
+List<Map<String, Object?>> _mapListValue(Object? value, String field) {
+  if (value is! List) {
+    throw _malformed('$field must be a list.');
+  }
+  return List<Map<String, Object?>>.unmodifiable(
+    value.map((item) {
+      if (item is! Map) {
+        throw _malformed('$field entries must be maps.');
+      }
+      return Map<String, Object?>.from(item);
+    }),
+  );
+}
+
+List<RlnMap> _rlnMapListValue(Object? value, String field) {
+  if (value is! List) {
+    throw _malformed('$field must be a list.');
+  }
+  return List<RlnMap>.unmodifiable(
+    value.map((item) {
+      if (item is! Map) {
+        throw _malformed('$field entries must be maps.');
+      }
+      return Map<Object?, Object?>.from(item);
+    }),
+  );
+}
+
+Never _malformed(String message) {
+  throw NativeProtocolException(message, field: 'lsp');
 }

@@ -4,7 +4,6 @@
 
 import '../binding/rln_binding.dart';
 import '../client/rln_client.dart';
-import '../errors/native_bridge_error_mapper.dart';
 import '../errors/rgb_sdk_exception.dart';
 import '../lsp/lsp_native_decoders.dart';
 import '../lsp/lsp_types.dart';
@@ -12,6 +11,7 @@ import '../lsp/utexo_lsp.dart';
 import '../lsp/utexo_lsp_client.dart';
 import '../models/rln_models.dart';
 import '../models/utexo_core_models.dart';
+import '../models/utexo_domain_policy.dart';
 import 'network_defaults.dart';
 import 'rln_signers.dart';
 import 'utexo_wallet_types.dart';
@@ -94,7 +94,6 @@ abstract class _UtexoWalletInternals {
   Future<int> _createNode();
   String? _resolvedNodeLspBaseUrl();
   UtexoUnlockConfig _resolveUnlockConfig(UtexoUnlockConfig config);
-  bool _isInvalidListTransfersRequest(RgbSdkException error);
   Future<RlnInvoice> _rgbInvoice(
     RgbInvoiceRequest request, {
     required bool witness,

@@ -31,12 +31,34 @@ UtexoUnlockConfig resolveUnlockConfig(
   );
 
   final hasIndexer = resolved.indexerUrl != null;
-  final hasBitcoind =
-      resolved.bitcoindRpcHost != null && resolved.bitcoindRpcUsername != null;
+  final bitcoindValues = <Object?>[
+    resolved.bitcoindRpcUsername,
+    resolved.bitcoindRpcPassword,
+    resolved.bitcoindRpcHost,
+    resolved.bitcoindRpcPort,
+  ];
+  final bitcoindValueCount = bitcoindValues
+      .where((value) => value != null)
+      .length;
+  if (bitcoindValueCount > 0 && bitcoindValueCount < bitcoindValues.length) {
+    throw const WalletValidationException(
+      'Provide all bitcoind RPC parameters or none of them.',
+      field: 'bitcoindRpc',
+    );
+  }
+  if (resolved.bitcoindRpcPort case final port?) {
+    if (port < 1 || port > 65535) {
+      throw const WalletValidationException(
+        'bitcoindRpcPort must be between 1 and 65535.',
+        field: 'bitcoindRpcPort',
+      );
+    }
+  }
+  final hasBitcoind = bitcoindValueCount == bitcoindValues.length;
   if (!hasIndexer && !hasBitcoind) {
     throw WalletValidationException(
       'No chain backend configured for network "$network". '
-      'Provide indexerUrl or bitcoindRpcHost + bitcoindRpcUsername in unlock config.',
+      'Provide indexerUrl or complete bitcoind RPC parameters in unlock config.',
       field: 'indexerUrl',
     );
   }

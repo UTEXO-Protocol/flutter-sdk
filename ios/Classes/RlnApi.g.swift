@@ -256,6 +256,114 @@ struct RlnWireResponse: Hashable {
   }
 }
 
+/// Generated class from Pigeon that represents data sent in messages.
+struct RlnRefreshFailureData: Hashable {
+  var name: String
+  var message: String
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> RlnRefreshFailureData? {
+    let name = pigeonVar_list[0] as! String
+    let message = pigeonVar_list[1] as! String
+
+    return RlnRefreshFailureData(
+      name: name,
+      message: message
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      name,
+      message,
+    ]
+  }
+  static func == (lhs: RlnRefreshFailureData, rhs: RlnRefreshFailureData) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsRlnApi(lhs.name, rhs.name) && deepEqualsRlnApi(lhs.message, rhs.message)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("RlnRefreshFailureData")
+    deepHashRlnApi(value: name, hasher: &hasher)
+    deepHashRlnApi(value: message, hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct RlnRefreshedTransferData: Hashable {
+  var index: Int64
+  var updatedStatus: String? = nil
+  var failure: RlnRefreshFailureData? = nil
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> RlnRefreshedTransferData? {
+    let index = pigeonVar_list[0] as! Int64
+    let updatedStatus: String? = nilOrValue(pigeonVar_list[1])
+    let failure: RlnRefreshFailureData? = nilOrValue(pigeonVar_list[2])
+
+    return RlnRefreshedTransferData(
+      index: index,
+      updatedStatus: updatedStatus,
+      failure: failure
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      index,
+      updatedStatus,
+      failure,
+    ]
+  }
+  static func == (lhs: RlnRefreshedTransferData, rhs: RlnRefreshedTransferData) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsRlnApi(lhs.index, rhs.index) && deepEqualsRlnApi(lhs.updatedStatus, rhs.updatedStatus) && deepEqualsRlnApi(lhs.failure, rhs.failure)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("RlnRefreshedTransferData")
+    deepHashRlnApi(value: index, hasher: &hasher)
+    deepHashRlnApi(value: updatedStatus, hasher: &hasher)
+    deepHashRlnApi(value: failure, hasher: &hasher)
+  }
+}
+
+/// Generated class from Pigeon that represents data sent in messages.
+struct RlnRefreshTransfersData: Hashable {
+  var transfers: [RlnRefreshedTransferData]
+
+
+  // swift-format-ignore: AlwaysUseLowerCamelCase
+  static func fromList(_ pigeonVar_list: [Any?]) -> RlnRefreshTransfersData? {
+    let transfers = pigeonVar_list[0] as! [RlnRefreshedTransferData]
+
+    return RlnRefreshTransfersData(
+      transfers: transfers
+    )
+  }
+  func toList() -> [Any?] {
+    return [
+      transfers
+    ]
+  }
+  static func == (lhs: RlnRefreshTransfersData, rhs: RlnRefreshTransfersData) -> Bool {
+    if Swift.type(of: lhs) != Swift.type(of: rhs) {
+      return false
+    }
+    return deepEqualsRlnApi(lhs.transfers, rhs.transfers)
+  }
+
+  func hash(into hasher: inout Hasher) {
+    hasher.combine("RlnRefreshTransfersData")
+    deepHashRlnApi(value: transfers, hasher: &hasher)
+  }
+}
+
 private class RlnApiPigeonCodecReader: FlutterStandardReader {
   override func readValue(ofType type: UInt8) -> Any? {
     switch type {
@@ -263,6 +371,12 @@ private class RlnApiPigeonCodecReader: FlutterStandardReader {
       return RlnNativeArtifactInfo.fromList(self.readValue() as! [Any?])
     case 130:
       return RlnWireResponse.fromList(self.readValue() as! [Any?])
+    case 131:
+      return RlnRefreshFailureData.fromList(self.readValue() as! [Any?])
+    case 132:
+      return RlnRefreshedTransferData.fromList(self.readValue() as! [Any?])
+    case 133:
+      return RlnRefreshTransfersData.fromList(self.readValue() as! [Any?])
     default:
       return super.readValue(ofType: type)
     }
@@ -276,6 +390,15 @@ private class RlnApiPigeonCodecWriter: FlutterStandardWriter {
       super.writeValue(value.toList())
     } else if let value = value as? RlnWireResponse {
       super.writeByte(130)
+      super.writeValue(value.toList())
+    } else if let value = value as? RlnRefreshFailureData {
+      super.writeByte(131)
+      super.writeValue(value.toList())
+    } else if let value = value as? RlnRefreshedTransferData {
+      super.writeByte(132)
+      super.writeValue(value.toList())
+    } else if let value = value as? RlnRefreshTransfersData {
+      super.writeByte(133)
       super.writeValue(value.toList())
     } else {
       super.writeValue(value)
@@ -348,7 +471,7 @@ protocol RlnHostApi {
   func rlnCancelHodlInvoice(nodeId: Int64, paymentHash: String) throws
   func rlnApayNew(nodeId: Int64, hostNodeId: String) throws -> RlnWireResponse
   func rlnApayNewWithAddress(nodeId: Int64, hostNodeId: String, username: String, domain: String) throws -> RlnWireResponse
-  func rlnRefreshTransfers(nodeId: Int64, skipSync: Bool) throws
+  func rlnRefreshTransfers(nodeId: Int64, skipSync: Bool) throws -> RlnRefreshTransfersData
   func rlnRgbInvoice(nodeId: Int64, assetId: String?, assignmentAmount: Int64?, durationSeconds: Int64?, minConfirmations: Int64, witness: Bool, assignmentKind: String?) throws -> RlnWireResponse
   func rlnSendBtc(nodeId: Int64, amount: Int64, address: String, feeRate: Double, skipSync: Bool) throws -> RlnWireResponse
   func rlnSendPayment(nodeId: Int64, invoice: String, amtMsat: Int64?, assetId: String?, assetAmount: Int64?) throws -> RlnWireResponse
@@ -1325,8 +1448,8 @@ class RlnHostApiSetup {
         let nodeIdArg = args[0] as! Int64
         let skipSyncArg = args[1] as! Bool
         do {
-          try api.rlnRefreshTransfers(nodeId: nodeIdArg, skipSync: skipSyncArg)
-          reply(wrapResult(nil))
+          let result = try api.rlnRefreshTransfers(nodeId: nodeIdArg, skipSync: skipSyncArg)
+          reply(wrapResult(result))
         } catch {
           reply(wrapError(error))
         }

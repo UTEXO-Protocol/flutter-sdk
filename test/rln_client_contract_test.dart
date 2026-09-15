@@ -28,6 +28,9 @@ class _ContractCase {
 
 class _RecordingRlnHostApi extends RlnHostApi {
   final List<_RecordedCall> calls = <_RecordedCall>[];
+  RlnRefreshTransfersData refreshTransfersData = RlnRefreshTransfersData(
+    transfers: <RlnRefreshedTransferData>[],
+  );
 
   void _record(String method, List<Object?> args) {
     calls.add(_RecordedCall(method, args));
@@ -581,8 +584,12 @@ class _RecordingRlnHostApi extends RlnHostApi {
   }
 
   @override
-  Future<void> rlnRefreshTransfers(int nodeId, bool skipSync) async {
+  Future<RlnRefreshTransfersData> rlnRefreshTransfers(
+    int nodeId,
+    bool skipSync,
+  ) async {
     _record('rlnRefreshTransfers', <Object?>[nodeId, skipSync]);
+    return refreshTransfersData;
   }
 
   @override
@@ -1634,6 +1641,56 @@ void main() {
       );
 
       expect(hostApi.calls, isEmpty);
+    });
+
+    test('adapts typed refresh data without losing batch IDs', () async {
+      final hostApi = _RecordingRlnHostApi()
+        ..refreshTransfersData = RlnRefreshTransfersData(
+          transfers: <RlnRefreshedTransferData>[
+            RlnRefreshedTransferData(
+              index: 9,
+              updatedStatus: 'WaitingBroadcast',
+              failure: RlnRefreshFailureData(
+                name: 'ProxyError',
+                message: 'proxy unavailable',
+              ),
+            ),
+          ],
+        );
+      final client = RlnClient(hostApi: hostApi);
+
+      final response = await client.refreshTransfers(
+        nodeId: nodeId,
+        skipSync: true,
+      );
+
+      expect(response, <Object?, Object?>{
+        'transfers': <Object?, Object?>{
+          9: <Object?, Object?>{
+            'updatedStatus': 'WaitingBroadcast',
+            'failure': <Object?, Object?>{
+              'name': 'ProxyError',
+              'message': 'proxy unavailable',
+            },
+          },
+        },
+      });
+    });
+
+    test('rejects duplicate batch IDs in typed refresh data', () async {
+      final hostApi = _RecordingRlnHostApi()
+        ..refreshTransfersData = RlnRefreshTransfersData(
+          transfers: <RlnRefreshedTransferData>[
+            RlnRefreshedTransferData(index: 9),
+            RlnRefreshedTransferData(index: 9),
+          ],
+        );
+      final client = RlnClient(hostApi: hostApi);
+
+      await expectLater(
+        client.refreshTransfers(nodeId: nodeId, skipSync: false),
+        throwsA(isA<NativeProtocolException>()),
+      );
     });
 
     test('maps PlatformException into typed SDK error with native cause', () {

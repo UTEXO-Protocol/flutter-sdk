@@ -302,10 +302,13 @@ mixin _RlnBindingOnchain on _RlnBindingInternals {
     return unspents.map(RlnUnspent.fromMap).toList(growable: false);
   }
 
-  Future<void> rlnRefreshTransfers(bool skipSync) {
-    return _withNodeOperation(
-      'rlnRefreshTransfers',
-      (nodeId) => _client.refreshTransfers(nodeId: nodeId, skipSync: skipSync),
+  Future<RlnRefreshTransfersResult> rlnRefreshTransfers(bool skipSync) async {
+    return RlnRefreshTransfersResult.fromMap(
+      await _withNodeOperation(
+        'rlnRefreshTransfers',
+        (nodeId) =>
+            _client.refreshTransfers(nodeId: nodeId, skipSync: skipSync),
+      ),
     );
   }
 

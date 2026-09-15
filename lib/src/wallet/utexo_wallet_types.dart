@@ -297,8 +297,17 @@ typedef RlnPaymentStatusValue = String;
 
 /// Known RN-core transfer-status values.
 abstract final class CoreTransferStatuses {
+  /// Transfer has been initialized locally.
+  static const CoreTransferStatus initiated = 'Initiated';
+
   /// Counterparty action is still required.
   static const CoreTransferStatus waitingCounterparty = 'WaitingCounterparty';
+
+  /// Transfer is waiting for a safe Bitcoin chain height.
+  static const CoreTransferStatus waitingSafeHeight = 'WaitingSafeHeight';
+
+  /// Transfer is ready and waiting for transaction broadcast.
+  static const CoreTransferStatus waitingBroadcast = 'WaitingBroadcast';
 
   /// Bitcoin confirmations are still required.
   static const CoreTransferStatus waitingConfirmations = 'WaitingConfirmations';
@@ -308,6 +317,30 @@ abstract final class CoreTransferStatuses {
 
   /// Transfer failed.
   static const CoreTransferStatus failed = 'Failed';
+}
+
+/// Failure reported while refreshing one RGB batch transfer.
+class RefreshFailure {
+  const RefreshFailure({required this.name, required this.message});
+
+  final String name;
+  final String message;
+}
+
+/// Refresh outcome for one RGB batch transfer.
+class RefreshedTransfer {
+  const RefreshedTransfer({this.updatedStatus, this.failure});
+
+  final CoreTransferStatus? updatedStatus;
+  final RefreshFailure? failure;
+}
+
+/// Transfer refresh outcomes keyed by rgb-lib batch transfer ID.
+class RefreshTransfersResult {
+  RefreshTransfersResult({required Map<int, RefreshedTransfer> transfers})
+    : transfers = Map<int, RefreshedTransfer>.unmodifiable(transfers);
+
+  final Map<int, RefreshedTransfer> transfers;
 }
 
 /// Canonical RLN invoice statuses from `@utexo/rgb-sdk-core`.

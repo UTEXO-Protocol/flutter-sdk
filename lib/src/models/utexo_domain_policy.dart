@@ -15,13 +15,14 @@ abstract final class UtexoDomainPolicy {
     'INCOMING': 'Incoming',
   };
 
-  static const Set<String> transferStatuses = <String>{
-    'WaitingCounterparty',
-    'WaitingSafeHeight',
-    'WaitingConfirmations',
-    'Settled',
-    'Failed',
-    'Initiated',
+  static const Map<String, String> transferStatuses = <String, String>{
+    'initiated': 'Initiated',
+    'waitingcounterparty': 'WaitingCounterparty',
+    'waitingsafeheight': 'WaitingSafeHeight',
+    'waitingbroadcast': 'WaitingBroadcast',
+    'waitingconfirmations': 'WaitingConfirmations',
+    'settled': 'Settled',
+    'failed': 'Failed',
   };
 
   static const Set<String> transferKinds = <String>{
@@ -49,7 +50,9 @@ abstract final class UtexoDomainPolicy {
   }
 
   static String requireTransferStatus(String raw) {
-    if (transferStatuses.contains(raw)) return raw;
+    final key = raw.trim().replaceAll(RegExp(r'[_\s-]'), '').toLowerCase();
+    final status = transferStatuses[key];
+    if (status != null) return status;
     throw NativeProtocolException(
       'Unsupported transfer status "$raw".',
       field: 'status',

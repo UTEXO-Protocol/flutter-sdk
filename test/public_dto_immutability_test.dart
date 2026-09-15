@@ -44,6 +44,7 @@ void main() {
       final endpoints = <String>['endpoint-a'];
       final decoded = RlnDecodedRgbInvoice(
         recipientId: 'recipient',
+        proxyRecipientId: 'proxy-recipient',
         recipientType: 'Blind',
         assignment: 'Fungible(1)',
         network: 'regtest',

@@ -99,6 +99,12 @@ extension UtexoWalletRawApi on UtexoWallet {
     return _listTransfersByTxidRaw(txid);
   }
 
+  Future<RlnRefreshTransfersResult> refreshTransfersRaw({
+    bool skipSync = false,
+  }) {
+    return _refreshTransfersRaw(skipSync: skipSync);
+  }
+
   Future<RlnFeeRate> estimateFeeRateRaw(int blocks) {
     return _estimateFeeRateRaw(blocks);
   }

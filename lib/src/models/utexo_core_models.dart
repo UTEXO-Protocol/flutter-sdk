@@ -133,7 +133,7 @@ class CoreUtxo {
     required this.outpoint,
     required this.btcAmount,
     required this.colorable,
-    this.exists = true,
+    required this.exists,
   });
 
   final Outpoint outpoint;
@@ -549,6 +549,8 @@ class DecodedLightningInvoice {
     required this.timestamp,
     this.assetId,
     this.assetAmount,
+    this.description,
+    this.descriptionHash,
     required this.paymentHash,
     required this.paymentSecret,
     this.payeePubkey,
@@ -567,6 +569,8 @@ class DecodedLightningInvoice {
 
   /// RGB asset amount in the asset's smallest unit.
   final int? assetAmount;
+  final String? description;
+  final String? descriptionHash;
   final String paymentHash;
   final String paymentSecret;
   final String? payeePubkey;
@@ -674,6 +678,8 @@ extension RlnDecodedLightningInvoiceMapper on RlnDecodedLnInvoice {
       timestamp: timestamp,
       assetId: assetId,
       assetAmount: assetAmount,
+      description: description,
+      descriptionHash: descriptionHash,
       paymentHash: paymentHash,
       paymentSecret: paymentSecret,
       payeePubkey: payeePubkey,
@@ -873,6 +879,7 @@ extension RlnCoreUnspentMapper on RlnUnspent {
         outpoint: parseCoreOutpoint(utxo.outpoint),
         btcAmount: utxo.btcAmount,
         colorable: utxo.colorable,
+        exists: utxo.exists,
       ),
       rgbAllocations: rgbAllocations
           .map(

@@ -33,6 +33,31 @@ class RlnWireResponse {
   String json;
 }
 
+class RlnRefreshFailureData {
+  RlnRefreshFailureData({required this.name, required this.message});
+
+  String name;
+  String message;
+}
+
+class RlnRefreshedTransferData {
+  RlnRefreshedTransferData({
+    required this.index,
+    this.updatedStatus,
+    this.failure,
+  });
+
+  int index;
+  String? updatedStatus;
+  RlnRefreshFailureData? failure;
+}
+
+class RlnRefreshTransfersData {
+  RlnRefreshTransfersData({required this.transfers});
+
+  List<RlnRefreshedTransferData> transfers;
+}
+
 @HostApi()
 abstract class RlnHostApi {
   @TaskQueue(type: TaskQueueType.serialBackgroundThread)
@@ -297,7 +322,7 @@ abstract class RlnHostApi {
   );
 
   @TaskQueue(type: TaskQueueType.serialBackgroundThread)
-  void rlnRefreshTransfers(int nodeId, bool skipSync);
+  RlnRefreshTransfersData rlnRefreshTransfers(int nodeId, bool skipSync);
 
   @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   RlnWireResponse rlnRgbInvoice(

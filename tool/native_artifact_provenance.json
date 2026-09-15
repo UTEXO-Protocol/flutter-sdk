@@ -1,23 +1,23 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-08-05T00:00:00Z",
+  "reviewedAt": "2026-09-15T00:00:00Z",
   "reviewedAgainst": {
     "releaseBaselineSchemaVersion": 1,
-    "rlnVersion": "0.10.0-beta.3",
-    "rlnCommit": "0bfa66fa256a6c36f3737d5b6402eacea40c68fc"
+    "rlnVersion": "0.13.0-beta.3",
+    "rlnCommit": "af03c7f1a65135a429f05a5820600338215954dc"
   },
   "artifacts": [
     {
       "id": "rln-ios-swift",
       "platform": "ios",
       "source": "github-release",
-      "artifactUrl": "https://github.com/UTEXO-Protocol/rgb-lightning-node/releases/download/v0.10.0-beta.3/rgb-lightning-node-swift-0.10.0-beta.3.zip",
-      "artifactSizeBytes": 200552450,
-      "artifactSha256": "be2adacc4f1e608648659b08b36baab92dc113818c950b311cf0c352a25130f5",
-      "publishedAt": "2026-07-24T10:13:31Z",
+      "artifactUrl": "https://github.com/UTEXO-Protocol/rgb-lightning-node/releases/download/v0.13.0-beta.3/rgb-lightning-node-swift-0.13.0-beta.3.zip",
+      "artifactSizeBytes": 216369546,
+      "artifactSha256": "c272c35d8a11a9eac8e0a08dd734dbe622ba967dd21e8809ea1d4caa92771662",
+      "publishedAt": "2026-09-11T12:02:10Z",
       "signature": {
         "status": "absent",
-        "checkedSource": "GitHub release asset list for v0.10.0-beta.3",
+        "checkedSource": "GitHub release asset list for v0.13.0-beta.3",
         "checkedPatterns": [
           ".asc",
           ".sig",
@@ -26,7 +26,7 @@
       },
       "attestation": {
         "status": "absent",
-        "checkedSource": "GitHub release asset list for v0.10.0-beta.3",
+        "checkedSource": "GitHub release asset list for v0.13.0-beta.3",
         "checkedPatterns": [
           ".intoto.jsonl",
           ".attestation",
@@ -43,19 +43,19 @@
       "id": "rln-android-aar",
       "platform": "android",
       "source": "maven-central",
-      "artifactUrl": "https://repo1.maven.org/maven2/com/utexo/rgb-lightning-node-android/0.10.0-beta.3/rgb-lightning-node-android-0.10.0-beta.3.aar",
-      "artifactSizeBytes": 83390919,
-      "artifactSha256": "1b29fe696ea7a2ce38a30f7a67cd692271349394863da879d7abb55719f4f6a5",
-      "publishedAt": "2026-07-24T10:04:00Z",
+      "artifactUrl": "https://repo1.maven.org/maven2/com/utexo/rgb-lightning-node-android/0.13.0-beta.3/rgb-lightning-node-android-0.13.0-beta.3.aar",
+      "artifactSizeBytes": 90444658,
+      "artifactSha256": "237f1e9ad80631b40b2dbd6f2192844a095964243a21c02917debb47f799930b",
+      "publishedAt": "2026-09-11T11:14:06Z",
       "signature": {
         "status": "present-unverified",
-        "signatureUrl": "https://repo1.maven.org/maven2/com/utexo/rgb-lightning-node-android/0.10.0-beta.3/rgb-lightning-node-android-0.10.0-beta.3.aar.asc",
-        "signatureSha256": "0fa1237d6bfbce9ce13135fb46e32848a430a856e38016b427c6bdc8fa212c3f",
-        "checkedSource": "Maven Central directory listing for com/utexo/rgb-lightning-node-android/0.10.0-beta.3"
+        "signatureUrl": "https://repo1.maven.org/maven2/com/utexo/rgb-lightning-node-android/0.13.0-beta.3/rgb-lightning-node-android-0.13.0-beta.3.aar.asc",
+        "signatureSha256": "cf8ae94fd30242fdda7ff7929f5c029e21efed991a1f496cec2d9e185cb1ce2d",
+        "checkedSource": "Maven Central directory listing for com/utexo/rgb-lightning-node-android/0.13.0-beta.3"
       },
       "attestation": {
         "status": "absent",
-        "checkedSource": "Maven Central directory listing for com/utexo/rgb-lightning-node-android/0.10.0-beta.3"
+        "checkedSource": "Maven Central directory listing for com/utexo/rgb-lightning-node-android/0.13.0-beta.3"
       },
       "reproducibleBuild": {
         "status": "absent",

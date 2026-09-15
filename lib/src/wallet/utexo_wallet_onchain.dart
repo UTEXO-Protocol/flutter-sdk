@@ -331,24 +331,8 @@ mixin _UtexoWalletOnchain on _UtexoWalletInternals {
   }
 
   Future<List<RlnTransfer>> _listTransfersRaw({String? assetId}) async {
-    if (assetId != null) {
-      _requireUnlockedNode();
-      return _binding.rlnListTransfers(assetId);
-    }
-
-    try {
-      _requireUnlockedNode();
-      return await _binding.rlnListTransfers('');
-    } on RgbSdkException catch (error) {
-      if (!_isInvalidListTransfersRequest(error)) rethrow;
-      throw UnsupportedWalletFeatureException(
-        'Complete unfiltered transfer listing is not available with the '
-        'current native artifact. Pass assetId to list asset transfers without '
-        'silently omitting no-asset transfers.',
-        feature: 'listTransfers',
-        cause: error,
-      );
-    }
+    _requireUnlockedNode();
+    return _binding.rlnListTransfers(assetId ?? '');
   }
 
   Future<List<CoreTransfer>> listTransfers({String? assetId}) async {
@@ -388,9 +372,41 @@ mixin _UtexoWalletOnchain on _UtexoWalletInternals {
     );
   }
 
-  Future<void> refreshWallet() {
+  Future<RlnRefreshTransfersResult> _refreshTransfersRaw({
+    bool skipSync = false,
+  }) {
     _requireUnlockedNode();
-    return _binding.rlnRefreshTransfers(false);
+    return _binding.rlnRefreshTransfers(skipSync);
+  }
+
+  Future<RefreshTransfersResult> refreshTransfers({
+    bool skipSync = false,
+  }) async {
+    final result = await _refreshTransfersRaw(skipSync: skipSync);
+    return RefreshTransfersResult(
+      transfers: result.transfers.map(
+        (index, transfer) => MapEntry(
+          index,
+          RefreshedTransfer(
+            updatedStatus: transfer.updatedStatus == null
+                ? null
+                : UtexoDomainPolicy.requireTransferStatus(
+                    transfer.updatedStatus!,
+                  ),
+            failure: transfer.failure == null
+                ? null
+                : RefreshFailure(
+                    name: transfer.failure!.name,
+                    message: transfer.failure!.message,
+                  ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> refreshWallet() async {
+    await refreshTransfers();
   }
 
   Future<void> syncWallet() {
@@ -461,13 +477,6 @@ mixin _UtexoWalletOnchain on _UtexoWalletInternals {
 
   Future<List<CoreTransfer>> listOnchainTransfers({String? assetId}) {
     return listTransfers(assetId: assetId);
-  }
-
-  @override
-  bool _isInvalidListTransfersRequest(RgbSdkException error) {
-    final cause = error.cause;
-    if (cause is! NativeBridgeFailure) return false;
-    return cause.operation == 'rlnListTransfers' && error is BadRequestError;
   }
 
   @override

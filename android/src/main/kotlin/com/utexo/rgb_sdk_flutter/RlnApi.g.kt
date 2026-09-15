@@ -275,6 +275,120 @@ data class RlnWireResponse (
     return result
   }
 }
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class RlnRefreshFailureData (
+  val name: String,
+  val message: String
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): RlnRefreshFailureData {
+      val name = pigeonVar_list[0] as String
+      val message = pigeonVar_list[1] as String
+      return RlnRefreshFailureData(name, message)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      name,
+      message,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as RlnRefreshFailureData
+    return RlnApiPigeonUtils.deepEquals(this.name, other.name) && RlnApiPigeonUtils.deepEquals(this.message, other.message)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + RlnApiPigeonUtils.deepHash(this.name)
+    result = 31 * result + RlnApiPigeonUtils.deepHash(this.message)
+    return result
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class RlnRefreshedTransferData (
+  val index: Long,
+  val updatedStatus: String? = null,
+  val failure: RlnRefreshFailureData? = null
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): RlnRefreshedTransferData {
+      val index = pigeonVar_list[0] as Long
+      val updatedStatus = pigeonVar_list[1] as String?
+      val failure = pigeonVar_list[2] as RlnRefreshFailureData?
+      return RlnRefreshedTransferData(index, updatedStatus, failure)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      index,
+      updatedStatus,
+      failure,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as RlnRefreshedTransferData
+    return RlnApiPigeonUtils.deepEquals(this.index, other.index) && RlnApiPigeonUtils.deepEquals(this.updatedStatus, other.updatedStatus) && RlnApiPigeonUtils.deepEquals(this.failure, other.failure)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + RlnApiPigeonUtils.deepHash(this.index)
+    result = 31 * result + RlnApiPigeonUtils.deepHash(this.updatedStatus)
+    result = 31 * result + RlnApiPigeonUtils.deepHash(this.failure)
+    return result
+  }
+}
+
+/** Generated class from Pigeon that represents data sent in messages. */
+data class RlnRefreshTransfersData (
+  val transfers: List<RlnRefreshedTransferData>
+)
+ {
+  companion object {
+    fun fromList(pigeonVar_list: List<Any?>): RlnRefreshTransfersData {
+      val transfers = pigeonVar_list[0] as List<RlnRefreshedTransferData>
+      return RlnRefreshTransfersData(transfers)
+    }
+  }
+  fun toList(): List<Any?> {
+    return listOf(
+      transfers,
+    )
+  }
+  override fun equals(other: Any?): Boolean {
+    if (other == null || other.javaClass != javaClass) {
+      return false
+    }
+    if (this === other) {
+      return true
+    }
+    val other = other as RlnRefreshTransfersData
+    return RlnApiPigeonUtils.deepEquals(this.transfers, other.transfers)
+  }
+
+  override fun hashCode(): Int {
+    var result = javaClass.hashCode()
+    result = 31 * result + RlnApiPigeonUtils.deepHash(this.transfers)
+    return result
+  }
+}
 private open class RlnApiPigeonCodec : StandardMessageCodec() {
   override fun readValueOfType(type: Byte, buffer: ByteBuffer): Any? {
     return when (type) {
@@ -288,6 +402,21 @@ private open class RlnApiPigeonCodec : StandardMessageCodec() {
           RlnWireResponse.fromList(it)
         }
       }
+      131.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          RlnRefreshFailureData.fromList(it)
+        }
+      }
+      132.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          RlnRefreshedTransferData.fromList(it)
+        }
+      }
+      133.toByte() -> {
+        return (readValue(buffer) as? List<Any?>)?.let {
+          RlnRefreshTransfersData.fromList(it)
+        }
+      }
       else -> super.readValueOfType(type, buffer)
     }
   }
@@ -299,6 +428,18 @@ private open class RlnApiPigeonCodec : StandardMessageCodec() {
       }
       is RlnWireResponse -> {
         stream.write(130)
+        writeValue(stream, value.toList())
+      }
+      is RlnRefreshFailureData -> {
+        stream.write(131)
+        writeValue(stream, value.toList())
+      }
+      is RlnRefreshedTransferData -> {
+        stream.write(132)
+        writeValue(stream, value.toList())
+      }
+      is RlnRefreshTransfersData -> {
+        stream.write(133)
         writeValue(stream, value.toList())
       }
       else -> super.writeValue(stream, value)
@@ -357,7 +498,7 @@ interface RlnHostApi {
   fun rlnCancelHodlInvoice(nodeId: Long, paymentHash: String)
   fun rlnApayNew(nodeId: Long, hostNodeId: String): RlnWireResponse
   fun rlnApayNewWithAddress(nodeId: Long, hostNodeId: String, username: String, domain: String): RlnWireResponse
-  fun rlnRefreshTransfers(nodeId: Long, skipSync: Boolean)
+  fun rlnRefreshTransfers(nodeId: Long, skipSync: Boolean): RlnRefreshTransfersData
   fun rlnRgbInvoice(nodeId: Long, assetId: String?, assignmentAmount: Long?, durationSeconds: Long?, minConfirmations: Long, witness: Boolean, assignmentKind: String?): RlnWireResponse
   fun rlnSendBtc(nodeId: Long, amount: Long, address: String, feeRate: Double, skipSync: Boolean): RlnWireResponse
   fun rlnSendPayment(nodeId: Long, invoice: String, amtMsat: Long?, assetId: String?, assetAmount: Long?): RlnWireResponse
@@ -1345,8 +1486,7 @@ interface RlnHostApi {
             val nodeIdArg = args[0] as Long
             val skipSyncArg = args[1] as Boolean
             val wrapped: List<Any?> = try {
-              api.rlnRefreshTransfers(nodeIdArg, skipSyncArg)
-              listOf(null)
+              listOf(api.rlnRefreshTransfers(nodeIdArg, skipSyncArg))
             } catch (exception: Throwable) {
               RlnApiPigeonUtils.wrapError(exception)
             }

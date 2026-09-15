@@ -8,6 +8,7 @@ import org.utexo.rgblightningnode.LnInvoiceRequest
 import org.utexo.rgblightningnode.NativeExternalSigner
 import org.utexo.rgblightningnode.SdkExternalSignerBootstrap
 import org.utexo.rgblightningnode.SdkInitRequest
+import org.utexo.rgblightningnode.SdkLdkChainSync
 import org.utexo.rgblightningnode.SdkNode
 import org.utexo.rgblightningnode.SdkUnlockRequest
 import org.utexo.rgblightningnode.SdkVssClearFenceRequest
@@ -137,6 +138,27 @@ class RgbSdkFlutterPlugin :
             invalidArgument(operation, field, "$field must be a finite non-negative integer fee rate.")
         }
         return value.toLong().toULong()
+    }
+
+    private fun requireLdkChainSync(
+        bitcoindRpcUsername: String?,
+        bitcoindRpcPassword: String?,
+        bitcoindRpcHost: String?,
+        bitcoindRpcPort: Long?,
+        indexerUrl: String?,
+        operation: String
+    ): SdkLdkChainSync {
+        return try {
+            RlnChainSyncFactory.create(
+                bitcoindRpcUsername = bitcoindRpcUsername,
+                bitcoindRpcPassword = bitcoindRpcPassword,
+                bitcoindRpcHost = bitcoindRpcHost,
+                bitcoindRpcPort = bitcoindRpcPort,
+                indexerUrl = indexerUrl
+            )
+        } catch (error: RlnChainSyncConfigurationException) {
+            invalidArgument(operation, error.field, error.message)
+        }
     }
 
     private fun requireULongList(values: List<Long>, field: String, operation: String): List<ULong> {
@@ -331,7 +353,12 @@ class RgbSdkFlutterPlugin :
             "addedAt" to asset.addedAt,
             "balance" to assetBalanceMap(asset.balance),
             "media" to mediaMap(asset.media),
-            "rejectListUrl" to asset.rejectListUrl
+            "rejectListUrl" to asset.rejectListUrl,
+            "issuanceLinkRightOutpoint" to asset.issuanceLinkRightOutpoint?.let {
+                mapOf("txid" to it.txid, "vout" to it.vout.toLong())
+            },
+            "linkedFromAssetId" to asset.linkedFromAssetId,
+            "linkedToAssetId" to asset.linkedToAssetId
         )
     }
 
@@ -436,7 +463,8 @@ class RgbSdkFlutterPlugin :
             "utxo" to mapOf(
                 "outpoint" to unspent.utxo.outpoint,
                 "btcAmount" to unspent.utxo.btcAmount,
-                "colorable" to unspent.utxo.colorable
+                "colorable" to unspent.utxo.colorable,
+                "exists" to unspent.utxo.exists
             ),
             "rgbAllocations" to unspent.rgbAllocations.map(::rgbAllocationMap)
         )
@@ -445,6 +473,7 @@ class RgbSdkFlutterPlugin :
     private fun decodeRgbInvoiceMap(invoice: org.utexo.rgblightningnode.DecodeRgbInvoiceResponse): Map<Any?, Any?> {
         return mapOf(
             "recipientId" to invoice.recipientId,
+            "proxyRecipientId" to invoice.proxyRecipientId,
             "recipientType" to invoice.recipientType,
             "assetSchema" to invoice.assetSchema,
             "assetId" to invoice.assetId,
@@ -474,6 +503,7 @@ class RgbSdkFlutterPlugin :
             "kind" to transfer.kind,
             "txid" to transfer.txid,
             "recipientId" to transfer.recipientId,
+            "proxyRecipientId" to transfer.proxyRecipientId,
             "receiveUtxo" to transfer.receiveUtxo,
             "changeUtxo" to transfer.changeUtxo,
             "expiration" to transfer.expiration,
@@ -497,6 +527,8 @@ class RgbSdkFlutterPlugin :
             "timestamp" to invoice.timestamp.toString(),
             "assetId" to invoice.assetId,
             "assetAmount" to invoice.assetAmount?.toString(),
+            "description" to invoice.description,
+            "descriptionHash" to invoice.descriptionHash,
             "paymentHash" to invoice.paymentHash,
             "paymentSecret" to invoice.paymentSecret,
             "payeePubkey" to invoice.payeePubkey,
@@ -645,10 +677,14 @@ class RgbSdkFlutterPlugin :
             }
             node.unlockWithNativeExternalSigner(
                 signer = signer,
-                bitcoindRpcUsername = bitcoindRpcUsername,
-                bitcoindRpcPassword = bitcoindRpcPassword,
-                bitcoindRpcHost = bitcoindRpcHost,
-                bitcoindRpcPort = bitcoindRpcPort?.let { requireUShort(it, "bitcoindRpcPort", "rlnUnlockNodeWithNativeExternalSigner") },
+                ldkChainSync = requireLdkChainSync(
+                    bitcoindRpcUsername = bitcoindRpcUsername,
+                    bitcoindRpcPassword = bitcoindRpcPassword,
+                    bitcoindRpcHost = bitcoindRpcHost,
+                    bitcoindRpcPort = bitcoindRpcPort,
+                    indexerUrl = indexerUrl,
+                    operation = "rlnUnlockNodeWithNativeExternalSigner"
+                ),
                 indexerUrl = indexerUrl,
                 proxyEndpoint = proxyEndpoint,
                 announceAddresses = announceAddresses,
@@ -714,10 +750,14 @@ class RgbSdkFlutterPlugin :
             node.unlock(
                 SdkUnlockRequest(
                     password = password,
-                    bitcoindRpcUsername = bitcoindRpcUsername,
-                    bitcoindRpcPassword = bitcoindRpcPassword,
-                    bitcoindRpcHost = bitcoindRpcHost,
-                    bitcoindRpcPort = bitcoindRpcPort?.let { requireUShort(it, "bitcoindRpcPort", "rlnUnlockNode") },
+                    ldkChainSync = requireLdkChainSync(
+                        bitcoindRpcUsername = bitcoindRpcUsername,
+                        bitcoindRpcPassword = bitcoindRpcPassword,
+                        bitcoindRpcHost = bitcoindRpcHost,
+                        bitcoindRpcPort = bitcoindRpcPort,
+                        indexerUrl = indexerUrl,
+                        operation = "rlnUnlockNode"
+                    ),
                     indexerUrl = indexerUrl,
                     proxyEndpoint = proxyEndpoint,
                     announceAddresses = announceAddresses,
@@ -1003,7 +1043,7 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnListTransactions(nodeId: Long, skipSync: Boolean): List<RlnWireResponse> {
         return runRlnWireList("rlnListTransactions") {
-            RlnNodeStore.get(nodeId).listTransactions(skipSync).map(::transactionMap)
+            RlnNodeStore.get(nodeId).listTransactions(skipSync, null).map(::transactionMap)
         }
     }
 
@@ -1013,19 +1053,19 @@ class RgbSdkFlutterPlugin :
         skipSync: Boolean
     ): List<RlnWireResponse> {
         return runRlnWireList("rlnListTransactionsByTxid") {
-            RlnNodeStore.get(nodeId).listTransactionsByTxid(txid, skipSync).map(::transactionMap)
+            RlnNodeStore.get(nodeId).listTransactions(skipSync, txid).map(::transactionMap)
         }
     }
 
     override fun rlnListTransfers(nodeId: Long, assetId: String): List<RlnWireResponse> {
         return runRlnWireList("rlnListTransfers") {
-            RlnNodeStore.get(nodeId).listTransfers(assetId).map(::transferMap)
+            RlnNodeStore.get(nodeId).listTransfers(assetId.ifEmpty { null }, null).map(::transferMap)
         }
     }
 
     override fun rlnListTransfersByTxid(nodeId: Long, txid: String): List<RlnWireResponse> {
         return runRlnWireList("rlnListTransfersByTxid") {
-            RlnNodeStore.get(nodeId).listTransfersByTxid(txid).map(::transferMap)
+            RlnNodeStore.get(nodeId).listTransfers(null, txid).map(::transferMap)
         }
     }
 
@@ -1120,10 +1160,23 @@ class RgbSdkFlutterPlugin :
         }
     }
 
-    override fun rlnRefreshTransfers(nodeId: Long, skipSync: Boolean) {
-        runRln("rlnRefreshTransfers") {
-            RlnNodeStore.get(nodeId).refreshtransfers(
+    override fun rlnRefreshTransfers(nodeId: Long, skipSync: Boolean): RlnRefreshTransfersData {
+        return runRln("rlnRefreshTransfers") {
+            val response = RlnNodeStore.get(nodeId).refreshtransfers(
                 org.utexo.rgblightningnode.SdkRefreshTransfersRequest(skipSync)
+            )
+            RlnRefreshTransfersData(
+                transfers = response.transfers.entries
+                    .sortedBy { it.key }
+                    .map { (index, transfer) ->
+                        RlnRefreshedTransferData(
+                            index = index.toLong(),
+                            updatedStatus = transfer.updatedStatus,
+                            failure = transfer.failure?.let {
+                                RlnRefreshFailureData(name = it.name, message = it.message)
+                            }
+                        )
+                    }
             )
         }
     }

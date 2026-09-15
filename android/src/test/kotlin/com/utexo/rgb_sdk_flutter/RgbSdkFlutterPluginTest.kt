@@ -2,6 +2,7 @@ package com.utexo.rgb_sdk_flutter
 
 import org.utexo.rgblightningnode.NoPointer
 import org.utexo.rgblightningnode.NativeExternalSigner
+import org.utexo.rgblightningnode.SdkLdkChainSync
 import org.utexo.rgblightningnode.SdkNode
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -22,6 +23,64 @@ internal class RgbSdkFlutterPluginTest {
         assertEquals(ReleaseBaseline.REACT_NATIVE_VERSION, info.reactNativeParityVersion)
         assertEquals("pigeon-bootstrap", info.bridge)
         assertEquals(ReleaseBaseline.ANDROID_MAVEN_COORDINATE, info.nativeArtifact)
+    }
+
+    @Test
+    fun chainSyncFactorySelectsTransactionAndBlockBackends() {
+        val transactionSync = RlnChainSyncFactory.create(
+            bitcoindRpcUsername = null,
+            bitcoindRpcPassword = null,
+            bitcoindRpcHost = null,
+            bitcoindRpcPort = null,
+            indexerUrl = "electrum.example:50001"
+        )
+        assertTrue(transactionSync is SdkLdkChainSync.TransactionSync)
+        assertEquals("electrum.example:50001", transactionSync.indexerUrl)
+
+        val blockSync = RlnChainSyncFactory.create(
+            bitcoindRpcUsername = "rpc-user",
+            bitcoindRpcPassword = "rpc-password",
+            bitcoindRpcHost = "127.0.0.1",
+            bitcoindRpcPort = 18_443,
+            indexerUrl = "ignored.example:50001"
+        )
+        assertTrue(blockSync is SdkLdkChainSync.BlockSync)
+        assertEquals("rpc-user", blockSync.bitcoindRpcUsername)
+        assertEquals("rpc-password", blockSync.bitcoindRpcPassword)
+        assertEquals("127.0.0.1", blockSync.bitcoindRpcHost)
+        assertEquals(18_443.toUShort(), blockSync.bitcoindRpcPort)
+    }
+
+    @Test
+    fun chainSyncFactoryRejectsPartialOrInvalidConfiguration() {
+        val partial = assertFailsWith<RlnChainSyncConfigurationException> {
+            RlnChainSyncFactory.create(
+                bitcoindRpcUsername = "rpc-user",
+                bitcoindRpcPassword = null,
+                bitcoindRpcHost = null,
+                bitcoindRpcPort = null,
+                indexerUrl = "electrum.example:50001"
+            )
+        }
+        assertEquals("bitcoindRpc", partial.field)
+
+        val missing = assertFailsWith<RlnChainSyncConfigurationException> {
+            RlnChainSyncFactory.create(null, null, null, null, null)
+        }
+        assertEquals("indexerUrl", missing.field)
+
+        for (port in listOf(0L, 65_536L)) {
+            val invalidPort = assertFailsWith<RlnChainSyncConfigurationException> {
+                RlnChainSyncFactory.create(
+                    bitcoindRpcUsername = "rpc-user",
+                    bitcoindRpcPassword = "rpc-password",
+                    bitcoindRpcHost = "127.0.0.1",
+                    bitcoindRpcPort = port,
+                    indexerUrl = null
+                )
+            }
+            assertEquals("bitcoindRpcPort", invalidPort.field)
+        }
     }
 
     @Test

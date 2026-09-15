@@ -125,6 +125,21 @@ String _requiredString(RlnMap map, String key, String typeName) {
   return value;
 }
 
+String? _optionalString(
+  RlnMap map,
+  String key,
+  String typeName, {
+  bool allowEmpty = true,
+}) {
+  if (!map.containsKey(key) || map[key] == null) return null;
+  final value = map[key];
+  if (value is String && (allowEmpty || value.isNotEmpty)) return value;
+  throw NativeProtocolException(
+    '$typeName.$key must be ${allowEmpty ? 'a string' : 'a non-empty string'} when present.',
+    field: '$typeName.$key',
+  );
+}
+
 String _canonicalEnum(Object? value) {
   final raw = _stringOrNull(value);
   if (raw == null || raw.isEmpty) {
@@ -637,6 +652,28 @@ class RlnAssetCfa extends RlnAsset {
   final RlnMedia? media;
 }
 
+/// RGB outpoint used by linked-asset issuance metadata.
+class RlnRgbOutpoint {
+  const RlnRgbOutpoint({required this.txid, required this.vout});
+
+  factory RlnRgbOutpoint.fromMap(RlnMap map) {
+    final vout = _requiredInt(map, 'vout', 'RlnRgbOutpoint');
+    if (vout < 0 || vout > 0xFFFFFFFF) {
+      throw const NativeProtocolException(
+        'RlnRgbOutpoint.vout must fit in UInt32.',
+        field: 'RlnRgbOutpoint.vout',
+      );
+    }
+    return RlnRgbOutpoint(
+      txid: _requiredString(map, 'txid', 'RlnRgbOutpoint'),
+      vout: vout,
+    );
+  }
+
+  final String txid;
+  final int vout;
+}
+
 /// Inflation-capable IFA RGB asset.
 class RlnAssetIfa extends RlnAsset {
   const RlnAssetIfa({
@@ -653,6 +690,9 @@ class RlnAssetIfa extends RlnAsset {
     required super.balance,
     this.media,
     this.rejectListUrl,
+    this.issuanceLinkRightOutpoint,
+    this.linkedFromAssetId,
+    this.linkedToAssetId,
   });
 
   factory RlnAssetIfa.fromMap(RlnMap map) {
@@ -678,6 +718,26 @@ class RlnAssetIfa extends RlnAsset {
           ? null
           : RlnMedia.fromMap(_map(map['media'], 'RlnAssetIfa.media')),
       rejectListUrl: _stringOrNull(map['rejectListUrl']),
+      issuanceLinkRightOutpoint: map['issuanceLinkRightOutpoint'] == null
+          ? null
+          : RlnRgbOutpoint.fromMap(
+              _map(
+                map['issuanceLinkRightOutpoint'],
+                'RlnAssetIfa.issuanceLinkRightOutpoint',
+              ),
+            ),
+      linkedFromAssetId: _optionalString(
+        map,
+        'linkedFromAssetId',
+        'RlnAssetIfa',
+        allowEmpty: false,
+      ),
+      linkedToAssetId: _optionalString(
+        map,
+        'linkedToAssetId',
+        'RlnAssetIfa',
+        allowEmpty: false,
+      ),
     );
   }
 
@@ -687,6 +747,9 @@ class RlnAssetIfa extends RlnAsset {
   final int knownCirculatingSupply;
   final RlnMedia? media;
   final String? rejectListUrl;
+  final RlnRgbOutpoint? issuanceLinkRightOutpoint;
+  final String? linkedFromAssetId;
+  final String? linkedToAssetId;
 }
 
 /// Unique digital asset.
@@ -799,6 +862,7 @@ class RlnInvoice {
 class RlnDecodedRgbInvoice {
   RlnDecodedRgbInvoice({
     required this.recipientId,
+    required this.proxyRecipientId,
     required this.recipientType,
     this.assetSchema,
     this.assetId,
@@ -811,6 +875,11 @@ class RlnDecodedRgbInvoice {
   factory RlnDecodedRgbInvoice.fromMap(RlnMap map) {
     return RlnDecodedRgbInvoice(
       recipientId: _requiredString(map, 'recipientId', 'RlnDecodedRgbInvoice'),
+      proxyRecipientId: _requiredString(
+        map,
+        'proxyRecipientId',
+        'RlnDecodedRgbInvoice',
+      ),
       recipientType: _requiredString(
         map,
         'recipientType',
@@ -836,6 +905,7 @@ class RlnDecodedRgbInvoice {
   }
 
   final String recipientId;
+  final String proxyRecipientId;
   final String recipientType;
   final String? assetSchema;
   final String? assetId;
@@ -957,6 +1027,7 @@ class RlnTransfer {
     required this.kind,
     this.txid,
     this.recipientId,
+    this.proxyRecipientId,
     this.receiveUtxo,
     this.changeUtxo,
     this.expiration,
@@ -978,6 +1049,12 @@ class RlnTransfer {
       kind: _stringOrNull(map['kind']),
       txid: _stringOrNull(map['txid']),
       recipientId: _stringOrNull(map['recipientId']),
+      proxyRecipientId: _optionalString(
+        map,
+        'proxyRecipientId',
+        'RlnTransfer',
+        allowEmpty: false,
+      ),
       receiveUtxo: _stringOrNull(map['receiveUtxo']),
       changeUtxo: _stringOrNull(map['changeUtxo']),
       expiration: _intOrNull(map['expiration']),
@@ -1002,6 +1079,7 @@ class RlnTransfer {
   final String? kind;
   final String? txid;
   final String? recipientId;
+  final String? proxyRecipientId;
   final String? receiveUtxo;
   final String? changeUtxo;
 
@@ -1009,6 +1087,85 @@ class RlnTransfer {
   final int? expiration;
   final List<RlnTransferTransportEndpoint> transportEndpoints;
   final int? batchTransferIdx;
+}
+
+/// Native transfer-refresh failure for one batch transfer.
+class RlnRefreshFailure {
+  const RlnRefreshFailure({required this.name, required this.message});
+
+  factory RlnRefreshFailure.fromMap(RlnMap map) {
+    return RlnRefreshFailure(
+      name: _requiredString(map, 'name', 'RlnRefreshFailure'),
+      message: _requiredString(map, 'message', 'RlnRefreshFailure'),
+    );
+  }
+
+  final String name;
+  final String message;
+}
+
+/// Native refresh outcome for one batch transfer.
+class RlnRefreshedTransfer {
+  const RlnRefreshedTransfer({this.updatedStatus, this.failure});
+
+  factory RlnRefreshedTransfer.fromMap(RlnMap map) {
+    return RlnRefreshedTransfer(
+      updatedStatus: _optionalString(
+        map,
+        'updatedStatus',
+        'RlnRefreshedTransfer',
+        allowEmpty: false,
+      ),
+      failure: map['failure'] == null
+          ? null
+          : RlnRefreshFailure.fromMap(
+              _map(map['failure'], 'RlnRefreshedTransfer.failure'),
+            ),
+    );
+  }
+
+  final String? updatedStatus;
+  final RlnRefreshFailure? failure;
+}
+
+/// Native transfer-refresh result keyed by rgb-lib batch transfer ID.
+class RlnRefreshTransfersResult {
+  RlnRefreshTransfersResult({required Map<int, RlnRefreshedTransfer> transfers})
+    : transfers = Map<int, RlnRefreshedTransfer>.unmodifiable(transfers);
+
+  factory RlnRefreshTransfersResult.fromMap(RlnMap map) {
+    final wireTransfers = _requiredMap(
+      map,
+      'transfers',
+      'RlnRefreshTransfersResult',
+    );
+    final transfers = <int, RlnRefreshedTransfer>{};
+    for (final entry in wireTransfers.entries) {
+      final index = switch (entry.key) {
+        int value => value,
+        String value => int.tryParse(value),
+        _ => null,
+      };
+      if (index == null || index < 0 || index > 0x7FFFFFFF) {
+        throw const NativeProtocolException(
+          'RlnRefreshTransfersResult.transfers keys must be non-negative Int32 values.',
+          field: 'RlnRefreshTransfersResult.transfers',
+        );
+      }
+      if (transfers.containsKey(index)) {
+        throw NativeProtocolException(
+          'RlnRefreshTransfersResult.transfers contains duplicate key $index.',
+          field: 'RlnRefreshTransfersResult.transfers',
+        );
+      }
+      transfers[index] = RlnRefreshedTransfer.fromMap(
+        _map(entry.value, 'RlnRefreshTransfersResult.transfers[$index]'),
+      );
+    }
+    return RlnRefreshTransfersResult(transfers: transfers);
+  }
+
+  final Map<int, RlnRefreshedTransfer> transfers;
 }
 
 class RlnRgbAllocation {
@@ -1036,6 +1193,7 @@ class RlnUtxo {
     required this.outpoint,
     required this.btcAmount,
     required this.colorable,
+    required this.exists,
   });
 
   factory RlnUtxo.fromMap(RlnMap map) {
@@ -1043,12 +1201,14 @@ class RlnUtxo {
       outpoint: _requiredString(map, 'outpoint', 'RlnUtxo'),
       btcAmount: _requiredInt(map, 'btcAmount', 'RlnUtxo'),
       colorable: _requiredBool(map, 'colorable', 'RlnUtxo'),
+      exists: _requiredBool(map, 'exists', 'RlnUtxo'),
     );
   }
 
   final String outpoint;
   final int btcAmount;
   final bool colorable;
+  final bool exists;
 }
 
 /// Wallet UTXO and RGB allocations.
@@ -1083,6 +1243,8 @@ class RlnDecodedLnInvoice {
     required this.timestamp,
     this.assetId,
     this.assetAmount,
+    this.description,
+    this.descriptionHash,
     required this.paymentHash,
     required this.paymentSecret,
     this.payeePubkey,
@@ -1096,6 +1258,13 @@ class RlnDecodedLnInvoice {
       timestamp: _requiredInt(map, 'timestamp', 'RlnDecodedLnInvoice'),
       assetId: _stringOrNull(map['assetId']),
       assetAmount: _intOrNull(map['assetAmount']),
+      description: _optionalString(map, 'description', 'RlnDecodedLnInvoice'),
+      descriptionHash: _optionalString(
+        map,
+        'descriptionHash',
+        'RlnDecodedLnInvoice',
+        allowEmpty: false,
+      ),
       paymentHash: _requiredString(map, 'paymentHash', 'RlnDecodedLnInvoice'),
       paymentSecret: _requiredString(
         map,
@@ -1120,6 +1289,8 @@ class RlnDecodedLnInvoice {
 
   /// RGB asset amount in the asset's smallest unit.
   final int? assetAmount;
+  final String? description;
+  final String? descriptionHash;
   final String paymentHash;
   final String paymentSecret;
   final String? payeePubkey;

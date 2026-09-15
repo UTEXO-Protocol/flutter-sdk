@@ -348,7 +348,7 @@ class RLNManager {
     return rlnBinding.rlnListUnspents(skipSync);
   }
 
-  Future<void> rlnRefreshTransfers(bool skipSync) {
+  Future<RlnRefreshTransfersResult> rlnRefreshTransfers(bool skipSync) {
     return rlnBinding.rlnRefreshTransfers(skipSync);
   }
 

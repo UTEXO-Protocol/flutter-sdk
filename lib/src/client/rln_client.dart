@@ -658,11 +658,37 @@ class RlnClient {
     );
   }
 
-  Future<void> refreshTransfers({required int nodeId, required bool skipSync}) {
-    return _native(
+  Future<Map<Object?, Object?>> refreshTransfers({
+    required int nodeId,
+    required bool skipSync,
+  }) async {
+    final response = await _native(
       'rlnRefreshTransfers',
       () => _hostApi.rlnRefreshTransfers(nodeId, skipSync),
     );
+    final transfers = <Object?, Object?>{};
+    for (final transfer in response.transfers) {
+      if (transfers.containsKey(transfer.index)) {
+        throw NativeProtocolException(
+          'Native refresh response contains duplicate batch transfer ID ${transfer.index}.',
+          field: 'RlnRefreshTransfersData.transfers',
+        );
+      }
+      final transferMap = <Object?, Object?>{};
+      final updatedStatus = transfer.updatedStatus;
+      if (updatedStatus != null) {
+        transferMap['updatedStatus'] = updatedStatus;
+      }
+      final failure = transfer.failure;
+      if (failure != null) {
+        transferMap['failure'] = <Object?, Object?>{
+          'name': failure.name,
+          'message': failure.message,
+        };
+      }
+      transfers[transfer.index] = transferMap;
+    }
+    return <Object?, Object?>{'transfers': transfers};
   }
 
   Future<Map<Object?, Object?>> rgbInvoice({

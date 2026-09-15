@@ -18,6 +18,67 @@ final class RunnerTests: XCTestCase {
     )
   }
 
+  func testChainSyncFactorySelectsTransactionAndBlockBackends() throws {
+    let transactionSync = try RlnChainSyncFactory.make(
+      bitcoindRpcUsername: nil,
+      bitcoindRpcPassword: nil,
+      bitcoindRpcHost: nil,
+      bitcoindRpcPort: nil,
+      indexerUrl: "electrum.example:50001"
+    )
+    guard case let .transactionSync(indexerUrl) = transactionSync else {
+      return XCTFail("Expected transaction sync")
+    }
+    XCTAssertEqual(indexerUrl, "electrum.example:50001")
+
+    let blockSync = try RlnChainSyncFactory.make(
+      bitcoindRpcUsername: "rpc-user",
+      bitcoindRpcPassword: "rpc-password",
+      bitcoindRpcHost: "127.0.0.1",
+      bitcoindRpcPort: 18_443,
+      indexerUrl: "ignored.example:50001"
+    )
+    guard case let .blockSync(username, password, host, port) = blockSync else {
+      return XCTFail("Expected block sync")
+    }
+    XCTAssertEqual(username, "rpc-user")
+    XCTAssertEqual(password, "rpc-password")
+    XCTAssertEqual(host, "127.0.0.1")
+    XCTAssertEqual(port, 18_443)
+  }
+
+  func testChainSyncFactoryRejectsPartialOrInvalidConfiguration() {
+    assertChainSyncError(field: "bitcoindRpc") {
+      try RlnChainSyncFactory.make(
+        bitcoindRpcUsername: "rpc-user",
+        bitcoindRpcPassword: nil,
+        bitcoindRpcHost: nil,
+        bitcoindRpcPort: nil,
+        indexerUrl: "electrum.example:50001"
+      )
+    }
+    assertChainSyncError(field: "indexerUrl") {
+      try RlnChainSyncFactory.make(
+        bitcoindRpcUsername: nil,
+        bitcoindRpcPassword: nil,
+        bitcoindRpcHost: nil,
+        bitcoindRpcPort: nil,
+        indexerUrl: nil
+      )
+    }
+    for port in [Int64(0), Int64(65_536)] {
+      assertChainSyncError(field: "bitcoindRpcPort") {
+        try RlnChainSyncFactory.make(
+          bitcoindRpcUsername: "rpc-user",
+          bitcoindRpcPassword: "rpc-password",
+          bitcoindRpcHost: "127.0.0.1",
+          bitcoindRpcPort: port,
+          indexerUrl: nil
+        )
+      }
+    }
+  }
+
   func testBackupFailsAsNativeBlockedWithoutLeakingArguments() {
     XCTAssertThrowsError(
       try plugin.rlnBackup(
@@ -449,6 +510,19 @@ final class RunnerTests: XCTestCase {
     XCTAssertEqual(node.shutdownCount, 1)
     XCTAssertThrowsError(try RlnNodeStore.shared.get(id: nodeId))
     XCTAssertThrowsError(try RlnNodeStore.shared.getSigner(id: signerId))
+  }
+
+  private func assertChainSyncError(
+    field expectedField: String,
+    operation: () throws -> Void
+  ) {
+    XCTAssertThrowsError(try operation()) { error in
+      guard case let RlnChainSyncConfigurationError.invalid(field, _) = error else {
+        XCTFail("Expected RlnChainSyncConfigurationError, got \(type(of: error)): \(error)")
+        return
+      }
+      XCTAssertEqual(field, expectedField)
+    }
   }
 
   private func assertInvalidArgument(

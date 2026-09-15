@@ -190,6 +190,27 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     return try requireUInt16(value, field: field, operation: operation)
   }
 
+  private func requireLdkChainSync(
+    bitcoindRpcUsername: String?,
+    bitcoindRpcPassword: String?,
+    bitcoindRpcHost: String?,
+    bitcoindRpcPort: Int64?,
+    indexerUrl: String?,
+    operation: String
+  ) throws -> SdkLdkChainSync {
+    do {
+      return try RlnChainSyncFactory.make(
+        bitcoindRpcUsername: bitcoindRpcUsername,
+        bitcoindRpcPassword: bitcoindRpcPassword,
+        bitcoindRpcHost: bitcoindRpcHost,
+        bitcoindRpcPort: bitcoindRpcPort,
+        indexerUrl: indexerUrl
+      )
+    } catch let RlnChainSyncConfigurationError.invalid(field, message) {
+      throw invalidArgument(operation, field: field, message: message)
+    }
+  }
+
   private func requireUInt8(_ value: Int64, field: String, operation: String) throws -> UInt8 {
     guard value >= 0, value <= Int64(UInt8.max) else {
       throw invalidArgument(operation, field: field, message: "\(field) must fit in UInt8.")
@@ -385,6 +406,11 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
       "balance": assetBalanceMap(asset.balance),
       "media": mediaMap(asset.media),
       "rejectListUrl": asset.rejectListUrl,
+      "issuanceLinkRightOutpoint": asset.issuanceLinkRightOutpoint.map {
+        ["txid": $0.txid, "vout": Int64($0.vout)]
+      },
+      "linkedFromAssetId": asset.linkedFromAssetId,
+      "linkedToAssetId": asset.linkedToAssetId,
     ]
   }
 
@@ -485,6 +511,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
         "outpoint": unspent.utxo.outpoint,
         "btcAmount": pigeonInteger(unspent.utxo.btcAmount),
         "colorable": unspent.utxo.colorable,
+        "exists": unspent.utxo.exists,
       ],
       "rgbAllocations": unspent.rgbAllocations.map(rgbAllocationMap),
     ]
@@ -493,6 +520,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
   private func decodeRgbInvoiceMap(_ invoice: DecodeRgbInvoiceResponse) -> [String: Any?] {
     [
       "recipientId": invoice.recipientId,
+      "proxyRecipientId": invoice.proxyRecipientId,
       "recipientType": invoice.recipientType,
       "assetSchema": invoice.assetSchema,
       "assetId": invoice.assetId,
@@ -522,6 +550,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
       "kind": transfer.kind,
       "txid": transfer.txid,
       "recipientId": transfer.recipientId,
+      "proxyRecipientId": transfer.proxyRecipientId,
       "receiveUtxo": transfer.receiveUtxo,
       "changeUtxo": transfer.changeUtxo,
       "expiration": transfer.expiration,
@@ -545,6 +574,8 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
       "timestamp": String(invoice.timestamp),
       "assetId": invoice.assetId,
       "assetAmount": invoice.assetAmount.map(String.init),
+      "description": invoice.description,
+      "descriptionHash": invoice.descriptionHash,
       "paymentHash": invoice.paymentHash,
       "paymentSecret": invoice.paymentSecret,
       "payeePubkey": invoice.payeePubkey,
@@ -703,10 +734,14 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
       try node.unlockWithNativeExternalSigner(
         signer: signer,
-        bitcoindRpcUsername: bitcoindRpcUsername,
-        bitcoindRpcPassword: bitcoindRpcPassword,
-        bitcoindRpcHost: bitcoindRpcHost,
-        bitcoindRpcPort: try optionalUInt16(bitcoindRpcPort, field: "bitcoindRpcPort", operation: "rlnUnlockNodeWithNativeExternalSigner"),
+        ldkChainSync: try requireLdkChainSync(
+          bitcoindRpcUsername: bitcoindRpcUsername,
+          bitcoindRpcPassword: bitcoindRpcPassword,
+          bitcoindRpcHost: bitcoindRpcHost,
+          bitcoindRpcPort: bitcoindRpcPort,
+          indexerUrl: indexerUrl,
+          operation: "rlnUnlockNodeWithNativeExternalSigner"
+        ),
         indexerUrl: indexerUrl,
         proxyEndpoint: proxyEndpoint,
         announceAddresses: announceAddresses,
@@ -771,10 +806,14 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
       try node.unlock(request: SdkUnlockRequest(
         password: password,
-        bitcoindRpcUsername: bitcoindRpcUsername,
-        bitcoindRpcPassword: bitcoindRpcPassword,
-        bitcoindRpcHost: bitcoindRpcHost,
-        bitcoindRpcPort: try optionalUInt16(bitcoindRpcPort, field: "bitcoindRpcPort", operation: "rlnUnlockNode"),
+        ldkChainSync: try requireLdkChainSync(
+          bitcoindRpcUsername: bitcoindRpcUsername,
+          bitcoindRpcPassword: bitcoindRpcPassword,
+          bitcoindRpcHost: bitcoindRpcHost,
+          bitcoindRpcPort: bitcoindRpcPort,
+          indexerUrl: indexerUrl,
+          operation: "rlnUnlockNode"
+        ),
         indexerUrl: indexerUrl,
         proxyEndpoint: proxyEndpoint,
         announceAddresses: announceAddresses,
@@ -1059,7 +1098,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
   func rlnListTransactions(nodeId: Int64, skipSync: Bool) throws -> [RlnWireResponse] {
     try runRlnWireList("rlnListTransactions") {
       try RlnNodeStore.shared.get(id: nodeId)
-        .listTransactions(skipSync: skipSync)
+        .listTransactions(skipSync: skipSync, txid: nil)
         .map(transactionMap)
     }
   }
@@ -1067,7 +1106,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
   func rlnListTransactionsByTxid(nodeId: Int64, txid: String, skipSync: Bool) throws -> [RlnWireResponse] {
     try runRlnWireList("rlnListTransactionsByTxid") {
       try RlnNodeStore.shared.get(id: nodeId)
-        .listTransactionsByTxid(txid: txid, skipSync: skipSync)
+        .listTransactions(skipSync: skipSync, txid: txid)
         .map(transactionMap)
     }
   }
@@ -1075,7 +1114,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
   func rlnListTransfers(nodeId: Int64, assetId: String) throws -> [RlnWireResponse] {
     try runRlnWireList("rlnListTransfers") {
       try RlnNodeStore.shared.get(id: nodeId)
-        .listTransfers(assetId: assetId)
+        .listTransfers(assetId: assetId.isEmpty ? nil : assetId, txid: nil)
         .map(transferMap)
     }
   }
@@ -1083,7 +1122,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
   func rlnListTransfersByTxid(nodeId: Int64, txid: String) throws -> [RlnWireResponse] {
     try runRlnWireList("rlnListTransfersByTxid") {
       try RlnNodeStore.shared.get(id: nodeId)
-        .listTransfersByTxid(txid: txid)
+        .listTransfers(assetId: nil, txid: txid)
         .map(transferMap)
     }
   }
@@ -1193,9 +1232,24 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     }
   }
 
-  func rlnRefreshTransfers(nodeId: Int64, skipSync: Bool) throws {
+  func rlnRefreshTransfers(nodeId: Int64, skipSync: Bool) throws -> RlnRefreshTransfersData {
     try runRln("rlnRefreshTransfers") {
-      try RlnNodeStore.shared.get(id: nodeId).refreshtransfers(request: SdkRefreshTransfersRequest(skipSync: skipSync))
+      let response = try RlnNodeStore.shared.get(id: nodeId).refreshtransfers(
+        request: SdkRefreshTransfersRequest(skipSync: skipSync)
+      )
+      return RlnRefreshTransfersData(
+        transfers: response.transfers
+          .sorted { $0.key < $1.key }
+          .map { index, transfer in
+            RlnRefreshedTransferData(
+              index: Int64(index),
+              updatedStatus: transfer.updatedStatus,
+              failure: transfer.failure.map {
+                RlnRefreshFailureData(name: $0.name, message: $0.message)
+              }
+            )
+          }
+      )
     }
   }
 

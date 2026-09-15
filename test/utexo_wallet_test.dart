@@ -145,6 +145,7 @@ class FakeRlnHostApi extends RlnHostApi {
   String? lastTemporaryChannelId;
   bool? lastListUnspentsSkipSync;
   bool? lastListTransactionsSkipSync;
+  bool? lastRefreshTransfersSkipSync;
   bool? lastCreateUtxosUpTo;
   int? lastCreateUtxosNum;
   double? lastCreateUtxosFeeRate;
@@ -159,6 +160,10 @@ class FakeRlnHostApi extends RlnHostApi {
   Object? unlockNodeError;
   Object? shutdownError;
   Object? destroyNodeError;
+  List<RlnRefreshedTransferData> refreshTransferRows =
+      <RlnRefreshedTransferData>[
+        RlnRefreshedTransferData(index: 7, updatedStatus: 'WAITING_BROADCAST'),
+      ];
 
   Future<void> _delayLifecycle() async {
     if (lifecycleDelay != Duration.zero) {
@@ -498,6 +503,7 @@ class FakeRlnHostApi extends RlnHostApi {
   ) async {
     return _wireMap(<Object?, Object?>{
       'recipientId': 'recipient',
+      'proxyRecipientId': 'proxy-recipient',
       'recipientType': 'Blind',
       'assetId': 'asset',
       'assignment': '100',
@@ -705,6 +711,7 @@ class FakeRlnHostApi extends RlnHostApi {
           'outpoint': 'txid:0',
           'btcAmount': 1000,
           'colorable': true,
+          'exists': true,
         },
         'rgbAllocations': <Object?>[
           <Object?, Object?>{
@@ -1061,6 +1068,15 @@ class FakeRlnHostApi extends RlnHostApi {
   }
 
   @override
+  Future<RlnRefreshTransfersData> rlnRefreshTransfers(
+    int nodeId,
+    bool skipSync,
+  ) async {
+    lastRefreshTransfersSkipSync = skipSync;
+    return RlnRefreshTransfersData(transfers: refreshTransferRows);
+  }
+
+  @override
   Future<List<RlnWireResponse>> rlnListTransfers(
     int nodeId,
     String assetId,
@@ -1271,6 +1287,8 @@ void main() {
       config: UtexoUnlockConfig(
         bitcoindRpcHost: '127.0.0.1',
         bitcoindRpcUsername: 'user',
+        bitcoindRpcPassword: 'password',
+        bitcoindRpcPort: 18_444,
       ),
     );
   }
@@ -1598,6 +1616,8 @@ void main() {
         config: UtexoUnlockConfig(
           bitcoindRpcHost: '127.0.0.1',
           bitcoindRpcUsername: 'user',
+          bitcoindRpcPassword: 'password',
+          bitcoindRpcPort: 18_444,
         ),
       ),
       wallet.unlock(
@@ -1605,6 +1625,8 @@ void main() {
         config: UtexoUnlockConfig(
           bitcoindRpcHost: '127.0.0.1',
           bitcoindRpcUsername: 'user',
+          bitcoindRpcPassword: 'password',
+          bitcoindRpcPort: 18_444,
         ),
       ),
     ]);
@@ -1626,6 +1648,8 @@ void main() {
           config: UtexoUnlockConfig(
             bitcoindRpcHost: '127.0.0.1',
             bitcoindRpcUsername: 'user',
+            bitcoindRpcPassword: 'password',
+            bitcoindRpcPort: 18_444,
           ),
         ),
         wallet.shutdown(),
@@ -1750,6 +1774,8 @@ void main() {
       config: UtexoUnlockConfig(
         bitcoindRpcHost: '127.0.0.1',
         bitcoindRpcUsername: 'user',
+        bitcoindRpcPassword: 'password',
+        bitcoindRpcPort: 18_444,
       ),
     );
     await wallet.shutdown();
@@ -1759,6 +1785,8 @@ void main() {
         unlockConfig: UtexoUnlockConfig(
           bitcoindRpcHost: '127.0.0.1',
           bitcoindRpcUsername: 'user',
+          bitcoindRpcPassword: 'password',
+          bitcoindRpcPort: 18_444,
         ),
       ),
       throwsA(isA<WalletValidationException>()),
@@ -1771,6 +1799,8 @@ void main() {
       unlockConfig: UtexoUnlockConfig(
         bitcoindRpcHost: '127.0.0.1',
         bitcoindRpcUsername: 'user',
+        bitcoindRpcPassword: 'password',
+        bitcoindRpcPort: 18_444,
       ),
     );
 
@@ -1792,6 +1822,8 @@ void main() {
       unlockConfig: UtexoUnlockConfig(
         bitcoindRpcHost: '127.0.0.1',
         bitcoindRpcUsername: 'user',
+        bitcoindRpcPassword: 'password',
+        bitcoindRpcPort: 18_444,
       ),
     );
     expect(await wallet.getAddress(), 'bcrt1address');
@@ -1899,6 +1931,8 @@ void main() {
     await wallet.reinit(
       password: 'password',
       unlockConfig: UtexoUnlockConfig(
+        bitcoindRpcUsername: 'user',
+        bitcoindRpcPassword: 'password',
         bitcoindRpcHost: '127.0.0.1',
         bitcoindRpcPort: 18444,
       ),
@@ -2486,6 +2520,7 @@ void main() {
       const transferStatuses = <String>{
         'WaitingCounterparty',
         'WaitingSafeHeight',
+        'WaitingBroadcast',
         'WaitingConfirmations',
         'Settled',
         'Failed',
@@ -2511,6 +2546,22 @@ void main() {
           expect(transfer.status, status);
           expect(transfer.kind, kind);
         }
+      }
+
+      const transferStatusAliases = <String, String>{
+        'WAITING_BROADCAST': 'WaitingBroadcast',
+        'waitingBroadcast': 'WaitingBroadcast',
+        'waiting-broadcast': 'WaitingBroadcast',
+        ' waiting broadcast ': 'WaitingBroadcast',
+      };
+      for (final entry in transferStatusAliases.entries) {
+        final transfer = RlnTransfer.fromMap(<Object?, Object?>{
+          'idx': 1,
+          'status': entry.key,
+          'assignments': <String>[],
+          'kind': 'Send',
+        }).toCore();
+        expect(transfer.status, entry.value);
       }
 
       const channelStatuses = <String, String>{
@@ -2541,6 +2592,8 @@ void main() {
         'timestamp': 1710000000,
         'assetId': 'asset',
         'assetAmount': 42,
+        'description': 'invoice description',
+        'descriptionHash': 'description-hash',
         'paymentHash': 'hash',
         'paymentSecret': 'secret',
         'network': 'regtest',
@@ -2549,6 +2602,8 @@ void main() {
       expect(invoice.expirySec, 3600);
       expect(invoice.timestamp, 1710000000);
       expect(invoice.assetAmount, 42);
+      expect(invoice.description, 'invoice description');
+      expect(invoice.descriptionHash, 'description-hash');
 
       final payment = RlnPayment.fromMap(<Object?, Object?>{
         'amtMsat': 5000,
@@ -2689,10 +2744,12 @@ void main() {
           'outpoint': 'txid:3',
           'btcAmount': 1000,
           'colorable': true,
+          'exists': false,
         },
         'pendingBlinded': 2,
       });
       expect(unspent.toCore().pendingBlinded, 2);
+      expect(unspent.toCore().utxo.exists, false);
 
       final transfer = RlnTransfer.fromMap(<Object?, Object?>{
         'idx': 7,
@@ -2785,35 +2842,23 @@ void main() {
     expect(transfers.single.idx, 1);
   });
 
-  test(
-    'listTransfers fails closed when unfiltered native listing is rejected',
-    () async {
-      final hostApi = FakeRlnHostApi()..throwOnEmptyListTransfers = true;
-      final wallet = walletWith(hostApi);
-      await wallet.init(password: 'password');
-      await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
+  test('listTransfers preserves an unfiltered native failure', () async {
+    final hostApi = FakeRlnHostApi()..throwOnEmptyListTransfers = true;
+    final wallet = walletWith(hostApi);
+    await wallet.init(password: 'password');
+    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
 
-      await expectLater(
-        wallet.listTransfers(),
-        throwsA(
-          isA<UnsupportedWalletFeatureException>().having(
-            (error) => error.feature,
-            'feature',
-            'listTransfers',
-          ),
-        ),
-      );
-      expect(hostApi.lastTransferAssetId, '');
-      expect(hostApi.listAssetsCalls, 0);
+    await expectLater(wallet.listTransfers(), throwsA(isA<BadRequestError>()));
+    expect(hostApi.lastTransferAssetId, '');
+    expect(hostApi.listAssetsCalls, 0);
 
-      final assetTransfers = await wallet.listTransfers(assetId: 'asset');
-      expect(assetTransfers.single.idx, 1);
-      expect(hostApi.lastTransferAssetId, 'asset');
-    },
-  );
+    final assetTransfers = await wallet.listTransfers(assetId: 'asset');
+    expect(assetTransfers.single.idx, 1);
+    expect(hostApi.lastTransferAssetId, 'asset');
+  });
 
   test(
-    'listTransfers fallback accepts Android direct InvalidRequest code',
+    'listTransfers maps Android direct InvalidRequest without a fallback',
     () async {
       final hostApi = FakeRlnHostApi()
         ..throwOnEmptyListTransfers = true
@@ -2825,12 +2870,42 @@ void main() {
 
       await expectLater(
         wallet.listTransfers(),
-        throwsA(isA<UnsupportedWalletFeatureException>()),
+        throwsA(isA<BadRequestError>()),
       );
 
       expect(hostApi.lastTransferAssetId, '');
     },
   );
+
+  test('refreshTransfers returns strict beta.32 outcomes', () async {
+    final hostApi = FakeRlnHostApi()
+      ..refreshTransferRows = <RlnRefreshedTransferData>[
+        RlnRefreshedTransferData(
+          index: 3,
+          updatedStatus: 'waiting_broadcast',
+          failure: RlnRefreshFailureData(
+            name: 'ProxyError',
+            message: 'temporary proxy failure',
+          ),
+        ),
+      ];
+    final wallet = walletWith(hostApi);
+    await unlockWallet(wallet);
+
+    final result = await wallet.refreshTransfers(skipSync: true);
+
+    expect(hostApi.lastRefreshTransfersSkipSync, true);
+    expect(result.transfers.keys, <int>[3]);
+    expect(
+      result.transfers[3]?.updatedStatus,
+      CoreTransferStatuses.waitingBroadcast,
+    );
+    expect(result.transfers[3]?.failure?.name, 'ProxyError');
+    expect(result.transfers[3]?.failure?.message, 'temporary proxy failure');
+
+    await wallet.refreshWallet();
+    expect(hostApi.lastRefreshTransfersSkipSync, false);
+  });
 
   test('maps supported responses into core-style DTOs', () async {
     final hostApi = FakeRlnHostApi();

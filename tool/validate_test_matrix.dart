@@ -15,6 +15,8 @@ const _validPlatformStatus = <String>{
   'not_required',
 };
 
+const _validLspParity = <String>{'core', 'flutter-adaptation'};
+
 void main() {
   final root = Directory.current;
   final errors = <String>[];
@@ -34,11 +36,32 @@ void main() {
     'tool/test_matrix/core_exports.json',
     errors,
   );
+  final lspMatrix = _readMatrix(
+    root,
+    'tool/test_matrix/lsp_methods.json',
+    errors,
+  );
+  final lspClientMatrix = _readMatrix(
+    root,
+    'tool/test_matrix/lsp_client_methods.json',
+    errors,
+  );
+  final lspContract = _readMatrix(
+    root,
+    'tool/core_lsp_parity_manifest.json',
+    errors,
+  );
+  final releaseBaseline = _readMatrix(
+    root,
+    'tool/release_baseline.json',
+    errors,
+  );
   final evidenceCatalog = _readEvidenceCatalog(
     root,
     'tool/test_matrix/evidence_catalog.json',
     errors,
   );
+  _validateEvidenceTargets(evidenceCatalog, errors);
 
   _validateMatrixShape('rln_methods.json', rlnMatrix, evidenceCatalog, errors);
   _validateMatrixShape(
@@ -50,6 +73,13 @@ void main() {
   _validateMatrixShape(
     'core_exports.json',
     coreMatrix,
+    evidenceCatalog,
+    errors,
+  );
+  _validateMatrixShape('lsp_methods.json', lspMatrix, evidenceCatalog, errors);
+  _validateMatrixShape(
+    'lsp_client_methods.json',
+    lspClientMatrix,
     evidenceCatalog,
     errors,
   );
@@ -69,6 +99,33 @@ void main() {
     matrix: walletMatrix,
     errors: errors,
   );
+  _validateSourceCoverage(
+    name: 'UtexoLsp',
+    className: 'UtexoLsp',
+    sourcePath: 'lib/src/lsp/utexo_lsp.dart',
+    matrix: lspMatrix,
+    errors: errors,
+  );
+  _validateSourceCoverage(
+    name: 'IUtexoLspClient',
+    className: 'IUtexoLspClient',
+    sourcePath: 'lib/src/lsp/utexo_lsp_client.dart',
+    matrix: lspClientMatrix,
+    errors: errors,
+  );
+  _validateLspParityContract(
+    lspContract: lspContract,
+    releaseBaseline: releaseBaseline,
+    lspMatrix: lspMatrix,
+    lspClientMatrix: lspClientMatrix,
+    errors: errors,
+  );
+  _validateCallableImplementations('lsp_methods.json', lspMatrix, errors);
+  _validateCallableImplementations(
+    'lsp_client_methods.json',
+    lspClientMatrix,
+    errors,
+  );
 
   if (errors.isNotEmpty) {
     stderr.writeln('Test matrix validation failed:');
@@ -81,10 +138,221 @@ void main() {
   final rlnCount = _methodIds(rlnMatrix).length;
   final walletCount = _methodIds(walletMatrix).length;
   final coreCount = _methodIds(coreMatrix).length;
+  final lspCount = _methodIds(lspMatrix).length;
+  final lspClientCount = _methodIds(lspClientMatrix).length;
   stdout.writeln(
     'Test matrix valid: '
-    '$rlnCount RlnClient, $walletCount UtexoWallet, $coreCount core exports.',
+    '$rlnCount RlnClient, $walletCount UtexoWallet, $coreCount core exports, '
+    '$lspCount UtexoLsp, $lspClientCount IUtexoLspClient.',
   );
+}
+
+void _validateEvidenceTargets(
+  Map<String, Object?> evidenceCatalog,
+  List<String> errors,
+) {
+  for (final entry in evidenceCatalog.entries) {
+    final bucket = entry.value;
+    if (bucket is! Map<String, Object?>) continue;
+    final testIds = bucket['testIds'];
+    if (testIds is! List<Object?>) continue;
+    for (final testId in testIds.whereType<String>()) {
+      final separator = testId.indexOf('::');
+      if (separator < 1 || separator == testId.length - 2) {
+        errors.add('${entry.key} has malformed testId $testId.');
+        continue;
+      }
+      final path = testId.substring(0, separator);
+      final identifier = testId.substring(separator + 2);
+      final file = File(path);
+      if (!file.existsSync()) {
+        errors.add('${entry.key} references missing evidence file $path.');
+        continue;
+      }
+      final isNamedTestSource =
+          path.endsWith('.dart') ||
+          path.endsWith('.kt') ||
+          path.endsWith('.swift');
+      if (isNamedTestSource && !file.readAsStringSync().contains(identifier)) {
+        errors.add(
+          '${entry.key} references missing test identifier $identifier in '
+          '$path.',
+        );
+      }
+    }
+  }
+}
+
+void _validateLspParityContract({
+  required Map<String, Object?> lspContract,
+  required Map<String, Object?> releaseBaseline,
+  required Map<String, Object?> lspMatrix,
+  required Map<String, Object?> lspClientMatrix,
+  required List<String> errors,
+}) {
+  if (lspContract['schemaVersion'] != 1) {
+    errors.add('core_lsp_parity_manifest.json must have schemaVersion 1.');
+  }
+  final baselineCore = releaseBaseline['core'];
+  final baselineCoreVersion = baselineCore is Map<String, Object?>
+      ? baselineCore['version']
+      : null;
+  if (lspContract['corePackage'] != '@utexo/rgb-sdk-core' ||
+      lspContract['coreVersion'] != baselineCoreVersion) {
+    errors.add(
+      'core_lsp_parity_manifest.json must target the exact core package and '
+      'version in release_baseline.json.',
+    );
+  }
+
+  _validateLspMethodSet(
+    matrixName: 'lsp_methods.json',
+    matrix: lspMatrix,
+    coreMethods: _stringSet(lspContract, 'utexoLspMethods', errors),
+    adaptations: _stringSet(lspContract, 'utexoLspFlutterAdaptations', errors),
+    errors: errors,
+  );
+  _validateLspMethodSet(
+    matrixName: 'lsp_client_methods.json',
+    matrix: lspClientMatrix,
+    coreMethods: _stringSet(lspContract, 'lspClientMethods', errors),
+    adaptations: _stringSet(lspContract, 'lspClientFlutterAdaptations', errors),
+    errors: errors,
+  );
+
+  final stableSymbols = _collectEntrypointSymbols(
+    'lib/rgb_sdk_flutter.dart',
+    errors,
+  );
+  final rnLspTypes = lspContract['rnLspTypeExports'];
+  if (rnLspTypes is! Map<String, Object?> || rnLspTypes.isEmpty) {
+    errors.add('core_lsp_parity_manifest.json must map rnLspTypeExports.');
+  }
+  for (final symbol
+      in (rnLspTypes is Map<String, Object?>
+          ? rnLspTypes.values.whereType<String>()
+          : const Iterable<String>.empty())) {
+    if (!stableSymbols.contains(symbol)) {
+      errors.add('Core beta.9 LSP contract requires stable export $symbol.');
+    }
+  }
+  final runtimeErrors = lspContract['runtimeErrors'];
+  if (runtimeErrors is! Map<String, Object?> || runtimeErrors.isEmpty) {
+    errors.add('core_lsp_parity_manifest.json must map runtimeErrors.');
+  } else {
+    for (final entry in runtimeErrors.entries) {
+      final dartName = entry.value;
+      if (dartName is! String || !stableSymbols.contains(dartName)) {
+        errors.add(
+          'Core LSP error ${entry.key} maps to missing stable Dart export '
+          '$dartName.',
+        );
+      }
+    }
+  }
+}
+
+void _validateLspMethodSet({
+  required String matrixName,
+  required Map<String, Object?> matrix,
+  required Set<String> coreMethods,
+  required Set<String> adaptations,
+  required List<String> errors,
+}) {
+  final rows = matrix['methods'];
+  if (rows is! List<Object?>) return;
+  final byParity = <String, Set<String>>{
+    'core': <String>{},
+    'flutter-adaptation': <String>{},
+  };
+  for (final row in rows.whereType<Map<String, Object?>>()) {
+    final id = row['id'];
+    final parity = row['parity'];
+    if (id is! String) continue;
+    if (parity is! String || !_validLspParity.contains(parity)) {
+      errors.add(
+        '$matrixName/$id has invalid or missing parity classification.',
+      );
+      continue;
+    }
+    byParity[parity]!.add(id);
+  }
+  _compareExactSet(
+    '$matrixName core methods',
+    actual: byParity['core']!,
+    expected: coreMethods,
+    errors: errors,
+  );
+  _compareExactSet(
+    '$matrixName Flutter adaptations',
+    actual: byParity['flutter-adaptation']!,
+    expected: adaptations,
+    errors: errors,
+  );
+}
+
+void _compareExactSet(
+  String label, {
+  required Set<String> actual,
+  required Set<String> expected,
+  required List<String> errors,
+}) {
+  for (final value in expected.difference(actual).toList()..sort()) {
+    errors.add('$label is missing $value.');
+  }
+  for (final value in actual.difference(expected).toList()..sort()) {
+    errors.add('$label contains unreviewed value $value.');
+  }
+}
+
+Set<String> _stringSet(
+  Map<String, Object?> source,
+  String key,
+  List<String> errors,
+) {
+  final values = source[key];
+  if (values is! List<Object?> || values.any((value) => value is! String)) {
+    errors.add('core_lsp_parity_manifest.json/$key must be a string array.');
+    return <String>{};
+  }
+  final result = values.whereType<String>().toSet();
+  if (result.length != values.length) {
+    errors.add('core_lsp_parity_manifest.json/$key contains duplicates.');
+  }
+  return result;
+}
+
+void _validateCallableImplementations(
+  String matrixName,
+  Map<String, Object?> matrix,
+  List<String> errors,
+) {
+  final rows = matrix['methods'];
+  if (rows is! List<Object?>) return;
+  for (final row in rows.whereType<Map<String, Object?>>()) {
+    final id = row['id'];
+    final implementation = row['implementation'];
+    if (id is! String || implementation is! String) continue;
+    final separator = implementation.indexOf('::');
+    if (separator < 0) continue;
+    final path = implementation.substring(0, separator);
+    final symbol = implementation.substring(separator + 2);
+    final member = symbol.split('.').last;
+    if (member != id) {
+      errors.add('$matrixName/$id points to mismatched member $symbol.');
+      continue;
+    }
+    final file = File(path);
+    if (!file.existsSync()) {
+      errors.add('$matrixName/$id points to missing file $path.');
+      continue;
+    }
+    if (!RegExp(
+      '\\b${RegExp.escape(id)}\\s*\\(',
+    ).hasMatch(file.readAsStringSync())) {
+      errors.add('$matrixName/$id points to missing callable $symbol.');
+    }
+  }
 }
 
 void _validateCoreExportCoverage(
@@ -400,6 +668,21 @@ Set<String> _extractPublicClassMethods(String relativePath, String className) {
           'UtexoWalletRawApi',
         ),
       );
+    }
+  } else if (className == 'UtexoLsp') {
+    const mixins = <String>[
+      '_UtexoLspConnection',
+      '_UtexoLspAssetBridge',
+      '_UtexoLspAddress',
+      '_UtexoLspApay',
+      '_UtexoLspRelay',
+    ];
+    for (final libraryFile in files) {
+      for (final mixin in mixins) {
+        methods.addAll(
+          _extractPublicMembersFromScope(libraryFile, 'mixin', mixin),
+        );
+      }
     }
   }
   return methods;

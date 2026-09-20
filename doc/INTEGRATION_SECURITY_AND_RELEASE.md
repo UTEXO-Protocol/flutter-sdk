@@ -10,7 +10,7 @@ The current development baseline is:
 - Flutter `>=3.41.0`
 - Dart `>=3.11.0 <4.0.0`
 - iOS `18.5` or newer. This is not a product preference: the pinned RLN
-  `0.10.0-beta.3` iOS static objects are built with `LC_BUILD_VERSION`
+  `0.13.0-beta.3` iOS static objects are built with `LC_BUILD_VERSION`
   `minos 18.5`, so lower deployment targets are not supported by this artifact
   set.
 - Swift version from `tool/release_baseline.json`
@@ -61,7 +61,7 @@ Android artifacts resolve through Gradle/Maven and must be checked against the
 pinned hash before candidate evidence is accepted.
 
 The current provenance manifest records the live upstream status for the pinned
-RLN `0.10.0-beta.3` artifact set:
+RLN `0.13.0-beta.3` artifact set:
 
 | Artifact | Signature status | Attestation status | Production effect |
 | --- | --- | --- | --- |
@@ -126,12 +126,48 @@ task-queue API available in the pinned Flutter `3.41.9` toolchain.
 
 ## Transport Policy
 
-LSP and LNURL HTTP uses HTTPS by default. Plain HTTP is allowed only for local
-loopback hosts such as `127.0.0.1`, `localhost`, `::1`, and Android emulator
-host `10.0.2.2`.
+LSP and LNURL HTTP uses HTTPS by default. Plain HTTP is allowed for true local
+loopback hosts (`127.0.0.1`, `localhost`, and `::1`). The Android emulator host
+alias `10.0.2.2` is additionally allowed only as an explicitly configured LSP
+base URL; externally discovered Lightning Address domains and callbacks cannot
+use it to reach services on the developer host.
 
-Injected HTTP clients are not closed by the SDK. HTTP clients created by the
-SDK are closed by the SDK.
+External Lightning Address discovery and callback requests never receive the
+configured LSP bearer token. Domains must be hostnames with an optional port;
+external callbacks must be absolute HTTP(S) URLs, and a public discovery host
+cannot redirect the SDK to loopback. Base URLs and callbacks with embedded
+userinfo are rejected. Serialized endpoint diagnostics omit user-info, query,
+and fragment data so callback credentials cannot enter support logs.
+
+The SDK-owned transport disables implicit proxies and redirects, resolves the
+destination itself, rejects the complete answer set if any address is
+non-public outside the explicit loopback development allowlist, pins the
+selected address to the socket, and keeps the original hostname for TLS/SNI
+verification. This prevents a policy-check/DNS-connect race. Injected HTTP
+clients are not closed by the SDK and must enforce equivalent proxy, redirect,
+DNS-rebinding, and destination policies. HTTP clients created by the SDK are
+closed by the SDK.
+
+APay `address_sig` and invoice-proof fields are structurally and
+cryptographically verified before `requestExternalInvoice()` returns. The SDK
+binds the requested amount/asset/network and LNURL metadata to the signed
+BOLT11, verifies the recovered host identity, address ownership signature,
+Merkle inclusion, signed batch commitment, and validity windows, and requires
+the configured LSP identity for same-host quotes. RN beta.32/core beta.9 only
+map these fields, so this is an intentional safety tightening documented in
+`API_COMPATIBILITY_AND_DIVERGENCE.md`. Ordinary `quoteAddress()` still accepts
+proofless legacy LNURL responses, but verifies their BOLT11 semantics.
+
+RGB/Lightning bridge responses are also untrusted. The SDK decodes both signed
+invoice legs locally and binds invoice identity, network, asset, smallest-unit
+amount, absolute expiry, configured LSP payee, conversion metadata, and any
+caller-supplied Lightning overrides before payment. `ILspWallet` therefore
+includes `decodeRgbInvoice()` as a documented Flutter funds-safety adaptation
+to the narrower core beta.9 orchestration interface.
+
+`ExternalPaymentQuote.verified` is separate: it means the target and HODL
+invoices passed local hash, asset, amount, fee, network, lifetime, and payee
+checks. It does not describe an APay proof.
 
 ## Secure Storage Boundary
 

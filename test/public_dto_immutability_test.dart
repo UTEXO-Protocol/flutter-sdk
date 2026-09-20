@@ -122,26 +122,33 @@ void main() {
       );
     });
 
-    test('LSP wire wrappers are unmodifiable', () {
-      final proofMap = <String, Object?>{
-        'version': 1,
-        'recipient_pubkey': 'recipient',
-        'host_pubkey': 'host',
-        'batch_id': 'batch',
-        'hash_index': 0,
-        'payment_hash': 'hash',
-        'batch_root': 'root',
-        'batch_size': 1,
-        'merkle_proof': <Object?>[],
-        'batch_sig': 'sig',
-        'created_at': 1,
-        'expires_at': 2,
-      };
-      final proofWire = LspApayInvoiceProofWire(proofMap);
-      proofMap['version'] = 2;
+    test('APay response lists are defensively copied', () {
+      final hashes = <ApayHashEntry>[
+        const ApayHashEntry(hashIndex: 100, paymentHash: 'hash'),
+      ];
+      final response = ApayNewResponse(
+        requestId: 'request',
+        hostNodeId: 'host',
+        protocolVersion: 1,
+        orderId: 'order',
+        status: 'active',
+        acceptedThroughIndex: 100,
+        nextIndexExpected: 101,
+        unusedHashes: 1,
+        refillBatchSize: 100,
+        firstHashIndex: 100,
+        lastHashIndex: 100,
+        hashes: hashes,
+      );
+      hashes.add(const ApayHashEntry(hashIndex: 101, paymentHash: 'later'));
 
-      expect(proofWire.map['version'], 1);
-      expect(() => proofWire.map['version'] = 3, throwsUnsupportedError);
+      expect(response.hashes, hasLength(1));
+      expect(
+        () => response.hashes.add(
+          const ApayHashEntry(hashIndex: 102, paymentHash: 'mutation'),
+        ),
+        throwsUnsupportedError,
+      );
     });
   });
 }

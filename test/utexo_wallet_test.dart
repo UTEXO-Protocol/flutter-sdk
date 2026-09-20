@@ -59,6 +59,29 @@ Map<String, Object?> lspGetInfoWire({
   };
 }
 
+Map<Object?, Object?> _nativeApayResponse(String hostNodeId) {
+  return <Object?, Object?>{
+    'requestId': 'request',
+    'hostNodeId': hostNodeId,
+    'protocolVersion': 1,
+    'orderId': 'order',
+    'status': 'active',
+    'acceptedThroughIndex': 1,
+    'nextIndexExpected': 2,
+    'unusedHashes': 1,
+    'refillBatchSize': 10,
+    'firstHashIndex': 1,
+    'lastHashIndex': 1,
+    'hashes': <Object?>[
+      <Object?, Object?>{
+        'hashIndex': 1,
+        'paymentHash':
+            'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+      },
+    ],
+  };
+}
+
 class FakeRlnHostApi extends RlnHostApi {
   int? createdNodeId;
   int createNodeCount = 0;
@@ -112,6 +135,7 @@ class FakeRlnHostApi extends RlnHostApi {
   Object? claimHodlInvoiceError;
   Object? apayNewError;
   Object? apayNewWithAddressError;
+  Map<Object?, Object?>? apayNewResponse;
   Object? vssClearFenceError;
   Object? vssBackupError;
   String? lastApayHostNodeId;
@@ -129,6 +153,7 @@ class FakeRlnHostApi extends RlnHostApi {
   Map<Object?, Object?>? failTransfersResponse;
   Map<Object?, Object?>? claimHodlInvoiceResponse;
   Map<Object?, Object?>? sendPaymentResponse;
+  Map<Object?, Object?>? decodeLnInvoiceResponse;
   Map<Object?, Object?>? keysendResponse;
   Map<Object?, Object?>? lastBackup;
   Map<Object?, Object?>? lastIssueAssetNia;
@@ -508,6 +533,7 @@ class FakeRlnHostApi extends RlnHostApi {
       'assetId': 'asset',
       'assignment': '100',
       'network': 'regtest',
+      'expirationTimestamp': 4102444800,
       'transportEndpoints': <String>['rpc://proxy/json-rpc'],
     });
   }
@@ -817,22 +843,7 @@ class FakeRlnHostApi extends RlnHostApi {
     if (error != null) throw error;
     apayNewCalls += 1;
     lastApayHostNodeId = hostNodeId;
-    return _wireMap(<Object?, Object?>{
-      'requestId': 'request',
-      'hostNodeId': hostNodeId,
-      'protocolVersion': 1,
-      'orderId': 'order',
-      'status': 'created',
-      'acceptedThroughIndex': 0,
-      'nextIndexExpected': 1,
-      'unusedHashes': 2,
-      'refillBatchSize': 10,
-      'firstHashIndex': 0,
-      'lastHashIndex': 1,
-      'hashes': <Object?>[
-        <Object?, Object?>{'hashIndex': 0, 'paymentHash': 'hash'},
-      ],
-    });
+    return _wireMap(apayNewResponse ?? _nativeApayResponse(hostNodeId));
   }
 
   @override
@@ -848,38 +859,26 @@ class FakeRlnHostApi extends RlnHostApi {
     lastApayHostNodeId = hostNodeId;
     lastApayAddressUsername = username;
     lastApayAddressDomain = domain;
-    return _wireMap(<Object?, Object?>{
-      'requestId': 'request',
-      'hostNodeId': hostNodeId,
-      'protocolVersion': 1,
-      'orderId': 'order',
-      'status': 'created',
-      'acceptedThroughIndex': 0,
-      'nextIndexExpected': 1,
-      'unusedHashes': 2,
-      'refillBatchSize': 10,
-      'firstHashIndex': 0,
-      'lastHashIndex': 1,
-      'hashes': <Object?>[
-        <Object?, Object?>{'hashIndex': 0, 'paymentHash': 'hash'},
-      ],
-    });
+    return _wireMap(apayNewResponse ?? _nativeApayResponse(hostNodeId));
   }
 
   @override
   Future<RlnWireResponse> rlnDecodeLnInvoice(int nodeId, String invoice) async {
     lastDecodeLnInvoice = invoice;
-    return _wireMap(<Object?, Object?>{
-      'amtMsat': 2000,
-      'expirySec': 3600,
-      'timestamp': 1,
-      'assetId': 'asset',
-      'assetAmount': 5,
-      'paymentHash': 'payment-hash',
-      'paymentSecret': 'payment-secret',
-      'payeePubkey': 'payee',
-      'network': 'regtest',
-    });
+    return _wireMap(
+      decodeLnInvoiceResponse ??
+          <Object?, Object?>{
+            'amtMsat': 2000,
+            'expirySec': 3600,
+            'timestamp': 1,
+            'assetId': 'asset',
+            'assetAmount': 5,
+            'paymentHash': 'payment-hash',
+            'paymentSecret': 'payment-secret',
+            'payeePubkey': 'payee',
+            'network': 'regtest',
+          },
+    );
   }
 
   @override
@@ -1158,6 +1157,7 @@ class FakeLspClient extends IUtexoLspClient {
   int lightningAddressLookups = 0;
   String? lastLightningAddressPubkey;
   Object? resolveAddressError;
+  Object? lightningAddressError;
   Object? getInfoError;
   Object? onchainSendError;
   Object? lightningReceiveError;
@@ -1176,6 +1176,17 @@ class FakeLspClient extends IUtexoLspClient {
   }
 
   @override
+  Future<LspLnurlpDiscovery> discoverAddress(String username) async {
+    return LspLnurlpDiscovery(
+      callback: 'https://lsp.example/pay/callback/$username',
+      minSendable: 1000,
+      maxSendable: 100000000,
+      metadata: '[["text/plain","Pay $username"]]',
+      tag: 'payRequest',
+    );
+  }
+
+  @override
   Future<LspLnurlpCallbackResponse> resolveAddress(
     String username,
     int amtMsat, {
@@ -1186,6 +1197,24 @@ class FakeLspClient extends IUtexoLspClient {
     final error = resolveAddressError;
     if (error != null) throw error;
     return LspLnurlpCallbackResponse(pr: 'lnbc1invoice', routes: []);
+  }
+
+  @override
+  Future<LspAddressResolution> resolveAddressWithDiscovery(
+    String username,
+    int amtMsat, {
+    String? assetId,
+    int? assetAmount,
+  }) async {
+    return LspAddressResolution(
+      discovery: await discoverAddress(username),
+      callback: await resolveAddress(
+        username,
+        amtMsat,
+        assetId: assetId,
+        assetAmount: assetAmount,
+      ),
+    );
   }
 
   @override
@@ -1211,11 +1240,47 @@ class FakeLspClient extends IUtexoLspClient {
   }
 
   @override
+  Future<LspAddressResolution> resolveExternalAddressWithDiscovery(
+    String domain,
+    String username,
+    int amtMsat, {
+    String? assetId,
+    int? assetAmount,
+  }) async {
+    return LspAddressResolution(
+      discovery: await discoverExternalAddress(domain, username),
+      callback: await resolveExternalAddress(
+        domain,
+        username,
+        amtMsat,
+        assetId: assetId,
+        assetAmount: assetAmount,
+      ),
+    );
+  }
+
+  @override
+  Future<LspLnurlpDiscovery> discoverExternalAddress(
+    String domain,
+    String username,
+  ) async {
+    return LspLnurlpDiscovery(
+      callback: 'https://$domain/pay/callback/$username',
+      minSendable: 1000,
+      maxSendable: 100000000,
+      metadata: '[["text/plain","Pay $username"]]',
+      tag: 'payRequest',
+    );
+  }
+
+  @override
   Future<LspLightningAddressByPubkeyResponse> getLightningAddressByPubkey(
     String peerPubkey,
   ) async {
     lightningAddressLookups += 1;
     lastLightningAddressPubkey = peerPubkey;
+    final error = lightningAddressError;
+    if (error != null) throw error;
     return const LspLightningAddressByPubkeyResponse(
       username: 'alice',
       domain: 'lsp.example',
@@ -1245,6 +1310,31 @@ class FakeLspClient extends IUtexoLspClient {
       lnInvoice: 'lnbc1invoice',
       rgbInvoice: 'rgb:invoice',
       mappingId: 'mapping',
+    );
+  }
+
+  @override
+  Future<LspLightningSendResponse> lightningSend(
+    LspLightningSendRequest params,
+  ) async {
+    return const LspLightningSendResponse(
+      lnInvoice: 'lnbc1hodl',
+      paymentHash: 'payment-hash',
+      inbound: LspLightningSendLeg(amtMsat: 1000),
+      outbound: LspLightningSendLeg(amtMsat: 1000),
+      converted: false,
+      feeMsat: 0,
+      expiresAt: 1,
+    );
+  }
+
+  @override
+  Future<LspLightningSendStatusResponse> lightningSendStatus(
+    String paymentHash,
+  ) async {
+    return LspLightningSendStatusResponse(
+      paymentHash: paymentHash,
+      status: LspLightningSendStatuses.quoted,
     );
   }
 }
@@ -1540,12 +1630,12 @@ void main() {
       'created_at': 11,
       'expires_at': 22,
     };
-    final callback = LspLnurlpCallbackWire.fromMap(<String, Object?>{
+    final callback = LspLnurlpCallbackResponse.fromWire(<String, Object?>{
       'pr': 'lnbc1invoice',
       'routes': <Object?>[],
       'proof': proofWire,
-    }).toResponse();
-    final directProof = LspApayInvoiceProofWire.fromMap(proofWire).toProof();
+    });
+    final directProof = ApayInvoiceProof.fromWire(proofWire);
     final address =
         LspLightningAddressByPubkeyResponse.fromWire(<String, Object?>{
           'username': 'alice',
@@ -2400,6 +2490,19 @@ void main() {
       () => wallet.keysend(destPubkey: 'pubkey', amtMsat: -1),
       throwsA(isA<WalletValidationException>()),
     );
+    expect(
+      () => wallet.sendBtc(
+        amount: rlnPigeonMaxSignedInt64 + 1,
+        address: 'bcrt1dest',
+      ),
+      throwsA(
+        isA<WalletValidationException>().having(
+          (error) => error.field,
+          'field',
+          'amount',
+        ),
+      ),
+    );
   });
 
   test('canonicalizes native enum and status casing at model boundary', () {
@@ -2881,7 +2984,7 @@ void main() {
     final hostApi = FakeRlnHostApi()
       ..refreshTransferRows = <RlnRefreshedTransferData>[
         RlnRefreshedTransferData(
-          index: 3,
+          index: -3,
           updatedStatus: 'waiting_broadcast',
           failure: RlnRefreshFailureData(
             name: 'ProxyError',
@@ -2895,13 +2998,13 @@ void main() {
     final result = await wallet.refreshTransfers(skipSync: true);
 
     expect(hostApi.lastRefreshTransfersSkipSync, true);
-    expect(result.transfers.keys, <int>[3]);
+    expect(result.transfers.keys, <int>[-3]);
     expect(
-      result.transfers[3]?.updatedStatus,
+      result.transfers[-3]?.updatedStatus,
       CoreTransferStatuses.waitingBroadcast,
     );
-    expect(result.transfers[3]?.failure?.name, 'ProxyError');
-    expect(result.transfers[3]?.failure?.message, 'temporary proxy failure');
+    expect(result.transfers[-3]?.failure?.name, 'ProxyError');
+    expect(result.transfers[-3]?.failure?.message, 'temporary proxy failure');
 
     await wallet.refreshWallet();
     expect(hostApi.lastRefreshTransfersSkipSync, false);
@@ -3028,15 +3131,103 @@ void main() {
     expect(rawPayments.single.paymentHash, 'hash-1');
     expect(rawPayments.single.preimage, 'claim-preimage');
     expect(apay.hostNodeId, 'host-node-id');
-    expect(apay.hashes.single.paymentHash, 'hash');
+    expect(
+      apay.hashes.single.paymentHash,
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    );
     expect(attestedApay.hostNodeId, 'host-node-id');
-    expect(attestedApay.hashes.single.paymentHash, 'hash');
+    expect(
+      attestedApay.hashes.single.paymentHash,
+      'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+    );
     expect(hostApi.lastApayHostNodeId, 'host-node-id');
     expect(hostApi.lastApayAddressUsername, 'alice');
     expect(hostApi.lastApayAddressDomain, 'lsp.example');
     expect(lsp.peer.peerPubkey, 'peer');
     expect(wallet.getLspConfig().baseUrl, isNull);
     expect(hostApi.lastVssClearFencePassword, 'password');
+  });
+
+  test('rejects malformed native APay batches before exposing them', () async {
+    final hostApi = FakeRlnHostApi();
+    final wallet = walletWith(hostApi);
+    await wallet.init(password: 'password');
+    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
+
+    final malformed = <String, Map<Object?, Object?>>{
+      'host binding': <Object?, Object?>{..._nativeApayResponse('other-host')},
+      'protocol version': <Object?, Object?>{
+        ..._nativeApayResponse('host-node-id'),
+        'protocolVersion': 2,
+      },
+      'status': <Object?, Object?>{
+        ..._nativeApayResponse('host-node-id'),
+        'status': 'pending',
+      },
+      'negative accepted index': <Object?, Object?>{
+        ..._nativeApayResponse('host-node-id'),
+        'acceptedThroughIndex': -1,
+      },
+      'zero first index': <Object?, Object?>{
+        ..._nativeApayResponse('host-node-id'),
+        'firstHashIndex': 0,
+      },
+      'derivation overflow': <Object?, Object?>{
+        ..._nativeApayResponse('host-node-id'),
+        'firstHashIndex': 0x80000000,
+        'lastHashIndex': 0x80000000,
+        'acceptedThroughIndex': 0x80000000,
+        'nextIndexExpected': 0x80000001,
+        'hashes': <Object?>[
+          <Object?, Object?>{
+            'hashIndex': 0x80000000,
+            'paymentHash':
+                'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          },
+        ],
+      },
+      'non-contiguous index': <Object?, Object?>{
+        ..._nativeApayResponse('host-node-id'),
+        'hashes': <Object?>[
+          <Object?, Object?>{
+            'hashIndex': 2,
+            'paymentHash':
+                'aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa',
+          },
+        ],
+      },
+      'malformed payment hash': <Object?, Object?>{
+        ..._nativeApayResponse('host-node-id'),
+        'hashes': <Object?>[
+          <Object?, Object?>{'hashIndex': 1, 'paymentHash': 'not-a-hash'},
+        ],
+      },
+      'accepted index mismatch': <Object?, Object?>{
+        ..._nativeApayResponse('host-node-id'),
+        'acceptedThroughIndex': 2,
+      },
+      'next index mismatch': <Object?, Object?>{
+        ..._nativeApayResponse('host-node-id'),
+        'nextIndexExpected': 3,
+      },
+      'oversized refill batch': <Object?, Object?>{
+        ..._nativeApayResponse('host-node-id'),
+        'refillBatchSize': 201,
+      },
+      'blank request ID': <Object?, Object?>{
+        ..._nativeApayResponse('host-node-id'),
+        'requestId': '   ',
+      },
+    };
+
+    for (final entry in malformed.entries) {
+      hostApi.apayNewResponse = entry.value;
+      await expectLater(
+        wallet.apayNew('host-node-id'),
+        throwsA(isA<NativeProtocolException>()),
+        reason: entry.key,
+      );
+    }
   });
 
   test(
@@ -3063,8 +3254,8 @@ void main() {
       expect(address.username, 'alice');
       expect(address.domain, 'lsp.example');
       expect(address.address, 'alice@lsp.example');
-      expect(address.unusedHashes, 2);
-      expect(address.nextIndexExpected, 1);
+      expect(address.unusedHashes, 1);
+      expect(address.nextIndexExpected, 2);
       expect(address.refillBatchSize, 10);
       expect(hostApi.apayNewCalls, 0);
       expect(hostApi.apayNewWithAddressCalls, 1);
@@ -3084,6 +3275,34 @@ void main() {
       expect(lspClient.lightningAddressLookups, 2);
     },
   );
+
+  test('LSP address provisioning fails fast on permanent errors', () async {
+    final hostApi = FakeRlnHostApi();
+    final wallet = walletWith(hostApi);
+    await wallet.init(password: 'password');
+    await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
+    final lspClient = FakeLspClient()
+      ..lightningAddressError = const LspError(
+        endpoint: '/lightning_address/by_pubkey/node',
+        status: 401,
+        body: 'unauthorized',
+      );
+    final lsp = UtexoLsp(
+      wallet: wallet,
+      peer: const LspPeer(
+        baseUrl: 'https://lsp.example',
+        peerPubkey: 'lsp-peer',
+        peerHost: 'lsp.example',
+        peerPort: 9735,
+      ),
+      httpClient: lspClient,
+    );
+
+    await expectLater(lsp.enableLightningAddress(), throwsA(isA<LspError>()));
+
+    expect(lspClient.lightningAddressLookups, 1);
+    expect(hostApi.apayNewWithAddressCalls, 0);
+  });
 
   test(
     'createLsp before init wires virtual channels into node creation',
@@ -3133,7 +3352,7 @@ void main() {
     },
   );
 
-  test('createLsp discovers peer host and port from beta.7 get_info', () async {
+  test('createLsp discovers peer host and port from beta.9 get_info', () async {
     Future<LspPeer> createPeer(Map<String, Object?> overrides) async {
       final server = await HttpServer.bind(InternetAddress.loopbackIPv4, 0);
       server.listen((request) {
@@ -3180,7 +3399,7 @@ void main() {
     expect(absent.peerPort, 9737);
   });
 
-  test('LSP get_info parser matches beta.7 shape and preserves u64', () {
+  test('LSP get_info parser matches beta.9 shape and preserves u64', () {
     final info = LspGetInfoResponse.fromWire(
       lspGetInfoWire(
         overrides: <String, Object?>{
@@ -3217,6 +3436,12 @@ void main() {
     expect(
       () => LspGetInfoResponse.fromWire(
         lspGetInfoWire(overrides: <String, Object?>{'pubkey': null}),
+      ),
+      throwsA(isA<NativeProtocolException>()),
+    );
+    expect(
+      () => LspGetInfoResponse.fromWire(
+        lspGetInfoWire(overrides: <String, Object?>{'pubkey': '   '}),
       ),
       throwsA(isA<NativeProtocolException>()),
     );
@@ -3278,6 +3503,7 @@ void main() {
 
       await wallet.init(password: 'password');
 
+      expect(wallet.network, 'signet');
       expect(hostApi.createdLspBaseUrl, 'https://lsp-signet.utexo.com');
       expect(hostApi.createdEnableVirtualChannelsV0, isNull);
       expect(hostApi.createdVirtualPeerPubkeys, isNull);
@@ -3424,7 +3650,22 @@ void main() {
   test(
     'LSP payAddress routes by host and does not fallback for same-host errors',
     () async {
-      final hostApi = FakeRlnHostApi();
+      const invoiceTimestamp = 1767225600;
+      final hostApi = FakeRlnHostApi()
+        ..decodeLnInvoiceResponse = <Object?, Object?>{
+          'amtMsat': 3000,
+          'expirySec': 3600,
+          'timestamp': invoiceTimestamp,
+          'paymentHash':
+              '1111111111111111111111111111111111111111111111111111111111111111',
+          'paymentSecret':
+              '2222222222222222222222222222222222222222222222222222222222222222',
+          'payeePubkey':
+              '0279be667ef9dcbbac55a06295ce870b07029bfcdb2dce28d959f2815b16f81798',
+          'network': 'regtest',
+          'descriptionHash':
+              'd29065b8a297438138cab01fd25a5e035009c44e1859622d9e2577d2f388bdfd',
+        };
       final wallet = walletWith(hostApi);
       await wallet.init(password: 'password');
       await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
@@ -3439,6 +3680,10 @@ void main() {
           peerPort: 9735,
         ),
         httpClient: lspClient,
+        clock: () => DateTime.fromMillisecondsSinceEpoch(
+          invoiceTimestamp * 1000,
+          isUtc: true,
+        ),
       );
 
       final foreign = await lsp.payAddress(
@@ -3488,7 +3733,18 @@ void main() {
   });
 
   test('LSP service operations preserve negative-path failures', () async {
-    final hostApi = FakeRlnHostApi();
+    final hostApi = FakeRlnHostApi()
+      ..decodeLnInvoiceResponse = <Object?, Object?>{
+        'amtMsat': 1000000,
+        'expirySec': 3600,
+        'timestamp': 1,
+        'assetId': 'asset',
+        'assetAmount': 7,
+        'paymentHash': 'payment-hash',
+        'paymentSecret': 'payment-secret',
+        'payeePubkey': 'payee',
+        'network': 'regtest',
+      };
     final wallet = walletWith(hostApi);
     await wallet.init(password: 'password');
     await wallet.unlock(password: 'password', config: UtexoUnlockConfig());
@@ -3512,6 +3768,7 @@ void main() {
         peerPort: 9735,
       ),
       httpClient: lspClient,
+      clock: () => DateTime.fromMillisecondsSinceEpoch(1000, isUtc: true),
     );
 
     await expectLater(
@@ -4093,7 +4350,11 @@ void main() {
       isA<NetworkError>(),
     );
     expect(
-      const LspLiquidityTimeoutException(minMsat: 1, elapsedMs: 1),
+      const LspLiquidityTimeoutException(
+        minMsat: 1,
+        lastOutboundMsat: 0,
+        elapsedMs: 1,
+      ),
       isA<NetworkError>(),
     );
     expect(

@@ -81,6 +81,27 @@ internal class RgbSdkFlutterPluginTest {
             }
             assertEquals("bitcoindRpcPort", invalidPort.field)
         }
+
+        val blankIndexer = assertFailsWith<RlnChainSyncConfigurationException> {
+            RlnChainSyncFactory.create(null, null, null, null, " \n ")
+        }
+        assertEquals("indexerUrl", blankIndexer.field)
+
+        for ((username, host, field) in listOf(
+            Triple(" ", "127.0.0.1", "bitcoindRpcUsername"),
+            Triple("rpc-user", "\t", "bitcoindRpcHost")
+        )) {
+            val blankRpcField = assertFailsWith<RlnChainSyncConfigurationException> {
+                RlnChainSyncFactory.create(
+                    bitcoindRpcUsername = username,
+                    bitcoindRpcPassword = "",
+                    bitcoindRpcHost = host,
+                    bitcoindRpcPort = 18_443,
+                    indexerUrl = null
+                )
+            }
+            assertEquals(field, blankRpcField.field)
+        }
     }
 
     @Test

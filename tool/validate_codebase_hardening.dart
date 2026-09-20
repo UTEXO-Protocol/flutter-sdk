@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:analyzer/dart/analysis/utilities.dart';
+import 'package:analyzer/dart/ast/ast.dart';
+
 const _maxHandWrittenDartLines = 1700;
 const _maxNativePluginLines = 1500;
 
@@ -9,6 +12,12 @@ void main() {
   _requireZeroAnalyzerDiagnostics(failures);
 
   final analysis = File('analysis_options.yaml').readAsStringSync();
+  final gitignore = File('.gitignore').readAsStringSync();
+  if (!gitignore.split('\n').contains('doc/api/')) {
+    failures.add(
+      '.gitignore must exclude generated dartdoc output at doc/api/.',
+    );
+  }
   for (final required in <String>[
     'strict-casts: true',
     'strict-inference: true',
@@ -39,6 +48,20 @@ void main() {
     'lib/src/binding/rln_binding_lightning.dart',
     'lib/src/binding/rln_binding_onchain.dart',
     'lib/src/models/utexo_domain_policy.dart',
+    'lib/src/lsp/lsp_address_types.dart',
+    'lib/src/lsp/lsp_address_quote_verifier.dart',
+    'lib/src/lsp/lsp_asset_selection.dart',
+    'lib/src/lsp/lsp_flow_types.dart',
+    'lib/src/lsp/lsp_protocol_policy.dart',
+    'lib/src/lsp/lsp_quote_verifier.dart',
+    'lib/src/lsp/lsp_relay_types.dart',
+    'lib/src/lsp/lsp_wallet.dart',
+    'lib/src/lsp/utexo_lsp_address.dart',
+    'lib/src/lsp/utexo_lsp_apay.dart',
+    'lib/src/lsp/utexo_lsp_asset_bridge.dart',
+    'lib/src/lsp/utexo_lsp_bridge_quote_verifier.dart',
+    'lib/src/lsp/utexo_lsp_connection.dart',
+    'lib/src/lsp/utexo_lsp_relay.dart',
     'lib/src/native_artifact_provider.dart',
     'ios/Classes/RlnBridgeErrorDetails.swift',
     'doc/PUBLIC_API_REFERENCE.md',
@@ -47,6 +70,9 @@ void main() {
     'tool/validate_public_api_docs.dart',
     'tool/validate_release_language.dart',
     'tool/validate_coverage_policy.dart',
+    'tool/core_lsp_parity_manifest.json',
+    'tool/test_matrix/lsp_client_methods.json',
+    'tool/test_matrix/lsp_methods.json',
   ]) {
     if (!File(path).existsSync()) {
       failures.add('Missing hardening artifact: $path');
@@ -135,10 +161,36 @@ void main() {
   final domainPolicy = File(
     'lib/src/models/utexo_domain_policy.dart',
   ).readAsStringSync();
-  final lsp = File('lib/src/lsp/utexo_lsp.dart').readAsStringSync();
+  final lsp = _readLibraryFiles('lib/src/lsp', <String>[
+    'utexo_lsp.dart',
+    'utexo_lsp_address.dart',
+    'utexo_lsp_apay.dart',
+    'utexo_lsp_asset_bridge.dart',
+    'utexo_lsp_bridge_quote_verifier.dart',
+    'utexo_lsp_connection.dart',
+    'utexo_lsp_relay.dart',
+  ]);
   final lspErrors = File('lib/src/lsp/lsp_errors.dart').readAsStringSync();
   final lspClient = File(
     'lib/src/lsp/utexo_lsp_client.dart',
+  ).readAsStringSync();
+  final lspFlowTypes = File(
+    'lib/src/lsp/lsp_flow_types.dart',
+  ).readAsStringSync();
+  final lspQuoteVerifier = File(
+    'lib/src/lsp/lsp_quote_verifier.dart',
+  ).readAsStringSync();
+  final lspAddressQuoteVerifier = File(
+    'lib/src/lsp/lsp_address_quote_verifier.dart',
+  ).readAsStringSync();
+  final lspBridgeQuoteVerifier = File(
+    'lib/src/lsp/utexo_lsp_bridge_quote_verifier.dart',
+  ).readAsStringSync();
+  final lspProtocolPolicy = File(
+    'lib/src/lsp/lsp_protocol_policy.dart',
+  ).readAsStringSync();
+  final lspNativeDecoders = File(
+    'lib/src/lsp/lsp_native_decoders.dart',
   ).readAsStringSync();
 
   for (final removed in <String>[
@@ -237,6 +289,7 @@ void main() {
   }
   for (final required in <String>[
     'class WalletInputPolicy',
+    '_maxPigeonSignedInt64 = 9223372036854775807',
     'static void requireNonEmpty',
     'static void requireIntegerFeeRate',
     'static void validateConfig',
@@ -291,25 +344,109 @@ void main() {
       failures.add('Stable LSP code must not contain `$forbidden`.');
     }
   }
-
-  final collectionFields = RegExp(
-    r'final\s+(?:List|Map)<[^>]+>\s+(?!_)[^;]+;\s*$',
-    multiLine: true,
-  );
-  for (final file in <String>[
-    'lib/src/wallet/utexo_wallet_types.dart',
-    'lib/src/models/rln_models.dart',
-    'lib/src/models/utexo_core_models.dart',
-    'lib/src/lsp/lsp_types.dart',
-    'lib/src/binding/rln_binding.dart',
+  for (final required in <String>[
+    'static const _defaultTimeoutMs = 15000',
+    'class UtexoLspClient implements IUtexoLspClient',
+    '_closeHttpClient = closeHttpClient ?? httpClient == null',
+    'findProxy = (_) => \'DIRECT\'',
+    'connectionFactory =',
+    'selectLspConnectionAddressForTesting(uri, addresses)',
   ]) {
-    final text = File(file).readAsStringSync();
-    if (collectionFields.hasMatch(text) && !text.contains('.unmodifiable(')) {
+    if (!lspClient.contains(required)) {
+      failures.add('Stable LSP HTTP client must retain `$required`.');
+    }
+  }
+  if (!lspFlowTypes.contains(
+    'this.onchainAsset = ReceiveOnchainAsset.convertible',
+  )) {
+    failures.add(
+      'LSP receive must default to the core beta.9 convertible-asset policy.',
+    );
+  }
+  if (!lspQuoteVerifier.contains(
+        'abstract final class LspRelayQuoteVerifier',
+      ) ||
+      !lsp.contains('LspRelayQuoteVerifier.verify(')) {
+    failures.add(
+      'External relay payment must retain local quote verification before send.',
+    );
+  }
+  for (final required in <String>[
+    'abstract final class LspAddressQuoteVerifier',
+    '_verifyLightningSignature(',
+    '_apayAddressTag',
+    '_apayLeafTag',
+    '_apayBatchTag',
+  ]) {
+    if (!lspAddressQuoteVerifier.contains(required)) {
       failures.add(
-        '$file has public collection fields without defensive copies.',
+        'APay quote verification must retain `$required` before returning a '
+        'proved invoice.',
       );
     }
   }
+  if (!lsp.contains('LspAddressQuoteVerifier.verify(')) {
+    failures.add(
+      'Lightning Address quote paths must invoke APay/BOLT11 verification.',
+    );
+  }
+  for (final required in <String>[
+    'abstract final class _LspBridgeQuoteVerifier',
+    'verifyReceive(',
+    'verifySendRequest(',
+    'verifySendResponse(',
+  ]) {
+    if (!lspBridgeQuoteVerifier.contains(required)) {
+      failures.add(
+        'RGB/Lightning bridge verification must retain `$required` before '
+        'payment.',
+      );
+    }
+  }
+  if (!lsp.contains('wallet.decodeRgbInvoice(') ||
+      !lsp.contains('_LspBridgeQuoteVerifier.verifySendResponse(')) {
+    failures.add(
+      'RGB/Lightning bridge paths must decode RGB invoices and verify the '
+      'returned quote before payment.',
+    );
+  }
+  for (final required in <String>[
+    "'utexo' || 'signet' => 'signet'",
+    "'3' || 'regtest' => 'regtest'",
+    'maxHashIndex = 0x7fffffff',
+    'maxBatchSize = 200',
+  ]) {
+    if (!lspProtocolPolicy.contains(required)) {
+      failures.add('LSP protocol policy must retain `$required`.');
+    }
+  }
+  for (final required in <String>[
+    'expectedHostNodeId',
+    '_validateHashBatch(',
+    'ApayProtocolPolicy.maxHashIndex',
+    'ApayProtocolPolicy.isPaymentHash',
+  ]) {
+    if (!lspNativeDecoders.contains(required)) {
+      failures.add('Native APay decoding must retain `$required`.');
+    }
+  }
+  if (!lspClient.contains('_isActualLoopbackHost(host)')) {
+    failures.add(
+      'Foreign LSP targets must not inherit configured Android emulator host '
+      'aliases.',
+    );
+  }
+
+  _validateDefensiveCollectionFields(<String>[
+    'lib/src/wallet/utexo_wallet_types.dart',
+    'lib/src/binding/rln_binding_types.dart',
+    'lib/src/models/rln_models.dart',
+    'lib/src/models/utexo_core_models.dart',
+    'lib/src/lsp/lsp_types.dart',
+    'lib/src/lsp/lsp_address_types.dart',
+    'lib/src/lsp/lsp_relay_types.dart',
+    'lib/src/lsp/lsp_errors.dart',
+  ], failures);
 
   if (failures.isNotEmpty) {
     stderr.writeln('Codebase hardening validation failed:');
@@ -320,6 +457,86 @@ void main() {
   }
 
   stdout.writeln('Codebase hardening validation passed.');
+}
+
+void _validateDefensiveCollectionFields(
+  List<String> paths,
+  List<String> failures,
+) {
+  for (final path in paths) {
+    final file = File(path);
+    final unit = parseString(
+      content: file.readAsStringSync(),
+      path: file.path,
+      throwIfDiagnostics: false,
+    ).unit;
+    for (final declaration in unit.declarations.whereType<ClassDeclaration>()) {
+      final members = switch (declaration.body) {
+        BlockClassBody body => body.members,
+        EmptyClassBody() => const <ClassMember>[],
+        _ => const <ClassMember>[],
+      };
+      final constructors = members
+          .whereType<ConstructorDeclaration>()
+          .where((constructor) => constructor.factoryKeyword == null)
+          .toList(growable: false);
+      for (final field in members.whereType<FieldDeclaration>()) {
+        if (field.isStatic) continue;
+        final type = field.fields.type?.toSource().replaceAll('?', '');
+        if (type == null ||
+            (!type.startsWith('List<') &&
+                !type.startsWith('Map<') &&
+                !type.startsWith('Set<'))) {
+          continue;
+        }
+        for (final variable in field.fields.variables) {
+          final name = variable.name.lexeme;
+          if (name.startsWith('_')) continue;
+          final declarationInitializer = variable.initializer?.toSource();
+          if (_isImmutableCollectionExpression(declarationInitializer)) {
+            continue;
+          }
+          if (constructors.isEmpty) {
+            failures.add(
+              '$path ${declaration.namePart.typeName.lexeme}.$name has no immutable '
+              'declaration initializer or generative constructor proof.',
+            );
+            continue;
+          }
+          for (final constructor in constructors) {
+            final initializer = constructor.initializers
+                .map((entry) => entry.toSource())
+                .where(
+                  (source) => RegExp(
+                    '^(?:this\\.)?${RegExp.escape(name)}\\s*=',
+                  ).hasMatch(source),
+                )
+                .firstOrNull;
+            if (_isImmutableCollectionExpression(initializer)) continue;
+            final directFieldFormal = constructor.parameters.parameters.any(
+              (parameter) => RegExp(
+                '\\bthis\\.${RegExp.escape(name)}\\b',
+              ).hasMatch(parameter.toSource()),
+            );
+            failures.add(
+              '$path ${declaration.namePart.typeName.lexeme}.$name is exposed by '
+              '${constructor.name?.lexeme ?? 'the unnamed constructor'} '
+              'without a per-field unmodifiable defensive copy'
+              '${directFieldFormal ? ' (it uses a mutable field-formal)' : ''}.',
+            );
+          }
+        }
+      }
+    }
+  }
+}
+
+bool _isImmutableCollectionExpression(String? source) {
+  if (source == null) return false;
+  return source.contains('.unmodifiable(') ||
+      source.contains('.asUnmodifiableView()') ||
+      RegExp(r'=\s*const(?:\s*<[^>]+>)?\s*[\[{]').hasMatch(source) ||
+      RegExp(r'^const(?:\s*<[^>]+>)?\s*[\[{]').hasMatch(source);
 }
 
 String _relative(String path) {
@@ -334,7 +551,10 @@ String _readLibraryFiles(String directory, List<String> names) {
 }
 
 void _requireZeroAnalyzerDiagnostics(List<String> failures) {
-  final result = Process.runSync('dart', <String>['analyze', '--format=json']);
+  final result = Process.runSync(Platform.resolvedExecutable, <String>[
+    'analyze',
+    '--format=json',
+  ]);
   final output = (result.stdout as String).trim();
   if (output.isEmpty) {
     if (result.exitCode != 0) {

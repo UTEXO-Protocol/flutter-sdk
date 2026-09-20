@@ -4,7 +4,10 @@ mixin _UtexoWalletLspApay on _UtexoWalletInternals {
   Future<ApayNewResponse> apayNew(String hostNodeId) async {
     _requireNonEmpty(hostNodeId, 'hostNodeId');
     _requireUnlockedNode();
-    return decodeNativeApayNewResponse(await _binding.rlnApayNew(hostNodeId));
+    return decodeNativeApayNewResponse(
+      await _binding.rlnApayNew(hostNodeId),
+      expectedHostNodeId: hostNodeId,
+    );
   }
 
   Future<ApayNewResponse> apayNewWithAddress(
@@ -18,6 +21,7 @@ mixin _UtexoWalletLspApay on _UtexoWalletInternals {
     _requireUnlockedNode();
     return decodeNativeApayNewResponse(
       await _binding.rlnApayNewWithAddress(hostNodeId, username, domain),
+      expectedHostNodeId: hostNodeId,
     );
   }
 

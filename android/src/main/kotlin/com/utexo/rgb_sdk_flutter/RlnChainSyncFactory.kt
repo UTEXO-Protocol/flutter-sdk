@@ -29,6 +29,20 @@ internal object RlnChainSyncFactory {
             )
         }
         if (rpcValueCount == 4) {
+            val username = bitcoindRpcUsername!!
+            if (username.isBlank()) {
+                throw RlnChainSyncConfigurationException(
+                    field = "bitcoindRpcUsername",
+                    message = "bitcoindRpcUsername must not be blank."
+                )
+            }
+            val host = bitcoindRpcHost!!
+            if (host.isBlank()) {
+                throw RlnChainSyncConfigurationException(
+                    field = "bitcoindRpcHost",
+                    message = "bitcoindRpcHost must not be blank."
+                )
+            }
             val port = bitcoindRpcPort!!
             if (port !in 1..UShort.MAX_VALUE.toLong()) {
                 throw RlnChainSyncConfigurationException(
@@ -37,9 +51,9 @@ internal object RlnChainSyncFactory {
                 )
             }
             return SdkLdkChainSync.BlockSync(
-                bitcoindRpcUsername!!,
+                username,
                 bitcoindRpcPassword!!,
-                bitcoindRpcHost!!,
+                host,
                 port.toUShort()
             )
         }

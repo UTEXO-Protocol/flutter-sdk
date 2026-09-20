@@ -50,18 +50,15 @@ export 'src/crypto/message.dart'
 export 'src/crypto/validation.dart'
     hide toBigInt, toNumber, toUnitsBigInt, fromUnitsBigInt;
 export 'src/errors/rgb_sdk_exception.dart';
+export 'src/lsp/lsp_address_types.dart';
 export 'src/lsp/lsp_errors.dart';
+export 'src/lsp/lsp_flow_types.dart';
+export 'src/lsp/lsp_relay_types.dart' hide LspRelayQuoteVerifier;
 export 'src/lsp/lsp_types.dart';
+export 'src/lsp/lsp_wallet.dart' show ILspWallet;
 export 'src/lsp/utexo_lsp.dart';
 export 'src/lsp/utexo_lsp_client.dart'
-    show
-        IUtexoLspClient,
-        LspError,
-        hostnameOf,
-        isLoopbackHost,
-        isSameLspHost,
-        lnurlDiscoveryUri,
-        redactSupportText;
+    show IUtexoLspClient, LspError, UtexoLspClient;
 export 'src/models/utexo_core_models.dart'
     show
         Assignment,

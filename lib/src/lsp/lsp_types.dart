@@ -1,4 +1,5 @@
 import '../errors/rgb_sdk_exception.dart';
+import 'lsp_protocol_policy.dart';
 
 const _maxUnsigned64Decimal = '18446744073709551615';
 
@@ -139,7 +140,7 @@ class LspSupportedAsset {
       schema: _requiredString(map, 'schema', 'LspSupportedAsset'),
       ticker: _optionalString(map, 'ticker', 'LspSupportedAsset'),
       name: _requiredString(map, 'name', 'LspSupportedAsset'),
-      precision: _requiredInt(map, 'precision', 'LspSupportedAsset'),
+      precision: _requiredUInt8(map, 'precision', 'LspSupportedAsset'),
     );
   }
 
@@ -201,7 +202,11 @@ class LspOnchainSendResponse {
     return LspOnchainSendResponse(
       rgbInvoice: _requiredString(map, 'rgb_invoice', 'LspOnchainSendResponse'),
       lnInvoice: _requiredString(map, 'ln_invoice', 'LspOnchainSendResponse'),
-      mappingId: _requiredString(map, 'mapping_id', 'LspOnchainSendResponse'),
+      mappingId: _requiredStringOrInt(
+        map,
+        'mapping_id',
+        'LspOnchainSendResponse',
+      ),
     );
   }
 
@@ -212,14 +217,15 @@ class LspOnchainSendResponse {
 
 class LspRgbParams {
   const LspRgbParams({
-    required this.assetId,
+    this.assetId,
     this.assignment,
     this.durationSeconds,
     this.minConfirmations,
     this.witness,
   });
 
-  final String assetId;
+  /// Asset requested for the on-chain leg. Omit for LSP pair resolution.
+  final String? assetId;
   final String? assignment;
   final int? durationSeconds;
   final int? minConfirmations;
@@ -227,7 +233,7 @@ class LspRgbParams {
 
   Map<String, Object?> toWire() {
     return <String, Object?>{
-      'asset_id': assetId,
+      if (assetId != null) 'asset_id': assetId,
       'min_confirmations': minConfirmations ?? 1,
       'witness': witness != null && witness!.isNotEmpty,
       if (assignment != null) 'assignment': assignment,
@@ -251,6 +257,8 @@ class LspLightningReceiveResponse {
     required this.lnInvoice,
     required this.rgbInvoice,
     required this.mappingId,
+    this.rgbAssetId,
+    this.converted,
   });
 
   factory LspLightningReceiveResponse.fromWire(Map<String, Object?> map) {
@@ -265,17 +273,112 @@ class LspLightningReceiveResponse {
         'rgb_invoice',
         'LspLightningReceiveResponse',
       ),
-      mappingId: _requiredString(
+      mappingId: _requiredStringOrInt(
         map,
         'mapping_id',
         'LspLightningReceiveResponse',
       ),
+      rgbAssetId: _optionalString(
+        map,
+        'rgb_asset_id',
+        'LspLightningReceiveResponse',
+      ),
+      converted: _optionalBool(map, 'converted', 'LspLightningReceiveResponse'),
     );
   }
 
   final String lnInvoice;
   final String rgbInvoice;
   final String mappingId;
+
+  /// Asset resolved by the LSP for the on-chain leg, when reported.
+  final String? rgbAssetId;
+
+  /// Whether the LSP converts between different linked assets.
+  final bool? converted;
+}
+
+/// LUD-06 discovery metadata for one Lightning Address.
+class LspLnurlpDiscovery {
+  LspLnurlpDiscovery({
+    required this.callback,
+    required this.minSendable,
+    required this.maxSendable,
+    this.metadata,
+    this.tag,
+    this.recipientPubkey,
+    this.addressSig,
+    this.payoutAsset,
+    List<LspSupportedAsset>? acceptedAssets,
+  }) : acceptedAssets = acceptedAssets == null
+           ? null
+           : List<LspSupportedAsset>.unmodifiable(acceptedAssets);
+
+  factory LspLnurlpDiscovery.fromWire(Map<String, Object?> map) {
+    final payout = map['payout_asset'];
+    final accepted = map['accepted_assets'];
+    final minSendable = _requiredNonNegativeInt(
+      map,
+      'minSendable',
+      'LspLnurlpDiscovery',
+    );
+    final maxSendable = _requiredNonNegativeInt(
+      map,
+      'maxSendable',
+      'LspLnurlpDiscovery',
+    );
+    if (minSendable <= 0 || maxSendable < minSendable) {
+      throw _malformed(
+        'LspLnurlpDiscovery sendable range must satisfy '
+        '0 < minSendable <= maxSendable.',
+      );
+    }
+    return LspLnurlpDiscovery(
+      callback: _requiredString(map, 'callback', 'LspLnurlpDiscovery'),
+      minSendable: minSendable,
+      maxSendable: maxSendable,
+      metadata: _optionalString(map, 'metadata', 'LspLnurlpDiscovery'),
+      tag: _optionalString(map, 'tag', 'LspLnurlpDiscovery'),
+      recipientPubkey: _optionalString(
+        map,
+        'recipient_pubkey',
+        'LspLnurlpDiscovery',
+      ),
+      addressSig: _optionalString(map, 'address_sig', 'LspLnurlpDiscovery'),
+      payoutAsset: payout == null
+          ? null
+          : payout is Map
+          ? LspSupportedAsset.fromWire(Map<String, Object?>.from(payout))
+          : throw _malformed(
+              'LspLnurlpDiscovery.payout_asset must be a map when present.',
+            ),
+      acceptedAssets: accepted == null
+          ? null
+          : _mapListValue(
+              accepted,
+              'LspLnurlpDiscovery.accepted_assets',
+            ).map(LspSupportedAsset.fromWire).toList(growable: false),
+    );
+  }
+
+  final String callback;
+
+  /// Minimum callback amount in millisatoshis.
+  final int minSendable;
+
+  /// Maximum callback amount in millisatoshis.
+  final int maxSendable;
+
+  final String? metadata;
+  final String? tag;
+  final String? recipientPubkey;
+  final String? addressSig;
+
+  /// Asset delivered to the receiver, when advertised.
+  final LspSupportedAsset? payoutAsset;
+
+  /// Assets the callback accepts, when advertised by this LSP version.
+  final List<LspSupportedAsset>? acceptedAssets;
 }
 
 class LspLnurlpCallbackResponse {
@@ -292,8 +395,8 @@ class LspLnurlpCallbackResponse {
     return LspLnurlpCallbackResponse(
       pr: _requiredString(map, 'pr', 'LspLnurlpCallbackResponse'),
       routes: _optionalList(map, 'routes', 'LspLnurlpCallbackResponse'),
-      status: map['status']?.toString(),
-      reason: map['reason']?.toString(),
+      status: _optionalString(map, 'status', 'LspLnurlpCallbackResponse'),
+      reason: _optionalString(map, 'reason', 'LspLnurlpCallbackResponse'),
       proof: proof == null
           ? null
           : proof is Map
@@ -309,43 +412,32 @@ class LspLnurlpCallbackResponse {
   final ApayInvoiceProof? proof;
 }
 
-class LspApayInvoiceProofWire {
-  LspApayInvoiceProofWire(Map<String, Object?> map)
-    : map = Map<String, Object?>.unmodifiable(map);
+/// One coherent LNURL discovery and callback exchange.
+///
+/// The callback URL, sendable range, address attestation, and returned invoice
+/// must all originate from the same discovery response. Keeping both values
+/// together prevents orchestration code from re-running discovery between
+/// validation and a callback that consumes an APay hash.
+class LspAddressResolution {
+  const LspAddressResolution({required this.discovery, required this.callback});
 
-  factory LspApayInvoiceProofWire.fromMap(Map<String, Object?> map) {
-    return LspApayInvoiceProofWire(map);
-  }
-
-  final Map<String, Object?> map;
-
-  ApayInvoiceProof toProof() {
-    return ApayInvoiceProof.fromWire(map);
-  }
-}
-
-class LspLnurlpCallbackWire {
-  LspLnurlpCallbackWire(Map<String, Object?> map)
-    : map = Map<String, Object?>.unmodifiable(map);
-
-  factory LspLnurlpCallbackWire.fromMap(Map<String, Object?> map) {
-    return LspLnurlpCallbackWire(map);
-  }
-
-  final Map<String, Object?> map;
-
-  LspLnurlpCallbackResponse toResponse() {
-    return LspLnurlpCallbackResponse.fromWire(map);
-  }
+  final LspLnurlpDiscovery discovery;
+  final LspLnurlpCallbackResponse callback;
 }
 
 class ApayMerkleProofElement {
   const ApayMerkleProofElement({required this.sibling, required this.side});
 
   factory ApayMerkleProofElement.fromWire(Map<String, Object?> map) {
+    final side = _requiredString(map, 'side', 'ApayMerkleProofElement');
+    if (side != 'left' && side != 'right') {
+      throw _malformed(
+        'ApayMerkleProofElement.side must be "left" or "right".',
+      );
+    }
     return ApayMerkleProofElement(
       sibling: _requiredString(map, 'sibling', 'ApayMerkleProofElement'),
-      side: _requiredString(map, 'side', 'ApayMerkleProofElement'),
+      side: side,
     );
   }
 
@@ -371,8 +463,47 @@ class ApayInvoiceProof {
 
   factory ApayInvoiceProof.fromWire(Map<String, Object?> map) {
     final merkleProof = map['merkle_proof'];
+    final version = _requiredNonNegativeInt(map, 'version', 'ApayInvoiceProof');
+    if (version != ApayProtocolPolicy.protocolVersion) {
+      throw _malformed('ApayInvoiceProof.version is unsupported.');
+    }
+    final hashIndex = _requiredPositiveInt(
+      map,
+      'hash_index',
+      'ApayInvoiceProof',
+    );
+    if (hashIndex > ApayProtocolPolicy.maxHashIndex) {
+      throw _malformed(
+        'ApayInvoiceProof.hash_index exceeds the APay BIP32 derivation range.',
+      );
+    }
+    final batchSize = _requiredPositiveInt(
+      map,
+      'batch_size',
+      'ApayInvoiceProof',
+    );
+    if (batchSize > ApayProtocolPolicy.maxBatchSize) {
+      throw _malformed(
+        'ApayInvoiceProof.batch_size exceeds the APay protocol maximum.',
+      );
+    }
+    final createdAt = _requiredNonNegativeInt(
+      map,
+      'created_at',
+      'ApayInvoiceProof',
+    );
+    final expiresAt = _requiredNonNegativeInt(
+      map,
+      'expires_at',
+      'ApayInvoiceProof',
+    );
+    if (expiresAt < createdAt) {
+      throw _malformed(
+        'ApayInvoiceProof.expires_at must not precede created_at.',
+      );
+    }
     return ApayInvoiceProof(
-      version: _requiredInt(map, 'version', 'ApayInvoiceProof'),
+      version: version,
       recipientPubkey: _requiredString(
         map,
         'recipient_pubkey',
@@ -380,17 +511,17 @@ class ApayInvoiceProof {
       ),
       hostPubkey: _requiredString(map, 'host_pubkey', 'ApayInvoiceProof'),
       batchId: _requiredString(map, 'batch_id', 'ApayInvoiceProof'),
-      hashIndex: _requiredInt(map, 'hash_index', 'ApayInvoiceProof'),
+      hashIndex: hashIndex,
       paymentHash: _requiredString(map, 'payment_hash', 'ApayInvoiceProof'),
       batchRoot: _requiredString(map, 'batch_root', 'ApayInvoiceProof'),
-      batchSize: _requiredInt(map, 'batch_size', 'ApayInvoiceProof'),
+      batchSize: batchSize,
       merkleProof: _mapListValue(
         merkleProof,
         'ApayInvoiceProof.merkle_proof',
       ).map(ApayMerkleProofElement.fromWire).toList(growable: false),
       batchSig: _requiredString(map, 'batch_sig', 'ApayInvoiceProof'),
-      createdAt: _requiredInt(map, 'created_at', 'ApayInvoiceProof'),
-      expiresAt: _requiredInt(map, 'expires_at', 'ApayInvoiceProof'),
+      createdAt: createdAt,
+      expiresAt: expiresAt,
     );
   }
 
@@ -572,7 +703,7 @@ class ApayHashEntry {
 }
 
 class ApayNewResponse {
-  const ApayNewResponse({
+  ApayNewResponse({
     required this.requestId,
     required this.hostNodeId,
     required this.protocolVersion,
@@ -584,8 +715,8 @@ class ApayNewResponse {
     required this.refillBatchSize,
     required this.firstHashIndex,
     required this.lastHashIndex,
-    required this.hashes,
-  });
+    required List<ApayHashEntry> hashes,
+  }) : hashes = List<ApayHashEntry>.unmodifiable(hashes);
 
   final String requestId;
   final String hostNodeId;
@@ -598,6 +729,8 @@ class ApayNewResponse {
   final int refillBatchSize;
   final int firstHashIndex;
   final int lastHashIndex;
+
+  /// Registered hashes. The indices are global and continue across refills.
   final List<ApayHashEntry> hashes;
 }
 
@@ -605,6 +738,14 @@ int _requiredInt(Map<String, Object?> map, String key, String typeName) {
   final value = _intValue(map[key]);
   if (value == null) {
     throw _malformed('$typeName.$key must be an integer.');
+  }
+  return value;
+}
+
+int _requiredUInt8(Map<String, Object?> map, String key, String typeName) {
+  final value = _intValue(map[key]);
+  if (value == null || value < 0 || value > 0xFF) {
+    throw _malformed('$typeName.$key must be an unsigned 8-bit integer.');
   }
   return value;
 }
@@ -618,10 +759,21 @@ int? _intValue(Object? value) {
 
 String _requiredString(Map<String, Object?> map, String key, String typeName) {
   final value = _stringValue(map[key]);
-  if (value == null || value.isEmpty) {
+  if (value == null || value.trim().isEmpty) {
     throw _malformed('$typeName.$key must be a non-empty string.');
   }
   return value;
+}
+
+String _requiredStringOrInt(
+  Map<String, Object?> map,
+  String key,
+  String typeName,
+) {
+  final value = map[key];
+  if (value is String && value.trim().isNotEmpty) return value;
+  if (value is int) return value.toString();
+  throw _malformed('$typeName.$key must be a non-empty string or integer.');
 }
 
 String? _optionalString(Map<String, Object?> map, String key, String typeName) {
@@ -647,6 +799,37 @@ int? _optionalPort(Map<String, Object?> map, String key, String typeName) {
     throw _malformed('$typeName.$key must be a TCP port in range 1..65535.');
   }
   return port;
+}
+
+bool? _optionalBool(Map<String, Object?> map, String key, String typeName) {
+  final value = map[key];
+  if (value == null) return null;
+  if (value is bool) return value;
+  throw _malformed('$typeName.$key must be a boolean when present.');
+}
+
+int _requiredNonNegativeInt(
+  Map<String, Object?> map,
+  String key,
+  String typeName,
+) {
+  final value = _intValue(map[key]);
+  if (value == null || value < 0) {
+    throw _malformed('$typeName.$key must be a non-negative integer.');
+  }
+  return value;
+}
+
+int _requiredPositiveInt(
+  Map<String, Object?> map,
+  String key,
+  String typeName,
+) {
+  final value = _intValue(map[key]);
+  if (value == null || value <= 0) {
+    throw _malformed('$typeName.$key must be a positive integer.');
+  }
+  return value;
 }
 
 BigInt _requiredUInt64(Map<String, Object?> map, String key, String typeName) {

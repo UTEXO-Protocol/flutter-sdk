@@ -1,0 +1,207 @@
+{
+  "schemaVersion": 1,
+  "api": "UtexoLsp",
+  "source": "lib/src/lsp/utexo_lsp.dart",
+  "methods": [
+    {
+      "id": "connect",
+      "group": "connection",
+      "support": "supported",
+      "fixture": "lsp_beta9_connection",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_connection.dart::_UtexoLspConnection.connect",
+      "evidenceBucket": "lsp_beta9_connection",
+      "parity": "core"
+    },
+    {
+      "id": "waitForChannel",
+      "group": "connection",
+      "support": "supported",
+      "fixture": "lsp_beta9_connection",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_connection.dart::_UtexoLspConnection.waitForChannel",
+      "evidenceBucket": "lsp_beta9_connection",
+      "parity": "core"
+    },
+    {
+      "id": "receiveAsset",
+      "group": "asset_bridge",
+      "support": "supported",
+      "fixture": "lsp_beta9_bridge",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_asset_bridge.dart::_UtexoLspAssetBridge.receiveAsset",
+      "evidenceBucket": "lsp_beta9_bridge",
+      "parity": "core"
+    },
+    {
+      "id": "awaitReceiveSettlement",
+      "group": "asset_bridge",
+      "support": "supported",
+      "fixture": "lsp_beta9_connection",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_connection.dart::_UtexoLspConnection.awaitReceiveSettlement",
+      "evidenceBucket": "lsp_beta9_connection",
+      "parity": "core"
+    },
+    {
+      "id": "waitForOutboundLiquidity",
+      "group": "connection",
+      "support": "supported",
+      "fixture": "lsp_beta9_connection",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_connection.dart::_UtexoLspConnection.waitForOutboundLiquidity",
+      "evidenceBucket": "lsp_beta9_connection",
+      "parity": "core"
+    },
+    {
+      "id": "sendAsset",
+      "group": "asset_bridge",
+      "support": "supported",
+      "fixture": "lsp_beta9_bridge",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_asset_bridge.dart::_UtexoLspAssetBridge.sendAsset",
+      "evidenceBucket": "lsp_beta9_bridge",
+      "parity": "core"
+    },
+    {
+      "id": "payAddress",
+      "group": "address",
+      "support": "supported",
+      "fixture": "lsp_beta9_address",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_address.dart::_UtexoLspAddress.payAddress",
+      "evidenceBucket": "lsp_beta9_address",
+      "parity": "core"
+    },
+    {
+      "id": "quoteAddress",
+      "group": "address",
+      "support": "supported",
+      "fixture": "lsp_beta9_address",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_address.dart::_UtexoLspAddress.quoteAddress",
+      "evidenceBucket": "lsp_beta9_address",
+      "parity": "core"
+    },
+    {
+      "id": "discoverAddress",
+      "group": "address",
+      "support": "supported",
+      "fixture": "lsp_beta9_address",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_address.dart::_UtexoLspAddress.discoverAddress",
+      "evidenceBucket": "lsp_beta9_address",
+      "parity": "core"
+    },
+    {
+      "id": "listPayableAssets",
+      "group": "address",
+      "support": "supported",
+      "fixture": "lsp_beta9_address",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_address.dart::_UtexoLspAddress.listPayableAssets",
+      "evidenceBucket": "lsp_beta9_address",
+      "parity": "core"
+    },
+    {
+      "id": "selectPaymentAsset",
+      "group": "address",
+      "support": "supported",
+      "fixture": "lsp_beta9_address",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_address.dart::_UtexoLspAddress.selectPaymentAsset",
+      "evidenceBucket": "lsp_beta9_address",
+      "parity": "core"
+    },
+    {
+      "id": "enableLightningAddress",
+      "group": "apay",
+      "support": "supported",
+      "fixture": "lsp_apay",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_apay.dart::_UtexoLspApay.enableLightningAddress",
+      "evidenceBucket": "lsp_apay",
+      "parity": "core"
+    },
+    {
+      "id": "requestExternalInvoice",
+      "group": "address",
+      "support": "supported",
+      "fixture": "lsp_beta9_address",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_address.dart::_UtexoLspAddress.requestExternalInvoice",
+      "evidenceBucket": "lsp_beta9_address",
+      "parity": "core"
+    },
+    {
+      "id": "quoteExternalPayment",
+      "group": "relay",
+      "support": "supported",
+      "fixture": "lsp_beta9_relay",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_relay.dart::_UtexoLspRelay.quoteExternalPayment",
+      "evidenceBucket": "lsp_beta9_relay",
+      "parity": "core"
+    },
+    {
+      "id": "payExternalInvoice",
+      "group": "relay",
+      "support": "supported",
+      "fixture": "lsp_beta9_relay",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_relay.dart::_UtexoLspRelay.payExternalInvoice",
+      "evidenceBucket": "lsp_beta9_relay",
+      "parity": "core"
+    },
+    {
+      "id": "externalPaymentStatus",
+      "group": "relay",
+      "support": "supported",
+      "fixture": "lsp_beta9_relay",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_relay.dart::_UtexoLspRelay.externalPaymentStatus",
+      "evidenceBucket": "lsp_beta9_relay",
+      "parity": "core"
+    },
+    {
+      "id": "refillHashPool",
+      "group": "apay",
+      "support": "supported",
+      "fixture": "lsp_apay",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_apay.dart::_UtexoLspApay.refillHashPool",
+      "evidenceBucket": "lsp_apay",
+      "parity": "core"
+    },
+    {
+      "id": "claimPendingPayments",
+      "group": "apay",
+      "support": "supported",
+      "fixture": "lsp_apay",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_apay.dart::_UtexoLspApay.claimPendingPayments",
+      "evidenceBucket": "lsp_apay",
+      "parity": "core"
+    },
+    {
+      "id": "close",
+      "group": "lifecycle",
+      "support": "supported",
+      "fixture": "lsp_beta9_client",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp.dart::UtexoLsp.close",
+      "evidenceBucket": "lsp_beta9_client",
+      "parity": "flutter-adaptation"
+    },
+    {
+      "id": "dispose",
+      "group": "lifecycle",
+      "support": "supported",
+      "fixture": "lsp_beta9_client",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp.dart::UtexoLsp.dispose",
+      "evidenceBucket": "lsp_beta9_client",
+      "parity": "flutter-adaptation"
+    }
+  ]
+}

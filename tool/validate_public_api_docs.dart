@@ -41,7 +41,6 @@ const _forbiddenStableRootSymbols = <String>{
   'RlnUnspent',
   'RlnUtxo',
   'RlnVerifyMessageResult',
-  'UtexoLspClient',
   'configureLogging',
   'createRLNManager',
   'logger',

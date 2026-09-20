@@ -168,8 +168,12 @@ void _validateRollup(
     'P0': rows.where((row) => row.priority == 'P0').length,
     'P1': rows.where((row) => row.priority == 'P1').length,
     'P2': rows.where((row) => row.priority == 'P2').length,
+    'P3': rows.where((row) => row.priority == 'P3').length,
     'Open': rows.where((row) => row.status == 'Open').length,
     'In progress': rows.where((row) => row.status == 'In progress').length,
+    'Blocked upstream': rows
+        .where((row) => row.status == 'Blocked upstream')
+        .length,
     'Needs decision': rows
         .where((row) => row.status == 'Needs decision')
         .length,
@@ -202,13 +206,20 @@ void _validateOpenGroups(
   List<_IssueRow> rows,
   List<String> errors,
 ) {
+  const unresolvedStatuses = <String>{
+    'Open',
+    'In progress',
+    'Blocked upstream',
+    'Needs decision',
+  };
   final openIds = rows
-      .where((row) => row.status == 'Open')
+      .where((row) => unresolvedStatuses.contains(row.status))
       .map((row) => row.id)
       .toSet();
   final groupIds = <String>[];
   final groupPattern = RegExp(
-    r'^\|\s*\d+\s*\|[^|]*\|\s*([^|]+?)\s*\|\s*(\d+)\s*\|\s*(\d+)/(\d+)\s*\|',
+    r'^\|\s*\d+\s*\|[^|]*\|\s*([^|]+?)\s*\|\s*(\d+)\s*\|'
+    r'\s*(\d+)/(\d+)/(\d+)/(\d+)\s*\|',
     multiLine: true,
   );
 
@@ -222,19 +233,28 @@ void _validateOpenGroups(
         .map((match) => match.group(0)!)
         .toList(growable: false);
     final declaredCount = int.parse(match.group(2)!);
-    final declaredP1 = int.parse(match.group(3)!);
-    final declaredP2 = int.parse(match.group(4)!);
+    final declaredPriorities = <String, int>{
+      'P0': int.parse(match.group(3)!),
+      'P1': int.parse(match.group(4)!),
+      'P2': int.parse(match.group(5)!),
+      'P3': int.parse(match.group(6)!),
+    };
     if (ids.length != declaredCount) {
       errors.add(
         'Open work group declares count $declaredCount but lists ${ids.length}: ${ids.join(', ')}.',
       );
     }
-    final actualP1 = ids.where((id) => priorityById[id] == 'P1').length;
-    final actualP2 = ids.where((id) => priorityById[id] == 'P2').length;
-    if (actualP1 != declaredP1 || actualP2 != declaredP2) {
+    final actualPriorities = <String, int>{
+      for (final priority in <String>['P0', 'P1', 'P2', 'P3'])
+        priority: ids.where((id) => priorityById[id] == priority).length,
+    };
+    if (actualPriorities.entries.any(
+      (entry) => declaredPriorities[entry.key] != entry.value,
+    )) {
       errors.add(
-        'Open work group ${ids.join(', ')} declares P1/P2 $declaredP1/$declaredP2 '
-        'but ledger has $actualP1/$actualP2.',
+        'Open work group ${ids.join(', ')} declares P0/P1/P2/P3 '
+        '${declaredPriorities.values.join('/')} but ledger has '
+        '${actualPriorities.values.join('/')}.',
       );
     }
     groupIds.addAll(ids);
@@ -249,10 +269,12 @@ void _validateOpenGroups(
     if (!seen.add(id)) duplicates.add(id);
   }
   if (missing.isNotEmpty) {
-    errors.add('Open work groups miss: ${missing.join(', ')}.');
+    errors.add('Unresolved work groups miss: ${missing.join(', ')}.');
   }
   if (extra.isNotEmpty) {
-    errors.add('Open work groups include non-open rows: ${extra.join(', ')}.');
+    errors.add(
+      'Unresolved work groups include resolved rows: ${extra.join(', ')}.',
+    );
   }
   if (duplicates.isNotEmpty) {
     final sorted = duplicates.toList()..sort();

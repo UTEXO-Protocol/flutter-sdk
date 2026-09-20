@@ -1,0 +1,147 @@
+{
+  "schemaVersion": 1,
+  "api": "IUtexoLspClient",
+  "source": "lib/src/lsp/utexo_lsp_client.dart",
+  "methods": [
+    {
+      "id": "close",
+      "group": "lifecycle",
+      "support": "supported",
+      "fixture": "lsp_beta9_client",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_client.dart::UtexoLspClient.close",
+      "evidenceBucket": "lsp_beta9_client",
+      "parity": "flutter-adaptation"
+    },
+    {
+      "id": "getInfo",
+      "group": "discovery",
+      "support": "supported",
+      "fixture": "lsp_beta9_client",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_client.dart::UtexoLspClient.getInfo",
+      "evidenceBucket": "lsp_beta9_client",
+      "parity": "core"
+    },
+    {
+      "id": "discoverAddress",
+      "group": "address",
+      "support": "supported",
+      "fixture": "lsp_beta9_client",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_client.dart::UtexoLspClient.discoverAddress",
+      "evidenceBucket": "lsp_beta9_client",
+      "parity": "core"
+    },
+    {
+      "id": "resolveAddress",
+      "group": "address",
+      "support": "supported",
+      "fixture": "lsp_beta9_client",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_client.dart::UtexoLspClient.resolveAddress",
+      "evidenceBucket": "lsp_beta9_client",
+      "parity": "core"
+    },
+    {
+      "id": "resolveAddressWithDiscovery",
+      "group": "address",
+      "support": "supported",
+      "fixture": "lsp_beta9_address",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_client.dart::UtexoLspClient.resolveAddressWithDiscovery",
+      "evidenceBucket": "lsp_beta9_address",
+      "parity": "flutter-adaptation"
+    },
+    {
+      "id": "lnurlCallback",
+      "group": "address",
+      "support": "supported",
+      "fixture": "lsp_beta9_client",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_client.dart::UtexoLspClient.lnurlCallback",
+      "evidenceBucket": "lsp_beta9_client",
+      "parity": "core"
+    },
+    {
+      "id": "resolveExternalAddress",
+      "group": "address",
+      "support": "supported",
+      "fixture": "lsp_beta9_client",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_client.dart::UtexoLspClient.resolveExternalAddress",
+      "evidenceBucket": "lsp_beta9_client",
+      "parity": "flutter-adaptation"
+    },
+    {
+      "id": "resolveExternalAddressWithDiscovery",
+      "group": "address",
+      "support": "supported",
+      "fixture": "lsp_beta9_address",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_client.dart::UtexoLspClient.resolveExternalAddressWithDiscovery",
+      "evidenceBucket": "lsp_beta9_address",
+      "parity": "flutter-adaptation"
+    },
+    {
+      "id": "discoverExternalAddress",
+      "group": "address",
+      "support": "supported",
+      "fixture": "lsp_beta9_client",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_client.dart::UtexoLspClient.discoverExternalAddress",
+      "evidenceBucket": "lsp_beta9_client",
+      "parity": "flutter-adaptation"
+    },
+    {
+      "id": "getLightningAddressByPubkey",
+      "group": "address",
+      "support": "supported",
+      "fixture": "lsp_beta9_client",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_client.dart::UtexoLspClient.getLightningAddressByPubkey",
+      "evidenceBucket": "lsp_beta9_client",
+      "parity": "core"
+    },
+    {
+      "id": "onchainSend",
+      "group": "asset_bridge",
+      "support": "supported",
+      "fixture": "lsp_beta9_client",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_client.dart::UtexoLspClient.onchainSend",
+      "evidenceBucket": "lsp_beta9_client",
+      "parity": "core"
+    },
+    {
+      "id": "lightningReceive",
+      "group": "asset_bridge",
+      "support": "supported",
+      "fixture": "lsp_beta9_client",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_client.dart::UtexoLspClient.lightningReceive",
+      "evidenceBucket": "lsp_beta9_client",
+      "parity": "core"
+    },
+    {
+      "id": "lightningSend",
+      "group": "relay",
+      "support": "supported",
+      "fixture": "lsp_beta9_client",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_client.dart::UtexoLspClient.lightningSend",
+      "evidenceBucket": "lsp_beta9_client",
+      "parity": "core"
+    },
+    {
+      "id": "lightningSendStatus",
+      "group": "relay",
+      "support": "supported",
+      "fixture": "lsp_beta9_client",
+      "contract": "covered",
+      "implementation": "lib/src/lsp/utexo_lsp_client.dart::UtexoLspClient.lightningSendStatus",
+      "evidenceBucket": "lsp_beta9_client",
+      "parity": "core"
+    }
+  ]
+}

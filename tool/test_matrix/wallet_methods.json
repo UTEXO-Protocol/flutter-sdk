@@ -310,6 +310,24 @@
       "evidenceBucket": "unfunded_read"
     },
     {
+      "id": "refreshTransfers",
+      "group": "rgb",
+      "support": "supported",
+      "fixture": "unit_mapper",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet.dart::UtexoWallet.refreshTransfers",
+      "evidenceBucket": "unit_mapper"
+    },
+    {
+      "id": "refreshTransfersRaw",
+      "group": "advanced_rgb",
+      "support": "supported",
+      "fixture": "unit_mapper",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet_raw.dart::UtexoWalletRawApi.refreshTransfersRaw",
+      "evidenceBucket": "unit_mapper"
+    },
+    {
       "id": "syncWallet",
       "group": "lifecycle",
       "support": "supported",

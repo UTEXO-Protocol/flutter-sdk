@@ -17,14 +17,14 @@ Current package version: `0.1.0`.
 The current baseline is:
 
 - `UTEXO-Protocol/rgb-sdk-rn` `dev` at
-  `63cbf9a01030a8a10eb1b04b2734cd8c5d23aec1`
-- `@utexo/rgb-sdk-rn` `1.0.0-beta.27`
-- `@utexo/rgb-sdk-core` `1.0.0-beta.7`
-- RGB Lightning Node `0.10.0-beta.3`
+  `821ae4fd10ca3933445ab926cb0af0230b108913`
+- `@utexo/rgb-sdk-rn` `1.0.0-beta.32`
+- `@utexo/rgb-sdk-core` `1.0.0-beta.9`
+- RGB Lightning Node `0.13.0-beta.3`
 
-All repository-owned source, API, model, lifecycle, package, local native
-bridge, platform smoke, and release-runner findings are either verified or
-explicitly accepted for this internal-beta line. The major accepted production
+Static parity and implementation work target that exact baseline. Current
+release eligibility still depends on the clean-candidate native, consumer, and
+funded/unfunded evidence recorded in the tracker. The accepted production
 constraint is `PKG-006`: upstream native artifacts are pinned and checksum
 verified, but full production provenance is not available yet.
 
@@ -43,8 +43,10 @@ authoritative ledger is
 - On-chain BTC balance, address, UTXO, transaction, and send workflows.
 - Lightning invoice, payment, peer, channel, keysend, decode, and status
   workflows.
-- LSP integration for Lightning Address, async payment hash pools, APay order
-  creation, and RGB/Lightning orchestration.
+- LSP integration for Lightning Address discovery and quotes, linked/canonical
+  asset selection, async payment hash pools, APay receive, RGB/Lightning
+  bridge flows, cryptographically verified APay external invoices, and locally
+  verified bridge and external-payment relay quotes.
 - Password signer and native external signer strategies.
 - Strict Dart domain DTOs on the stable API boundary.
 - Advanced RN/native entrypoint for `RlnClient`, `RLNBinding`, `RLNManager`,
@@ -98,14 +100,14 @@ pod install
 For deterministic local release runs, prefer a pre-resolved archive or cache:
 
 ```sh
-RLN_ARCHIVE_PATH=/path/to/rgb-lightning-node-swift-0.10.0-beta.3.zip pod install
+RLN_ARCHIVE_PATH=/path/to/rgb-lightning-node-swift-0.13.0-beta.3.zip pod install
 RLN_CACHE_DIR=/path/to/rln-cache pod install
 RLN_OFFLINE=1 pod install
 ```
 
 ### Android
 
-Android resolves `com.utexo:rgb-lightning-node-android:0.10.0-beta.3` through
+Android resolves `com.utexo:rgb-lightning-node-android:0.13.0-beta.3` through
 Gradle/Maven. The release gate verifies the resolved AAR checksum, size, and
 ABI set against `tool/release_baseline.json`.
 
@@ -237,10 +239,10 @@ the advanced entrypoint.
 | UTXOs | `createUtxos`, `listUnspents` |
 | RGB assets | `listAssets`, `getAssetBalance`, `issueAssetNia`, `issueAssetIfa` |
 | RGB receive/send | `onchainReceive`, `blindReceive`, `witnessReceive`, `onchainSend`, `decodeRgbInvoice` |
-| Transactions/transfers | `listTransactions`, `listTransfers`, `failTransfers`, `refreshWallet`, `syncWallet` |
+| Transactions/transfers | `listTransactions`, `listTransfers`, `failTransfers`, `refreshTransfers`, `refreshWallet`, `syncWallet` |
 | Lightning | `createBolt11Invoice`, `sendPayment`, `keysend`, `listPayments`, `decodeLightningInvoice` |
 | Channels/peers | `connectPeer`, `disconnectPeer`, `listPeers`, `openChannel`, `closeChannel`, `listChannels` |
-| LSP/APay | `createLsp`, `enableLightningAddress`, `refillHashPool`, APay order helpers |
+| LSP/APay | `createLsp`, `discoverAddress`, `quoteAddress`, `selectPaymentAsset`, `receiveAsset`, `sendAsset`, `requestExternalInvoice`, `quoteExternalPayment`, `payExternalInvoice`, `enableLightningAddress`, `refillHashPool` |
 | Signing | wallet node-message signing plus explicit experimental account-key Schnorr opt-in |
 
 ## Accepted Constraints

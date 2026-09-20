@@ -477,6 +477,7 @@ class LightningChannel {
     this.isUsable,
     this.status,
     this.localBalanceMsat,
+    this.remoteBalanceMsat,
     this.outboundBalanceMsat,
     this.inboundBalanceMsat,
     this.nextOutboundHtlcLimitMsat,
@@ -502,6 +503,9 @@ class LightningChannel {
 
   /// Local Lightning balance in millisats.
   final int? localBalanceMsat;
+
+  /// Remote Lightning balance in millisats.
+  final int? remoteBalanceMsat;
 
   /// Outbound Lightning balance in millisats.
   final int? outboundBalanceMsat;
@@ -1009,6 +1013,9 @@ extension RlnLightningChannelMapper on RlnChannel {
       localBalanceMsat: localBalanceSat == null
           ? null
           : localBalanceSat! * 1000,
+      // RLN 0.13 does not expose a separate remote-balance field. Preserve the
+      // shared core shape as nullable instead of synthesizing a value.
+      remoteBalanceMsat: null,
       outboundBalanceMsat: outboundBalanceMsat,
       inboundBalanceMsat: inboundBalanceMsat,
       nextOutboundHtlcLimitMsat: nextOutboundHtlcLimitMsat,

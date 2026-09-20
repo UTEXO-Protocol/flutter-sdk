@@ -26,6 +26,7 @@ dependencies:
   pointycastle: ^3.9.1
 
 dev_dependencies:
+  analyzer: ^10.0.1
   flutter_lints: ^6.0.0
   flutter_test:
     sdk: flutter

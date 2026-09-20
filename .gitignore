@@ -5,6 +5,7 @@
 .pub/
 build/
 coverage/
+doc/api/
 ios/Frameworks/
 ios/.tmp-rln-swift/
 ios/RGBLightningNode.xcframework/

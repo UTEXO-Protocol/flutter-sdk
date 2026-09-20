@@ -110,6 +110,92 @@
         "APay/LSP request mapping, validation, and proof DTOs preserve current core field names."
       ]
     },
+    "lsp_beta9_address": {
+      "claimLevel": "unit_contract",
+      "testIds": [
+        "test/lsp_beta9_contract_test.dart::preserves the discovery menu and derives convertible assets",
+        "test/lsp_beta9_contract_test.dart::uses the largest single channel and prefers payout when sufficient",
+        "test/lsp_beta9_contract_test.dart::reports per-asset liquidity and refuses an empty menu",
+        "test/lsp_beta9_contract_test.dart::quoteAddress selects an asset and returns the selection",
+        "test/lsp_beta9_contract_test.dart::does not retry a consuming Lightning Address callback",
+        "test/lsp_beta9_contract_test.dart::requestExternalInvoice resolves ticker and default preference",
+        "test/lsp_beta9_contract_test.dart::requestExternalInvoice refuses ambiguous convertible assets",
+        "test/utexo_wallet_test.dart::LSP payAddress routes by host and does not fallback for same-host errors"
+      ],
+      "platformReportFamilies": [
+        "lsp-service-local"
+      ],
+      "assertions": [
+        "Discovery metadata, payout-first ordering, ticker/contract resolution, per-channel liquidity selection, quote proof propagation, and same-host versus foreign-host routing match core beta.9."
+      ]
+    },
+    "lsp_beta9_bridge": {
+      "claimLevel": "unit_contract",
+      "testIds": [
+        "test/lsp_beta9_contract_test.dart::omits asset_id by default and preserves resolved bridge metadata",
+        "test/lsp_beta9_contract_test.dart::payout mode explicitly sends the Lightning asset ID",
+        "test/lsp_beta9_contract_test.dart::sendAsset pays only the invoice returned by the LSP",
+        "test/utexo_wallet_test.dart::LSP service operations preserve negative-path failures"
+      ],
+      "platformReportFamilies": [
+        "lsp-service-local"
+      ],
+      "assertions": [
+        "Linked/canonical receive and RGB-to-Lightning send flows preserve exact request policy, returned mapping metadata, and failure ordering without paying after a failed quote."
+      ]
+    },
+    "lsp_beta9_client": {
+      "claimLevel": "unit_contract",
+      "testIds": [
+        "test/lsp_beta9_contract_test.dart::maps discovery and never sends LSP credentials to foreign hosts",
+        "test/lsp_beta9_contract_test.dart::maps strict lightning_send request, response, and status shapes",
+        "test/lsp_beta9_contract_test.dart::rejects incomplete relay responses and unknown statuses",
+        "test/lsp_beta9_contract_test.dart::maps every remaining core beta.9 endpoint contract",
+        "test/lsp_beta9_contract_test.dart::resolves local and external callbacks without credential leak",
+        "test/lsp_beta9_contract_test.dart::UtexoLsp disposal delegates to the injected client",
+        "test/utexo_wallet_test.dart::LSP HTTP policy preserves callback paths and redacts diagnostics",
+        "test/utexo_wallet_test.dart::LSP channel wait requires matching peer and exposes disposal"
+      ],
+      "platformReportFamilies": [
+        "lsp-service-local"
+      ],
+      "assertions": [
+        "The concrete client maps every beta.9 endpoint, isolates bearer credentials, enforces transport and timeout policy, strictly rejects malformed DTOs, and respects owned transport disposal."
+      ]
+    },
+    "lsp_beta9_connection": {
+      "claimLevel": "unit_contract",
+      "testIds": [
+        "test/utexo_wallet_test.dart::LSP connect idempotence only swallows typed conflicts",
+        "test/utexo_wallet_test.dart::LSP channel wait requires matching peer and exposes disposal",
+        "test/utexo_wallet_test.dart::LSP settlement and APay failures use explicit error paths",
+        "test/lsp_beta9_contract_test.dart::treats Cancelled receive status as a terminal settlement failure",
+        "test/lsp_beta9_contract_test.dart::liquidity timeout reports the last amount observed"
+      ],
+      "platformReportFamilies": [
+        "lsp-service-local"
+      ],
+      "assertions": [
+        "Connection idempotence, peer-scoped channel readiness, cancellation, terminal settlement, progress hooks, and liquidity timeout diagnostics are deterministic."
+      ]
+    },
+    "lsp_beta9_relay": {
+      "claimLevel": "unit_contract",
+      "testIds": [
+        "test/lsp_beta9_contract_test.dart::decodes both invoices before paying and returns a verified quote",
+        "test/lsp_beta9_contract_test.dart::selects the first locally funded alternative like core",
+        "test/lsp_beta9_contract_test.dart::passes an explicit RGB contract through without get_info lookup",
+        "test/lsp_beta9_contract_test.dart::refuses every hash, asset, amount, fee, and conversion mismatch",
+        "test/lsp_beta9_contract_test.dart::rejects an amountless target before paying",
+        "test/lsp_beta9_contract_test.dart::externalPaymentStatus validates and delegates the payment hash"
+      ],
+      "platformReportFamilies": [
+        "lsp-service-local"
+      ],
+      "assertions": [
+        "External relay quotes are locally decoded and rejected before payment on hash, asset, amount, fee, payee, or conversion mismatch; status mapping remains strict."
+      ]
+    },
     "lsp_http": {
       "claimLevel": "unit_contract",
       "testIds": [

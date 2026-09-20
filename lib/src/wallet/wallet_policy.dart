@@ -7,6 +7,8 @@ import 'utexo_wallet_types.dart';
 /// module owns app-facing validation decisions before a wallet call crosses the
 /// native boundary.
 abstract final class WalletInputPolicy {
+  static const int _maxPigeonSignedInt64 = 9223372036854775807;
+
   static void requireCompatibleNativeOwner({
     required Object binding,
     required Object client,
@@ -27,15 +29,18 @@ abstract final class WalletInputPolicy {
   }
 
   static void requirePositive(int value, String field) {
-    if (value <= 0) {
-      throw WalletValidationException('$field must be positive.', field: field);
+    if (value <= 0 || value > _maxPigeonSignedInt64) {
+      throw WalletValidationException(
+        '$field must be positive and fit in signed 64-bit transport.',
+        field: field,
+      );
     }
   }
 
   static void requireNonNegative(int value, String field) {
-    if (value < 0) {
+    if (value < 0 || value > _maxPigeonSignedInt64) {
       throw WalletValidationException(
-        '$field must be non-negative.',
+        '$field must be non-negative and fit in signed 64-bit transport.',
         field: field,
       );
     }

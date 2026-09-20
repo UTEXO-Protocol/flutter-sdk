@@ -10,7 +10,16 @@
   "core": {
     "repository": "https://github.com/UTEXO-Protocol/rgb-sdk-core.git",
     "package": "@utexo/rgb-sdk-core",
-    "version": "1.0.0-beta.9"
+    "version": "1.0.0-beta.9",
+    "archiveUrl": "https://registry.npmjs.org/@utexo/rgb-sdk-core/-/rgb-sdk-core-1.0.0-beta.9.tgz",
+    "archiveSizeBytes": 285207,
+    "archiveSha256": "fbc27721d217b82e1a3058451591ac9eb7b0fdef1b0986d8b3bd9b9213661c73",
+    "integritySha512": "sha512-VqCxtsV4/Bdr44fLd/DwL3XYpkbZ2BhB8cU/Glep37O/Mal1blqZPMQSoGnYqRQBL+c8xAZ7j5zxrgmIJPit3g==",
+    "extractedFiles": {
+      "package.json": "402ba66a3dcb6ac097ad9802b3270ccac0de67c592b029db9dac9479e0e6b2f0",
+      "dist/index.d.ts": "0c7b7407197d809a1a0f42366cfb58908e9d91bcc693a1fa521ad9ed24a518e2",
+      "dist/index.mjs": "325b8e39305cc1589e111328ce10e838b5fa39095886faf5471ff42b6c110d91"
+    }
   },
   "rln": {
     "repository": "https://github.com/UTEXO-Protocol/rgb-lightning-node.git",

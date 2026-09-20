@@ -77,6 +77,33 @@ final class RunnerTests: XCTestCase {
         )
       }
     }
+    assertChainSyncError(field: "indexerUrl") {
+      try RlnChainSyncFactory.make(
+        bitcoindRpcUsername: nil,
+        bitcoindRpcPassword: nil,
+        bitcoindRpcHost: nil,
+        bitcoindRpcPort: nil,
+        indexerUrl: " \n "
+      )
+    }
+    assertChainSyncError(field: "bitcoindRpcUsername") {
+      try RlnChainSyncFactory.make(
+        bitcoindRpcUsername: " ",
+        bitcoindRpcPassword: "",
+        bitcoindRpcHost: "127.0.0.1",
+        bitcoindRpcPort: 18_443,
+        indexerUrl: nil
+      )
+    }
+    assertChainSyncError(field: "bitcoindRpcHost") {
+      try RlnChainSyncFactory.make(
+        bitcoindRpcUsername: "rpc-user",
+        bitcoindRpcPassword: "",
+        bitcoindRpcHost: "\t",
+        bitcoindRpcPort: 18_443,
+        indexerUrl: nil
+      )
+    }
   }
 
   func testBackupFailsAsNativeBlockedWithoutLeakingArguments() {

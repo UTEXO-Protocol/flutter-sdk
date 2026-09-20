@@ -1,12 +1,21 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:analyzer/dart/analysis/utilities.dart';
+import 'package:analyzer/dart/ast/ast.dart';
 import 'package:crypto/crypto.dart' as crypto;
 
 const _snapshotPath = 'tool/api_snapshot.json';
 
 void main(List<String> args) {
+  _verifyAstExtraction();
   final current = _buildSnapshot();
+  if (args.contains('--update')) {
+    const encoder = JsonEncoder.withIndent('  ');
+    File(_snapshotPath).writeAsStringSync('${encoder.convert(current)}\n');
+    stdout.writeln('Updated $_snapshotPath from the AST-normalized surface.');
+    return;
+  }
   if (args.contains('--print-current')) {
     const encoder = JsonEncoder.withIndent('  ');
     stdout.writeln(encoder.convert(current));
@@ -21,6 +30,12 @@ void main(List<String> args) {
     try {
       final expected =
           jsonDecode(snapshotFile.readAsStringSync()) as Map<String, Object?>;
+      if (expected['schemaVersion'] != current['schemaVersion']) {
+        errors.add(
+          'snapshot schema changed: expected ${expected['schemaVersion']}, '
+          'current ${current['schemaVersion']}.',
+        );
+      }
       _compareSection('dartExportedSurface', expected, current, errors);
       _compareSection('stableWalletSurface', expected, current, errors);
       _compareSection('advancedWalletRawSurface', expected, current, errors);
@@ -89,9 +104,9 @@ Map<String, Object?> _buildSnapshot() {
   ];
 
   return <String, Object?>{
-    'schemaVersion': 1,
+    'schemaVersion': 2,
     'description':
-        'Normalized public API and bridge snapshot. Update only with a tracker row and migration note.',
+        'AST-normalized public API and bridge snapshot. Update only with a tracker row and migration note.',
     'dartExportedSurface': _surface(
       exportedFiles.keys.toList(growable: false),
       dartExports: exportedFiles,
@@ -112,6 +127,33 @@ Map<String, Object?> _buildSnapshot() {
   };
 }
 
+void _verifyAstExtraction() {
+  const source = '''
+class PublicApi {
+  Future<void> realMethod(String value) async {
+    final leakedLocal = value;
+    throw StateError(leakedLocal);
+  }
+}
+''';
+  final members = _publicDartMembers('<api-snapshot-self-test>', source);
+  if (members.length != 1 ||
+      members.single != 'Future<void> realMethod(String value)') {
+    throw StateError(
+      'API member extraction included executable implementation text: $members',
+    );
+  }
+  final surface = _normalizedDartSurface('<api-snapshot-self-test>', source);
+  if (surface.any(
+    (entry) => entry.contains('leakedLocal') || entry.contains('StateError'),
+  )) {
+    throw StateError(
+      'Exported-surface extraction included executable implementation text: '
+      '$surface',
+    );
+  }
+}
+
 Map<String, Object?> _dartMemberSurface(List<String> files) {
   final members = <String>[];
   for (final path in files) {
@@ -119,7 +161,7 @@ Map<String, Object?> _dartMemberSurface(List<String> files) {
     if (!file.existsSync()) {
       throw StateError('Snapshot source does not exist: $path');
     }
-    members.addAll(_topLevelDartMembers(file.readAsLinesSync()));
+    members.addAll(_publicDartMembers(path, file.readAsStringSync()));
   }
   final uniqueMembers = members.toSet().toList()..sort();
   final normalized = uniqueMembers.join('\n');
@@ -131,71 +173,65 @@ Map<String, Object?> _dartMemberSurface(List<String> files) {
   };
 }
 
-List<String> _topLevelDartMembers(List<String> lines) {
-  final members = <String>[];
-  final methodStart = RegExp(
-    r'^  ([A-Za-z][A-Za-z0-9_<>, ?]*)\s+'
-    r'([A-Za-z][A-Za-z0-9_]*)\s*(?:<[^>]+>)?\s*\(',
-  );
-  final getter = RegExp(
-    r'^  ([A-Za-z][A-Za-z0-9_<>, ?]*)\s+get\s+'
-    r'([A-Za-z][A-Za-z0-9_]*)\b',
-  );
-  final constructor = RegExp(r'^  UtexoWallet\(');
-
-  for (var index = 0; index < lines.length; index++) {
-    final line = lines[index];
-    final getterMatch = getter.firstMatch(line);
-    if (getterMatch != null) {
-      members.add(
-        '${getterMatch.group(1)!.trim()} get ${getterMatch.group(2)!}',
-      );
-      continue;
-    }
-    if (!methodStart.hasMatch(line) && !constructor.hasMatch(line)) continue;
-
-    final signature = StringBuffer(line.trim());
-    var parentheses = _characterDelta(line, 40, 41);
-    while (parentheses > 0 && index + 1 < lines.length) {
-      index += 1;
-      final next = lines[index];
-      signature.write(' ${next.trim()}');
-      parentheses += _characterDelta(next, 40, 41);
-    }
-    final text = signature.toString();
-    final closing = _matchingClosingParenthesis(text);
-    members.add(
-      (closing < 0 ? text : text.substring(0, closing + 1)).replaceAll(
-        RegExp(r'\s+'),
-        ' ',
-      ),
+List<String> _publicDartMembers(String path, String source) {
+  final result = parseString(content: source, path: path);
+  if (result.errors.isNotEmpty) {
+    throw StateError(
+      'Cannot snapshot invalid Dart source $path: ${result.errors.join('; ')}',
     );
+  }
+
+  final members = <String>[];
+  for (final declaration in result.unit.declarations) {
+    final (ownerName, classMembers) = switch (declaration) {
+      ClassDeclaration(:final namePart, :final body) => (
+        namePart.typeName.lexeme,
+        body is BlockClassBody ? body.members : const <ClassMember>[],
+      ),
+      MixinDeclaration(:final name, :final body) => (name.lexeme, body.members),
+      ExtensionDeclaration(:final name, :final body) => (
+        name?.lexeme ?? '<anonymous extension>',
+        body.members,
+      ),
+      _ => (null, const <ClassMember>[]),
+    };
+    for (final member in classMembers) {
+      if (member is MethodDeclaration && !member.name.lexeme.startsWith('_')) {
+        members.add(_methodSignature(member));
+      } else if (member is ConstructorDeclaration &&
+          ownerName == 'UtexoWallet' &&
+          (member.name == null || !member.name!.lexeme.startsWith('_'))) {
+        members.add(_constructorSignature(ownerName!, member));
+      }
+    }
   }
   return members;
 }
 
-int _matchingClosingParenthesis(String value) {
-  final opening = value.indexOf('(');
-  if (opening < 0) return -1;
-  var depth = 0;
-  for (var index = opening; index < value.length; index++) {
-    final codeUnit = value.codeUnitAt(index);
-    if (codeUnit == 40) depth += 1;
-    if (codeUnit == 41) {
-      depth -= 1;
-      if (depth == 0) return index;
-    }
+String _methodSignature(MethodDeclaration method) {
+  final returnType = method.returnType?.toSource() ?? 'dynamic';
+  final name = method.name.lexeme;
+  if (method.isGetter) return '$returnType get $name';
+  if (method.isSetter) {
+    return _normalizeSignature('$returnType set $name${method.parameters}');
   }
-  return -1;
+  final operator = method.isOperator ? 'operator ' : '';
+  final typeParameters = method.typeParameters?.toSource() ?? '';
+  return _normalizeSignature(
+    '$returnType $operator$name$typeParameters${method.parameters}',
+  );
 }
 
-int _characterDelta(String value, int opening, int closing) {
-  var delta = 0;
-  for (final codeUnit in value.codeUnits) {
-    if (codeUnit == opening) delta += 1;
-    if (codeUnit == closing) delta -= 1;
-  }
-  return delta;
+String _constructorSignature(
+  String ownerName,
+  ConstructorDeclaration constructor,
+) {
+  final name = constructor.name == null ? '' : '.${constructor.name!.lexeme}';
+  return _normalizeSignature('$ownerName$name${constructor.parameters}');
+}
+
+String _normalizeSignature(String value) {
+  return value.replaceAll(RegExp(r'\s+'), ' ').trim();
 }
 
 Map<String, Object?> _surface(
@@ -210,13 +246,19 @@ Map<String, Object?> _surface(
       throw StateError('Snapshot source does not exist: $path');
     }
     entries.add('### $path');
-    entries.addAll(
-      _normalizedPublicLines(
-        path,
-        file.readAsLinesSync(),
-        dartExport: dartExports[path],
-      ),
-    );
+    if (path.endsWith('.dart')) {
+      entries.addAll(
+        _normalizedDartSurface(
+          path,
+          file.readAsStringSync(),
+          dartExport: dartExports[path],
+        ),
+      );
+    } else {
+      entries.addAll(
+        _normalizedNativePublicLines(path, file.readAsLinesSync()),
+      );
+    }
   }
   final normalized = entries.join('\n');
   return <String, Object?>{
@@ -267,11 +309,190 @@ List<String> _dartLibraryFiles(String path) {
   return <String>[path, ...parts];
 }
 
-List<String> _normalizedPublicLines(
+List<String> _normalizedDartSurface(
   String path,
-  List<String> lines, {
+  String source, {
   _ExportDirective? dartExport,
 }) {
+  final result = parseString(content: source, path: path);
+  if (result.errors.isNotEmpty) {
+    throw StateError(
+      'Cannot snapshot invalid Dart source $path: ${result.errors.join('; ')}',
+    );
+  }
+
+  final output = <String>[];
+  for (final declaration in result.unit.declarations) {
+    switch (declaration) {
+      case ClassDeclaration(:final namePart, :final body):
+        _addTypeSurface(
+          output,
+          source,
+          declaration,
+          namePart.typeName.lexeme,
+          body,
+          dartExport,
+        );
+      case MixinDeclaration(:final name, :final body):
+        _addTypeSurface(
+          output,
+          source,
+          declaration,
+          name.lexeme,
+          body,
+          dartExport,
+        );
+      case ExtensionDeclaration(:final name, :final body):
+        final extensionName = name?.lexeme;
+        if (extensionName != null &&
+            !_isSymbolExported(extensionName, dartExport)) {
+          continue;
+        }
+        output.add(
+          _normalizeSignature(
+            source.substring(declaration.offset, body.offset),
+          ),
+        );
+        _addClassMembers(
+          output,
+          extensionName ?? '<anonymous extension>',
+          body.members,
+        );
+      case ExtensionTypeDeclaration(:final primaryConstructor, :final body):
+        final name = primaryConstructor.typeName.lexeme;
+        _addTypeSurface(output, source, declaration, name, body, dartExport);
+      case EnumDeclaration(:final namePart, :final body):
+        final name = namePart.typeName.lexeme;
+        if (!_isSymbolExported(name, dartExport)) continue;
+        output.add(
+          _normalizeSignature(
+            source.substring(declaration.offset, body.offset),
+          ),
+        );
+        for (final constant in body.constants) {
+          if (!constant.name.lexeme.startsWith('_')) {
+            output.add('$name::${_normalizeSignature(constant.toSource())}');
+          }
+        }
+        _addClassMembers(output, name, body.members);
+      case FunctionDeclaration(:final name):
+        if (!_isSymbolExported(name.lexeme, dartExport)) continue;
+        output.add('top::${_functionSignature(declaration)}');
+      case TopLevelVariableDeclaration(:final variables):
+        for (final variable in variables.variables) {
+          final name = variable.name.lexeme;
+          if (!_isSymbolExported(name, dartExport)) continue;
+          output.add('top::${_variableSignature(variables, variable)}');
+        }
+      case GenericTypeAlias(:final name):
+        if (_isSymbolExported(name.lexeme, dartExport)) {
+          output.add('top::${_normalizeSignature(declaration.toSource())}');
+        }
+      case FunctionTypeAlias(:final name):
+        if (_isSymbolExported(name.lexeme, dartExport)) {
+          output.add('top::${_normalizeSignature(declaration.toSource())}');
+        }
+      default:
+        // Directives are represented outside CompilationUnit.declarations.
+        // Any future declaration kind must be added deliberately so the
+        // snapshot cannot fall back to body-text heuristics.
+        throw StateError(
+          'Unsupported public-surface declaration in $path: '
+          '${declaration.runtimeType}',
+        );
+    }
+  }
+  return output;
+}
+
+void _addTypeSurface(
+  List<String> output,
+  String source,
+  AstNode declaration,
+  String name,
+  ClassBody body,
+  _ExportDirective? dartExport,
+) {
+  if (!_isSymbolExported(name, dartExport)) return;
+  output.add(
+    _normalizeSignature(source.substring(declaration.offset, body.offset)),
+  );
+  if (body is BlockClassBody) {
+    _addClassMembers(output, name, body.members);
+  }
+}
+
+void _addClassMembers(
+  List<String> output,
+  String ownerName,
+  Iterable<ClassMember> members,
+) {
+  for (final member in members) {
+    switch (member) {
+      case MethodDeclaration(:final name):
+        if (!name.lexeme.startsWith('_')) {
+          output.add('$ownerName::${_methodSignature(member)}');
+        }
+      case ConstructorDeclaration(:final name):
+        if (name == null || !name.lexeme.startsWith('_')) {
+          output.add('$ownerName::${_constructorSignature(ownerName, member)}');
+        }
+      case FieldDeclaration(:final fields):
+        for (final variable in fields.variables) {
+          if (!variable.name.lexeme.startsWith('_')) {
+            output.add(
+              '$ownerName::${_variableSignature(fields, variable, isStatic: member.isStatic)}',
+            );
+          }
+        }
+      default:
+        throw StateError(
+          'Unsupported member in $ownerName: ${member.runtimeType}',
+        );
+    }
+  }
+}
+
+String _functionSignature(FunctionDeclaration function) {
+  final returnType = function.returnType?.toSource() ?? 'dynamic';
+  final name = function.name.lexeme;
+  if (function.isGetter) return '$returnType get $name';
+  final expression = function.functionExpression;
+  final parameters = expression.parameters?.toSource() ?? '';
+  if (function.isSetter) {
+    return _normalizeSignature('$returnType set $name$parameters');
+  }
+  final typeParameters = expression.typeParameters?.toSource() ?? '';
+  return _normalizeSignature('$returnType $name$typeParameters$parameters');
+}
+
+String _variableSignature(
+  VariableDeclarationList declaration,
+  VariableDeclaration variable, {
+  bool isStatic = false,
+}) {
+  final modifiers = <String>[
+    if (isStatic) 'static',
+    if (declaration.isLate) 'late',
+    if (declaration.keyword != null) declaration.keyword!.lexeme,
+    if (declaration.type != null) declaration.type!.toSource(),
+  ];
+  final initializer = variable.initializer;
+  final value = initializer == null ? '' : ' = ${initializer.toSource()}';
+  return _normalizeSignature(
+    '${modifiers.join(' ')} ${variable.name.lexeme}$value',
+  );
+}
+
+bool _isSymbolExported(String symbol, _ExportDirective? directive) {
+  if (symbol.startsWith('_')) return false;
+  if (directive == null) return true;
+  final show = directive.show;
+  final hide = directive.hide ?? const <String>{};
+  return (show == null || show.contains(symbol)) && !hide.contains(symbol);
+}
+
+List<String> _normalizedNativePublicLines(String path, List<String> lines) {
   final output = <String>[];
   var inBlockComment = false;
   for (final original in lines) {
@@ -290,13 +511,6 @@ List<String> _normalizedPublicLines(
     if (line.startsWith('import ')) continue;
     if (line.startsWith('@') && !line.startsWith('@HostApi')) continue;
 
-    if (path.endsWith('.dart')) {
-      if (_isDartPublicSurfaceLine(line) &&
-          _isDartSymbolExported(line, dartExport)) {
-        output.add(line);
-      }
-      continue;
-    }
     if (path.endsWith('.kt')) {
       if (_isKotlinPublicSurfaceLine(line)) output.add(line);
       continue;
@@ -308,61 +522,6 @@ List<String> _normalizedPublicLines(
     output.add(line);
   }
   return output;
-}
-
-bool _isDartSymbolExported(String line, _ExportDirective? directive) {
-  if (directive == null) return true;
-  final symbol = _dartSymbolName(line);
-  if (symbol == null) return true;
-  final show = directive.show;
-  final hide = directive.hide ?? const <String>{};
-  return (show == null || show.contains(symbol)) && !hide.contains(symbol);
-}
-
-String? _dartSymbolName(String line) {
-  if (line.startsWith('export ')) return null;
-  final declaration = RegExp(
-    r'^(?:abstract\s+final\s+class|abstract\s+interface\s+class|'
-    r'abstract\s+class|sealed\s+class|class|enum|extension|typedef|mixin)\s+'
-    r'([A-Za-z_][A-Za-z0-9_]*)',
-  ).firstMatch(line);
-  if (declaration != null) return declaration.group(1);
-
-  final variable = RegExp(
-    r'^(?:const|final|static const|static final)\s+'
-    r'(?:[A-Za-z_][A-Za-z0-9_<>, ?]*\s+)?'
-    r'([A-Za-z_][A-Za-z0-9_]*)\s*[=({]',
-  ).firstMatch(line);
-  if (variable != null) return variable.group(1);
-
-  final member = RegExp(
-    r'^(?:Future<[^>]+>|Future|Stream<[^>]+>|'
-    r'[A-Z][A-Za-z0-9_<>, ?]*|bool|int|double|String|void)\s+'
-    r'([A-Za-z_][A-Za-z0-9_]*)[({=]',
-  ).firstMatch(line);
-  return member?.group(1);
-}
-
-bool _isDartPublicSurfaceLine(String line) {
-  if (line.startsWith('_')) return false;
-  if (line.startsWith('export ')) return true;
-  if (line.startsWith('class ') ||
-      line.startsWith('abstract class ') ||
-      line.startsWith('enum ') ||
-      line.startsWith('extension ') ||
-      line.startsWith('typedef ') ||
-      line.startsWith('mixin ')) {
-    return true;
-  }
-  if (line.startsWith('const ') ||
-      line.startsWith('final ') ||
-      line.startsWith('static const ') ||
-      line.startsWith('static final ')) {
-    return true;
-  }
-  return RegExp(
-    r'^(?:Future<[^>]+>|Future|Stream<[^>]+>|[A-Z][A-Za-z0-9_<>, ?]*|bool|int|double|String|void)\s+[A-Za-z][A-Za-z0-9_]*[({]',
-  ).hasMatch(line);
 }
 
 bool _isKotlinPublicSurfaceLine(String line) {

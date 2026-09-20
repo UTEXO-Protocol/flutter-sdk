@@ -1,12 +1,20 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:analyzer/dart/analysis/utilities.dart';
+import 'package:analyzer/dart/ast/ast.dart';
+import 'package:crypto/crypto.dart' show sha256;
+
 void main() {
   final root = Directory.current;
   final errors = <String>[];
 
   final manifest = _readJsonObject(
     File('${root.path}/tool/rn_parity_manifest.json'),
+    errors,
+  );
+  final lspManifest = _readJsonObject(
+    File('${root.path}/tool/core_lsp_parity_manifest.json'),
     errors,
   );
   final baseline = _readJsonObject(
@@ -29,7 +37,12 @@ void main() {
   _validateTypedPigeonWire(root, errors);
   _validateWalletMethods(root, rnRoot, errors);
   _validateRuntimeExports(root, rnRoot, manifest, errors);
+  _validateTypeExports(root, rnRoot, manifest, errors);
   _validateScopedTypeStars(rnRoot, manifest, errors);
+  _validateCoreLspErrorAliases(manifest, lspManifest, errors);
+  _validateCoreLspTypeExports(root, rnRoot, lspManifest, errors);
+  _validateCoreLspDartSignatures(root, lspManifest, errors);
+  _validateRlnSurfaceExcludedByRn(root, rnRoot, lspManifest, errors);
 
   _finish(errors);
 
@@ -38,6 +51,380 @@ void main() {
     'NativeRgb methods, UTEXOWallet methods, and runtime package exports. '
     'Upstream dev ${_shortCommit(upstreamCommit)} was checked for drift.',
   );
+}
+
+void _validateCoreLspDartSignatures(
+  Directory root,
+  Map<String, Object?> manifest,
+  List<String> errors,
+) {
+  _validateSignatureInventory(
+    manifest: manifest,
+    signatureKey: 'utexoLspSignatures',
+    methodKeys: const <String>['utexoLspMethods', 'utexoLspFlutterAdaptations'],
+    errors: errors,
+  );
+  _validateSignatureInventory(
+    manifest: manifest,
+    signatureKey: 'lspClientSignatures',
+    methodKeys: const <String>[
+      'lspClientMethods',
+      'lspClientFlutterAdaptations',
+    ],
+    errors: errors,
+  );
+  _validateSignatureInventory(
+    manifest: manifest,
+    signatureKey: 'lspWalletSignatures',
+    methodKeys: const <String>[
+      'lspWalletMethods',
+      'lspWalletFlutterAdaptations',
+    ],
+    errors: errors,
+  );
+  _validateDartSignatureGroup(
+    root: root,
+    manifest: manifest,
+    manifestKey: 'utexoLspSignatures',
+    sourcePaths: const <String>[
+      'lib/src/lsp/utexo_lsp.dart',
+      'lib/src/lsp/utexo_lsp_address.dart',
+      'lib/src/lsp/utexo_lsp_apay.dart',
+      'lib/src/lsp/utexo_lsp_asset_bridge.dart',
+      'lib/src/lsp/utexo_lsp_connection.dart',
+      'lib/src/lsp/utexo_lsp_relay.dart',
+    ],
+    errors: errors,
+  );
+  _validateDartSignatureGroup(
+    root: root,
+    manifest: manifest,
+    manifestKey: 'lspClientSignatures',
+    sourcePaths: const <String>['lib/src/lsp/utexo_lsp_client.dart'],
+    errors: errors,
+  );
+  _validateDartSignatureGroup(
+    root: root,
+    manifest: manifest,
+    manifestKey: 'lspWalletSignatures',
+    sourcePaths: const <String>['lib/src/lsp/lsp_wallet.dart'],
+    errors: errors,
+  );
+  _validateDartGetterGroup(
+    root: root,
+    manifest: manifest,
+    manifestKey: 'lspWalletGetters',
+    sourcePaths: const <String>['lib/src/lsp/lsp_wallet.dart'],
+    errors: errors,
+  );
+}
+
+void _validateDartGetterGroup({
+  required Directory root,
+  required Map<String, Object?> manifest,
+  required String manifestKey,
+  required List<String> sourcePaths,
+  required List<String> errors,
+}) {
+  final expected = _stringMap(manifest, manifestKey, errors);
+  final actual = <String, String>{};
+  for (final sourcePath in sourcePaths) {
+    final file = File('${root.path}/$sourcePath');
+    if (!file.existsSync()) {
+      errors.add('$manifestKey references missing source $sourcePath.');
+      continue;
+    }
+    final unit = parseString(
+      content: file.readAsStringSync(),
+      path: file.path,
+      throwIfDiagnostics: false,
+    ).unit;
+    for (final declaration in unit.declarations.whereType<ClassDeclaration>()) {
+      final members = switch (declaration.body) {
+        BlockClassBody body => body.members,
+        EmptyClassBody() => const <ClassMember>[],
+        _ => const <ClassMember>[],
+      };
+      for (final getter in members.whereType<MethodDeclaration>()) {
+        if (!getter.isGetter || !expected.containsKey(getter.name.lexeme)) {
+          continue;
+        }
+        actual[getter.name.lexeme] = getter.returnType?.toSource() ?? 'dynamic';
+      }
+    }
+  }
+  for (final entry in expected.entries) {
+    if (actual[entry.key] != entry.value) {
+      errors.add(
+        '$manifestKey/${entry.key} changed: expected ${entry.value}, found '
+        '${actual[entry.key] ?? 'no declaration'}.',
+      );
+    }
+  }
+}
+
+void _validateSignatureInventory({
+  required Map<String, Object?> manifest,
+  required String signatureKey,
+  required List<String> methodKeys,
+  required List<String> errors,
+}) {
+  final signatures = _stringMap(manifest, signatureKey, errors).keys.toSet();
+  final methods = <String>{};
+  for (final key in methodKeys) {
+    methods.addAll(_stringListSet(manifest, key, errors));
+  }
+  for (final name in methods.difference(signatures).toList()..sort()) {
+    errors.add('$signatureKey is missing method $name.');
+  }
+  for (final name in signatures.difference(methods).toList()..sort()) {
+    errors.add('$signatureKey contains stale method $name.');
+  }
+}
+
+void _validateDartSignatureGroup({
+  required Directory root,
+  required Map<String, Object?> manifest,
+  required String manifestKey,
+  required List<String> sourcePaths,
+  required List<String> errors,
+}) {
+  final expected = _stringMap(manifest, manifestKey, errors);
+  final actual = <String, String>{};
+  for (final sourcePath in sourcePaths) {
+    final file = File('${root.path}/$sourcePath');
+    if (!file.existsSync()) {
+      errors.add('$manifestKey references missing source $sourcePath.');
+      continue;
+    }
+    final unit = parseString(
+      content: file.readAsStringSync(),
+      path: file.path,
+      throwIfDiagnostics: false,
+    ).unit;
+    for (final declaration in unit.declarations) {
+      final members = switch (declaration) {
+        ClassDeclaration() => switch (declaration.body) {
+          BlockClassBody body => body.members,
+          EmptyClassBody() => const <ClassMember>[],
+          _ => const <ClassMember>[],
+        },
+        MixinDeclaration() => declaration.body.members,
+        _ => const <ClassMember>[],
+      };
+      for (final method in members.whereType<MethodDeclaration>()) {
+        final name = method.name.lexeme;
+        if (name.startsWith('_') || !expected.containsKey(name)) continue;
+        final signature = _normalizedDartMethodSignature(method);
+        final previous = actual[name];
+        if (previous != null && previous != signature) {
+          errors.add(
+            '$manifestKey method $name has conflicting declarations: '
+            '$previous and $signature.',
+          );
+        }
+        actual[name] = signature;
+      }
+    }
+  }
+
+  for (final entry in expected.entries) {
+    final signature = actual[entry.key];
+    if (signature != entry.value) {
+      errors.add(
+        '$manifestKey/${entry.key} changed: expected ${entry.value}, found '
+        '${signature ?? 'no declaration'}.',
+      );
+    }
+  }
+}
+
+String _normalizedDartMethodSignature(MethodDeclaration method) {
+  final returnType = method.returnType?.toSource() ?? 'dynamic';
+  final parameters = method.parameters?.toSource() ?? '()';
+  return '$returnType$parameters'.replaceAll(RegExp(r'\s+'), '');
+}
+
+void _validateCoreLspTypeExports(
+  Directory root,
+  Directory rnRoot,
+  Map<String, Object?> lspManifest,
+  List<String> errors,
+) {
+  final expected = _stringMap(lspManifest, 'rnLspTypeExports', errors);
+  final actual = _extractRnTypeExportBlock(
+    File('${rnRoot.path}/src/index.ts'),
+    module: '@utexo/rgb-sdk-core',
+    anchor: 'IUtexoLSPClient',
+    errors: errors,
+  );
+  for (final name
+      in actual.difference(expected.keys.toSet()).toList()..sort()) {
+    errors.add(
+      'RN LSP type export $name is missing from rnLspTypeExports in '
+      'core_lsp_parity_manifest.json.',
+    );
+  }
+  for (final name
+      in expected.keys.toSet().difference(actual).toList()..sort()) {
+    errors.add(
+      'core_lsp_parity_manifest.json contains stale RN LSP type $name.',
+    );
+  }
+
+  final stableSymbols = _collectDartLibrarySymbols(
+    root,
+    'lib/rgb_sdk_flutter.dart',
+    errors,
+  );
+  for (final entry in expected.entries) {
+    if (!stableSymbols.contains(entry.value)) {
+      errors.add(
+        'RN LSP type ${entry.key} maps to ${entry.value}, which is not '
+        'exported by lib/rgb_sdk_flutter.dart.',
+      );
+    }
+  }
+}
+
+void _validateCoreLspErrorAliases(
+  Map<String, Object?> rnManifest,
+  Map<String, Object?> lspManifest,
+  List<String> errors,
+) {
+  final aliases = _stringMap(rnManifest, 'runtimeExportAliases', errors);
+  final lspErrors = lspManifest['runtimeErrors'];
+  if (lspErrors is! Map<String, Object?>) {
+    errors.add(
+      'core_lsp_parity_manifest.json/runtimeErrors must be an object.',
+    );
+    return;
+  }
+  for (final entry in lspErrors.entries) {
+    final dartName = entry.value;
+    if (dartName is! String || aliases[entry.key] != dartName) {
+      errors.add(
+        'RN runtime LSP error ${entry.key} must map to $dartName in '
+        'rn_parity_manifest.json.',
+      );
+    }
+  }
+}
+
+void _validateRlnSurfaceExcludedByRn(
+  Directory root,
+  Directory rnRoot,
+  Map<String, Object?> lspManifest,
+  List<String> errors,
+) {
+  final generatedSwift = File('${root.path}/ios/RGBLightningNode.swift');
+  final rnSwift = File('${rnRoot.path}/ios/RgbSwiftHelper.swift');
+  if (!generatedSwift.existsSync() || !rnSwift.existsSync()) {
+    errors.add(
+      'RLN-to-RN surface audit requires ios/RGBLightningNode.swift and '
+      'the RN ios/RgbSwiftHelper.swift.',
+    );
+    return;
+  }
+
+  final protocolMethods = _extractSwiftProtocolMethods(
+    generatedSwift.readAsStringSync(),
+    'SdkNodeProtocol',
+    errors,
+  );
+  final rnCalls = RegExp(r'\bnode\.`?([A-Za-z_][A-Za-z0-9_]*)`?\s*\(')
+      .allMatches(rnSwift.readAsStringSync())
+      .map((match) => match.group(1)!)
+      .toSet();
+  final actualExcluded = protocolMethods.difference(rnCalls);
+  final expectedExcluded = _stringListSet(
+    lspManifest,
+    'rlnNodeMethodsScopedOutByRn',
+    errors,
+  );
+  for (final method
+      in expectedExcluded.difference(actualExcluded).toList()..sort()) {
+    errors.add(
+      'RLN method $method is listed as RN-scoped-out but RN now calls it.',
+    );
+  }
+  for (final method
+      in actualExcluded.difference(expectedExcluded).toList()..sort()) {
+    errors.add(
+      'RLN method $method is not called by RN and lacks a reviewed exclusion.',
+    );
+  }
+  for (final method in rnCalls.difference(protocolMethods).toList()..sort()) {
+    errors.add(
+      'RN calls SdkNode.$method, which is absent from the pinned RLN protocol.',
+    );
+  }
+
+  final excludedFields = lspManifest['rlnFieldsScopedOutByRn'];
+  if (excludedFields is! Map<String, Object?> ||
+      excludedFields['SdkIssueAssetIfaRequest.issuanceType'] is! String) {
+    errors.add(
+      'The reviewed RLN issuanceType exclusion is missing from '
+      'core_lsp_parity_manifest.json.',
+    );
+    return;
+  }
+  final generatedSource = generatedSwift.readAsStringSync();
+  final rnSource = rnSwift.readAsStringSync();
+  if (!generatedSource.contains('public var issuanceType: IfaIssuanceType?')) {
+    errors.add(
+      'Pinned RLN no longer exposes SdkIssueAssetIfaRequest.issuanceType; '
+      're-audit the field exclusion.',
+    );
+  }
+  if (rnSource.contains('issuanceType:')) {
+    errors.add(
+      'RN now maps SdkIssueAssetIfaRequest.issuanceType; remove the stale '
+      'field exclusion and implement parity.',
+    );
+  }
+}
+
+Set<String> _extractSwiftProtocolMethods(
+  String source,
+  String protocolName,
+  List<String> errors,
+) {
+  final declaration = source.indexOf('public protocol $protocolName');
+  if (declaration < 0) {
+    errors.add('Pinned Swift binding lacks public protocol $protocolName.');
+    return <String>{};
+  }
+  final opening = source.indexOf('{', declaration);
+  final closing = _matchingDelimiter(source, opening, 123, 125);
+  if (opening < 0 || closing < 0) {
+    errors.add('Unable to parse Swift protocol $protocolName.');
+    return <String>{};
+  }
+  return RegExp(
+        r'^\s*func\s+`?([A-Za-z_][A-Za-z0-9_]*)`?\s*\(',
+        multiLine: true,
+      )
+      .allMatches(source.substring(opening + 1, closing))
+      .map((match) => match.group(1)!)
+      .toSet();
+}
+
+Set<String> _stringListSet(
+  Map<String, Object?> source,
+  String field,
+  List<String> errors,
+) {
+  final raw = source[field];
+  if (raw is! List<Object?> || raw.any((value) => value is! String)) {
+    errors.add('$field must be a string array.');
+    return <String>{};
+  }
+  final result = raw.whereType<String>().toSet();
+  if (result.length != raw.length) {
+    errors.add('$field contains duplicate entries.');
+  }
+  return result;
 }
 
 String _resolveRnPath() {
@@ -282,6 +669,7 @@ void _validateRnBaseline(
       '$actualCoreVersion.',
     );
   }
+  _validateCorePackageBaseline(rnRoot, baseline, errors);
 
   final androidBuild = File('${rnRoot.path}/android/build.gradle');
   final androidSource = androidBuild.existsSync()
@@ -305,6 +693,105 @@ void _validateRnBaseline(
     errors.add(
       'RN iOS artifact downloader does not pin RLN $expectedRlnVersion.',
     );
+  }
+}
+
+void _validateCorePackageBaseline(
+  Directory rnRoot,
+  Map<String, Object?> baseline,
+  List<String> errors,
+) {
+  final core = baseline['core'];
+  if (core is! Map<String, Object?>) {
+    errors.add('release_baseline.json/core must be an object.');
+    return;
+  }
+  final version = core['version'];
+  final archiveUrl = core['archiveUrl'];
+  final archiveSize = core['archiveSizeBytes'];
+  final archiveSha256 = core['archiveSha256'];
+  final integrity = core['integritySha512'];
+  final extracted = core['extractedFiles'];
+  if (version is! String ||
+      archiveUrl is! String ||
+      archiveSize is! int ||
+      archiveSize <= 0 ||
+      archiveSha256 is! String ||
+      !RegExp(r'^[0-9a-f]{64}$').hasMatch(archiveSha256) ||
+      integrity is! String ||
+      !integrity.startsWith('sha512-') ||
+      extracted is! Map<String, Object?>) {
+    errors.add(
+      'release_baseline.json/core must pin version, archive URL/size/SHA-256, '
+      'npm SHA-512 integrity, and extracted file hashes.',
+    );
+    return;
+  }
+  const requiredFiles = <String>{
+    'package.json',
+    'dist/index.d.ts',
+    'dist/index.mjs',
+  };
+  if (extracted.keys.toSet().difference(requiredFiles).isNotEmpty ||
+      requiredFiles.difference(extracted.keys.toSet()).isNotEmpty ||
+      extracted.values.any(
+        (value) =>
+            value is! String || !RegExp(r'^[0-9a-f]{64}$').hasMatch(value),
+      )) {
+    errors.add(
+      'release_baseline.json/core.extractedFiles must contain exact SHA-256 '
+      'entries for package.json, dist/index.d.ts, and dist/index.mjs.',
+    );
+  }
+
+  final yarnLock = File('${rnRoot.path}/yarn.lock');
+  final yarnSource = yarnLock.existsSync() ? yarnLock.readAsStringSync() : '';
+  final expectedLockEntry =
+      '"@utexo/rgb-sdk-core@$version":\n'
+      '  version "$version"\n'
+      '  resolved "$archiveUrl"\n'
+      '  integrity $integrity';
+  if (!yarnSource.contains(expectedLockEntry)) {
+    errors.add(
+      'RN yarn.lock does not pin the audited core archive URL and SHA-512 '
+      'integrity from release_baseline.json.',
+    );
+  }
+
+  final tarballPath = Platform.environment['RGB_SDK_CORE_TARBALL'];
+  if (tarballPath == null || tarballPath.trim().isEmpty) return;
+  final tarball = File(tarballPath.trim());
+  if (!tarball.existsSync()) {
+    errors.add('RGB_SDK_CORE_TARBALL does not exist: ${tarball.path}.');
+    return;
+  }
+  final bytes = tarball.readAsBytesSync();
+  if (bytes.length != archiveSize ||
+      sha256.convert(bytes).toString() != archiveSha256) {
+    errors.add(
+      'RGB_SDK_CORE_TARBALL does not match the pinned core archive size and '
+      'SHA-256.',
+    );
+    return;
+  }
+  for (final entry in extracted.entries) {
+    final result = Process.runSync(
+      'tar',
+      <String>['-xOf', tarball.path, 'package/${entry.key}'],
+      stdoutEncoding: null,
+      stderrEncoding: null,
+    );
+    if (result.exitCode != 0 || result.stdout is! List<int>) {
+      errors.add('Unable to extract package/${entry.key} from core tarball.');
+      continue;
+    }
+    final digest = sha256.convert(result.stdout as List<int>).toString();
+    if (digest != entry.value) {
+      errors.add(
+        'Core archive package/${entry.key} hash mismatch: expected '
+        '${entry.value}, found $digest.',
+      );
+    }
   }
 }
 
@@ -599,6 +1086,7 @@ final class _TypeShape {
       'Map<Object?, Object?>' => 'map',
       'Object' => 'map',
       'RlnWireResponse' => 'map',
+      'RlnRefreshTransfersData' => 'map',
       'List<Map<Object?, Object?>>' => 'list-map',
       'List<RlnWireResponse>' => 'list-map',
       'List<String>' => 'list-string',
@@ -631,6 +1119,7 @@ void _validateWalletMethods(
     'advancedWalletMethodAliases',
     errors,
   );
+  _validateRnWalletSurfaceFingerprint(rnRoot, manifest, errors);
   _validateAdvancedWalletAliases(root, advancedAliases, errors);
   _validateCanonicalWalletReturnShapes(
     root,
@@ -656,6 +1145,88 @@ void _validateWalletMethods(
       );
     }
   }
+}
+
+void _validateRnWalletSurfaceFingerprint(
+  Directory rnRoot,
+  Map<String, Object?> manifest,
+  List<String> errors,
+) {
+  final file = File('${rnRoot.path}/src/wallet/utexo-wallet.ts');
+  final actual = _rnWalletSurfaceFingerprint(file, errors);
+  final expected = manifest['walletSurfaceSha256'];
+  if (expected is! String || !RegExp(r'^[0-9a-f]{64}$').hasMatch(expected)) {
+    errors.add(
+      'rn_parity_manifest.json/walletSurfaceSha256 must be a SHA-256 digest; '
+      'current audited surface is ${actual ?? 'unavailable'}.',
+    );
+    return;
+  }
+  if (actual != null && actual != expected) {
+    errors.add(
+      'RN UTEXOWallet parameter/return surface changed. Expected $expected, '
+      'found $actual. Audit every changed method shape before updating the '
+      'fingerprint.',
+    );
+  }
+}
+
+String? _rnWalletSurfaceFingerprint(File file, List<String> errors) {
+  if (!file.existsSync()) {
+    errors.add('Missing RN wallet source: ${file.path}');
+    return null;
+  }
+  final source = file.readAsStringSync();
+  final classMatch = RegExp(
+    r'export\s+class\s+UTEXOWallet\b',
+  ).firstMatch(source);
+  if (classMatch == null) {
+    errors.add('RN source does not declare export class UTEXOWallet.');
+    return null;
+  }
+  final classOpen = source.indexOf('{', classMatch.end);
+  final classClose = _matchingDelimiter(source, classOpen, 123, 125);
+  if (classOpen < 0 || classClose < 0) {
+    errors.add('RN UTEXOWallet class body could not be parsed.');
+    return null;
+  }
+  final classSource = source.substring(classOpen + 1, classClose);
+  final methodRegex = RegExp(
+    r'^  (?! )(?:(?:async|public)\s+)*([A-Za-z_][A-Za-z0-9_]*)\s*\(',
+    multiLine: true,
+  );
+  final signatures = <String>[];
+  final seen = <String>{};
+  for (final match in methodRegex.allMatches(classSource)) {
+    final name = match.group(1)!;
+    if (name == 'constructor') continue;
+    if (!seen.add(name)) {
+      errors.add('RN UTEXOWallet declares overloaded method $name.');
+      continue;
+    }
+    final absoluteStart = classOpen + 1 + match.start;
+    final opening = source.indexOf('(', absoluteStart);
+    final closing = _matchingDelimiter(source, opening, 40, 41);
+    final returnType = _rnWalletReturnType(source, name);
+    if (opening < 0 || closing < 0 || returnType == null) {
+      errors.add('Unable to parse complete RN UTEXOWallet.$name signature.');
+      continue;
+    }
+    final parameters = source.substring(opening + 1, closing);
+    signatures.add(
+      '$name(${_normalizeTypeScriptSurface(parameters)}):'
+      '${_normalizeTypeScriptSurface(returnType)}',
+    );
+  }
+  signatures.sort();
+  return sha256.convert(utf8.encode(signatures.join('\n'))).toString();
+}
+
+String _normalizeTypeScriptSurface(String source) {
+  return source
+      .replaceAll(RegExp(r'/\*[\s\S]*?\*/'), '')
+      .replaceAll(RegExp(r'//[^\n]*'), '')
+      .replaceAll(RegExp(r'\s+'), '');
 }
 
 void _validateCanonicalWalletReturnShapes(
@@ -706,6 +1277,10 @@ void _validateCanonicalWalletReturnShapes(
     'listTransfersByTxid': ('Transfer[]', 'Future<List<CoreTransfer>>'),
     'failTransfers': ('boolean', 'Future<bool>'),
     'refreshWallet': ('void', 'Future<void>'),
+    'refreshTransfers': (
+      'RefreshTransfersResult',
+      'Future<RefreshTransfersResult>',
+    ),
     'syncWallet': ('void', 'Future<void>'),
     'estimateFeeRate': (
       'GetFeeEstimationResponse',
@@ -823,6 +1398,7 @@ void _validateCanonicalWalletReturnShapes(
     'listAssets': '',
     'listTransactions': '',
     'refreshWallet': '',
+    'refreshTransfers': '{boolskipSync=false,}',
     'createLightningInvoice':
         '{int?amountSats,LightningAsset?asset,intexpirySeconds=3600,'
         'int?minFinalCltvExpiryDelta,String?descriptionHash,}',
@@ -1062,6 +1638,126 @@ void _validateRuntimeExports(
   }
 }
 
+void _validateTypeExports(
+  Directory root,
+  Directory rnRoot,
+  Map<String, Object?> manifest,
+  List<String> errors,
+) {
+  final rnExports = _extractRnTypeExports(
+    File('${rnRoot.path}/src/index.ts'),
+    errors,
+  );
+  final aliases = _stringMap(manifest, 'typeExportAliases', errors);
+  final scopedOut = _stringMap(manifest, 'scopedOutTypeExports', errors);
+  final overlap = aliases.keys.toSet().intersection(scopedOut.keys.toSet());
+  for (final name in overlap.toList()..sort()) {
+    errors.add(
+      'RN type export $name is both mapped and scoped out; choose one.',
+    );
+  }
+
+  final dartSymbols = _collectDartEntrypointSymbols(root, errors);
+  for (final exportName in rnExports) {
+    final dartName = aliases[exportName];
+    if (dartName != null) {
+      if (!dartSymbols.contains(dartName)) {
+        errors.add(
+          'RN type export $exportName maps to Dart symbol $dartName, but '
+          '$dartName is not exported by either package entrypoint.',
+        );
+      }
+      continue;
+    }
+    final reason = scopedOut[exportName];
+    if (reason != null) {
+      if (reason.trim().isEmpty) {
+        errors.add('Scoped-out RN type export $exportName needs a reason.');
+      }
+      continue;
+    }
+    errors.add(
+      'RN type export $exportName is not mapped or explicitly scoped out.',
+    );
+  }
+
+  for (final name
+      in aliases.keys.toSet().difference(rnExports).toList()..sort()) {
+    errors.add('typeExportAliases contains stale RN type export $name.');
+  }
+  for (final name
+      in scopedOut.keys.toSet().difference(rnExports).toList()..sort()) {
+    errors.add('scopedOutTypeExports contains stale RN type export $name.');
+  }
+}
+
+Set<String> _extractRnTypeExports(File file, List<String> errors) {
+  if (!file.existsSync()) {
+    errors.add('Missing RN package barrel: ${file.path}');
+    return <String>{};
+  }
+  final exports = <String>{};
+  final blockRegex = RegExp(
+    r'export\s+type\s+\{([\s\S]*?)\}\s+from\s+[^\n;]+;',
+    multiLine: true,
+  );
+  for (final match in blockRegex.allMatches(file.readAsStringSync())) {
+    exports.addAll(_typescriptExportNames(match.group(1)!));
+  }
+  return exports;
+}
+
+Set<String> _extractRnTypeExportBlock(
+  File file, {
+  required String module,
+  required String anchor,
+  required List<String> errors,
+}) {
+  if (!file.existsSync()) {
+    errors.add('Missing RN package barrel: ${file.path}');
+    return <String>{};
+  }
+  final escapedModule = RegExp.escape(module);
+  final blockRegex = RegExp(
+    "export\\s+type\\s+\\{([\\s\\S]*?)\\}\\s+from\\s+['\"]"
+    '$escapedModule'
+    "['\"]\\s*;",
+    multiLine: true,
+  );
+  final matches = blockRegex.allMatches(file.readAsStringSync());
+  final anchored = matches
+      .map((match) => _typescriptExportNames(match.group(1)!))
+      .where((names) => names.contains(anchor))
+      .toList(growable: false);
+  if (anchored.length != 1) {
+    errors.add(
+      'Expected exactly one $module type-export block containing $anchor; '
+      'found ${anchored.length}.',
+    );
+    return <String>{};
+  }
+  return anchored.single;
+}
+
+Set<String> _typescriptExportNames(String block) {
+  final withoutComments = block
+      .split('\n')
+      .map((line) => line.replaceFirst(RegExp(r'//.*$'), ''))
+      .join('\n');
+  return withoutComments
+      .split(',')
+      .map((value) => value.trim())
+      .where((value) => value.isNotEmpty)
+      .map((value) {
+        final alias = RegExp(
+          r'^[A-Za-z_][A-Za-z0-9_]*\s+as\s+([A-Za-z_][A-Za-z0-9_]*)$',
+        ).firstMatch(value);
+        return alias?.group(1) ?? value;
+      })
+      .where((value) => RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(value))
+      .toSet();
+}
+
 Set<String> _extractRnRuntimeExports(File file, List<String> errors) {
   if (!file.existsSync()) {
     errors.add('Missing RN package barrel: ${file.path}');
@@ -1181,7 +1877,7 @@ Set<String>? _symbolsFromCombinator(String source, String keyword) {
 Set<String> _extractDartSymbols(File file) {
   final symbols = <String>{};
   final typeRegex = RegExp(
-    r'^(?:sealed\s+class|abstract\s+final\s+class|abstract\s+class|class|enum|typedef)\s+([A-Za-z_][A-Za-z0-9_]*)',
+    r'^(?:sealed\s+class|abstract\s+final\s+class|abstract\s+interface\s+class|abstract\s+class|class|enum|typedef)\s+([A-Za-z_][A-Za-z0-9_]*)',
   );
   final functionRegex = RegExp(
     r'^(?:Future<[^>]+>|[A-Za-z_][A-Za-z0-9_<>, ?]*?)\s+([A-Za-z_][A-Za-z0-9_]*)(?:<[^>]+>)?\s*\(',
@@ -1243,7 +1939,7 @@ Map<String, String> _stringMap(
 ) {
   final value = source[key];
   if (value is! Map<String, Object?>) {
-    errors.add('rn_parity_manifest.json must define object $key.');
+    errors.add('Parity manifest must define object $key.');
     return <String, String>{};
   }
   final result = <String, String>{};

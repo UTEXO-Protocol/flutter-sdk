@@ -5,12 +5,18 @@ This directory contains the machine-readable implementation inventory:
 - `rln_methods.json`: declared `RlnClient` method coverage.
 - `wallet_methods.json`: declared `UtexoWallet` method coverage.
 - `core_exports.json`: declared package-level core-style exports.
+- `lsp_methods.json`: declared `UtexoLsp` core methods and deliberate Flutter
+  lifecycle adaptations.
+- `lsp_client_methods.json`: declared `IUtexoLspClient` HTTP methods and
+  deliberate external-host/transport adaptations.
 - `evidence_catalog.json`: executable evidence IDs, report families, claim
   levels, and assertions for every evidence bucket.
 - `bridge_behavior_vectors.json`: low-level bridge family vectors, critical
   method vectors, and numeric transport policy.
 - `../rn_parity_manifest.json`: deliberate runtime export aliases and scoped
   exclusions.
+- `../core_lsp_parity_manifest.json`: exact core beta.9 LSP methods, stable
+  types, error aliases, and reviewed RLN capabilities outside RN's surface.
 - `../release_baseline.json`: the single immutable RN/core/RLN source and
   artifact baseline.
 
@@ -24,8 +30,8 @@ and assertions. The RN parity validator also checks the exact RN baseline,
 NativeRgb method names, low-level parameter names/types/nullability, return
 categories, wallet method inventory, and runtime exports.
 
-The inventory is aligned to RN `1.0.0-beta.27`, core `1.0.0-beta.7`, and RLN
-`0.10.0-beta.3`. It still does not prove defaults, request/response fields,
+The inventory is aligned to RN `1.0.0-beta.32`, core `1.0.0-beta.9`, and RLN
+`0.13.0-beta.3`. It still does not prove defaults, request/response fields,
 native implementations, native error categories, lifecycle behavior, platform
 agreement, or real funds behavior. A row can be linked to executable evidence
 that proves only a unit contract, expected failure, or current smoke path; the

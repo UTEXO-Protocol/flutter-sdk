@@ -1146,9 +1146,9 @@ class RlnRefreshTransfersResult {
         String value => int.tryParse(value),
         _ => null,
       };
-      if (index == null || index < 0 || index > 0x7FFFFFFF) {
+      if (index == null || index < -0x80000000 || index > 0x7FFFFFFF) {
         throw const NativeProtocolException(
-          'RlnRefreshTransfersResult.transfers keys must be non-negative Int32 values.',
+          'RlnRefreshTransfersResult.transfers keys must be signed Int32 values.',
           field: 'RlnRefreshTransfersResult.transfers',
         );
       }

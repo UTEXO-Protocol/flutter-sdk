@@ -7,6 +7,7 @@ import '../client/rln_client.dart';
 import '../errors/rgb_sdk_exception.dart';
 import '../lsp/lsp_native_decoders.dart';
 import '../lsp/lsp_types.dart';
+import '../lsp/lsp_wallet.dart';
 import '../lsp/utexo_lsp.dart';
 import '../lsp/utexo_lsp_client.dart';
 import '../models/rln_models.dart';
@@ -132,7 +133,8 @@ class UtexoWallet extends _UtexoWalletInternals
         _UtexoWalletLspApay,
         _UtexoWalletOnchain,
         _UtexoWalletLightning,
-        _UtexoWalletGuards {
+        _UtexoWalletGuards
+    implements ILspWallet {
   static const _defaultOperationTimeouts = RlnOperationTimeoutPolicy();
 
   UtexoWallet({
@@ -176,6 +178,10 @@ class UtexoWallet extends _UtexoWalletInternals
 
   @override
   final UtexoWalletConfig _config;
+
+  /// Canonical native network used by decoded RGB and Lightning invoices.
+  @override
+  String get network => normalizeNativeRlnNetwork(_config.network);
   @override
   late final RlnClient _client;
   @override

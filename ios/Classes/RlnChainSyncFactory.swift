@@ -29,9 +29,26 @@ enum RlnChainSyncFactory {
       guard let username = bitcoindRpcUsername,
             let password = bitcoindRpcPassword,
             let host = bitcoindRpcHost,
-            let port = bitcoindRpcPort,
-            (1...Int64(UInt16.max)).contains(port)
+            let port = bitcoindRpcPort
       else {
+        throw RlnChainSyncConfigurationError.invalid(
+          field: "bitcoindRpc",
+          message: "Provide all bitcoind RPC parameters or none of them."
+        )
+      }
+      guard !username.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        throw RlnChainSyncConfigurationError.invalid(
+          field: "bitcoindRpcUsername",
+          message: "bitcoindRpcUsername must not be blank."
+        )
+      }
+      guard !host.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty else {
+        throw RlnChainSyncConfigurationError.invalid(
+          field: "bitcoindRpcHost",
+          message: "bitcoindRpcHost must not be blank."
+        )
+      }
+      guard (1...Int64(UInt16.max)).contains(port) else {
         throw RlnChainSyncConfigurationError.invalid(
           field: "bitcoindRpcPort",
           message: "bitcoindRpcPort must be between 1 and 65535."
@@ -45,7 +62,9 @@ enum RlnChainSyncFactory {
       )
     }
 
-    guard let transactionSyncUrl = indexerUrl, !transactionSyncUrl.isEmpty else {
+    guard let transactionSyncUrl = indexerUrl,
+          !transactionSyncUrl.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
+    else {
       throw RlnChainSyncConfigurationError.invalid(
         field: "indexerUrl",
         message: "Provide indexerUrl or complete bitcoind RPC parameters."

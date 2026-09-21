@@ -35,7 +35,7 @@ abstract final class LspAssetSelectionPolicy {
     required String address,
     required int requiredAmount,
     required LspLnurlpDiscovery discovery,
-    required Map<String, int> localAmounts,
+    required Map<String, BigInt> localAmounts,
   }) {
     if (requiredAmount <= 0) {
       throw const ValidationError(
@@ -58,14 +58,14 @@ abstract final class LspAssetSelectionPolicy {
 
     final considered = <LspAssetLiquidityCandidate>[];
     for (final asset in ordered) {
-      final localAmount = localAmounts[asset.assetId] ?? 0;
+      final localAmount = localAmounts[asset.assetId] ?? BigInt.zero;
       considered.add(
         LspAssetLiquidityCandidate(
           assetId: asset.assetId,
           localAmount: localAmount,
         ),
       );
-      if (localAmount >= requiredAmount) {
+      if (localAmount >= BigInt.from(requiredAmount)) {
         return AssetSelection(
           assetId: asset.assetId,
           asset: asset,

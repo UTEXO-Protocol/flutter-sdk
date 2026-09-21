@@ -22,6 +22,7 @@ mixin _UtexoLspAddress on _UtexoLspInternals {
   Future<AddressQuote> _quoteAddress(
     PayAddressOptions options, {
     bool requireApayProof = false,
+    String? expectedRecipientPubkey,
   }) async {
     _requirePositiveMsat(options.amtMsat, 'amtMsat');
     final parsed = parseLightningAddress(options.address);
@@ -82,6 +83,7 @@ mixin _UtexoLspAddress on _UtexoLspInternals {
       nowEpochSeconds: nowEpochSeconds,
       expectedLspPubkey: sameLspHost ? peer.peerPubkey : null,
       requireApayProof: requireApayProof,
+      expectedRecipientPubkey: expectedRecipientPubkey,
     );
     return AddressQuote(
       invoice: callback.pr,
@@ -135,7 +137,14 @@ mixin _UtexoLspAddress on _UtexoLspInternals {
         'assetAmount',
       );
     }
-    final target = options.address?.trim().isNotEmpty == true
+    final ownReceive = options.address?.trim().isNotEmpty != true;
+    final expectedRecipient = ownReceive
+        ? (await wallet.getNodeInfo()).pubkey
+        : null;
+    if (expectedRecipient != null && expectedRecipient.trim().isEmpty) {
+      throw const WalletError('The wallet node identity is unavailable.');
+    }
+    final target = !ownReceive
         ? options.address!.trim()
         : await _ownAddressString('requestExternalInvoice');
     final parsed = parseLightningAddress(target);
@@ -156,6 +165,7 @@ mixin _UtexoLspAddress on _UtexoLspInternals {
         ),
       ),
       requireApayProof: true,
+      expectedRecipientPubkey: expectedRecipient,
     );
     return ExternalInvoice(
       invoice: quote.invoice,

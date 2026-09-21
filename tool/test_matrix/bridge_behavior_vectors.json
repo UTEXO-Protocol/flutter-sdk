@@ -27,10 +27,11 @@
       "vectors": [
         "dart-delegation",
         "native-explicit-unsupported",
-        "secret-redaction"
+        "secret-redaction",
+        "dart-platform-error-mapping"
       ],
       "testIds": [
-        "test/rln_client_contract_test.dart::backup delegates to rlnBackup",
+        "test/rln_client_contract_test.dart::RlnClient bridge contract",
         "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::backupFailsAsNativeBlockedWithoutLeakingArguments",
         "example/ios/RunnerTests/RunnerTests.swift::testBackupFailsAsNativeBlockedWithoutLeakingArguments"
       ]
@@ -41,14 +42,15 @@
         "dart-malformed-wire",
         "native-invalid-argument",
         "native-unknown-node-error",
-        "platform-smoke-or-regtest-success"
+        "platform-smoke-or-regtest-success",
+        "dart-platform-error-mapping"
       ],
       "testIds": [
         "test/rln_client_contract_test.dart::RlnClient bridge contract",
-        "test/rln_client_contract_test.dart::rejects malformed native wire responses",
+        "test/rln_client_contract_test.dart::every JSON-returning method rejects malformed or non-object data",
         "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::bridgeReportsUnknownNodeForGroupTwoMethodFamilies",
         "example/ios/RunnerTests/RunnerTests.swift::testBridgeReportsUnknownNodeForGroupTwoMethodFamilies",
-        "tool/test_platform_funded.sh::funded-bitcoin-flutter-smoke"
+        "example/integration_test/plugin_integration_test.dart::funded regtest RGB send smoke"
       ]
     },
     "channel": {
@@ -57,14 +59,15 @@
         "dart-malformed-wire",
         "native-invalid-argument",
         "native-unknown-node-error",
-        "platform-smoke-or-regtest-success"
+        "platform-smoke-or-regtest-success",
+        "dart-platform-error-mapping"
       ],
       "testIds": [
         "test/rln_client_contract_test.dart::RlnClient bridge contract",
-        "test/rln_client_contract_test.dart::rejects malformed native wire responses",
+        "test/rln_client_contract_test.dart::every JSON-returning method rejects malformed or non-object data",
         "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::bridgeRejectsGroupTwoNumericBoundaryFieldsBeforeNativeNodeLookup",
         "example/ios/RunnerTests/RunnerTests.swift::testBridgeRejectsGroupTwoNumericBoundaryFieldsBeforeNativeNodeLookup",
-        "tool/test_platform_funded.sh::funded-channel-flutter-smoke"
+        "example/integration_test/plugin_integration_test.dart::funded regtest RGB send smoke"
       ]
     },
     "health": {
@@ -72,12 +75,14 @@
         "dart-delegation",
         "dart-platform-error-mapping",
         "native-unknown-node-error",
-        "platform-smoke-or-regtest-success"
+        "platform-smoke-or-regtest-success",
+        "dart-malformed-wire"
       ],
       "testIds": [
         "test/rln_client_contract_test.dart::RlnClient bridge contract",
         "test/rln_client_contract_test.dart::maps PlatformException into typed SDK error with native cause",
-        "tool/test_platform_unfunded.sh::unfunded-read-flutter-smoke"
+        "example/integration_test/plugin_integration_test.dart::regtest lifecycle and bitcoin read smoke",
+        "test/rln_client_contract_test.dart::every JSON-returning method rejects malformed or non-object data"
       ]
     },
     "lifecycle": {
@@ -85,13 +90,14 @@
         "dart-delegation",
         "native-invalid-argument",
         "native-unknown-node-error",
-        "platform-smoke-or-regtest-success"
+        "platform-smoke-or-regtest-success",
+        "dart-platform-error-mapping"
       ],
       "testIds": [
         "test/rln_client_contract_test.dart::RlnClient bridge contract",
         "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::createNodeRejectsInvalidUnsignedInputsBeforeNativeCreate",
         "example/ios/RunnerTests/RunnerTests.swift::testCreateNodeRejectsInvalidUnsignedInputsBeforeNativeCreate",
-        "tool/test_platform_unfunded.sh::unfunded-lifecycle-flutter-smoke"
+        "example/integration_test/plugin_integration_test.dart::regtest UtexoWallet facade smoke"
       ]
     },
     "lightning": {
@@ -100,27 +106,31 @@
         "dart-malformed-wire",
         "native-invalid-argument",
         "native-unknown-node-error",
-        "platform-smoke-or-regtest-success"
+        "platform-smoke-or-regtest-success",
+        "dart-platform-error-mapping"
       ],
       "testIds": [
         "test/rln_client_contract_test.dart::RlnClient bridge contract",
-        "test/rln_client_contract_test.dart::rejects malformed native wire responses",
+        "test/rln_client_contract_test.dart::every JSON-returning method rejects malformed or non-object data",
         "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::bridgeRejectsGroupTwoNumericBoundaryFieldsBeforeNativeNodeLookup",
         "example/ios/RunnerTests/RunnerTests.swift::testBridgeRejectsGroupTwoNumericBoundaryFieldsBeforeNativeNodeLookup",
-        "tool/test_platform_funded.sh::funded-lightning-flutter-smoke"
+        "example/integration_test/plugin_integration_test.dart::funded regtest RGB send smoke"
       ]
     },
     "peer": {
       "vectors": [
         "dart-delegation",
         "native-unknown-node-error",
-        "platform-smoke-or-regtest-success"
+        "platform-smoke-or-regtest-success",
+        "dart-platform-error-mapping",
+        "dart-malformed-wire"
       ],
       "testIds": [
         "test/rln_client_contract_test.dart::RlnClient bridge contract",
         "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::bridgeReportsUnknownNodeForGroupTwoMethodFamilies",
         "example/ios/RunnerTests/RunnerTests.swift::testBridgeReportsUnknownNodeForGroupTwoMethodFamilies",
-        "tool/test_platform_funded.sh::funded-channel-flutter-smoke"
+        "example/integration_test/plugin_integration_test.dart::funded regtest RGB send smoke",
+        "test/rln_client_contract_test.dart::every JSON-returning method rejects malformed or non-object data"
       ]
     },
     "read": {
@@ -128,12 +138,13 @@
         "dart-delegation",
         "dart-malformed-wire",
         "native-unknown-node-error",
-        "platform-smoke-or-regtest-success"
+        "platform-smoke-or-regtest-success",
+        "dart-platform-error-mapping"
       ],
       "testIds": [
         "test/rln_client_contract_test.dart::RlnClient bridge contract",
-        "test/rln_client_contract_test.dart::rejects malformed native wire responses",
-        "tool/test_platform_unfunded.sh::unfunded-read-flutter-smoke"
+        "test/rln_client_contract_test.dart::every JSON-returning method rejects malformed or non-object data",
+        "example/integration_test/plugin_integration_test.dart::regtest lifecycle and bitcoin read smoke"
       ]
     },
     "rgb": {
@@ -142,14 +153,15 @@
         "dart-malformed-wire",
         "native-invalid-argument",
         "native-unknown-node-error",
-        "platform-smoke-or-regtest-success"
+        "platform-smoke-or-regtest-success",
+        "dart-platform-error-mapping"
       ],
       "testIds": [
         "test/rln_client_contract_test.dart::RlnClient bridge contract",
-        "test/rln_client_contract_test.dart::rejects malformed native wire responses",
+        "test/rln_client_contract_test.dart::every JSON-returning method rejects malformed or non-object data",
         "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::bridgeRejectsGroupTwoNumericBoundaryFieldsBeforeNativeNodeLookup",
         "example/ios/RunnerTests/RunnerTests.swift::testBridgeRejectsGroupTwoNumericBoundaryFieldsBeforeNativeNodeLookup",
-        "tool/test_platform_funded.sh::funded-rgb-flutter-smoke"
+        "example/integration_test/plugin_integration_test.dart::funded regtest RGB send smoke"
       ]
     },
     "signer": {
@@ -157,12 +169,16 @@
         "dart-delegation",
         "native-invalid-argument",
         "native-unknown-signer-error",
-        "platform-smoke-or-regtest-success"
+        "platform-smoke-or-regtest-success",
+        "dart-platform-error-mapping",
+        "native-unknown-node-error"
       ],
       "testIds": [
         "test/rln_client_contract_test.dart::RlnClient bridge contract",
         "example/ios/RunnerTests/RunnerTests.swift::testCreatesDiskBackedNativeExternalSigner",
-        "tool/test_external_signer_restart.sh::trusted-virtual-channel-restart"
+        "example/integration_test/external_signer_restart_test.dart::disk-backed external signer survives process restart and pays again",
+        "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::bridgeReportsUnknownNodeForGroupTwoMethodFamilies",
+        "example/ios/RunnerTests/RunnerTests.swift::testBridgeReportsUnknownNodeForGroupTwoMethodFamilies"
       ]
     },
     "signing": {
@@ -170,25 +186,26 @@
         "dart-delegation",
         "dart-malformed-wire",
         "native-unknown-node-error",
-        "platform-smoke-or-regtest-success"
+        "platform-smoke-or-regtest-success",
+        "dart-platform-error-mapping"
       ],
       "testIds": [
         "test/rln_client_contract_test.dart::RlnClient bridge contract",
-        "test/rln_client_contract_test.dart::rejects malformed native wire responses",
+        "test/rln_client_contract_test.dart::every JSON-returning method rejects malformed or non-object data",
         "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::bridgeReportsUnknownNodeForGroupTwoMethodFamilies",
         "example/ios/RunnerTests/RunnerTests.swift::testBridgeReportsUnknownNodeForGroupTwoMethodFamilies",
-        "tool/test_platform_unfunded.sh::unfunded-read-flutter-smoke"
+        "example/integration_test/plugin_integration_test.dart::regtest lifecycle and bitcoin read smoke"
       ]
     },
     "vss": {
       "vectors": [
         "dart-delegation",
         "native-unknown-node-error",
-        "platform-smoke-or-regtest-success"
+        "dart-platform-error-mapping"
       ],
       "testIds": [
         "test/rln_client_contract_test.dart::RlnClient bridge contract",
-        "tool/test_platform_unfunded.sh::unfunded-vss-flutter-smoke"
+        "test/utexo_wallet_test.dart::maps HODL invoices, APay, LSP config, and VSS clear fence"
       ]
     }
   },
@@ -201,7 +218,7 @@
         "numeric-boundary"
       ],
       "testIds": [
-        "test/rln_client_contract_test.dart::createNode delegates to rlnCreateNode",
+        "test/rln_client_contract_test.dart::RlnClient bridge contract",
         "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::createNodeRejectsInvalidUnsignedInputsBeforeNativeCreate",
         "example/ios/RunnerTests/RunnerTests.swift::testCreateNodeRejectsInvalidUnsignedInputsBeforeNativeCreate"
       ]
@@ -214,7 +231,7 @@
         "unknown-node-error"
       ],
       "testIds": [
-        "test/rln_client_contract_test.dart::rotateAddress delegates to rlnRotateAddress",
+        "test/rln_client_contract_test.dart::RlnClient bridge contract",
         "test/utexo_wallet_test.dart::exposes current RLN address, inflation, lookup, signing, and VSS APIs",
         "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::bridgeReportsUnknownNodeForGroupTwoMethodFamilies",
         "example/ios/RunnerTests/RunnerTests.swift::testBridgeReportsUnknownNodeForGroupTwoMethodFamilies"
@@ -229,8 +246,8 @@
         "unknown-node-error"
       ],
       "testIds": [
-        "test/rln_client_contract_test.dart::signMessage delegates to rlnSignMessage",
-        "test/rln_client_contract_test.dart::rejects malformed native wire responses",
+        "test/rln_client_contract_test.dart::RlnClient bridge contract",
+        "test/rln_client_contract_test.dart::every JSON-returning method rejects malformed or non-object data",
         "test/utexo_wallet_test.dart::exposes current RLN address, inflation, lookup, signing, and VSS APIs"
       ]
     },
@@ -243,8 +260,8 @@
         "unknown-node-error"
       ],
       "testIds": [
-        "test/rln_client_contract_test.dart::verifyMessage delegates to rlnVerifyMessage",
-        "test/rln_client_contract_test.dart::rejects malformed native wire responses",
+        "test/rln_client_contract_test.dart::RlnClient bridge contract",
+        "test/rln_client_contract_test.dart::every JSON-returning method rejects malformed or non-object data",
         "test/utexo_wallet_test.dart::exposes current RLN address, inflation, lookup, signing, and VSS APIs"
       ]
     },
@@ -258,8 +275,8 @@
         "unknown-node-error"
       ],
       "testIds": [
-        "test/rln_client_contract_test.dart::listTransactionsByTxid delegates to rlnListTransactionsByTxid",
-        "test/rln_client_contract_test.dart::rejects malformed native wire responses",
+        "test/rln_client_contract_test.dart::RlnClient bridge contract",
+        "test/rln_client_contract_test.dart::every JSON-returning method rejects malformed or non-object data",
         "test/utexo_wallet_test.dart::exposes current RLN address, inflation, lookup, signing, and VSS APIs"
       ]
     },
@@ -272,8 +289,8 @@
         "unknown-node-error"
       ],
       "testIds": [
-        "test/rln_client_contract_test.dart::listTransfersByTxid delegates to rlnListTransfersByTxid",
-        "test/rln_client_contract_test.dart::rejects malformed native wire responses",
+        "test/rln_client_contract_test.dart::RlnClient bridge contract",
+        "test/rln_client_contract_test.dart::every JSON-returning method rejects malformed or non-object data",
         "test/utexo_wallet_test.dart::exposes current RLN address, inflation, lookup, signing, and VSS APIs"
       ]
     },
@@ -287,7 +304,7 @@
         "unknown-node-error"
       ],
       "testIds": [
-        "test/rln_client_contract_test.dart::lnInvoice delegates to rlnLnInvoice",
+        "test/rln_client_contract_test.dart::RlnClient bridge contract",
         "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::bridgeRejectsGroupTwoNumericBoundaryFieldsBeforeNativeNodeLookup",
         "example/ios/RunnerTests/RunnerTests.swift::testBridgeRejectsGroupTwoNumericBoundaryFieldsBeforeNativeNodeLookup"
       ]
@@ -301,7 +318,7 @@
         "return-shape"
       ],
       "testIds": [
-        "test/rln_client_contract_test.dart::rgbInvoice delegates to rlnRgbInvoice",
+        "test/rln_client_contract_test.dart::RlnClient bridge contract",
         "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::rgbInvoiceRejectsUnknownAssignmentKindBeforeNativeNodeLookup",
         "example/ios/RunnerTests/RunnerTests.swift::testRgbInvoiceRejectsUnknownAssignmentKindBeforeNativeNodeLookup"
       ]
@@ -316,8 +333,8 @@
         "unknown-node-error"
       ],
       "testIds": [
-        "test/rln_client_contract_test.dart::inflate delegates to rlnInflate",
-        "test/rln_client_contract_test.dart::rejects malformed native wire responses",
+        "test/rln_client_contract_test.dart::RlnClient bridge contract",
+        "test/rln_client_contract_test.dart::every JSON-returning method rejects malformed or non-object data",
         "test/utexo_wallet_test.dart::exposes current RLN address, inflation, lookup, signing, and VSS APIs"
       ]
     }

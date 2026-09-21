@@ -1,8 +1,6 @@
 import Foundation
 
 final class RlnNodeStore {
-  static let shared = RlnNodeStore()
-
   enum NodeLifecycleState: Equatable {
     case created
     case initialized
@@ -20,7 +18,17 @@ final class RlnNodeStore {
   private var nextSignerId: Int64 = 1
   private let queue = DispatchQueue(label: "com.utexo.rgb_sdk_flutter.rln-node-store")
 
-  private init() {}
+  init() {}
+
+  func ensureStorageAvailable(_ path: String) throws {
+    try queue.sync {
+      let normalized = path.trimmingCharacters(in: .whitespacesAndNewlines)
+      if let id = storageDirByNodeId.first(where: { $0.value == normalized })?.key,
+         states[id] != .shutdown {
+        throw RlnStoreError.nodeAlreadyExists(storageDirPath: normalized)
+      }
+    }
+  }
 
   func create(node: SdkNode, storageDirPath: String) throws -> Int64 {
     try queue.sync {
@@ -28,13 +36,13 @@ final class RlnNodeStore {
       if !normalizedPath.isEmpty,
          let existingId = storageDirByNodeId.first(where: { $0.value == normalizedPath })?.key {
         if states[existingId] == .shutdown {
-          nodes.removeValue(forKey: existingId)?.shutdown()
-          nodes[existingId] = node
-          states[existingId] = .created
-          return existingId
+          nodes.removeValue(forKey: existingId)
+          states.removeValue(forKey: existingId)
+          preUnlockStates.removeValue(forKey: existingId)
+          storageDirByNodeId.removeValue(forKey: existingId)
+        } else {
+          throw RlnStoreError.nodeAlreadyExists(storageDirPath: normalizedPath)
         }
-
-        throw RlnStoreError.nodeAlreadyExists(storageDirPath: normalizedPath)
       }
 
       let id = nextId
@@ -159,14 +167,16 @@ final class RlnNodeStore {
   }
 
   func removeSigner(id: Int64) {
-    queue.sync {
+    _ = queue.sync {
       signers.removeValue(forKey: id)
     }
   }
 
   func clearAll() {
     queue.sync {
-      let nodesToShutdown = Array(nodes.values)
+      let nodesToShutdown = nodes.compactMap { id, node in
+        states[id] == .shutdown ? nil : node
+      }
       nodes.removeAll()
       states.removeAll()
       preUnlockStates.removeAll()

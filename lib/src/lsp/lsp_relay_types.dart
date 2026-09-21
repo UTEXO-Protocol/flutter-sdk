@@ -1,4 +1,5 @@
 import '../errors/rgb_sdk_exception.dart';
+import '../models/exact_integer.dart';
 import '../models/utexo_core_models.dart';
 import '../wallet/utexo_wallet_types.dart';
 import 'lsp_errors.dart';
@@ -133,8 +134,9 @@ class LspLightningSendStatusResponse {
     );
     if (!LspLightningSendStatuses.values.contains(status)) {
       throw NativeProtocolException(
-        'LspLightningSendStatusResponse.status has unknown value "$status".',
+        'LspLightningSendStatusResponse.status is unsupported.',
         field: 'lsp.status',
+        cause: status,
       );
     }
     return LspLightningSendStatusResponse(
@@ -287,11 +289,4 @@ int? _optionalNonNegativeInt(
   return _requiredNonNegativeInt(map, key, typeName);
 }
 
-int? _integerValue(Object? value) {
-  if (value is int) return value;
-  if (value is double && value.isFinite && value % 1 == 0) {
-    return value.toInt();
-  }
-  if (value is String) return int.tryParse(value);
-  return null;
-}
+int? _integerValue(Object? value) => exactWireInt(value);

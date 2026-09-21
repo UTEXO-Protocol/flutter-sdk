@@ -13,13 +13,14 @@ class RgbSdkException implements Exception {
   final Object? cause;
 
   Map<String, Object?> toJson() {
-    final cause = this.cause;
     return <String, Object?>{
       'name': runtimeType.toString(),
       'message': message,
       'code': code,
       'statusCode': statusCode,
-      if (cause != null) 'cause': cause.toString(),
+      // Causes may contain native payloads, HTTP bodies or key material. They
+      // remain available for controlled debugging, never public serialization.
+      if (cause != null) 'hasCause': true,
     };
   }
 
@@ -127,7 +128,7 @@ class ValidationError extends WalletValidationException {
 }
 
 /// RN-core compatible crypto error name.
-class CryptoError extends RgbSdkException {
+class CryptoError extends SDKError {
   const CryptoError(super.message, {super.statusCode, super.cause})
     : super(code: 'CRYPTO_ERROR');
 }
@@ -147,43 +148,54 @@ class ExperimentalCryptoException extends CryptoError {
 }
 
 /// RN-core compatible network error name.
-class NetworkError extends RgbSdkException {
+class NetworkError extends SDKError {
   const NetworkError(super.message, {super.statusCode, super.cause})
     : super(code: 'NETWORK_ERROR');
 }
 
+/// LNURL callback business failure, distinct from malformed success JSON.
+///
+/// [reason] is the server's business code. Do not log it automatically: an
+/// untrusted server may return arbitrary text. Safe diagnostics omit it.
+class LnurlCallbackException extends NetworkError {
+  const LnurlCallbackException({required this.reason})
+    : super('The LNURL provider could not issue an invoice.');
+
+  final String reason;
+}
+
 /// Caller-requested cancellation before an SDK operation completed.
-class OperationCancelledError extends RgbSdkException {
+class OperationCancelledError extends SDKError {
   const OperationCancelledError(super.message, {super.cause})
     : super(code: 'CANCELLED');
 }
 
 /// RN-core compatible configuration error name.
-class ConfigurationError extends RgbSdkException {
+class ConfigurationError extends SDKError {
   const ConfigurationError(super.message, {super.statusCode, super.cause})
     : super(code: 'CONFIGURATION_ERROR');
 }
 
 /// RN-core compatible bad request error name.
-class BadRequestError extends RgbSdkException {
-  const BadRequestError(super.message, {super.statusCode, super.cause})
+class BadRequestError extends SDKError {
+  const BadRequestError(super.message, {super.statusCode = 400, super.cause})
     : super(code: 'BAD_REQUEST');
 }
 
 /// RN-core compatible not found error name.
-class NotFoundError extends RgbSdkException {
-  const NotFoundError(super.message, {super.statusCode, super.cause})
+class NotFoundError extends SDKError {
+  const NotFoundError(super.message, {super.statusCode = 404, super.cause})
     : super(code: 'NOT_FOUND');
 }
 
 /// RN-core compatible conflict error name.
-class ConflictError extends RgbSdkException {
-  const ConflictError(super.message, {super.statusCode, super.cause})
+class ConflictError extends SDKError {
+  const ConflictError(super.message, {super.statusCode = 409, super.cause})
     : super(code: 'CONFLICT');
 }
 
 /// RN-core compatible RGB node error name.
-class RgbNodeError extends RgbSdkException {
+class RgbNodeError extends SDKError {
   const RgbNodeError(super.message, {super.statusCode, super.cause})
     : super(code: 'RGB_NODE_ERROR');
 }

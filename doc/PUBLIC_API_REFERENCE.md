@@ -82,7 +82,9 @@ unlocked node. `backupNow()` still requires an unlocked node.
 Internally, the wallet facade routes native node operations through its binding
 owner so app-facing calls share one serialized lifecycle/operation queue. Signer
 strategies may still use the same underlying native client for their private
-native signer handles.
+native signer handles, but each complete signer operation runs inside the
+binding queue and its deadline. Disposal also owns signers whose node creation
+or reinitialization failed; node IDs are not signer ownership markers.
 
 The advanced `RlnClient` is lower-level and does not protect callers from every
 lifecycle mistake; it maps platform failures into SDK errors but still expects a
@@ -125,6 +127,16 @@ must not inherit the two-minute native operation deadline.
 Numeric inputs must fit the current signed 64-bit Pigeon bridge boundary.
 Native UInt64 outputs that may exceed that boundary use exact domain types; for
 example `RlnNodeInfo.channelAssetMaxAmount` is `BigInt?`.
+
+RGB balances, supplies, decoded Lightning asset amounts, payment/channel RGB
+amounts, and fungible assignments are `BigInt` (nullable only where genuinely
+optional). `CoreAssetBalance` is separate from Bitcoin's signed `CoreBalance`.
+Requests remain signed-int bounded by Pigeon: check the request range before
+converting a large read value; never call `toInt()` and assume it is lossless.
+`CoreTransfer.requestedAssignment` is retained independently of assignments
+actually received. `WalletNodeInfo.localBalanceMsat` is an exact `BigInt`
+conversion of native local sats. `blockHeight`, `expirySeconds`, `payee`, and
+`HodlInvoice.invoice` are core-compatible aliases of their existing fields.
 
 `NetworkEndpoints` and `getNetworkDefaults()` are stable root helpers for
 app-facing network defaults. They expose the selected indexer URL and RGB proxy
@@ -294,6 +306,7 @@ root checklist and are snapshotted by `tool/api_snapshot.json`.
 - `CoreUnspent`, `CoreUtxo`, `CreateHodlInvoiceParams`, `CryptoError`
 - `DecodedLightningInvoice`, `GeneratedKeys`, `HodlInvoice`, `HodlInvoiceResult`
 - `ExperimentalCryptoException`
+- `LnurlCallbackException`, `PsbtFeeEstimate`
 - `FeeEstimationResponse`, `IndexerCheckResponse`, `InflateAssetIfaRequest`, `InflateAssetIfaResponse`
 - `AddressQuote`, `AssetSelection`, `ExternalInvoice`, `ExternalInvoiceAssetPreference`
 - `ExternalPaymentQuote`, `ExternalPaymentResult`, `IUtexoLspClient`, `ILspWallet`

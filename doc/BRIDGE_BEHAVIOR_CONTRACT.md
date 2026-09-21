@@ -64,6 +64,14 @@ Every low-level bridge family must declare evidence for:
 - Native unknown-node/signer error shape where the method requires a handle.
 - Platform smoke or regtest success evidence for actual native execution.
 
+Applicability is computed from the Pigeon AST, not a per-family waiver:
+JSON response vectors apply only when a method returns `RlnWireResponse` (also
+inside lists); bounded numeric vectors apply to non-handle integer/double fields
+(including lists and optional fields). Introducing such a field automatically
+introduces the requirement. API-019 is the sole explicit exception: `rlnBackup`
+must prove native rejection instead of claiming unsupported success. VSS still
+requires real platform success even though it returns a primitive integer.
+
 Critical methods changed during the beta.26, beta.27, and beta.32/RLN 0.13
 catch-ups also have method-specific vectors in
 `bridge_behavior_vectors.json`, including `rotateAddress`, `signMessage`,

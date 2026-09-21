@@ -124,6 +124,9 @@ Uint8List normalizeSeedInput(Object seed, [String field = 'seed']) {
     if (seed.isEmpty) {
       throw ValidationError('$field must not be empty', field);
     }
+    if (seed.any((byte) => byte < 0 || byte > 255)) {
+      throw ValidationError('$field must contain bytes in 0..255', field);
+    }
     return Uint8List.fromList(seed);
   }
   throw ValidationError(

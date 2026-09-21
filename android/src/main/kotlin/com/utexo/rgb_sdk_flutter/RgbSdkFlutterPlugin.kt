@@ -1,6 +1,9 @@
 package com.utexo.rgb_sdk_flutter
 
 import io.flutter.embedding.engine.plugins.FlutterPlugin
+import io.flutter.Log
+import java.util.concurrent.CompletableFuture
+import java.util.concurrent.atomic.AtomicBoolean
 import org.utexo.rgblightningnode.AsyncOrderNewHashWire
 import org.utexo.rgblightningnode.CancelHodlInvoiceRequest
 import org.utexo.rgblightningnode.ClaimHodlInvoiceRequest
@@ -20,6 +23,20 @@ class RgbSdkFlutterPlugin :
     FlutterPlugin,
     RlnHostApi {
     private val storageDirectoryPolicy = RlnStorageDirectoryPolicy()
+    internal val nodeStore = RlnNodeStore()
+    private val operationLock = Any()
+    private val closeLock = Any()
+    private val closing = AtomicBoolean(false)
+    private var closeFuture: CompletableFuture<Void>? = null
+
+    internal fun closeEngine(): CompletableFuture<Void> = synchronized(closeLock) {
+        closeFuture ?: run {
+            closing.set(true)
+            CompletableFuture.runAsync {
+                synchronized(operationLock) { nodeStore.clearAll() }
+            }.also { closeFuture = it }
+        }
+    }
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         RlnHostApi.setUp(flutterPluginBinding.binaryMessenger, this)
@@ -36,13 +53,18 @@ class RgbSdkFlutterPlugin :
     }
 
     private fun <T> runRln(operation: String, block: () -> T): T {
-        try {
-            @Suppress("UNCHECKED_CAST")
-            return pigeonSafeValue(block()) as T
-        } catch (e: FlutterError) {
-            throw e
-        } catch (e: Exception) {
-            throw bridgeError(e, operation)
+        synchronized(operationLock) {
+            if (closing.get()) {
+                throw FlutterError("Conflict", "Flutter engine is detached.", null)
+            }
+            try {
+                @Suppress("UNCHECKED_CAST")
+                return pigeonSafeValue(block()) as T
+            } catch (e: FlutterError) {
+                throw e
+            } catch (e: Exception) {
+                throw bridgeError(e, operation)
+            }
         }
     }
 
@@ -134,7 +156,7 @@ class RgbSdkFlutterPlugin :
     }
 
     private fun requireFeeRate(value: Double, field: String, operation: String): ULong {
-        if (!value.isFinite() || value < 0 || value > Long.MAX_VALUE.toDouble() || value % 1.0 != 0.0) {
+        if (!value.isFinite() || value < 0 || value >= 9223372036854775808.0 || value % 1.0 != 0.0) {
             invalidArgument(operation, field, "$field must be a finite non-negative integer fee rate.")
         }
         return value.toLong().toULong()
@@ -202,7 +224,7 @@ class RgbSdkFlutterPlugin :
         val category = nativeErrorCategory(code)
         return FlutterError(
             code = code,
-            message = parseErrorMessage(exception.message),
+            message = "Native wallet operation failed ($code).",
             details = bridgeErrorDetails(
                 operation = operation,
                 category = category,
@@ -225,6 +247,7 @@ class RgbSdkFlutterPlugin :
     }
 
     private fun errorClassName(exception: Exception): String {
+        if (exception is RlnStateConflict) return "Conflict"
         val className = exception.javaClass.name
         return className.split('$').last().split('.').last()
     }
@@ -233,10 +256,12 @@ class RgbSdkFlutterPlugin :
         return when (code) {
             "NodeNotFound", "SignerNotFound", "NotFound" -> "notFound"
             "Conflict", "AlreadyExists", "ResourceBusy" -> "conflict"
-            "Network", "Transport", "Timeout" -> "network"
-            "Configuration", "RlnStorageDirectoryPolicyException" -> "configuration"
+            "Network", "Transport", "Timeout", "FailedBitcoindConnection",
+            "FailedBdkSync", "FailedBroadcast", "FailedPeerConnection", "NoRoute" -> "network"
+            "Configuration", "RlnStorageDirectoryPolicyException", "NotInitialized",
+            "ExternalSignerRequired", "ExternalSignerMismatch", "ExternalSignerUnavailable" -> "configuration"
             "InvalidArgument", "InvalidRequest", "BadRequest" -> "invalidRequest"
-            "Unsupported", "UnsupportedOperation" -> "unsupported"
+            "Unsupported", "UnsupportedOperation", "UnsupportedInExternalSignerMode" -> "unsupported"
             else -> "native"
         }
     }
@@ -245,14 +270,6 @@ class RgbSdkFlutterPlugin :
         return category == "network" || category == "conflict"
     }
 
-    private fun parseErrorMessage(message: String?): String {
-        if (message == null) return "Unknown error"
-        return if (message.startsWith("details=", ignoreCase = true)) {
-            message.substring(8).trim()
-        } else {
-            message
-        }
-    }
 
     private fun isNodeReady(node: SdkNode): Boolean {
         return try {
@@ -584,24 +601,23 @@ class RgbSdkFlutterPlugin :
                 vssAllowEmptyRestore = vssAllowEmptyRestore,
                 reuseAddresses = reuseAddresses
             )
+            nodeStore.ensureStorageAvailable(storageDirPath)
             prepareStorageDirectory(storageDirPath, "rlnCreateNode")
             val node = SdkNode.create(initRequest)
-            RlnNodeStore.create(node, storageDirPath)
+            nodeStore.create(node, storageDirPath)
         }
     }
 
     override fun rlnInitNode(nodeId: Long, password: String, mnemonic: String?): String {
-        try {
-            val node = RlnNodeStore.get(nodeId)
-            val state = RlnNodeStore.getState(nodeId)
+        return runRln("rlnInitNode") {
+            val node = nodeStore.get(nodeId)
+            val state = nodeStore.getState(nodeId)
             if (state != RlnNodeStore.NodeLifecycleState.CREATED) {
-                throw IllegalStateException("RLN init is not allowed while node is in state: $state")
+                throw RlnStateConflict("RLN init is not allowed while node is in state: $state")
             }
             val pubkey = node.init(password, mnemonic)
-            RlnNodeStore.markInitialized(nodeId)
-            return pubkey
-        } catch (e: Exception) {
-            throw bridgeError(e, "rlnInitNode")
+            nodeStore.markInitialized(nodeId)
+            pubkey
         }
     }
 
@@ -623,28 +639,28 @@ class RgbSdkFlutterPlugin :
                     storageDirPath
                 )
             }
-            RlnNodeStore.createSigner(signer)
+            nodeStore.createSigner(signer)
         }
     }
 
     override fun rlnInitNodeWithNativeExternalSigner(nodeId: Long, signerId: Long) {
         runRln("rlnInitNodeWithNativeExternalSigner") {
-            val node = RlnNodeStore.get(nodeId)
-            val state = RlnNodeStore.getState(nodeId)
+            val node = nodeStore.get(nodeId)
+            val state = nodeStore.getState(nodeId)
             if (state != RlnNodeStore.NodeLifecycleState.CREATED) {
-                throw IllegalStateException("RLN init is not allowed while node is in state: $state")
+                throw RlnStateConflict("RLN init is not allowed while node is in state: $state")
             }
-            val signer = RlnNodeStore.getSigner(signerId)
+            val signer = nodeStore.getSigner(signerId)
             node.initWithNativeExternalSigner(signer)
             node.detachExternalSigner()
-            RlnNodeStore.markInitialized(nodeId)
+            nodeStore.markInitialized(nodeId)
         }
     }
 
     override fun rlnAttachNativeExternalSigner(nodeId: Long, signerId: Long) {
         runRln("rlnAttachNativeExternalSigner") {
-            val node = RlnNodeStore.get(nodeId)
-            val signer = RlnNodeStore.getSigner(signerId)
+            val node = nodeStore.get(nodeId)
+            val signer = nodeStore.getSigner(signerId)
             node.attachNativeExternalSigner(signer)
         }
     }
@@ -662,51 +678,59 @@ class RgbSdkFlutterPlugin :
         announceAlias: String?,
         gossipRgsServerUrl: String?
     ) {
-        try {
-            val node = RlnNodeStore.get(nodeId)
-            val signer = RlnNodeStore.getSigner(signerId)
-            when (RlnNodeStore.beginUnlock(nodeId)) {
-                RlnNodeStore.NodeLifecycleState.UNLOCKED -> {
-                    if (isNodeReady(node)) {
-                        return
-                    }
-                    throw IllegalStateException("RLN node is marked unlocked but nodeInfo is not available")
-                }
-                RlnNodeStore.NodeLifecycleState.UNLOCKING -> Unit
-                else -> throw IllegalStateException("Unexpected RLN node state before unlock")
+        runRln("rlnUnlockNodeWithNativeExternalSigner") {
+            if (gossipRgsServerUrl != null) {
+                throw FlutterError("UnsupportedOperationException",
+                    "External-signer unlock does not support RGS configuration.",
+                    bridgeErrorDetails("rlnUnlockNodeWithNativeExternalSigner",
+                        "unsupported", false, mapOf("feature" to "externalSigner.gossipRgsServerUrl")))
             }
-            node.unlockWithNativeExternalSigner(
-                signer = signer,
-                ldkChainSync = requireLdkChainSync(
-                    bitcoindRpcUsername = bitcoindRpcUsername,
-                    bitcoindRpcPassword = bitcoindRpcPassword,
-                    bitcoindRpcHost = bitcoindRpcHost,
-                    bitcoindRpcPort = bitcoindRpcPort,
+            try {
+                val node = nodeStore.get(nodeId)
+                val signer = nodeStore.getSigner(signerId)
+                when (nodeStore.beginUnlock(nodeId)) {
+                    RlnNodeStore.NodeLifecycleState.UNLOCKED -> {
+                        if (isNodeReady(node)) {
+                            return@runRln
+                        }
+                        throw RlnStateConflict("RLN node is marked unlocked but nodeInfo is not available")
+                    }
+                    RlnNodeStore.NodeLifecycleState.UNLOCKING -> Unit
+                    else -> throw RlnStateConflict("Unexpected RLN node state before unlock")
+                }
+                node.unlockWithNativeExternalSigner(
+                    signer = signer,
+                    ldkChainSync = requireLdkChainSync(
+                        bitcoindRpcUsername = bitcoindRpcUsername,
+                        bitcoindRpcPassword = bitcoindRpcPassword,
+                        bitcoindRpcHost = bitcoindRpcHost,
+                        bitcoindRpcPort = bitcoindRpcPort,
+                        indexerUrl = indexerUrl,
+                        operation = "rlnUnlockNodeWithNativeExternalSigner"
+                    ),
                     indexerUrl = indexerUrl,
-                    operation = "rlnUnlockNodeWithNativeExternalSigner"
-                ),
-                indexerUrl = indexerUrl,
-                proxyEndpoint = proxyEndpoint,
-                announceAddresses = announceAddresses,
-                announceAlias = announceAlias
-            )
-            RlnNodeStore.markUnlocked(nodeId)
-        } catch (e: Exception) {
-            RlnNodeStore.rollbackUnlock(nodeId)
-            throw bridgeError(e, "rlnUnlockNodeWithNativeExternalSigner")
+                    proxyEndpoint = proxyEndpoint,
+                    announceAddresses = announceAddresses,
+                    announceAlias = announceAlias
+                )
+                nodeStore.markUnlocked(nodeId)
+            } catch (e: Exception) {
+                nodeStore.rollbackUnlock(nodeId)
+                throw bridgeError(e, "rlnUnlockNodeWithNativeExternalSigner")
+            }
         }
     }
 
     override fun rlnDestroyNativeExternalSigner(signerId: Long) {
-        RlnNodeStore.removeSigner(signerId)
+        runRln("rlnDestroyNativeExternalSigner") { nodeStore.removeSigner(signerId) }
     }
 
     override fun rlnInitNodeWithExternalSigner(nodeId: Long, nodePublicKeyHex: String, accountXpubVanilla: String, accountXpubColored: String, masterFingerprint: String, protocolVersion: String, apiLevel: Long) {
         runRln("rlnInitNodeWithExternalSigner") {
-            val node = RlnNodeStore.get(nodeId)
-            val state = RlnNodeStore.getState(nodeId)
+            val node = nodeStore.get(nodeId)
+            val state = nodeStore.getState(nodeId)
             if (state != RlnNodeStore.NodeLifecycleState.CREATED) {
-                throw IllegalStateException("RLN init is not allowed while node is in state: $state")
+                throw RlnStateConflict("RLN init is not allowed while node is in state: $state")
             }
             node.initWithExternalSigner(
                 SdkExternalSignerBootstrap(
@@ -718,7 +742,7 @@ class RgbSdkFlutterPlugin :
                     apiLevel = requireUInt(apiLevel, "apiLevel", "rlnInitNodeWithExternalSigner")
                 )
             )
-            RlnNodeStore.markInitialized(nodeId)
+            nodeStore.markInitialized(nodeId)
         }
     }
 
@@ -735,50 +759,52 @@ class RgbSdkFlutterPlugin :
         announceAlias: String?,
         gossipRgsServerUrl: String?
     ) {
-        try {
-            val node = RlnNodeStore.get(nodeId)
-            when (RlnNodeStore.beginUnlock(nodeId)) {
-                RlnNodeStore.NodeLifecycleState.UNLOCKED -> {
-                    if (isNodeReady(node)) {
-                        return
+        runRln("rlnUnlockNode") {
+            try {
+                val node = nodeStore.get(nodeId)
+                when (nodeStore.beginUnlock(nodeId)) {
+                    RlnNodeStore.NodeLifecycleState.UNLOCKED -> {
+                        if (isNodeReady(node)) {
+                            return@runRln
+                        }
+                        throw RlnStateConflict("RLN node is marked unlocked but nodeInfo is not available")
                     }
-                    throw IllegalStateException("RLN node is marked unlocked but nodeInfo is not available")
+                    RlnNodeStore.NodeLifecycleState.UNLOCKING -> Unit
+                    else -> throw RlnStateConflict("Unexpected RLN node state before unlock")
                 }
-                RlnNodeStore.NodeLifecycleState.UNLOCKING -> Unit
-                else -> throw IllegalStateException("Unexpected RLN node state before unlock")
-            }
-            node.unlock(
-                SdkUnlockRequest(
-                    password = password,
-                    ldkChainSync = requireLdkChainSync(
-                        bitcoindRpcUsername = bitcoindRpcUsername,
-                        bitcoindRpcPassword = bitcoindRpcPassword,
-                        bitcoindRpcHost = bitcoindRpcHost,
-                        bitcoindRpcPort = bitcoindRpcPort,
+                node.unlock(
+                    SdkUnlockRequest(
+                        password = password,
+                        ldkChainSync = requireLdkChainSync(
+                            bitcoindRpcUsername = bitcoindRpcUsername,
+                            bitcoindRpcPassword = bitcoindRpcPassword,
+                            bitcoindRpcHost = bitcoindRpcHost,
+                            bitcoindRpcPort = bitcoindRpcPort,
+                            indexerUrl = indexerUrl,
+                            operation = "rlnUnlockNode"
+                        ),
                         indexerUrl = indexerUrl,
-                        operation = "rlnUnlockNode"
-                    ),
-                    indexerUrl = indexerUrl,
-                    proxyEndpoint = proxyEndpoint,
-                    announceAddresses = announceAddresses,
-                    announceAlias = announceAlias,
-                    gossipRgsServerUrl = gossipRgsServerUrl
+                        proxyEndpoint = proxyEndpoint,
+                        announceAddresses = announceAddresses,
+                        announceAlias = announceAlias,
+                        gossipRgsServerUrl = gossipRgsServerUrl
+                    )
                 )
-            )
-            RlnNodeStore.markUnlocked(nodeId)
-        } catch (e: Exception) {
-            RlnNodeStore.rollbackUnlock(nodeId)
-            throw bridgeError(e, "rlnUnlockNode")
+                nodeStore.markUnlocked(nodeId)
+            } catch (e: Exception) {
+                nodeStore.rollbackUnlock(nodeId)
+                throw bridgeError(e, "rlnUnlockNode")
+            }
         }
     }
 
     override fun rlnDestroyNode(nodeId: Long) {
-        RlnNodeStore.remove(nodeId)
+        runRln("rlnDestroyNode") { nodeStore.remove(nodeId) }
     }
 
     override fun rlnNodeInfo(nodeId: Long): RlnWireResponse {
         return runRlnWire("rlnNodeInfo") {
-            val info = RlnNodeStore.get(nodeId).nodeInfo()
+            val info = nodeStore.get(nodeId).nodeInfo()
             mapOf(
                 "pubkey" to info.pubkey,
                 "numChannels" to info.numChannels,
@@ -805,7 +831,7 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnNetworkInfo(nodeId: Long): RlnWireResponse {
         return runRlnWire("rlnNetworkInfo") {
-            val info = RlnNodeStore.get(nodeId).networkInfo()
+            val info = nodeStore.get(nodeId).networkInfo()
             mapOf(
                 "network" to info.network,
                 "height" to info.height
@@ -815,19 +841,19 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnListPeers(nodeId: Long): List<RlnWireResponse> {
         return runRlnWireList("rlnListPeers") {
-            RlnNodeStore.get(nodeId).listPeers().map { mapOf("pubkey" to it.pubkey) }
+            nodeStore.get(nodeId).listPeers().map { mapOf("pubkey" to it.pubkey) }
         }
     }
 
     override fun rlnConnectPeer(nodeId: Long, peerPubkeyAndAddr: String) {
         runRln("rlnConnectPeer") {
-            RlnNodeStore.get(nodeId).connectpeer(peerPubkeyAndAddr)
+            nodeStore.get(nodeId).connectpeer(peerPubkeyAndAddr)
         }
     }
 
     override fun rlnDisconnectPeer(nodeId: Long, peerPubkey: String) {
         runRln("rlnDisconnectPeer") {
-            RlnNodeStore.get(nodeId).disconnectpeer(
+            nodeStore.get(nodeId).disconnectpeer(
                 org.utexo.rgblightningnode.SdkDisconnectPeerRequest(peerPubkey)
             )
         }
@@ -835,7 +861,7 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnListChannels(nodeId: Long): List<RlnWireResponse> {
         return runRlnWireList("rlnListChannels") {
-            RlnNodeStore.get(nodeId).listChannels().map(::channelMap)
+            nodeStore.get(nodeId).listChannels().map(::channelMap)
         }
     }
 
@@ -855,14 +881,14 @@ class RgbSdkFlutterPlugin :
                 pushAssetAmount = pushAssetAmount?.let { requireULong(it, "pushAssetAmount", "rlnOpenChannel") },
                 virtualOpenMode = virtualOpenMode
             )
-            val response = RlnNodeStore.get(nodeId).openchannel(request)
+            val response = nodeStore.get(nodeId).openchannel(request)
             mapOf("temporaryChannelId" to response.temporaryChannelId)
         }
     }
 
     override fun rlnCloseChannel(nodeId: Long, channelId: String, peerPubkey: String, force: Boolean) {
         runRln("rlnCloseChannel") {
-            RlnNodeStore.get(nodeId).closechannel(
+            nodeStore.get(nodeId).closechannel(
                 org.utexo.rgblightningnode.SdkCloseChannelRequest(
                     channelId = channelId,
                     peerPubkey = peerPubkey,
@@ -874,37 +900,37 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnListPayments(nodeId: Long): List<RlnWireResponse> {
         return runRlnWireList("rlnListPayments") {
-            RlnNodeStore.get(nodeId).listPayments().map(::paymentMap)
+            nodeStore.get(nodeId).listPayments().map(::paymentMap)
         }
     }
 
     override fun rlnAddress(nodeId: Long): RlnWireResponse {
         return runRlnWire("rlnAddress") {
-            mapOf("address" to RlnNodeStore.get(nodeId).address().address)
+            mapOf("address" to nodeStore.get(nodeId).address().address)
         }
     }
 
     override fun rlnRotateAddress(nodeId: Long): RlnWireResponse {
         return runRlnWire("rlnRotateAddress") {
-            mapOf("address" to RlnNodeStore.get(nodeId).rotateAddress().address)
+            mapOf("address" to nodeStore.get(nodeId).rotateAddress().address)
         }
     }
 
     override fun rlnSignMessage(nodeId: Long, message: String): RlnWireResponse {
         return runRlnWire("rlnSignMessage") {
-            mapOf("signedMessage" to RlnNodeStore.get(nodeId).signMessage(message).signedMessage)
+            mapOf("signedMessage" to nodeStore.get(nodeId).signMessage(message).signedMessage)
         }
     }
 
     override fun rlnVerifyMessage(nodeId: Long, message: String, signature: String): RlnWireResponse {
         return runRlnWire("rlnVerifyMessage") {
-            mapOf("valid" to RlnNodeStore.get(nodeId).verifyMessage(message, signature).valid)
+            mapOf("valid" to nodeStore.get(nodeId).verifyMessage(message, signature).valid)
         }
     }
 
     override fun rlnAssetBalance(nodeId: Long, assetId: String): RlnWireResponse {
         return runRlnWire("rlnAssetBalance") {
-            assetBalanceMap(RlnNodeStore.get(nodeId).assetBalance(assetId))
+            assetBalanceMap(nodeStore.get(nodeId).assetBalance(assetId))
         }
     }
 
@@ -923,7 +949,7 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnBtcBalance(nodeId: Long, skipSync: Boolean): RlnWireResponse {
         return runRlnWire("rlnBtcBalance") {
-            val balance = RlnNodeStore.get(nodeId).btcBalance(skipSync)
+            val balance = nodeStore.get(nodeId).btcBalance(skipSync)
             mapOf(
                 "vanilla" to btcBalanceMap(balance.vanilla),
                 "colored" to btcBalanceMap(balance.colored)
@@ -933,14 +959,14 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnCheckIndexerUrl(nodeId: Long, indexerUrl: String): RlnWireResponse {
         return runRlnWire("rlnCheckIndexerUrl") {
-            val response = RlnNodeStore.get(nodeId).checkIndexerUrl(indexerUrl)
+            val response = nodeStore.get(nodeId).checkIndexerUrl(indexerUrl)
             mapOf("indexerProtocol" to response.indexerProtocol)
         }
     }
 
     override fun rlnCheckProxyEndpoint(nodeId: Long, proxyEndpoint: String) {
         runRln("rlnCheckProxyEndpoint") {
-            RlnNodeStore.get(nodeId).checkProxyEndpoint(proxyEndpoint)
+            nodeStore.get(nodeId).checkProxyEndpoint(proxyEndpoint)
         }
     }
 
@@ -953,25 +979,25 @@ class RgbSdkFlutterPlugin :
                 feeRate = requireFeeRate(feeRate, "feeRate", "rlnCreateUtxos"),
                 skipSync = skipSync
             )
-            RlnNodeStore.get(nodeId).createutxos(request)
+            nodeStore.get(nodeId).createutxos(request)
         }
     }
 
     override fun rlnDecodeLnInvoice(nodeId: Long, invoice: String): RlnWireResponse {
         return runRlnWire("rlnDecodeLnInvoice") {
-            decodeLnInvoiceMap(RlnNodeStore.get(nodeId).decodeLnInvoice(invoice))
+            decodeLnInvoiceMap(nodeStore.get(nodeId).decodeLnInvoice(invoice))
         }
     }
 
     override fun rlnDecodeRgbInvoice(nodeId: Long, invoice: String): RlnWireResponse {
         return runRlnWire("rlnDecodeRgbInvoice") {
-            decodeRgbInvoiceMap(RlnNodeStore.get(nodeId).decodeRgbInvoice(invoice))
+            decodeRgbInvoiceMap(nodeStore.get(nodeId).decodeRgbInvoice(invoice))
         }
     }
 
     override fun rlnEstimateFee(nodeId: Long, blocks: Long): RlnWireResponse {
         return runRlnWire("rlnEstimateFee") {
-            val response = RlnNodeStore.get(nodeId).estimateFee(
+            val response = nodeStore.get(nodeId).estimateFee(
                 requireUShort(blocks, "blocks", "rlnEstimateFee")
             )
             mapOf("feeRate" to response.feeRate)
@@ -980,7 +1006,7 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnFailTransfers(nodeId: Long, batchTransferIdx: Long?, noAssetOnly: Boolean, skipSync: Boolean): RlnWireResponse {
         return runRlnWire("rlnFailTransfers") {
-            val response = RlnNodeStore.get(nodeId).failtransfers(
+            val response = nodeStore.get(nodeId).failtransfers(
                 org.utexo.rgblightningnode.SdkFailTransfersRequest(
                     batchTransferIdx = batchTransferIdx?.let { requireInt(it, "batchTransferIdx", "rlnFailTransfers") },
                     noAssetOnly = noAssetOnly,
@@ -993,13 +1019,13 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnGetChannelId(nodeId: Long, temporaryChannelId: String): String {
         return runRln("rlnGetChannelId") {
-            RlnNodeStore.get(nodeId).getChannelId(temporaryChannelId)
+            nodeStore.get(nodeId).getChannelId(temporaryChannelId)
         }
     }
 
     override fun rlnGetPayment(nodeId: Long, paymentHash: String): RlnWireResponse {
         return runRlnWire("rlnGetPayment") {
-            val node = RlnNodeStore.get(nodeId)
+            val node = nodeStore.get(nodeId)
             var lastError: Exception? = null
             for (paymentType in listOf(
                 org.utexo.rgblightningnode.PaymentType.OUTBOUND,
@@ -1018,7 +1044,7 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnInvoiceStatus(nodeId: Long, invoice: String): RlnWireResponse {
         return runRlnWire("rlnInvoiceStatus") {
-            mapOf("status" to RlnNodeStore.get(nodeId).invoiceStatus(invoice).name)
+            mapOf("status" to nodeStore.get(nodeId).invoiceStatus(invoice).name)
         }
     }
 
@@ -1030,20 +1056,20 @@ class RgbSdkFlutterPlugin :
                 assetId = assetId,
                 assetAmount = assetAmount?.let { requireULong(it, "assetAmount", "rlnKeysend") }
             )
-            val response = RlnNodeStore.get(nodeId).keysend(request)
+            val response = nodeStore.get(nodeId).keysend(request)
             keysendMap(response)
         }
     }
 
     override fun rlnListAssets(nodeId: Long, filterAssetSchemas: List<String>): RlnWireResponse {
         return runRlnWire("rlnListAssets") {
-            listAssetsMap(RlnNodeStore.get(nodeId).listAssets(filterAssetSchemas))
+            listAssetsMap(nodeStore.get(nodeId).listAssets(filterAssetSchemas))
         }
     }
 
     override fun rlnListTransactions(nodeId: Long, skipSync: Boolean): List<RlnWireResponse> {
         return runRlnWireList("rlnListTransactions") {
-            RlnNodeStore.get(nodeId).listTransactions(skipSync, null).map(::transactionMap)
+            nodeStore.get(nodeId).listTransactions(skipSync, null).map(::transactionMap)
         }
     }
 
@@ -1053,25 +1079,25 @@ class RgbSdkFlutterPlugin :
         skipSync: Boolean
     ): List<RlnWireResponse> {
         return runRlnWireList("rlnListTransactionsByTxid") {
-            RlnNodeStore.get(nodeId).listTransactions(skipSync, txid).map(::transactionMap)
+            nodeStore.get(nodeId).listTransactions(skipSync, txid).map(::transactionMap)
         }
     }
 
     override fun rlnListTransfers(nodeId: Long, assetId: String): List<RlnWireResponse> {
         return runRlnWireList("rlnListTransfers") {
-            RlnNodeStore.get(nodeId).listTransfers(assetId.ifEmpty { null }, null).map(::transferMap)
+            nodeStore.get(nodeId).listTransfers(assetId.ifEmpty { null }, null).map(::transferMap)
         }
     }
 
     override fun rlnListTransfersByTxid(nodeId: Long, txid: String): List<RlnWireResponse> {
         return runRlnWireList("rlnListTransfersByTxid") {
-            RlnNodeStore.get(nodeId).listTransfers(null, txid).map(::transferMap)
+            nodeStore.get(nodeId).listTransfers(null, txid).map(::transferMap)
         }
     }
 
     override fun rlnListUnspents(nodeId: Long, skipSync: Boolean): List<RlnWireResponse> {
         return runRlnWireList("rlnListUnspents") {
-            RlnNodeStore.get(nodeId).listUnspents(skipSync).map(::unspentMap)
+            nodeStore.get(nodeId).listUnspents(skipSync).map(::unspentMap)
         }
     }
 
@@ -1095,14 +1121,14 @@ class RgbSdkFlutterPlugin :
                 descriptionHash = descriptionHash,
                 minFinalCltvExpiryDelta = minFinalCltvExpiryDelta?.let { requireUShort(it, "minFinalCltvExpiryDelta", "rlnLnInvoice") }
             )
-            val response = RlnNodeStore.get(nodeId).lnInvoice(request)
+            val response = nodeStore.get(nodeId).lnInvoice(request)
             mapOf("invoice" to response.invoice)
         }
     }
 
     override fun rlnClaimHodlInvoice(nodeId: Long, paymentHash: String, paymentPreimage: String): RlnWireResponse {
         return runRlnWire("rlnClaimHodlInvoice") {
-            val response = RlnNodeStore.get(nodeId).claimhodlinvoice(
+            val response = nodeStore.get(nodeId).claimhodlinvoice(
                 ClaimHodlInvoiceRequest(
                     paymentHash = paymentHash,
                     paymentPreimage = paymentPreimage
@@ -1114,7 +1140,7 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnCancelHodlInvoice(nodeId: Long, paymentHash: String) {
         runRln("rlnCancelHodlInvoice") {
-            RlnNodeStore.get(nodeId).cancelhodlinvoice(
+            nodeStore.get(nodeId).cancelhodlinvoice(
                 CancelHodlInvoiceRequest(paymentHash = paymentHash)
             )
         }
@@ -1122,7 +1148,7 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnApayNew(nodeId: Long, hostNodeId: String): RlnWireResponse {
         return runRlnWire("rlnApayNew") {
-            val response = RlnNodeStore.get(nodeId).apayNew(hostNodeId)
+            val response = nodeStore.get(nodeId).apayNew(hostNodeId)
             mapOf(
                 "requestId" to response.requestId,
                 "hostNodeId" to response.hostNodeId,
@@ -1142,7 +1168,7 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnApayNewWithAddress(nodeId: Long, hostNodeId: String, username: String, domain: String): RlnWireResponse {
         return runRlnWire("rlnApayNewWithAddress") {
-            val response = RlnNodeStore.get(nodeId).apayNewWithAddress(hostNodeId, username, domain)
+            val response = nodeStore.get(nodeId).apayNewWithAddress(hostNodeId, username, domain)
             mapOf(
                 "requestId" to response.requestId,
                 "hostNodeId" to response.hostNodeId,
@@ -1162,7 +1188,7 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnRefreshTransfers(nodeId: Long, skipSync: Boolean): RlnRefreshTransfersData {
         return runRln("rlnRefreshTransfers") {
-            val response = RlnNodeStore.get(nodeId).refreshtransfers(
+            val response = nodeStore.get(nodeId).refreshtransfers(
                 org.utexo.rgblightningnode.SdkRefreshTransfersRequest(skipSync)
             )
             RlnRefreshTransfersData(
@@ -1215,7 +1241,7 @@ class RgbSdkFlutterPlugin :
                 minConfirmations = requireUByte(minConfirmations, "minConfirmations", "rlnRgbInvoice"),
                 witness = witness
             )
-            rgbInvoiceMap(RlnNodeStore.get(nodeId).rgbinvoice(request))
+            rgbInvoiceMap(nodeStore.get(nodeId).rgbinvoice(request))
         }
     }
 
@@ -1227,7 +1253,7 @@ class RgbSdkFlutterPlugin :
                 feeRate = requireFeeRate(feeRate, "feeRate", "rlnSendBtc"),
                 skipSync = skipSync
             )
-            val response = RlnNodeStore.get(nodeId).sendbtc(request)
+            val response = nodeStore.get(nodeId).sendbtc(request)
             mapOf("txid" to response.txid)
         }
     }
@@ -1240,7 +1266,7 @@ class RgbSdkFlutterPlugin :
                 assetId = assetId,
                 assetAmount = assetAmount?.let { requireULong(it, "assetAmount", "rlnSendPayment") }
             )
-            val response = RlnNodeStore.get(nodeId).sendpayment(request)
+            val response = nodeStore.get(nodeId).sendpayment(request)
             sendPaymentMap(response)
         }
     }
@@ -1285,7 +1311,7 @@ class RgbSdkFlutterPlugin :
                     )
                 )
             )
-            val response = RlnNodeStore.get(nodeId).sendRgb(request)
+            val response = nodeStore.get(nodeId).sendRgb(request)
             mapOf(
                 "txid" to response.txid,
                 "batchTransferIdx" to response.batchTransferIdx
@@ -1295,21 +1321,21 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnShutdown(nodeId: Long) {
         runRln("rlnShutdown") {
-            val node = RlnNodeStore.get(nodeId)
+            val node = nodeStore.get(nodeId)
             node.shutdown()
-            RlnNodeStore.markShutdown(nodeId)
+            nodeStore.markShutdown(nodeId)
         }
     }
 
     override fun rlnSync(nodeId: Long) {
         runRln("rlnSync") {
-            RlnNodeStore.get(nodeId).sync()
+            nodeStore.get(nodeId).sync()
         }
     }
 
     override fun rlnIssueAssetNia(nodeId: Long, ticker: String, name: String, precision: Long, amounts: List<Long>): RlnWireResponse {
         return runRlnWire("rlnIssueAssetNia") {
-            val asset = RlnNodeStore.get(nodeId).issueassetnia(
+            val asset = nodeStore.get(nodeId).issueassetnia(
                 org.utexo.rgblightningnode.SdkIssueAssetNiaRequest(
                     amounts = requireULongList(amounts, "amounts", "rlnIssueAssetNia"),
                     ticker = ticker,
@@ -1323,7 +1349,7 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnIssueAssetCfa(nodeId: Long, name: String, details: String?, precision: Long, amounts: List<Long>, fileDigest: String?): RlnWireResponse {
         return runRlnWire("rlnIssueAssetCfa") {
-            val asset = RlnNodeStore.get(nodeId).issueassetcfa(
+            val asset = nodeStore.get(nodeId).issueassetcfa(
                 org.utexo.rgblightningnode.SdkIssueAssetCfaRequest(
                     amounts = requireULongList(amounts, "amounts", "rlnIssueAssetCfa"),
                     name = name,
@@ -1338,7 +1364,7 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnIssueAssetIfa(nodeId: Long, ticker: String, name: String, precision: Long, amounts: List<Long>, inflationAmounts: List<Long>, rejectListUrl: String?): RlnWireResponse {
         return runRlnWire("rlnIssueAssetIfa") {
-            val asset = RlnNodeStore.get(nodeId).issueassetifa(
+            val asset = nodeStore.get(nodeId).issueassetifa(
                 org.utexo.rgblightningnode.SdkIssueAssetIfaRequest(
                     amounts = requireULongList(amounts, "amounts", "rlnIssueAssetIfa"),
                     inflationAmounts = requireULongList(inflationAmounts, "inflationAmounts", "rlnIssueAssetIfa"),
@@ -1374,14 +1400,14 @@ class RgbSdkFlutterPlugin :
                     "rlnInflate"
                 )
             )
-            val response = RlnNodeStore.get(nodeId).inflate(request)
+            val response = nodeStore.get(nodeId).inflate(request)
             mapOf("txid" to response.txid)
         }
     }
 
     override fun rlnIssueAssetUda(nodeId: Long, ticker: String, name: String, details: String?, precision: Long, mediaFileDigest: String?, attachmentsFileDigests: List<String>): RlnWireResponse {
         return runRlnWire("rlnIssueAssetUda") {
-            val asset = RlnNodeStore.get(nodeId).issueassetuda(
+            val asset = nodeStore.get(nodeId).issueassetuda(
                 org.utexo.rgblightningnode.SdkIssueAssetUdaRequest(
                     ticker = ticker,
                     name = name,
@@ -1397,13 +1423,13 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnVssBackup(nodeId: Long): Long {
         return runRln("rlnVssBackup") {
-            RlnNodeStore.get(nodeId).vssBackup()
+            nodeStore.get(nodeId).vssBackup()
         }
     }
 
     override fun rlnVssClearFence(nodeId: Long, password: String) {
         runRln("rlnVssClearFence") {
-            RlnNodeStore.get(nodeId).vssClearFence(
+            nodeStore.get(nodeId).vssClearFence(
                 SdkVssClearFenceRequest(password = password)
             )
         }
@@ -1411,6 +1437,8 @@ class RgbSdkFlutterPlugin :
 
     override fun onDetachedFromEngine(binding: FlutterPlugin.FlutterPluginBinding) {
         RlnHostApi.setUp(binding.binaryMessenger, null)
-        RlnNodeStore.clearAll()
+        closeEngine().whenComplete { _, error ->
+            if (error != null) Log.e("RgbSdkFlutter", "Native engine cleanup failed.")
+        }
     }
 }

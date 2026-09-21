@@ -1,5 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 
+import 'package:analyzer/dart/analysis/utilities.dart';
+import 'package:analyzer/dart/ast/ast.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rgb_sdk_flutter/rgb_sdk_flutter_advanced.dart';
@@ -10,6 +13,15 @@ class _RecordedCall {
 
   final String method;
   final List<Object?> args;
+}
+
+class _EveryOperationFailsHost implements RlnHostApi {
+  @override
+  dynamic noSuchMethod(Invocation invocation) => throw PlatformException(
+    code: 'FailedPeerConnection',
+    message: 'private native diagnostics',
+    details: <String, Object?>{'category': 'network', 'retryable': true},
+  );
 }
 
 class _ContractCase {
@@ -843,6 +855,23 @@ class _MalformedWireRlnHostApi extends _RecordingRlnHostApi {
       RlnWireResponse(json: '42'),
     ];
   }
+}
+
+class _InvalidJsonHostApi extends _RecordingRlnHostApi {
+  _InvalidJsonHostApi(this.json);
+
+  final String json;
+
+  @override
+  RlnWireResponse _wireMap(Map<Object?, Object?> map) =>
+      RlnWireResponse(json: json);
+
+  @override
+  List<RlnWireResponse> _list(String method) => <RlnWireResponse>[
+    RlnWireResponse(json: '{"valid":"prefix"}'),
+    RlnWireResponse(json: json),
+    RlnWireResponse(json: '{"valid":"suffix"}'),
+  ];
 }
 
 void main() {
@@ -1788,7 +1817,72 @@ void main() {
       );
     });
 
+    test(
+      'every JSON-returning method rejects malformed or non-object data',
+      () async {
+        final schema = parseString(
+          content: File('pigeons/rln_api.dart').readAsStringSync(),
+        ).unit;
+        final host = schema.declarations
+            .whereType<ClassDeclaration>()
+            .singleWhere(
+              (declaration) =>
+                  declaration.namePart.typeName.lexeme == 'RlnHostApi',
+            );
+        final body = host.body as BlockClassBody;
+        final methods = body.members.whereType<MethodDeclaration>().where(
+          (method) => method.returnType!.toSource().contains('RlnWireResponse'),
+        );
+        final expected = methods.map((method) => method.name.lexeme).toSet();
+        final checked = <String>{};
+        expect(expected, isNotEmpty);
+
+        for (final contractCase in cases) {
+          if (!expected.contains(contractCase.method)) continue;
+          checked.add(contractCase.method);
+          for (final invalid in <String>[
+            '{not-json',
+            'null',
+            '42',
+            'true',
+            '"not-an-object"',
+            '[{"valid":"but-wrong-root"}]',
+          ]) {
+            final hostApi = _InvalidJsonHostApi(invalid);
+            await expectLater(
+              contractCase.invoke(RlnClient(hostApi: hostApi)),
+              throwsA(isA<NativeProtocolException>()),
+              reason: '${contractCase.method} accepted invalid JSON shape',
+            );
+            expect(hostApi.calls.single.method, contractCase.method);
+          }
+        }
+        // New Pigeon methods must have an executable contract, not only a label.
+        expect(checked, expected);
+      },
+    );
+
     for (final contractCase in cases) {
+      test(
+        '${contractCase.name} maps a native failure without losing operation identity',
+        () async {
+          final client = RlnClient(hostApi: _EveryOperationFailsHost());
+          await expectLater(
+            contractCase.invoke(client),
+            throwsA(
+              isA<NetworkError>().having(
+                (error) => error.cause,
+                'cause',
+                isA<NativeBridgeFailure>().having(
+                  (failure) => failure.operation,
+                  'operation',
+                  contractCase.method,
+                ),
+              ),
+            ),
+          );
+        },
+      );
       test(
         '${contractCase.name} delegates to ${contractCase.method}',
         () async {

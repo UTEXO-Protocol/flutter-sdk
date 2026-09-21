@@ -88,17 +88,6 @@ void _checkCancelled(WaitOptions options) {
   }
 }
 
-Future<void> _sleep(int milliseconds, WaitOptions options) async {
-  final timer = Stopwatch()..start();
-  while (timer.elapsedMilliseconds < milliseconds) {
-    _checkCancelled(options);
-    final remaining = milliseconds - timer.elapsedMilliseconds;
-    await Future<void>.delayed(
-      Duration(milliseconds: remaining.clamp(1, 250).toInt()),
-    );
-  }
-}
-
 int _validatedTimeoutMs(WaitOptions options, int fallback) {
   final value = options.timeoutMs ?? fallback;
   if (value <= 0) {
@@ -134,19 +123,19 @@ void _requirePositiveMsat(int value, String field) {
   }
 }
 
-Future<Map<String, int>> _localAssetAmounts(ILspWallet wallet) async {
+Future<Map<String, BigInt>> _localAssetAmounts(ILspWallet wallet) async {
   await wallet.syncWallet();
-  final amounts = <String, int>{};
+  final amounts = <String, BigInt>{};
   for (final channel in await wallet.listChannels()) {
     final assetId = channel.assetId;
     if (assetId == null || assetId.isEmpty || !_isUsableChannel(channel)) {
       continue;
     }
-    final amount = channel.assetLocalAmount ?? 0;
-    final current = amounts[assetId] ?? 0;
+    final amount = channel.assetLocalAmount ?? BigInt.zero;
+    final current = amounts[assetId] ?? BigInt.zero;
     if (amount > current) amounts[assetId] = amount;
   }
-  return Map<String, int>.unmodifiable(amounts);
+  return Map<String, BigInt>.unmodifiable(amounts);
 }
 
 Future<LspLightningAddressByPubkeyResponse> _ownLightningAddress(

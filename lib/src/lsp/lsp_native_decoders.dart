@@ -1,4 +1,5 @@
 import '../errors/rgb_sdk_exception.dart';
+import '../models/exact_integer.dart';
 import '../models/rln_models.dart';
 import 'lsp_protocol_policy.dart';
 import 'lsp_types.dart';
@@ -148,12 +149,7 @@ void _validateHashBatch({
 
 int _requiredInt(RlnMap map, String key, String typeName) {
   final value = map[key];
-  final parsed = switch (value) {
-    int() => value,
-    double() when value.isFinite && value % 1 == 0 => value.toInt(),
-    String() => int.tryParse(value),
-    _ => null,
-  };
+  final parsed = exactWireInt(value);
   if (parsed == null) {
     throw NativeProtocolException(
       '$typeName.$key must be an integer.',

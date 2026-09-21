@@ -102,8 +102,9 @@ When RN/core/RLN changes, update artifacts in this order:
 
 ## Clean Consumer Matrix
 
-`tool/test_clean_consumer_matrix.sh` creates a candidate snapshot from tracked
-and unignored source files, commits it to a temporary local Git repository,
+`tool/test_clean_consumer_matrix.sh` requires a clean committed candidate,
+extracts that exact commit with `git archive` into a new temporary directory,
+commits the snapshot to a temporary local Git repository,
 then verifies:
 
 - package tarball contents through `dart pub publish --dry-run`;
@@ -123,6 +124,25 @@ integration. Do not use a plain `pod lib lint` result as release evidence for
 this package: CocoaPods resolves the public `Flutter` pod at `3.13.0`, while
 the generated Pigeon Swift bridge requires the `FlutterBinaryMessenger`
 task-queue API available in the pinned Flutter `3.41.9` toolchain.
+
+Set the consumer application and Podfile platform to at least iOS `18.5`.
+Current Xcode also rejects obsolete deployment targets from Flutter's placeholder
+pod. In the consumer's existing `post_install` target loop, immediately after
+`flutter_additional_ios_build_settings(target)`, lift only lower pod targets:
+
+```ruby
+target.build_configurations.each do |config|
+  minimum = config.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+  if minimum.nil? || Gem::Version.new(minimum) < Gem::Version.new('18.5')
+    config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '18.5'
+  end
+end
+```
+
+Preserve higher dependency minimums. Run `pod install` to regenerate the Pods
+project; do not hand-edit generated build settings. The example and clean
+consumer template apply this same policy. Their current build evidence is not
+a substitute for archives from the final clean release candidate.
 
 ## Transport Policy
 
@@ -227,7 +247,7 @@ dart run tool/validate_public_api_docs.dart
 dart run tool/validate_release_language.dart
 dart run tool/validate_api_snapshot.dart
 dart run tool/validate_bridge_vectors.dart
-flutter test --coverage
+dart run tool/test_dart_coverage.dart
 dart run tool/validate_coverage_policy.dart
 ```
 

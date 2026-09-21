@@ -67,9 +67,9 @@ const Map<Network, String> DEFAULT_TRANSPORT_ENDPOINTS = <Network, String>{
 };
 
 const Map<Network, String> DEFAULT_INDEXER_URLS = <Network, String>{
-  'mainnet': 'ssl://electrum.iriswallet.com:50003',
-  'testnet': 'ssl://electrum.iriswallet.com:50013',
-  'testnet4': 'ssl://electrum.iriswallet.com:50053',
+  'mainnet': 'https://esplora-mainnet.utexo.com',
+  'testnet': 'https://esplora-testnet3.utexo.com',
+  'testnet4': 'https://esplora-testnet4.utexo.com',
   'signet': 'ssl://electrum.iriswallet.com:50033',
   'utexo': 'https://esplora-api.utexo.com',
   'regtest': 'http://127.0.0.1:3002',

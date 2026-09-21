@@ -68,13 +68,14 @@ class UtexoWalletConfig {
   /// Whether native address generation may reuse addresses.
   final bool reuseAddresses;
 
-  /// Optional vanilla account xpub for external-signer flows.
+  /// Reserved identity option; non-null values are rejected before node creation.
+  /// Supply identity through the signer, not through this legacy field.
   final String? xpubVan;
 
-  /// Optional colored account xpub for external-signer flows.
+  /// Reserved identity option; non-null values are rejected before node creation.
   final String? xpubCol;
 
-  /// Optional BIP32 master fingerprint for external-signer flows.
+  /// Reserved identity option; non-null values are rejected before node creation.
   final String? masterFingerprint;
 }
 
@@ -116,8 +117,9 @@ class UtexoUnlockConfig {
   /// Optional node alias announced through Lightning.
   final String? announceAlias;
 
-  /// Optional RGS server URL. The current SDK rejects unsupported gossip RGS
-  /// configuration before native calls.
+  /// Optional RGS server URL, supported by the native password-backed signer.
+  /// Native external-signer mode rejects it before dispatch because that native
+  /// unlock API does not accept RGS configuration.
   final String? gossipRgsServerUrl;
 }
 
@@ -149,11 +151,72 @@ class WalletCapabilities {
 
 /// Optional PSBT feature group. It is absent while the pinned native/RN
 /// baseline has no production PSBT engine.
-abstract interface class PsbtWalletCarrier {}
+abstract interface class PsbtWalletCarrier {
+  /// Signs a base64 PSBT. Any supplied mnemonic is borrowed, never persisted.
+  Future<String> signPsbt(String psbt, {String? mnemonic});
+
+  /// Estimates the absolute sat fee, virtual size, and sat/vbyte fee rate.
+  Future<PsbtFeeEstimate> estimateFee(String psbtBase64);
+}
+
+/// Fee estimation contract for the optional PSBT carrier; not an RLN capability.
+class PsbtFeeEstimate {
+  const PsbtFeeEstimate({
+    required this.fee,
+    required this.vbytes,
+    required this.feeRate,
+  });
+
+  /// Absolute transaction fee in satoshis.
+  final int fee;
+
+  /// Transaction virtual size in vbytes.
+  final int vbytes;
+
+  /// Fee rate in satoshis per vbyte.
+  final double feeRate;
+}
 
 /// Optional begin/end wallet-flow feature group. It is absent while the pinned
 /// native/RN baseline has no externally signed begin/end flow.
-abstract interface class BeginEndWalletCarrier {}
+abstract interface class BeginEndWalletCarrier {
+  /// Builds an unsigned UTXO-creation PSBT without broadcasting it.
+  Future<String> createUtxosBegin({
+    bool? upTo,
+    int? num,
+    int? size,
+    double? feeRate,
+  });
+
+  /// Finalizes a signed PSBT, returning the engine's created UTXO count.
+  Future<int> createUtxosEnd({required String signedPsbt, bool? skipSync});
+
+  /// Builds an unsigned RGB transfer PSBT.
+  Future<String> onchainSendBegin(RgbSendRequest request);
+
+  /// Finalizes the RGB transfer, returning its txid and batch index.
+  Future<OnchainSendResponse> onchainSendEnd({
+    required String signedPsbt,
+    bool? skipSync,
+  });
+
+  /// Builds an unsigned Bitcoin transfer PSBT; amount is sats, feeRate sat/vbyte.
+  Future<String> sendBtcBegin({
+    required String address,
+    required int amount,
+    required double feeRate,
+    bool? skipSync,
+  });
+
+  /// Finalizes a Bitcoin PSBT and returns the transaction ID.
+  Future<String> sendBtcEnd({required String signedPsbt, bool? skipSync});
+
+  /// Builds an unsigned inflation PSBT using integer smallest RGB units.
+  Future<String> inflateBegin(InflateAssetIfaRequest request);
+
+  /// Finalizes inflation and returns the transaction ID plus batch index.
+  Future<OnchainSendResponse> inflateEnd({required String signedPsbt});
+}
 
 /// Request for a blinded or witness RGB invoice.
 ///

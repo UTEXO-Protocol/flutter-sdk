@@ -117,6 +117,7 @@ class FakeRlnHostApi extends RlnHostApi {
   String emptyListTransfersErrorMessage =
       'rgb_sdk_flutter.RlnError.InvalidRequest(message: "invalid request")';
   String? unlockedHost;
+  String? unlockedRgsUrl;
   String? unlockedIndexerUrl;
   String? unlockedProxyEndpoint;
   bool? lastRgbInvoiceWitness;
@@ -421,6 +422,7 @@ class FakeRlnHostApi extends RlnHostApi {
     final error = unlockNodeError;
     if (error != null) _throw(error);
     unlockNodeCount += 1;
+    unlockedRgsUrl = gossipRgsServerUrl;
     unlockedHost = bitcoindRpcHost;
     unlockedIndexerUrl = indexerUrl;
     unlockedProxyEndpoint = proxyEndpoint;
@@ -1672,21 +1674,17 @@ void main() {
     expect(hostApi.createNodeCount, 0);
   });
 
-  test('rejects no-op gossip RGS unlock configuration', () async {
-    final wallet = walletWith(FakeRlnHostApi());
+  test('forwards supported password gossip RGS configuration', () async {
+    final host = FakeRlnHostApi();
+    final wallet = walletWith(host);
     await wallet.init(password: 'password');
 
-    await expectLater(
-      wallet.unlock(
-        password: 'password',
-        config: UtexoUnlockConfig(
-          bitcoindRpcHost: '127.0.0.1',
-          bitcoindRpcUsername: 'user',
-          gossipRgsServerUrl: 'https://rgs.example',
-        ),
-      ),
-      throwsA(isA<UnsupportedWalletFeatureException>()),
+    await wallet.unlock(
+      password: 'password',
+      config: UtexoUnlockConfig(gossipRgsServerUrl: 'https://rgs.example'),
     );
+    expect(wallet.isUnlocked, isTrue);
+    expect(host.unlockedRgsUrl, 'https://rgs.example');
   });
 
   test('coalesces concurrent init and unlock lifecycle calls', () async {
@@ -2704,7 +2702,7 @@ void main() {
       expect(invoice.amtMsat, 2500);
       expect(invoice.expirySec, 3600);
       expect(invoice.timestamp, 1710000000);
-      expect(invoice.assetAmount, 42);
+      expect(invoice.assetAmount, BigInt.from(42));
       expect(invoice.description, 'invoice description');
       expect(invoice.descriptionHash, 'description-hash');
 
@@ -2717,7 +2715,7 @@ void main() {
         'updatedAt': 1710000200,
       }).toLightningPayment();
       expect(payment.amtMsat, 5000);
-      expect(payment.assetAmount, 7);
+      expect(payment.assetAmount, BigInt.from(7));
       expect(payment.createdAt, 1710000100);
       expect(payment.updatedAt, 1710000200);
 
@@ -2739,8 +2737,8 @@ void main() {
       expect(channel.localBalanceMsat, 25000);
       expect(channel.outboundBalanceMsat, 3000);
       expect(channel.inboundBalanceMsat, 4000);
-      expect(channel.assetLocalAmount, 9);
-      expect(channel.assetRemoteAmount, 10);
+      expect(channel.assetLocalAmount, BigInt.from(9));
+      expect(channel.assetRemoteAmount, BigInt.from(10));
 
       final transfer = RlnTransfer.fromMap(<Object?, Object?>{
         'idx': 1,
@@ -2754,7 +2752,7 @@ void main() {
       expect(transfer.createdAt, 1710000300);
       expect(transfer.updatedAt, 1710000400);
       expect(transfer.expiration, 1710000500);
-      expect(transfer.assignments.single.amount, 123);
+      expect(transfer.assignments.single.amount, BigInt.from(123));
     },
   );
 
@@ -3025,7 +3023,7 @@ void main() {
     expect(balance.vanilla.settled, 1000);
     expect(invoice.batchTransferIdx, 1);
     expect(decoded.assignment.type, 'Fungible');
-    expect(decoded.assignment.amount, 100);
+    expect(decoded.assignment.amount, BigInt.from(100));
   });
 
   test('marks PSBT capability carrier absent', () async {
@@ -3886,7 +3884,11 @@ void main() {
 
     expect(results.single.paymentHash, 'hash-with-preimage');
     expect(results.single.claimed, false);
-    expect(results.single.error, contains('claim rejected'));
+    expect(
+      results.single.error,
+      'Payment claim failed. Check its status before retrying.',
+    );
+    expect(results.single.error, isNot(contains('claim rejected')));
     expect(hostApi.lastClaimHodlInvoice?['paymentPreimage'], 'preimage');
     await expectLater(
       wallet.vssClearFence('password'),
@@ -4021,16 +4023,16 @@ void main() {
       rejectListUrl: 'https://example.com/reject-list',
     );
     expect(hostApi.lastAssetBalanceId, 'asset');
-    expect(balance.offchainInbound, 3);
-    expect(rawBalance.offchainInbound, 3);
-    expect(coreBalance.offchainOutbound, 2);
+    expect(balance.offchainInbound, BigInt.from(3));
+    expect(rawBalance.offchainInbound, BigInt.from(3));
+    expect(coreBalance.offchainOutbound, BigInt.from(2));
     expect(nia, isA<CoreAssetNia>());
     expect(nia.ticker, 'RGB');
     expect(rawNia, isA<RlnAssetNia>());
     expect(hostApi.lastIssueAssetNia?['amounts'], const <int>[1000]);
     expect(hostApi.lastIssueAssetCfa, isNull);
     expect(ifa, isA<CoreAssetIfa>());
-    expect(ifa.maxSupply, 2000);
+    expect(ifa.maxSupply, BigInt.from(2000));
     expect(rawIfa, isA<RlnAssetIfa>());
     expect(hostApi.lastIssueAssetIfa?['rejectListUrl'], contains('reject'));
     expect(hostApi.lastIssueAssetUda, isNull);

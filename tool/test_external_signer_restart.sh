@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+source "${SCRIPT_DIR}/evidence_shell.sh"
 source "${SCRIPT_DIR}/regtest/config.sh"
 RESTART_SMOKE="${SCRIPT_DIR}/regtest/flutter_external_signer_restart.sh"
 DEVICE="${DEVICE:-}"
@@ -25,6 +26,7 @@ fi
 DEVICE_SLUG="${DEVICE//[^A-Za-z0-9_.-]/_}"
 REPORT_FILE="${REPORT_DIR}/external-signer-restart-${DEVICE_SLUG}-${RUN_ID}-${SHORT_COMMIT}.json"
 LOG_FILE="${REPORT_DIR}/external-signer-restart-${DEVICE_SLUG}-${RUN_ID}-${SHORT_COMMIT}.log"
+start_evidence "${REPORT_FILE}"
 
 sha256_file() {
   if command -v shasum >/dev/null 2>&1; then
@@ -54,11 +56,8 @@ if [[ "${EXIT_CODE}" -eq 0 ]]; then
 else
   STATUS="failed"
 fi
-if [[ "${EXIT_CODE}" -eq 0 && "${DIRTY}" == "false" ]]; then
-  RELEASE_ELIGIBLE="true"
-else
-  RELEASE_ELIGIBLE="false"
-fi
+# Finalization alone can authorize a clean, complete report.
+RELEASE_ELIGIBLE="false"
 
 ruby -rjson -e '
   report = {
@@ -105,4 +104,5 @@ ruby -rjson -e '
   "${RELEASE_ELIGIBLE}"
 
 echo "external signer restart report: ${REPORT_FILE}"
+finish_evidence "${REPORT_FILE}"
 exit "${EXIT_CODE}"

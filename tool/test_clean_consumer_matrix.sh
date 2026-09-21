@@ -5,21 +5,26 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 FLUTTER_BIN="${FLUTTER_BIN:-flutter}"
 DART_BIN="${DART_BIN:-dart}"
+export DART_BIN FLUTTER_BIN
+source "${SCRIPT_DIR}/evidence_shell.sh"
 REPORT_DIR="${REPORT_DIR:-${REPO_DIR}/build/test-reports/consumer-matrix}"
 mkdir -p "${REPORT_DIR}"
 REPORT_DIR="$(cd "${REPORT_DIR}" && pwd)"
-RUN_ID="${RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)-$(git -C "${REPO_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)}"
+RUN_ID="${RELEASE_RUN_ID:-${RUN_ID:-$(date -u +%Y%m%dT%H%M%SZ)-$(git -C "${REPO_DIR}" rev-parse --short HEAD 2>/dev/null || echo unknown)}}"
+REPORT_FILE="${REPORT_DIR}/clean-consumer-matrix-${RUN_ID}.json"
+LOG_FILE="${REPORT_DIR}/clean-consumer-matrix-${RUN_ID}.log"
 WORK_DIR="${CONSUMER_WORK_DIR:-${REPO_DIR}/build/clean-consumer-matrix/${RUN_ID}}"
 PACKAGE_DIR="${WORK_DIR}/package"
 RUN_ARCHIVES="${RUN_CONSUMER_ARCHIVES:-1}"
 
-mkdir -p "${REPORT_DIR}" "${PACKAGE_DIR}"
+mkdir -p "${REPORT_DIR}"
 
 STEP_NAMES=()
 STEP_CODES=()
 STEP_DURATIONS=()
 STEP_NOTES=()
 FAILED=0
+FULL_COMMIT="$(git -C "${REPO_DIR}" rev-parse HEAD)"
 
 json_escape() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
@@ -36,7 +41,7 @@ run_step() {
   echo "==> ${name}"
   start="$(date +%s)"
   set +e
-  "$@"
+  ( set -euo pipefail; "$@" )
   code="$?"
   set -e
   finish="$(date +%s)"
@@ -63,6 +68,8 @@ write_report() {
     echo "{"
     echo "  \"suite\": \"clean-consumer-matrix\","
     echo "  \"status\": \"${status}\","
+    echo "  \"repository\": {\"commit\": \"${FULL_COMMIT}\"},"
+    echo "  \"releaseEligible\": false,"
     echo "  \"runId\": \"$(json_escape "${RUN_ID}")\","
     echo "  \"workDir\": \"$(json_escape "${WORK_DIR}")\","
     echo "  \"packageDir\": \"$(json_escape "${PACKAGE_DIR}")\","
@@ -84,13 +91,16 @@ write_report() {
 
 copy_candidate_snapshot() {
   cd "${REPO_DIR}"
-  git ls-files -z --cached --modified --others --exclude-standard |
-    while IFS= read -r -d '' path; do
-      if [[ -f "${path}" ]]; then
-        mkdir -p "${PACKAGE_DIR}/$(dirname "${path}")"
-        cp -p "${path}" "${PACKAGE_DIR}/${path}"
-      fi
-    done
+  [[ -z "$(git status --porcelain)" ]] || {
+    echo "Clean consumer qualification requires a committed clean candidate." >&2
+    return 1
+  }
+  if [[ -e "${WORK_DIR}" ]]; then
+    echo "Consumer work directory already exists; choose a new run directory." >&2
+    return 1
+  fi
+  mkdir -p "${PACKAGE_DIR}"
+  git archive "${FULL_COMMIT}" | tar -xf - -C "${PACKAGE_DIR}"
 }
 
 prepare_package_git_ref() {
@@ -170,10 +180,29 @@ end
 post_install do |installer|
   installer.pods_project.targets.each do |target|
     flutter_additional_ios_build_settings(target)
+    target.build_configurations.each do |config|
+      current = config.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+      if current.nil? || Gem::Version.new(current) < Gem::Version.new('__IOS_MINIMUM__')
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '__IOS_MINIMUM__'
+      end
+    end
   end
 end
 """.replace("__IOS_MINIMUM__", minimum)
 platform = f"platform :ios, '{minimum}'"
+hook = """
+    target.build_configurations.each do |config|
+      current = config.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+      if current.nil? || Gem::Version.new(current) < Gem::Version.new('__IOS_MINIMUM__')
+        config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '__IOS_MINIMUM__'
+      end
+    end
+""".replace("__IOS_MINIMUM__", minimum)
+if "Gem::Version.new(current)" not in text:
+    marker = "    flutter_additional_ios_build_settings(target)\n"
+    if marker not in text:
+        raise SystemExit("Cannot locate consumer iOS build settings hook")
+    text = text.replace(marker, marker + hook, 1)
 if re.search(r"^#?\s*platform :ios,", text, re.M):
     text = re.sub(r"^#?\s*platform :ios,.*$", platform, text, count=1, flags=re.M)
 else:
@@ -218,7 +247,7 @@ build_consumer() {
   local consumer_dir="$1"
   cd "${consumer_dir}"
   "${FLUTTER_BIN}" pub get
-  "${FLUTTER_BIN}" analyze --no-fatal-warnings --no-fatal-infos
+  "${FLUTTER_BIN}" analyze --fatal-infos
   if [[ "${RUN_ARCHIVES}" == "1" ]]; then
     "${FLUTTER_BIN}" build apk --release --target-platform android-arm64
     if [[ "$(uname -s)" == "Darwin" ]]; then
@@ -242,9 +271,15 @@ build_consumer() {
 }
 
 main() {
-  trap write_report EXIT
+
+  if [[ "${RUN_ARCHIVES}" != 1 || "$(uname -s)" != Darwin ]]; then
+    echo "Both Android and iOS consumer archives are mandatory." >&2
+    FAILED=1
+    return 125
+  fi
 
   run_step "snapshot package from candidate files" copy_candidate_snapshot
+  [[ "${FAILED}" -eq 0 ]] || return 1
   run_step "prepare local git dependency ref" prepare_package_git_ref
   run_step "package tarball content dry-run" bash -lc "cd '${PACKAGE_DIR}' && '${DART_BIN}' pub publish --dry-run"
 
@@ -255,9 +290,31 @@ main() {
   run_step "create git consumer" create_consumer "${git_consumer}" "    git:\n      url: file://${PACKAGE_DIR}\n      ref: consumer-candidate"
   run_step "build git consumer archives" build_consumer "${git_consumer}"
 
+  if [[ "$(git -C "${REPO_DIR}" rev-parse HEAD)" != "${FULL_COMMIT}" ||
+        -n "$(git -C "${REPO_DIR}" status --porcelain)" ]]; then
+    echo "Candidate changed during consumer qualification." >&2
+    FAILED=1
+  fi
+
   if [[ "${FAILED}" -ne 0 ]]; then
     exit 1
   fi
 }
 
-main "$@"
+finalize_consumer() {
+  local result=$?
+  trap - EXIT
+  set +e
+  if [[ "${result}" -ne 0 ]]; then FAILED=1; fi
+  end_evidence_log || { FAILED=1; result=1; }
+  write_report || result=1
+  finish_evidence "${REPORT_FILE}" || result=1
+  exit "${result}"
+}
+
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  start_evidence "${REPORT_FILE}"
+  begin_evidence_log
+  trap finalize_consumer EXIT
+  main "$@"
+fi

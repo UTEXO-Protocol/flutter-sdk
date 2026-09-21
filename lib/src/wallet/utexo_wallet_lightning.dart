@@ -10,7 +10,7 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
   }) async {
     _requireNonNegativeOptional(amountSats, 'amountSats');
     final invoice = await _createRlnLightningInvoice(
-      amtMsat: amountSats == null ? null : amountSats * 1000,
+      amtMsat: WalletInputPolicy.satsToMsats(amountSats, 'amountSats'),
       expirySec: expirySeconds,
       assetId: asset?.assetId,
       assetAmount: asset?.amount,
@@ -120,7 +120,7 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
     _requireNonNegativeOptional(amount, 'amount');
     final payment = await _payRlnLightningInvoice(
       invoice: lnInvoice,
-      amtMsat: amount == null ? null : amount * 1000,
+      amtMsat: WalletInputPolicy.satsToMsats(amount, 'amount'),
       assetId: assetId,
       assetAmount: assetAmount,
     );

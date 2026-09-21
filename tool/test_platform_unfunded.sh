@@ -3,6 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+source "${SCRIPT_DIR}/evidence_shell.sh"
 source "${SCRIPT_DIR}/regtest/config.sh"
 REGTEST="${SCRIPT_DIR}/regtest/regtest.sh"
 FLUTTER_BIN="${FLUTTER_BIN:-flutter}"
@@ -34,6 +35,7 @@ else
 fi
 REPORT_FILE="${REPORT_DIR}/platform-unfunded-${DEVICE_LABEL}-${RUN_ID}-${SHORT_COMMIT}.json"
 LOG_FILE="${REPORT_DIR}/platform-unfunded-${DEVICE_LABEL}-${RUN_ID}-${SHORT_COMMIT}.log"
+start_evidence "${REPORT_FILE}"
 
 sha256_file() {
   if command -v shasum >/dev/null 2>&1; then
@@ -77,11 +79,8 @@ if [[ "${EXIT_CODE}" -eq 0 ]]; then
 else
   STATUS="failed"
 fi
-if [[ "${EXIT_CODE}" -eq 0 && "${WORKTREE_DIRTY}" == "false" ]]; then
-  RELEASE_ELIGIBLE="true"
-else
-  RELEASE_ELIGIBLE="false"
-fi
+# Finalization alone can authorize a clean, complete report.
+RELEASE_ELIGIBLE="false"
 
 cat >"${REPORT_FILE}" <<JSON
 {
@@ -108,4 +107,5 @@ cat >"${REPORT_FILE}" <<JSON
 JSON
 
 echo "platform unfunded report: ${REPORT_FILE}"
+finish_evidence "${REPORT_FILE}"
 exit "${EXIT_CODE}"

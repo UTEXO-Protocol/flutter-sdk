@@ -37,6 +37,7 @@ mixin _UtexoLspRelay on _UtexoLspInternals {
       maxFeeMsat: options.maxFeeMsat,
       walletNetwork: wallet.network,
       expectedLspPubkey: peer.peerPubkey,
+      expectedFundingAssetId: payWithAssetId ?? target.assetId,
       nowEpochSeconds: nowEpochSeconds,
     );
   }
@@ -84,16 +85,19 @@ mixin _UtexoLspRelay on _UtexoLspInternals {
     }
 
     final requiredAmount = target.assetAmount;
-    if (requiredAmount == null || requiredAmount <= 0) return null;
+    if (requiredAmount == null || requiredAmount <= BigInt.zero) return null;
     final local = await _localAssetAmounts(wallet);
     final targetAssetId = target.assetId;
     if (targetAssetId != null &&
-        (local[targetAssetId] ?? 0) >= requiredAmount) {
+        (local[targetAssetId] ?? BigInt.zero) >= requiredAmount) {
       return targetAssetId;
     }
     final alternatives = local.entries.where(
       (entry) => entry.key != targetAssetId && entry.value >= requiredAmount,
     );
+    // RN's automatic fallback proposes a funded asset, not a conversion proof.
+    // The LSP's pair policy must accept the quote; payment remains gated by
+    // verification against this selected asset and the original target.
     return alternatives.firstOrNull?.key;
   }
 }

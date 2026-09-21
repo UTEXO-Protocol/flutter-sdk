@@ -4,6 +4,7 @@ import org.utexo.rgblightningnode.NoPointer
 import org.utexo.rgblightningnode.NativeExternalSigner
 import org.utexo.rgblightningnode.SdkLdkChainSync
 import org.utexo.rgblightningnode.SdkNode
+import org.utexo.rgblightningnode.SdkUnlockRequest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -121,6 +122,17 @@ internal class RgbSdkFlutterPluginTest {
         val details = error.details as Map<*, *>
         assertEquals("rlnBackup", details["operation"])
         assertEquals("rln-parity", details["phase"])
+    }
+
+    @Test
+    fun externalSignerRgsFailsBeforeNativeLookup() {
+        val error = assertFailsWith<FlutterError> {
+            plugin.rlnUnlockNodeWithNativeExternalSigner(9999, 9999,
+                null, null, null, null, null, null, emptyList(), null,
+                "https://rgs.example")
+        }
+        assertEquals("UnsupportedOperationException", error.code)
+        assertEquals("unsupported", (error.details as Map<*, *>)["category"])
     }
 
     @Test
@@ -312,6 +324,15 @@ internal class RgbSdkFlutterPluginTest {
     @Test
     fun bridgeReportsUnknownNodeForGroupTwoMethodFamilies() {
         val cases = listOf<Pair<String, () -> Unit>>(
+            "rlnInitNodeWithNativeExternalSigner" to { plugin.rlnInitNodeWithNativeExternalSigner(9_999, 8_888) },
+            "rlnAttachNativeExternalSigner" to { plugin.rlnAttachNativeExternalSigner(9_999, 8_888) },
+            "rlnNodeInfo" to { plugin.rlnNodeInfo(9_999) },
+            "rlnCheckIndexerUrl" to { plugin.rlnCheckIndexerUrl(9_999, "electrum://127.0.0.1:50001") },
+            "rlnListPeers" to { plugin.rlnListPeers(9_999) },
+            "rlnListChannels" to { plugin.rlnListChannels(9_999) },
+            "rlnListPayments" to { plugin.rlnListPayments(9_999) },
+            "rlnVssBackup" to { plugin.rlnVssBackup(9_999) },
+            "rlnVssClearFence" to { plugin.rlnVssClearFence(9_999, "never-log-this-password") },
             "rlnRotateAddress" to { plugin.rlnRotateAddress(9_999) },
             "rlnSignMessage" to { plugin.rlnSignMessage(9_999, "message") },
             "rlnVerifyMessage" to { plugin.rlnVerifyMessage(9_999, "message", "signature") },
@@ -327,7 +348,8 @@ internal class RgbSdkFlutterPluginTest {
             val error = assertFailsWith<FlutterError> { call() }
             val details = error.details as Map<*, *>
             assertEquals(operation, details["operation"])
-            assertTrue(error.message.orEmpty().contains("not found"))
+            assertEquals("NodeNotFound", error.code)
+            assertEquals("notFound", details["category"])
         }
     }
 
@@ -417,27 +439,31 @@ internal class RgbSdkFlutterPluginTest {
         var nodeId: Long? = null
 
         try {
-            val firstId = RlnNodeStore.create(firstNode, path)
+            val firstId = plugin.nodeStore.create(firstNode, path)
             nodeId = firstId
-            assertSame(firstNode, RlnNodeStore.get(firstId))
-            assertEquals(RlnNodeStore.NodeLifecycleState.CREATED, RlnNodeStore.getState(firstId))
+            assertSame(firstNode, plugin.nodeStore.get(firstId))
+            assertFailsWith<RlnStateConflict> { plugin.nodeStore.ensureStorageAvailable(path) }
+            assertEquals(RlnNodeStore.NodeLifecycleState.CREATED, plugin.nodeStore.getState(firstId))
 
-            val duplicate = assertFailsWith<IllegalStateException> {
-                RlnNodeStore.create(duplicateNode, path)
+            val duplicate = assertFailsWith<RlnStateConflict> {
+                plugin.nodeStore.create(duplicateNode, path)
             }
-            assertEquals("RLN node already exists for storageDirPath: $path", duplicate.message)
+            assertFalse(duplicate.message.orEmpty().contains(path))
 
-            RlnNodeStore.markShutdown(firstId)
-            val reusedId = RlnNodeStore.create(replacementNode, path)
-            assertEquals(firstId, reusedId)
-            assertSame(replacementNode, RlnNodeStore.get(reusedId))
-            assertEquals(RlnNodeStore.NodeLifecycleState.CREATED, RlnNodeStore.getState(reusedId))
-            assertEquals(1, RlnNodeStore.snapshot().nodeCount)
-            assertEquals(path, RlnNodeStore.snapshot().storageDirByNodeId[reusedId])
+            plugin.nodeStore.markShutdown(firstId)
+            plugin.nodeStore.ensureStorageAvailable(path)
+            val reusedId = plugin.nodeStore.create(replacementNode, path)
+            assertTrue(firstId != reusedId)
+            nodeId = reusedId
+            plugin.nodeStore.remove(firstId)
+            assertSame(replacementNode, plugin.nodeStore.get(reusedId))
+            assertEquals(RlnNodeStore.NodeLifecycleState.CREATED, plugin.nodeStore.getState(reusedId))
+            assertEquals(1, plugin.nodeStore.snapshot().nodeCount)
+            assertEquals(path, plugin.nodeStore.snapshot().storageDirByNodeId[reusedId])
 
             assertEquals(1, firstNode.closeCount)
         } finally {
-            nodeId?.let(RlnNodeStore::remove)
+            nodeId?.let(plugin.nodeStore::remove)
         }
 
         assertEquals(1, replacementNode.closeCount)
@@ -447,39 +473,39 @@ internal class RgbSdkFlutterPluginTest {
     @Test
     fun nodeStoreTransitionsUnlockLifecycleAndRemovesClosedNodes() {
         val node = CloseTrackingSdkNode()
-        val nodeId = RlnNodeStore.create(node, uniquePath("lifecycle"))
+        val nodeId = plugin.nodeStore.create(node, uniquePath("lifecycle"))
 
-        assertEquals(RlnNodeStore.NodeLifecycleState.UNLOCKING, RlnNodeStore.beginUnlock(nodeId))
-        RlnNodeStore.rollbackUnlock(nodeId)
-        assertEquals(RlnNodeStore.NodeLifecycleState.CREATED, RlnNodeStore.getState(nodeId))
+        assertEquals(RlnNodeStore.NodeLifecycleState.UNLOCKING, plugin.nodeStore.beginUnlock(nodeId))
+        plugin.nodeStore.rollbackUnlock(nodeId)
+        assertEquals(RlnNodeStore.NodeLifecycleState.CREATED, plugin.nodeStore.getState(nodeId))
 
-        RlnNodeStore.markInitialized(nodeId)
-        assertEquals(RlnNodeStore.NodeLifecycleState.INITIALIZED, RlnNodeStore.getState(nodeId))
+        plugin.nodeStore.markInitialized(nodeId)
+        assertEquals(RlnNodeStore.NodeLifecycleState.INITIALIZED, plugin.nodeStore.getState(nodeId))
 
-        assertEquals(RlnNodeStore.NodeLifecycleState.UNLOCKING, RlnNodeStore.beginUnlock(nodeId))
+        assertEquals(RlnNodeStore.NodeLifecycleState.UNLOCKING, plugin.nodeStore.beginUnlock(nodeId))
         assertFailsWith<IllegalStateException> {
-            RlnNodeStore.beginUnlock(nodeId)
+            plugin.nodeStore.beginUnlock(nodeId)
         }
 
-        RlnNodeStore.rollbackUnlock(nodeId)
-        assertEquals(RlnNodeStore.NodeLifecycleState.INITIALIZED, RlnNodeStore.getState(nodeId))
+        plugin.nodeStore.rollbackUnlock(nodeId)
+        assertEquals(RlnNodeStore.NodeLifecycleState.INITIALIZED, plugin.nodeStore.getState(nodeId))
 
-        assertEquals(RlnNodeStore.NodeLifecycleState.UNLOCKING, RlnNodeStore.beginUnlock(nodeId))
-        RlnNodeStore.markUnlocked(nodeId)
-        assertEquals(RlnNodeStore.NodeLifecycleState.UNLOCKED, RlnNodeStore.getState(nodeId))
-        assertEquals(RlnNodeStore.NodeLifecycleState.UNLOCKED, RlnNodeStore.beginUnlock(nodeId))
+        assertEquals(RlnNodeStore.NodeLifecycleState.UNLOCKING, plugin.nodeStore.beginUnlock(nodeId))
+        plugin.nodeStore.markUnlocked(nodeId)
+        assertEquals(RlnNodeStore.NodeLifecycleState.UNLOCKED, plugin.nodeStore.getState(nodeId))
+        assertEquals(RlnNodeStore.NodeLifecycleState.UNLOCKED, plugin.nodeStore.beginUnlock(nodeId))
 
-        RlnNodeStore.markShutdown(nodeId)
-        assertEquals(RlnNodeStore.NodeLifecycleState.SHUTDOWN, RlnNodeStore.getState(nodeId))
+        plugin.nodeStore.markShutdown(nodeId)
+        assertEquals(RlnNodeStore.NodeLifecycleState.SHUTDOWN, plugin.nodeStore.getState(nodeId))
         assertFailsWith<IllegalStateException> {
-            RlnNodeStore.markInitialized(nodeId)
+            plugin.nodeStore.markInitialized(nodeId)
         }
-        assertEquals(RlnNodeStore.NodeLifecycleState.UNLOCKING, RlnNodeStore.beginUnlock(nodeId))
+        assertEquals(RlnNodeStore.NodeLifecycleState.UNLOCKING, plugin.nodeStore.beginUnlock(nodeId))
 
-        RlnNodeStore.remove(nodeId)
+        plugin.nodeStore.remove(nodeId)
         assertEquals(1, node.closeCount)
         assertFailsWith<IllegalStateException> {
-            RlnNodeStore.get(nodeId)
+            plugin.nodeStore.get(nodeId)
         }
     }
 
@@ -487,53 +513,53 @@ internal class RgbSdkFlutterPluginTest {
     fun nodeStoreRemovesHandlesEvenWhenNativeCloseFails() {
         val node = ThrowingCloseSdkNode()
         val signer = ThrowingCloseNativeSigner()
-        val nodeId = RlnNodeStore.create(node, uniquePath("close-failure"))
-        val signerId = RlnNodeStore.createSigner(signer)
+        val nodeId = plugin.nodeStore.create(node, uniquePath("close-failure"))
+        val signerId = plugin.nodeStore.createSigner(signer)
 
         assertFailsWith<RuntimeException> {
-            RlnNodeStore.remove(nodeId)
+            plugin.nodeStore.remove(nodeId)
         }
         assertFailsWith<IllegalStateException> {
-            RlnNodeStore.get(nodeId)
+            plugin.nodeStore.get(nodeId)
         }
 
         assertFailsWith<RuntimeException> {
-            RlnNodeStore.removeSigner(signerId)
+            plugin.nodeStore.removeSigner(signerId)
         }
         assertFailsWith<IllegalStateException> {
-            RlnNodeStore.getSigner(signerId)
+            plugin.nodeStore.getSigner(signerId)
         }
 
-        val remainingNodeId = RlnNodeStore.create(
+        val remainingNodeId = plugin.nodeStore.create(
             ThrowingCloseSdkNode(),
             uniquePath("clear-close-failure")
         )
-        val remainingSignerId = RlnNodeStore.createSigner(ThrowingCloseNativeSigner())
+        val remainingSignerId = plugin.nodeStore.createSigner(ThrowingCloseNativeSigner())
 
         assertFailsWith<RuntimeException> {
-            RlnNodeStore.clearAll()
+            plugin.nodeStore.clearAll()
         }
-        assertEquals(0, RlnNodeStore.snapshot().nodeCount)
-        assertEquals(0, RlnNodeStore.snapshot().signerCount)
+        assertEquals(0, plugin.nodeStore.snapshot().nodeCount)
+        assertEquals(0, plugin.nodeStore.snapshot().signerCount)
         assertFailsWith<IllegalStateException> {
-            RlnNodeStore.get(remainingNodeId)
+            plugin.nodeStore.get(remainingNodeId)
         }
         assertFailsWith<IllegalStateException> {
-            RlnNodeStore.getSigner(remainingSignerId)
+            plugin.nodeStore.getSigner(remainingSignerId)
         }
     }
 
     @Test
     fun nodeStoreClosesNativeSignerWhenRemoved() {
         val signer = CloseTrackingNativeSigner()
-        val signerId = RlnNodeStore.createSigner(signer)
+        val signerId = plugin.nodeStore.createSigner(signer)
 
-        assertSame(signer, RlnNodeStore.getSigner(signerId))
-        RlnNodeStore.removeSigner(signerId)
+        assertSame(signer, plugin.nodeStore.getSigner(signerId))
+        plugin.nodeStore.removeSigner(signerId)
 
         assertEquals(1, signer.closeCount)
         assertFailsWith<IllegalStateException> {
-            RlnNodeStore.getSigner(signerId)
+            plugin.nodeStore.getSigner(signerId)
         }
     }
 
@@ -541,18 +567,19 @@ internal class RgbSdkFlutterPluginTest {
     fun nodeStoreClearAllClosesNodesAndSignersAndResetsHandles() {
         val node = CloseTrackingSdkNode()
         val signer = CloseTrackingNativeSigner()
-        val nodeId = RlnNodeStore.create(node, uniquePath("clear-all"))
-        val signerId = RlnNodeStore.createSigner(signer)
+        val nodeId = plugin.nodeStore.create(node, uniquePath("clear-all"))
+        val signerId = plugin.nodeStore.createSigner(signer)
 
-        RlnNodeStore.clearAll()
+        plugin.nodeStore.clearAll()
 
+        assertEquals(1, node.shutdownCount)
         assertEquals(1, node.closeCount)
         assertEquals(1, signer.closeCount)
         assertFailsWith<IllegalStateException> {
-            RlnNodeStore.get(nodeId)
+            plugin.nodeStore.get(nodeId)
         }
         assertFailsWith<IllegalStateException> {
-            RlnNodeStore.getSigner(signerId)
+            plugin.nodeStore.getSigner(signerId)
         }
     }
 
@@ -563,13 +590,133 @@ internal class RgbSdkFlutterPluginTest {
         assertEquals(field, details["field"])
     }
 
+    @Test
+    fun shutdownFailureStillReleasesAllHandles() {
+        var closed = false
+        val failing = object : SdkNode(NoPointer) {
+            override fun shutdown() { throw Exception("shutdown failed") }
+            override fun close() { closed = true }
+        }
+        val healthy = CloseTrackingSdkNode()
+        val signer = CloseTrackingNativeSigner()
+        plugin.nodeStore.create(failing, uniquePath("shutdown-failure"))
+        plugin.nodeStore.create(healthy, uniquePath("shutdown-survivor"))
+        plugin.nodeStore.createSigner(signer)
+
+        assertFailsWith<Exception> { plugin.nodeStore.clearAll() }
+
+        assertTrue(closed)
+        assertEquals(1, healthy.shutdownCount)
+        assertEquals(1, healthy.closeCount)
+        assertEquals(1, signer.closeCount)
+        assertEquals(0, plugin.nodeStore.snapshot().nodeCount)
+        assertEquals(0, plugin.nodeStore.snapshot().signerCount)
+    }
+
+    @Test
+    fun previouslyShutdownNodeIsNotShutdownTwice() {
+        val node = CloseTrackingSdkNode()
+        val id = plugin.nodeStore.create(node, uniquePath("shutdown-once"))
+        plugin.rlnShutdown(id)
+        plugin.nodeStore.remove(id)
+        assertEquals(1, node.shutdownCount)
+        assertEquals(1, node.closeCount)
+    }
+
+    @Test
+    fun engineCleanupDoesNotTouchAnotherEngine() {
+        val other = RgbSdkFlutterPlugin()
+        val mine = plugin.nodeStore.create(CloseTrackingSdkNode(), uniquePath("engine-a"))
+        val theirs = other.nodeStore.create(CloseTrackingSdkNode(), uniquePath("engine-b"))
+        try {
+            plugin.closeEngine().get(5, java.util.concurrent.TimeUnit.SECONDS)
+            assertFailsWith<IllegalStateException> { plugin.nodeStore.get(mine) }
+            other.nodeStore.get(theirs)
+            assertFailsWith<FlutterError> { plugin.rlnShutdown(mine) }
+        } finally {
+            other.nodeStore.remove(theirs)
+        }
+    }
+
     private fun uniquePath(label: String): String {
         return "/tmp/rgb-sdk-flutter-native-test-$label-${System.nanoTime()}"
+    }
+
+    @Test
+    fun engineCleanupWaitsForInFlightNativeOperation() {
+        val entered = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        val node = object : SdkNode(NoPointer) {
+            @Volatile var closed = false
+            override fun shutdown() {
+                entered.countDown()
+                check(release.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            }
+            override fun close() { closed = true }
+        }
+        val id = plugin.nodeStore.create(node, uniquePath("inflight"))
+        val operation = java.util.concurrent.CompletableFuture.runAsync { plugin.rlnShutdown(id) }
+        try {
+            assertTrue(entered.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            val cleanup = plugin.closeEngine()
+            assertFalse(cleanup.isDone)
+            assertFalse(node.closed)
+            release.countDown()
+            operation.get(5, java.util.concurrent.TimeUnit.SECONDS)
+            cleanup.get(5, java.util.concurrent.TimeUnit.SECONDS)
+            assertTrue(node.closed)
+            assertEquals(0, plugin.nodeStore.snapshot().nodeCount)
+            assertFailsWith<FlutterError> { plugin.rlnShutdown(id) }
+        } finally {
+            release.countDown()
+            plugin.closeEngine().get(5, java.util.concurrent.TimeUnit.SECONDS)
+        }
+    }
+
+    @Test
+    fun engineCleanupWaitsForInFlightUnlock() {
+        val entered = java.util.concurrent.CountDownLatch(1)
+        val release = java.util.concurrent.CountDownLatch(1)
+        val node = object : SdkNode(NoPointer) {
+            @Volatile var closed = false
+            override fun unlock(request: SdkUnlockRequest) {
+                entered.countDown()
+                check(release.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            }
+            override fun shutdown() {}
+            override fun close() { closed = true }
+        }
+        val id = plugin.nodeStore.create(node, uniquePath("unlock-drain"))
+        val operation = java.util.concurrent.CompletableFuture.runAsync {
+            plugin.rlnUnlockNode(id, "test-only", null, null, null, null,
+                "electrum://127.0.0.1:50001", null, emptyList(), null, null)
+        }
+        try {
+            assertTrue(entered.await(5, java.util.concurrent.TimeUnit.SECONDS))
+            val cleanup = plugin.closeEngine()
+            assertFalse(cleanup.isDone)
+            assertFalse(node.closed)
+            release.countDown()
+            operation.get(5, java.util.concurrent.TimeUnit.SECONDS)
+            cleanup.get(5, java.util.concurrent.TimeUnit.SECONDS)
+            assertTrue(node.closed)
+            assertEquals(0, plugin.nodeStore.snapshot().nodeCount)
+            assertFailsWith<FlutterError> { plugin.rlnInitNode(id, "test", null) }
+            assertFailsWith<FlutterError> { plugin.rlnDestroyNode(id) }
+            assertFailsWith<FlutterError> { plugin.rlnDestroyNativeExternalSigner(1) }
+        } finally {
+            release.countDown()
+            plugin.closeEngine().get(5, java.util.concurrent.TimeUnit.SECONDS)
+        }
     }
 
     private class CloseTrackingSdkNode : SdkNode(NoPointer) {
         var closeCount = 0
             private set
+        var shutdownCount = 0
+            private set
+
+        override fun shutdown() { shutdownCount += 1 }
 
         override fun close() {
             closeCount += 1
@@ -586,6 +733,7 @@ internal class RgbSdkFlutterPluginTest {
     }
 
     private class ThrowingCloseSdkNode : SdkNode(NoPointer) {
+        override fun shutdown() {}
         override fun close() {
             throw RuntimeException("node close failed")
         }

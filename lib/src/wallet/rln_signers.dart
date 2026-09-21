@@ -140,7 +140,7 @@ abstract class RlnSigner {
 
   Future<void> dispose({
     required RlnSignerHost host,
-    required int nodeId,
+    required int? nodeId,
   }) async {}
 }
 
@@ -167,12 +167,18 @@ class PasswordRlnSigner extends RlnSigner {
     required String storageDirPath,
   }) async {
     final password = _requirePassword();
-    await host.initPasswordNode(
-      nodeId: nodeId,
-      password: password,
-      mnemonic: _mnemonic,
-    );
-    _mnemonic = null;
+    try {
+      await host.initPasswordNode(
+        nodeId: nodeId,
+        password: password,
+        mnemonic: _mnemonic,
+      );
+    } catch (_) {
+      _password = null;
+      rethrow;
+    } finally {
+      _mnemonic = null;
+    }
   }
 
   @override
@@ -204,6 +210,15 @@ class PasswordRlnSigner extends RlnSigner {
       );
     }
     return password;
+  }
+
+  @override
+  Future<void> dispose({
+    required RlnSignerHost host,
+    required int? nodeId,
+  }) async {
+    _password = null;
+    _mnemonic = null;
   }
 }
 
@@ -290,8 +305,9 @@ class NativeExternalRlnSigner extends RlnSigner {
   @override
   Future<void> dispose({
     required RlnSignerHost host,
-    required int nodeId,
+    required int? nodeId,
   }) async {
+    _seedHex = null;
     final signerId = _signerId ?? _orphanedSignerId;
     if (signerId == null) {
       _storageDirPath = null;
@@ -408,7 +424,7 @@ Future<void> unlockRlnSigner({
 Future<void> disposeRlnSigner({
   required RlnSigner signer,
   required RlnClient client,
-  required int nodeId,
+  required int? nodeId,
 }) {
   return signer.dispose(host: _RlnClientSignerHost(client), nodeId: nodeId);
 }

@@ -103,6 +103,7 @@ abstract final class WalletInputPolicy {
     if (value.isNaN ||
         value.isInfinite ||
         value < 0 ||
+        value >= 9223372036854775808.0 ||
         value.truncateToDouble() != value) {
       throw WalletValidationException(
         '$field must be a finite non-negative integer fee rate.',
@@ -112,10 +113,31 @@ abstract final class WalletInputPolicy {
   }
 
   static void validateConfig(UtexoWalletConfig config) {
+    if (config.xpubVan != null ||
+        config.xpubCol != null ||
+        config.masterFingerprint != null) {
+      throw const ConfigurationError(
+        'Wallet identity is owned by RlnSigner. xpubVan, xpubCol and '
+        'masterFingerprint configuration cannot validate signer identity.',
+      );
+    }
     requireNonEmpty(config.storageDirPath, 'storageDirPath');
     requireUInt16(config.daemonListeningPort, 'daemonListeningPort');
     requireUInt16(config.ldkPeerListeningPort, 'ldkPeerListeningPort');
     requireUInt16(config.maxMediaUploadSizeMb, 'maxMediaUploadSizeMb');
+  }
+
+  /// Converts satoshis without allowing signed-64 overflow before validation.
+  static int? satsToMsats(int? sats, String field) {
+    if (sats == null) return null;
+    requireNonNegative(sats, field);
+    if (sats > _maxPigeonSignedInt64 ~/ 1000) {
+      throw WalletValidationException(
+        '$field exceeds the millisatoshi transport range.',
+        field: field,
+      );
+    }
+    return sats * 1000;
   }
 
   static void requireSupportedRgbSendSkipSync(bool skipSync) {

@@ -9,17 +9,17 @@ were removed because they overlapped and had drifted from the implementation.
 
 | Field | Value |
 | --- | --- |
-| Audit date | 2026-09-16 |
+| Audit date | 2026-09-20 |
 | P0 remediation started | 2026-07-28 |
-| Release verdict | **NO-GO until the exact clean beta.32 candidate run passes and LSP mutation-recovery risk is resolved or explicitly accepted** |
+| Release verdict | **NO-GO: corrective audit defects, complete current platform evidence, and upstream mutation recovery remain unresolved** |
 | Flutter baseline commit | Current committed `HEAD`; release evidence is valid only when the latest `build/test-reports/release/release-candidate-*.json` records that exact full commit and `workingTree.dirty: false` |
-| Candidate state | The recovered candidate implements RN beta.32/core beta.9/RLN 0.13.0-beta.3. Source recovery on 2026-09-20 passes 223 Dart tests, the example test, analysis, generated-source consistency, API checks, and documentation. The 20 Android and 18 iOS bridge tests remain evidence from the 2026-09-16 working candidate; exact clean consumer/platform qualification is still pending. Prior clean consumer/platform reports are historical beta.27 evidence. |
+| Candidate state | September corrective working tree based on `a443470b733d33397ee8a438b708e39bb76c5c4b`, not a qualified release commit. Current checks include 330 Dart tests, 26 Android JVM tests, passing Swift host-codec assertions, and a zero-warning iOS XCTest target build. iOS XCTest execution, real-service/platform smokes, clean consumer archives and a combined immutable-candidate report are not current. The bridge-vector gate remains red for missing VSS platform success. See the corrective evidence section for exact scope. |
 | React Native reference | `UTEXO-Protocol/rgb-sdk-rn` `dev` at `821ae4fd10ca3933445ab926cb0af0230b108913` |
 | React Native package | `@utexo/rgb-sdk-rn` `1.0.0-beta.32` |
 | Canonical core contract | `@utexo/rgb-sdk-core` `1.0.0-beta.9` |
 | Flutter code currently targets | RN `1.0.0-beta.32`; core `1.0.0-beta.9`; RLN `0.13.0-beta.3` |
 | Current RN native artifacts | RLN `0.13.0-beta.3` from source tag/commit `v0.13.0-beta.3` / `af03c7f1a65135a429f05a5820600338215954dc` |
-| Audit confidence | Source, public API, generated bridge, exact artifacts, core package, deterministic Dart contracts, and dirty-candidate native bridge suites are current. Clean consumer archives, funded/unfunded platform smokes, restart proofs, and the combined exact-commit report remain open under PKG-018/TEST-036. |
+| Audit confidence | Source-surface comparison is current against RN dev `821ae4fd10ca`; this is not behavioral parity proof. Both installed artifact sets are checksum-verified. Dart and Android JVM evidence is current on the working tree. iOS has build-only evidence in this pass. Live LSP/APay/linked/VSS scenarios and complete clean qualification remain unresolved. |
 
 ## Source Recovery and Publication, 2026-09-20
 
@@ -61,8 +61,10 @@ The package is not yet release eligible. The beta.32/core beta.9/RLN 0.13
 contract is implemented, including detailed refresh results,
 `WaitingBroadcast`, real `utxo.exists`, decoded-invoice description fields,
 proxy recipient IDs, linked-IFA metadata, `SdkLdkChainSync`, and two-asset
-LSP/APay flows. Static gates and deterministic tests pass, but this source has
-not yet crossed the exact clean consumer/platform release gate.
+LSP/APay flows. Deterministic tests exercise these contracts, but source parity
+does not establish behavior against real services. The bridge-vector gate still
+fails for missing VSS platform success, and this source has not crossed the
+exact clean consumer/platform release gate.
 
 The historical beta.27 candidate remains regression evidence only and must not
 be relabeled as beta.32 evidence. PKG-006 remains accepted as a production
@@ -100,7 +102,12 @@ An issue moves to `Verified` only after its implementation, tests, platform
 evidence, and documentation are complete. A passing name-based parity script is
 not sufficient evidence.
 
-## Audit Evidence
+## Historical Recovery Evidence
+
+This table records the earlier recovery pass, not the present corrective tree.
+Its supply-chain, XCTest, test-count and blanket gate results must not be used
+as current qualification. Current results and explicit gaps are recorded under
+"Active implementation evidence, 2026-09-20" below.
 
 | Check | Result | Interpretation |
 | --- | --- | --- |
@@ -156,31 +163,131 @@ clean-worktree checks prevent that older evidence from being relabeled as
 current. PKG-006 remains an independent accepted production-provenance
 constraint.
 
+## September Corrective Audit
+
+### Active implementation evidence, 2026-09-20
+
+This work is not a completed release qualification. Remediation currently includes
+pre-dispatch deadline validation, signer deadline/cleanup ownership, engine-local
+native stores and detach barriers, generation-safe handles, secret-safe error
+adaptation, quote funding/recipient binding, APay host binding, bounded polling,
+same-asset Any receive handling, full UInt64 RGB read models, and stable network
+and transfer adaptation. Release scripts are being changed to reject skips,
+uncommitted source, stale coverage and self-asserted provenance.
+
+Observed verification: 330 full-suite Dart tests passed with fresh source-bound
+coverage (85.9% overall, wallet 84.2%, LSP 87.4%, crypto 89.3%, models 85.6%).
+Android JVM runs all 26 tests, including
+detach/unlock contention, checked shutdown failure and RGS rejection. The
+production Swift codec executes successfully on the host; its XCTest counterpart
+and the complete iOS test target compile with zero warnings/errors. Full iOS
+XCTest was not executed in this pass. Native iOS/Android artifacts match the
+manifest. README compilation and full Dartdoc generation pass without warnings;
+Pigeon regeneration is byte-identical. These are working-tree checks, not proof
+for committed HEAD or a published candidate.
+
+The final local recheck reports zero analyzer diagnostics. Format, API snapshot,
+release governance/language/package checks, README compilation, generated
+baseline consistency, public docs (219 stable symbols), codebase hardening,
+coverage policy, the example widget test, and `git diff --check` pass. Detailed
+command output is retained in `build/test-reports/corrective-2026-09-20/`.
+The final Android report is
+`build/test-reports/native/native-android-20260920T173044Z-a443470.json`;
+it explicitly remains ineligible because the source is uncommitted. The latest
+iOS build-for-testing completed at `2026-09-20T17:31Z`, with 23 XCTest methods
+compiled and zero build warnings/errors, but no simulator test execution.
+
+No commit or publication was made during this corrective pass. All new findings
+are included below; unexecuted native and real-service criteria remain open or
+in progress, not accepted implicitly.
+
+The strengthened bridge-vector validator currently fails on the missing VSS
+platform-success requirement. Applicability is now computed from Pigeon AST:
+primitive/void responses are not JSON, numeric bounds apply only to non-handle
+numeric inputs, and accepted API-019 backup requires explicit native rejection
+instead of fake success. Regression tests prevent these exclusions from hiding
+new JSON/numeric fields or missing methods. Every JSON-returning method now
+rejects malformed/non-object responses, including corrupt entries after valid
+list prefixes. No VSS success label was invented to turn the gate green.
+TEST-042 remains in progress, and TEST-036 remains open:
+real LSP/APay/linked/canonical/VSS success and recovery scenarios are still absent.
+
+TEST-040/TEST-041 now have clean start/end content identities, non-eligible drafts,
+completed-log hashing, child-report checks, actual tool/device/owned-stack identity
+collection and negative regression tests. Finalization re-reads and verifies all
+nine child reports and logs, enforces matching devices and both platform types,
+rejects missing Flutter revisions, and prevents external paths/symlinks from
+qualifying as repository-owned evidence. Full clean consumer/platform execution
+and the remaining expanded inventory/attachment requirements still need proof.
+Do not use draft schema-v1 files or a passing child exit code as release evidence.
+
+The current external OSV vulnerability query was blocked by the permission review
+because it exports dependency names/versions to `api.osv.dev`. Approval has been
+requested; no alternate transport or bypass was used. Local native checksums
+passed, but the current vulnerability inventory is unverified. No simulator was
+booted or another task's infrastructure reused while device approval is pending.
+
+The implementation loop also caught and recorded six additional findings:
+PKG-020, LIFE-018, LIFE-019, MODEL-032, MODEL-033 and TEST-044. The independent
+wire-codec review fixed NSNull serialization, and native ownership preflight now
+precedes allocation. The funded smoke's peer port and a missing confirmed Bitcoin
+send assertion were corrected, but that scenario has not been executed.
+
+New finding PKG-020: Xcode 27 rejects Flutter's generated iOS 13 placeholder pod.
+The example now lifts lower pod deployment targets to its existing iOS 18.5
+minimum. The clean consumer template and setup documentation now use the same
+policy; generated Pods files are not edited manually. Clean consumer execution
+still needs to prove that policy on an immutable candidate.
+
+The 2026-09-20 audit supersedes earlier blanket parity/readiness claims. It
+identified code defects as well as missing runtime evidence; this is not only a
+release rerun. Existing rows are reopened instead of counting the same finding
+twice. Seven previously accepted constraints are unchanged. No new limitation
+is accepted implicitly. No release eligibility is claimed during remediation.
+
+| ID | Priority | Status | Finding | Closure |
+| --- | --- | --- | --- | --- |
+| PKG-020 | P1 | In progress | Current Xcode rejects generated Flutter pod iOS 13 deployment settings despite the package/example requiring iOS 18.5. | Apply the existing minimum in example and clean consumer Podfile hooks, regenerate pods, and build/test with the current Xcode. Document the consumer requirement. |
+| LIFE-018 | P1 | Verified | Corrective review found local preconditions checked after native side effects: missing init password could create a node; invalid reinit unlock configuration could shut down/replace the active node. Partial destroy also retained a facade node ID after node cleanup succeeded but signer cleanup failed. A second review found failed password init consumed secrets without updating the facade prerequisite flag. | 2026-09-20 corrective verification (working tree, not release qualification): Missing credentials and invalid reinit configuration have zero native side effects; partial destroy retries only remaining signer cleanup. Failed init now requires fresh credentials before allocating again. Four focused corrective regressions pass. |
+| MODEL-032 | P1 | Verified | Corrective review found the same double-to-int saturation in three separate LSP/APay decoders, beyond raw wallet models. The advanced `toNumber(BigInt)` helper could also clamp rather than reject. | 2026-09-20 corrective verification (working tree, not release qualification): Shared exact signed parser now protects all three LSP/APay boundaries and toNumber rejects oversized BigInt. Real response decoders plus safe-double/string boundaries are tested. |
+| LIFE-019 | P1 | In progress | Node creation checked duplicate storage ownership only after allocating the native node. Android could leave the rejected new UniFFI handle to nondeterministic cleanup. | Preflight storage ownership inside the per-engine operation barrier before native allocation on both platforms. Keep the final store check and fresh monotonic handles; test duplicate and shutdown-path behavior. |
+| TEST-044 | P1 | In progress | Funded smoke connected wallet B to wallet A's daemon port 34033 instead of peer port 34032, and the Bitcoin-send evidence row pointed to an RGB-only transfer scenario. | Correct peer routing; add a real BTC send with both-wallet confirmation and exact received-satoshi assertions. Source/analyzer validation does not replace funded platform execution. |
+| MODEL-033 | P1 | Verified | Independent codec review found iOS `latestRgsSnapshotTimestamp` uses `NSNull()` when absent, but the recursive wire serializer stringified explicit NSNull through its default branch. This could turn a missing timestamp into a malformed string instead of JSON null. | 2026-09-20 corrective verification (working tree, not release qualification): Explicit NSNull is preserved by the extracted production Swift codec. Host Swift assertions execute exact UInt64, integer/boolean and nested-null behavior; the matching XCTest compiles. Broader engine execution remains TEST-036. |
+| TEST-040 | P1 | In progress | AUD-25: Evidence attribution is not bound to the final immutable candidate. | Complete the corrective contract and verification described in the September remediation register below. |
+| TEST-041 | P1 | In progress | AUD-26: Log hashes and child report schema are not reliably enforced. | Complete the corrective contract and verification described in the September remediation register below. |
+| TEST-042 | P2 | In progress | AUD-27: Test-matrix labels can pass without executable scenarios. | Complete the corrective contract and verification described in the September remediation register below. |
+| TEST-043 | P2 | Verified | AUD-28: Coverage validator accepts incomplete, unattributed LCOV. | 2026-09-20 corrective verification (working tree, not release qualification): Fresh LCOV is bound to source/test/tool/fixture inputs, HEAD and complete source inventory; parsed line hits must agree with totals. AST-only declaration exemptions and tampering cases pass. Fresh full-suite coverage passes every existing floor. |
+| SEC-013 | P2 | Verified | AUD-37: Expanded seed-list input silently wraps invalid byte values. | 2026-09-20 corrective verification (working tree, not release qualification): Expanded seed lists reject values outside byte range instead of wrapping. Key boundary regression tests pass. |
+| API-045 | P2 | Verified | AUD-38: Wallet identity configuration accepts options that are ignored. | 2026-09-20 corrective verification (working tree, not release qualification): Unsupported identity overrides now fail before native allocation rather than being accepted and ignored. Corrective config tests and compatibility docs cover the change. |
+| API-046 | P2 | Verified | Additional audit contract table: stable field aliases, node localBalanceMsat, optional carriers, root placement and acknowledgement semantics need explicit compatibility coverage. | 2026-09-20 corrective verification (working tree, not release qualification): Stable aliases and exact node balance are preserved; optional PSBT/begin-end carriers are typed without inventing support; acknowledgement semantics and advanced root placement are documented and compile-checked. |
+| LSP-029 | P1 | Verified | Audit follow-up: verify get_info peer binding in APay provisioning and conversion eligibility in automatic relay asset selection. These are investigation items, not yet confirmed exploits. | 2026-09-20 corrective verification (working tree, not release qualification): APay validates advertised host pubkey/network against configured trust. Upstream convertible_asset.go confirms pair authority is operator-side, not a get_info pair graph. Automatic relay choice remains provisional; rejected quote cannot trigger payment. Source commit and rejection regression are documented. |
+
 ## Issue Rollup
 
 | Measure | Count |
 | --- | ---: |
-| Total tracked findings | 231 |
+| Total tracked findings | 245 |
 | P0 | 9 |
-| P1 | 155 |
-| P2 | 67 |
+| P1 | 166 |
+| P2 | 70 |
 | P3 | 0 |
 | Open | 1 |
-| In progress | 2 |
+| In progress | 14 |
 | Blocked upstream | 1 |
 | Needs decision | 0 |
 | Accepted constraint | 7 |
-| Verified | 220 |
+| Verified | 222 |
 
-This rollup is a snapshot of the master ledger below. Update it in the same
-change whenever an issue is added or its priority/status changes.
+This rollup is generated from all finding rows; verified code is not equivalent
+to clean-candidate platform qualification. Seven accepted constraints remain.
 
 ## Remaining Open Work Groups
 
 | Group | Scope | Tracker rows | Count | P0/P1/P2/P3 | Exit condition |
 | --- | --- | --- | ---: | --- | --- |
-| 1 | Exact clean beta.32 candidate | BASE-010, PKG-018, TEST-036 | 3 | 1/2/0/0 | Commit the reviewed source, then pass artifacts, clean path/Git consumers, both native suites, four funded/unfunded smokes, both restart proofs, and the combined report on that exact clean commit. |
-| 2 | Upstream mutation reconciliation | LSP-019 | 1 | 0/1/0/0 | Upstream supplies idempotency keys or durable reconciliation endpoints, or the release owner explicitly accepts the one-attempt ambiguous-outcome boundary. |
+| 1 | Native lifecycle and upstream recovery | LIFE-009, LIFE-010, LIFE-019, LSP-019 | 4 | 0/4/0/0 | Execute native engine/fault and same-path tests on both platforms; obtain upstream recovery contract for ambiguous mutations. |
+| 2 | Native contract verification | CODE-014, MODEL-014, API-030 | 3 | 0/3/0/0 | Run iOS enum/fee/RGS regression cases and preserve matching Android evidence. |
+| 3 | Qualification, real services and packaging | BASE-010, PKG-016, PKG-019, PKG-020, TEST-040, TEST-041, TEST-042, TEST-036, TEST-044 | 9 | 1/7/1/0 | Complete missing behavior vectors and live LSP/APay/linked/VSS scenarios, clean consumer archives, exact candidate reports and remaining provenance verification. |
 
 ## P0 Execution Log
 
@@ -299,7 +406,7 @@ native-bridge layers. Remaining release work is deliberately narrow:
 | API-007 | P1 | Verified | Canonical Bitcoin/RGB wallet methods return stable domain/core DTOs (`CoreBtcBalance`, `CoreUnspent`, `CoreListAssets`, `CoreAssetBalance`, `CoreInvoiceReceiveData`, `CoreInvoiceData`, `CoreTransaction`, `CoreTransfer`) while native `Rln*` DTOs are isolated behind explicit advanced `Raw` methods. Duplicate `*Core` aliases were removed from the prerelease facade. | Keep one canonical stable spelling per operation; do not add wallet methods that return `Rln*` DTOs. |
 | API-008 | P1 | Verified | `onchainReceive` preserves invoice, recipient ID, expiration timestamp, and batch transfer index in `OnchainReceiveResponse`; wallet contract vectors assert every field and exact funded platform smokes exercise the native receive path. | Keep response-field assertions in the wallet contract and exact-candidate platform smokes. |
 | API-009 | P1 | Verified | Canonical `estimateFeeRate` returns `FeeEstimationResponse`, matching the core contract. Native `RlnFeeRate` is available only through advanced `estimateFeeRateRaw`; obsolete scalar aliases were removed. | Keep the stable typed response and advanced raw escape hatch distinct in API snapshots and docs. |
-| API-010 | P1 | Verified | Node, network, peer, channel, Lightning payment, keysend, invoice-status, and decode methods map native `Rln*` DTOs into stable wallet/domain DTOs (`WalletNodeInfo`, `WalletNetworkInfo`, `LightningPeer`, `LightningChannel`, `LightningPayment`, `SendPaymentResult`, canonical status strings, and `DecodedLightningInvoice`). | Raw native shapes remain available only through `UtexoWalletRawApi` in `rgb_sdk_flutter_advanced.dart` for parity diagnostics and migrations. |
+| API-010 | P1 | Verified | Reopened by 2026-09-20 audit (AUD-36): Stable network fields are not normalized like RN/core. Earlier evidence: Node, network, peer, channel, Lightning payment, keysend, invoice-status, and decode methods map native `Rln*` DTOs into stable wallet/domain DTOs (`WalletNodeInfo`, `WalletNetworkInfo`, `LightningPeer`, `LightningChannel`, `LightningPayment`, `SendPaymentResult`, canonical status strings, and `DecodedLightningInvoice`). | 2026-09-20 corrective verification (working tree, not release qualification): Stable network aliases and height/blockHeight contract normalize against core; exact model and wallet tests pass. |
 | API-011 | P1 | Verified | Public canonical Lightning status methods now return normalized RLN Lightning vocabularies (`Pending`, `Claimable`, `Succeeded`, etc.); compatibility RGB-transfer folding helpers are removed from the wallet facade. | Keep LSP settlement polling on canonical Lightning status APIs. |
 | API-012 | P1 | Verified | `createLightningInvoice`/`rlnLnInvoice` supports `descriptionHash` and CLTV fields through Dart/Pigeon/Swift/Kotlin, now validates request fields before node lookup on both platforms, and is included in the critical bridge-vector manifest. HODL facade metadata remains covered by wallet tests. | Keep service-level LNURL/HODL settlement behavior under TEST-006; bridge request/shape parity for this method is verified. |
 | API-013 | P1 | Verified | `openChannel` defaults `withAnchors` to true; facade delegation tests and mirrored native request-boundary vectors assert the request contract. | Keep `withAnchors` in the bridge-vector manifest and both native bridge suites. |
@@ -311,15 +418,15 @@ native-bridge layers. Remaining release work is deliberately narrow:
 | API-019 | P1 | Accepted constraint | `createBackup` is now explicitly native-blocked and tested to throw without invoking native backup; recovery/mainnet readiness remains forbidden until upstream supplies a real implementation. | Preserve this boundary until native recovery is implemented and independently proven. |
 | API-020 | P2 | Verified | `doc/API_COMPATIBILITY_AND_DIVERGENCE.md` now defines stable facade, advanced parity, compatibility shim, unsupported/native-blocked, and internal tiers; it also defines deprecation and breaking-change rules. `tool/api_snapshot.json` plus `dart run tool/validate_api_snapshot.dart` gate the current exported Dart, Pigeon, generated bridge, and native bridge surface. | Update the snapshot and migration note in the same change as any intentional public API or bridge-surface change. |
 | API-021 | P1 | Verified | Exported core defaults now match beta.6 for API timeout (`120000`) and default log level (`3`, ERROR); the utility/defaults test asserts both values. | Replace raw integer log-level export with a richer typed compatibility layer under API-029 if the public API policy requires it. |
-| API-022 | P1 | Verified | Default transport/indexer endpoints now match current core beta.6, including local regtest Esplora `http://127.0.0.1:3002`; unlock resolution trims blank caller fields before applying defaults. | Keep resolved unlock request vectors current whenever core defaults change. |
+| API-022 | P1 | Verified | Reopened by 2026-09-20 audit (AUD-34): Three default indexers differ from the latest core contract. Earlier evidence: Default transport/indexer endpoints now match current core beta.6, including local regtest Esplora `http://127.0.0.1:3002`; unlock resolution trims blank caller fields before applying defaults. | 2026-09-20 corrective verification (working tree, not release qualification): The three differing network defaults now match the pinned core beta.9 source. Wallet tests and fresh RN source drift validation pass. |
 | API-023 | P1 | Verified | SDK network validation now uses exact core network names, rejects native-only `signet_custom`, preserves numeric aliases for `0`/`1`/`2`/`3`, and maps native `utexo` to RLN `signet` only at the native-boundary helper. | Keep any future native-only networks out of SDK-facing validation unless product explicitly supports them. |
 | API-024 | P1 | Verified | The root package no longer exports obsolete RN-removed `RNSigner`, flat PSBT helpers, UTEXO bridge/network maps, `getBridgeAPI`, `TransferStatuses`, or bridge helper functions. | The API docs validator and API snapshot now understand `export ... hide`; direct `src/` imports remain unsupported implementation access. |
 | API-025 | P1 | Verified | Legacy `FetchClient`/bridge helpers now expose timeout and close ownership, require string fields instead of stringifying missing data as `"null"`, and only treat HTTP 404 transfer lookup as not-found. | Quarantine or deprecate the whole obsolete bridge surface under API-024/CODE-001. |
-| API-026 | P2 | Verified | SDK/core-compatible errors now expose stable `code`, optional `statusCode`, preserved `cause`, and `toJson()` serialization; validation/native-protocol/unsupported errors include their semantic fields. | Covered by `test/utexo_wallet_test.dart::serializes core-compatible SDK errors`; broader boundary normalization remains tracked under CODE-012. |
+| API-026 | P2 | Verified | Reopened by 2026-09-20 audit (AUD-18): RN-compatible error names have incompatible base type/status defaults. Earlier evidence: SDK/core-compatible errors now expose stable `code`, optional `statusCode`, preserved `cause`, and `toJson()` serialization; validation/native-protocol/unsupported errors include their semantic fields. | 2026-09-20 corrective verification (working tree, not release qualification): Core-compatible errors inherit SDKError and preserve optional statusCode defaults; stable API and wallet contract tests pass. |
 | API-027 | P2 | Verified | Runtime export inventory is refreshed against the current RN baseline; UMA helpers/constants are mapped and `validate_rn_parity` passes the runtime export gate. | Keep export validation tied to the exact RN source baseline. |
 | API-028 | P1 | Verified | `UtexoWallet.listTransfers()` now calls native unfiltered listing when available and fails closed with `UnsupportedWalletFeatureException` when the pinned artifact rejects it, rather than falling back to known asset IDs and silently omitting no-asset transfers. Asset-filtered listing remains available through `listTransfers(assetId: ...)`. | Covered by `test/utexo_wallet_test.dart::listTransfers fails closed when unfiltered native listing is rejected`; remove the fail-closed divergence only after native unfiltered listing is fixed and platform fixtures prove no-asset transfers are included. |
 | API-029 | P2 | Verified | `doc/API_COMPATIBILITY_AND_DIVERGENCE.md` now records the approved Dart adaptation map for lifecycle credentials, network/default resolution, `sendRgb(skipSync)`, Lightning aliases, on-chain request DTOs, and raw bridge DTOs, with linked tracker rows and executable evidence references. | Keep field-level implementation and native behavior gaps tracked under the owning API/model/test rows; new Dart-shaped signatures must extend the adaptation map before shipping. |
-| API-030 | P1 | Verified | `resolveUnlockConfig` now rejects non-empty `gossipRgsServerUrl` with `UnsupportedWalletFeatureException` before either password or native-external signer unlock can reach the native no-op field. | Keep this fail-fast divergence until the pinned native RLN signer unlock APIs support the option end to end. |
+| API-030 | P1 | In progress | Reopened by 2026-09-20 audit (AUD-21): Password RGS configuration is incorrectly blocked. Earlier evidence: `resolveUnlockConfig` now rejects non-empty `gossipRgsServerUrl` with `UnsupportedWalletFeatureException` before either password or native-external signer unlock can reach the native no-op field. | Complete the corrective contracts and verification in the September remediation register below. Earlier passing tests do not close these reproduced/source-confirmed gaps. |
 | API-031 | P1 | Verified | `UtexoWallet` now exposes typed `PsbtWalletCarrier?` and `BeginEndWalletCarrier?` slots, and capability flags are derived from carrier presence so declarations cannot drift from behavior. | Keep future optional feature groups carrier-backed rather than adding standalone booleans. |
 | API-032 | P1 | Verified | External-signer wallets expose false RGB UTXO/issuance capabilities, fail fast before native calls, and the approved trusted virtual BTC-channel external-signer regression now passes on the exact clean beta.27/core beta.7 candidate. | Current iOS and Android external-signer restart reports record the exact committed source, `releaseEligible: true`, and successful prepare/verify phases across a real process boundary. |
 | API-033 | P1 | Verified | `UtexoWallet.createLsp()` now matches RN beta.27 discovery semantics: no-arg creation fetches `GET /get_info`, enables virtual channels for `info.pubkey`, uses `info.host ?? Uri.parse(baseUrl).host`, and uses `info.port ?? peerPort`. | Covered by `test/utexo_wallet_test.dart::createLsp discovers peer host and port from beta.7 get_info`, including host-only, port-only, both-present, and both-absent responses. |
@@ -340,7 +447,7 @@ native-bridge layers. Remaining release work is deliberately narrow:
 | ID | Pri | Status | Finding and evidence | Required outcome |
 | --- | --- | --- | --- | --- |
 | MODEL-001 | P1 | Verified | Generated Pigeon response methods now return a typed `RlnWireResponse` JSON envelope, issue methods no longer expose broad response maps, Dart decoding rejects malformed JSON and non-object roots with `NativeProtocolException`, and RN parity validation forbids broad response maps at the Pigeon boundary while preserving public semantic return categories. | Per-response generated DTO classes are intentionally not claimed; keep strict domain decoders and platform fixtures under MODEL-015/TEST-005/TEST-008. |
-| MODEL-002 | P1 | Verified | `rln_models.dart` now throws `NativeProtocolException` for missing/malformed required strings, integers, finite numbers, booleans, maps, and lists instead of returning empty strings, zeroes, false, or empty maps. | Extend this strict reader into generated Pigeon DTOs under MODEL-001; keep malformed-field tests for every high-risk mapper. |
+| MODEL-002 | P1 | Verified | Reopened by 2026-09-20 audit (AUD-20): Malformed numeric wire amounts can silently saturate. Earlier evidence: `rln_models.dart` now throws `NativeProtocolException` for missing/malformed required strings, integers, finite numbers, booleans, maps, and lists instead of returning empty strings, zeroes, false, or empty maps. | 2026-09-20 corrective verification (working tree, not release qualification): Signed integer decoding rejects saturation, non-decimal encodings and unsafe large doubles; malformed/native-boundary tests pass. |
 | MODEL-003 | P1 | Verified | Assignment kind, rotate/sign/verify/inflate response models, and `RlnUnspent.pendingBlinded` are represented and covered by facade/model tests, mirrored bridge vectors, and the applicable exact platform smokes. | Keep each new native response field represented in a strict decoder plus an executable evidence bucket. |
 | MODEL-004 | P1 | Verified | `RlnNodeInfo` now preserves current RN optionality for removed/optional metrics and no longer fabricates optional node metrics as zero. | Move xpub compatibility fields behind a migration boundary under API-016/CODE-001. |
 | MODEL-005 | P1 | Verified | `RlnMedia` now requires `filePath`, `digest`, and `mime`; `RlnAssetBalance` keeps off-chain amounts optional-at-wire with explicit `0` domain defaults matching RN/core mapping. | Add fixture vectors for both camelCase and native platform spellings if upstream introduces them. |
@@ -350,10 +457,10 @@ native-bridge layers. Remaining release work is deliberately narrow:
 | MODEL-009 | P1 | Verified | Lightning payment type/status mapping returns canonical PascalCase values, derives inbound direction correctly, handles all published payment/invoice statuses, and now canonicalizes all-caps no-underscore native enums instead of misclassifying `OUTBOUND`. | Table-driven vectors cover every current status/type; unknown public statuses remain nullable only where the core contract permits them. |
 | MODEL-010 | P1 | Verified | `LightningChannel` models the RN/core contract; mapping translates `public` to `isPublic`, normalizes every current channel status, preserves optional fields, and converts `localBalanceSat` to `localBalanceMsat`. `UtexoWallet.listChannels()` and exhaustive mapper vectors cover the boundary. | Keep channel status vocabulary centralized in `UtexoDomainPolicy` and fail closed on unknown native states. |
 | MODEL-011 | P1 | Verified | `RlnInvoice.recipientId` and `CoreInvoiceReceiveData.recipientId` now preserve upstream optionality instead of becoming an empty required string. | Validate recipient ID only in workflows that require it. |
-| MODEL-012 | P1 | Verified | Core transfer mapping does not invent `batchTransferIdx`, status, or kind values; optional values remain nullable, all current status/kind combinations are covered, and unknown state throws. | Keep strict transfer decoding and exact funded transfer smokes in the release gate. |
+| MODEL-012 | P1 | Verified | Reopened by 2026-09-20 audit (AUD-22): Stable transfer model drops `requestedAssignment`. Earlier evidence: Core transfer mapping does not invent `batchTransferIdx`, status, or kind values; optional values remain nullable, all current status/kind combinations are covered, and unknown state throws. | 2026-09-20 corrective verification (working tree, not release qualification): Stable transfers retain requestedAssignment separately from actual assignments; exact model tests pass. |
 | MODEL-013 | P1 | Verified | Outpoint parsing requires `<txid>:<vout>` with a non-negative integer vout, and assignment parsing accepts only supported shapes plus the RN/core numeric fungible shorthand. Boundary, malformed, and large-integer parser vectors pass under TEST-009. | Extend the parser corpus whenever a new wire grammar is introduced. |
-| MODEL-014 | P1 | Verified | Facade fee-rate defaults are integer-equivalent (`1`); Dart, Swift, and Kotlin reject fractional rates before native execution rather than reproducing RN's truncation. Dart, Android JVM, and iOS XCTest vectors cover `1.5`. | Preserve this approved divergence until native/core represents fractional fee rates exactly end to end. |
-| MODEL-015 | P2 | Verified | `doc/BRIDGE_BEHAVIOR_CONTRACT.md`, `bridge_behavior_vectors.json`, and `rln_models.dart` now define the Pigeon numeric contract: request integers are bounded to signed `Int64` over Pigeon, narrower unsigned fields are rejected natively before mutation, native unsigned outputs may arrive as decimal strings, signed domain fields parse decimal strings through signed `Int64.max`, and out-of-range values throw `NativeProtocolException` rather than fabricating `0`/`null`. | Native unsigned capability outputs that exceed signed `Int64` must use exact domain types and their own model tests; see MODEL-017 for the first runtime-proven field. |
+| MODEL-014 | P1 | In progress | Reopened by 2026-09-20 audit (AUD-19): Fee-rate boundary can trap on iOS or clamp on Android. Earlier evidence: Facade fee-rate defaults are integer-equivalent (`1`); Dart, Swift, and Kotlin reject fractional rates before native execution rather than reproducing RN's truncation. Dart, Android JVM, and iOS XCTest vectors cover `1.5`. | Complete the corrective contracts and verification in the September remediation register below. Earlier passing tests do not close these reproduced/source-confirmed gaps. |
+| MODEL-015 | P2 | Verified | Reopened by 2026-09-20 audit (AUD-35): Some valid native UInt64 asset values are unreadable. Earlier evidence: `doc/BRIDGE_BEHAVIOR_CONTRACT.md`, `bridge_behavior_vectors.json`, and `rln_models.dart` now define the Pigeon numeric contract: request integers are bounded to signed `Int64` over Pigeon, narrower unsigned fields are rejected natively before mutation, native unsigned outputs may arrive as decimal strings, signed domain fields parse decimal strings through signed `Int64.max`, and out-of-range values throw `NativeProtocolException` rather than fabricating `0`/`null`. | 2026-09-20 corrective verification (working tree, not release qualification): RGB balances, supplies, assignments and asset-valued Lightning fields preserve full UInt64 through BigInt. All asset-family UInt64 boundary tests pass; breaking adaptation is documented. |
 | MODEL-016 | P2 | Verified | Public request/model fields now document sats, msats, asset-smallest-unit amounts, duration seconds, and Unix-second timestamps at the field boundary in `utexo_wallet_types.dart`, `rln_models.dart`, and `utexo_core_models.dart`; the public reference keeps the package-wide units table. | Covered by `test/utexo_wallet_test.dart::documents and preserves timestamp and amount units at model boundaries`; add new field-level unit docs with any future numeric public DTO. |
 | MODEL-017 | P1 | Verified | Exact clean iOS funded regtest candidate run `20260805T160450Z-5b2a55f` reached the funded RGB send flow and then failed in `RlnNodeInfo.fromMap` because native returned `channelAssetMaxAmount` as an unsigned UInt64 decimal above signed `Int64.max`; the old Dart model rejected it as a malformed signed integer. | `RlnNodeInfo.channelAssetMaxAmount` is now an exact `BigInt?`, `BRIDGE_BEHAVIOR_CONTRACT.md`, `PUBLIC_API_REFERENCE.md`, and `bridge_behavior_vectors.json` document the field-level unsigned-output policy, and `test/utexo_wallet_test.dart::parses and bounds native integer strings at model boundaries` proves `18446744073709551615` survives exactly while `18446744073709551616` is rejected. |
 | MODEL-018 | P1 | Verified | `LspGetInfoResponse` now models the core beta.7 discovery document with `apiVersion`, `pubkey`, `network`, optional `host`/`port`, `supportedAssets`, exact `BigInt` u64 payment/channel/asset limits, optional `virtualChannelMode`, and Lightning-address sendable bounds. The stale beta.6 alias/channel-count fields are gone. | Covered by `test/utexo_wallet_test.dart::LSP get_info parser matches beta.7 shape and preserves u64`, including max-u64 preservation, and by the public API docs validator for `LspSupportedAsset`. |
@@ -366,10 +473,10 @@ native-bridge layers. Remaining release work is deliberately narrow:
 | MODEL-025 | P1 | Verified | IFA issuance-link outpoints and linked-from/linked-to asset IDs are represented by immutable raw DTOs and serialized by Swift/Kotlin with strict nullability and bounds. | Keep these raw fields out of core-facing models until the shared contract exposes them. |
 | MODEL-026 | P1 | Verified | Refresh maps now preserve signed batch-transfer IDs and independently optional status/failure outcomes in immutable raw and stable DTOs. Required failure strings, duplicate keys, and malformed rows fail closed. | Keep unchanged records and partial failure detail observable to callers. |
 | MODEL-027 | P2 | Verified | Refresh result keys accept the complete signed Int32 domain, including negative values, while rejecting overflow and duplicate Pigeon rows. | Preserve native signedness exactly even when production IDs are normally positive. |
-| MODEL-028 | P2 | Verified | Optional LNURL callback status/reason fields require strings, advertised precision is bounded to UInt8, and malformed response vectors fail closed rather than stringifying arbitrary objects. | Apply the same strict optional-field policy to future LSP DTOs. |
+| MODEL-028 | P2 | Verified | Reopened by 2026-09-20 audit (AUD-11): LNURL error envelopes become misleading protocol exceptions. Earlier evidence: Optional LNURL callback status/reason fields require strings, advertised precision is bounded to UInt8, and malformed response vectors fail closed rather than stringifying arbitrary objects. | 2026-09-20 corrective verification (working tree, not release qualification): LNURL ERROR envelopes become LnurlCallbackException instead of misleading missing-invoice errors; deterministic HTTP contract tests pass. |
 | MODEL-029 | P1 | Verified | Native APay registration responses and HTTP proof objects were decoded as loosely typed integers and strings, so a wrong host, unsupported protocol/status, negative or inconsistent indices, non-contiguous batches, malformed payment hashes, oversized proof batches, or BIP32 derivation overflow could enter the stable model. The decoders now bind native responses to the requested host and enforce RLN APay v1's `active` status, index 1 origin, `0x7fffffff` derivation ceiling, 200-entry batch ceiling, exact range/accepted/next relationships, contiguous indices, and 32-byte payment hashes. | `test/utexo_wallet_test.dart::rejects malformed native APay batches before exposing them` and `test/lsp_beta9_contract_test.dart::rejects structurally invalid APay proof fields` must grow with any APay wire change; update `ApayProtocolPolicy` only from reviewed upstream protocol source. |
 | MODEL-030 | P2 | Verified | Relay DTO required strings accepted whitespace-only values, allowing malformed invoices/hashes/status values to survive the wire boundary until later orchestration. Required relay strings now reject blank-after-trim input with `NativeProtocolException`; the malformed relay response vector covers the regression. | Apply blank-after-trim validation to every new required LSP wire string while preserving the original nonblank payload value. |
-| MODEL-031 | P1 | Verified | Stable wallet amount/count validation checked sign but did not cap generic Dart integers at Pigeon's signed 64-bit wire limit. Values above `9223372036854775807` could reach `StandardMessageCodec` and fail outside the SDK error taxonomy. `WalletInputPolicy` now owns the signed-Int64 ceiling for every generic positive/nonnegative stable-facade input; narrower UInt policies still apply where native fields require them. | Keep all stable integer requests inside the Pigeon transport domain before codec serialization; the oversized send regression and hardening marker must remain. |
+| MODEL-031 | P1 | Verified | Reopened by 2026-09-20 audit (AUD-39): Sats-to-msats multiplication can overflow before validation. Earlier evidence: Stable wallet amount/count validation checked sign but did not cap generic Dart integers at Pigeon's signed 64-bit wire limit. Values above `9223372036854775807` could reach `StandardMessageCodec` and fail outside the SDK error taxonomy. `WalletInputPolicy` now owns the signed-Int64 ceiling for every generic positive/nonnegative stable-facade input; narrower UInt policies still apply where native fields require them. | 2026-09-20 corrective verification (working tree, not release qualification): Sats-to-msats overflow is rejected before multiplication or dispatch. Boundary tests pass. |
 
 ### Lifecycle, Threading, and Architecture
 
@@ -378,14 +485,14 @@ native-bridge layers. Remaining release work is deliberately narrow:
 | LIFE-001 | P1 | Verified | Every Pigeon HostApi method is annotated with `TaskQueueType.serialBackgroundThread`; regenerated Kotlin uses `binaryMessenger.makeBackgroundTaskQueue()`, regenerated Swift uses `makeBackgroundTaskQueue`, and Android/iOS native bridge suites pass with the regenerated source. | Keep Pigeon drift checks mandatory; typed DTO replacement remains separate under MODEL-001. |
 | LIFE-002 | P1 | Verified | Native readiness checks no longer call `Thread.sleep` or `usleep`; Android and iOS now use a single non-blocking `nodeInfo` readiness check under the background Pigeon queue, and source scan plus native bridge suites confirm the change. | Timeout/cancellation semantics for long RLN calls are documented and covered under LIFE-011. |
 | LIFE-003 | P1 | Verified | `UtexoWallet` now serializes lifecycle mutations and coalesces concurrent `init()`/`unlock()` calls; tests prove duplicate calls create/init/unlock only once and failed signer init remains retryable. | Native lifecycle/fault coverage is tracked under TEST-007; add new stress cases when new lifecycle paths are introduced. |
-| LIFE-004 | P1 | Verified | `UtexoWallet` now owns an `RLNBinding` and routes wallet-facing native node operations through binding methods, while signer strategies share the same underlying `RlnClient` only for private signer-handle implementation. | `rg '_client\\.[A-Za-z_][A-Za-z0-9_]*\\(' lib/src/wallet/utexo_wallet.dart` shows no direct facade native calls; analyzer and wallet tests pass. Keep low-level `RlnClient` available only as the advanced/native parity layer. |
+| LIFE-004 | P1 | Verified | Reopened by 2026-09-20 audit (AUD-03): Stable signer lifecycle bypasses configured operation deadlines. Earlier evidence: `UtexoWallet` now owns an `RLNBinding` and routes wallet-facing native node operations through binding methods, while signer strategies share the same underlying `RlnClient` only for private signer-handle implementation. | 2026-09-20 corrective verification (working tree, not release qualification): Signer initialization, unlock and disposal now execute under the binding queue/deadline. Corrective safety tests cover timeout and cleanup ordering. |
 | LIFE-005 | P1 | Verified | Wallet-facing chain, RGB, Lightning, channel, lookup, and sync calls require an unlocked node; node info requires initialization; `vssClearFence` requires initialization but remains callable before unlock. Disposed/shutdown states fail before native calls. | Lifecycle prerequisite tests cover each category and must be extended with every new facade operation. |
 | LIFE-006 | P1 | Verified | `shutdown()` now enters an explicit `shutDown` state; `isInitialized`/`isUnlocked` become false, regular operations and `nodeId` fail until `reinit()`, and tests prove restart after shutdown works. | Native hot-restart/detach and same-path replacement coverage are tracked under LIFE-009/LIFE-010. |
-| LIFE-007 | P1 | Verified | `reinit()` now stops before create when shutdown fails, leaves the wallet in a retryable shutdown state when create fails, and destroys both replacement and retired shutdown handles if unlock fails after recreate. `RLNBinding.rlnCreateNode` can intentionally replace a shutdown node and rolls back its owned node/retired-handle state on create failure. | Covered by `test/utexo_wallet_test.dart::reinit stops before create when shutdown fails`, `::reinit leaves shutdown wallet retryable when create fails`, and `::reinit cleans replacement and retired nodes when unlock fails`; native store/replacement follow-up is covered under LIFE-008/LIFE-010. |
+| LIFE-007 | P1 | Verified | Reopened by 2026-09-20 audit (AUD-02): Failed reinit can orphan a native signer after successful destroy. Earlier evidence: `reinit()` now stops before create when shutdown fails, leaves the wallet in a retryable shutdown state when create fails, and destroys both replacement and retired shutdown handles if unlock fails after recreate. `RLNBinding.rlnCreateNode` can intentionally replace a shutdown node and rolls back its owned node/retired-handle state on create failure. | 2026-09-20 corrective verification (working tree, not release qualification): Reinit preconditions are resolved before shutdown; orphaned signer ownership survives recreate/cleanup failures. Corrective safety and wallet fault tests pass. |
 | LIFE-008 | P1 | Verified | Final native store/handle cleanup is now proven at the native store boundary: Android removes node/signer metadata before close and tests injected close failures for `remove`, `removeSigner`, and `clearAll`; iOS exposes deterministic store snapshots and tests final node/signer absence after remove/clearAll. Dart destroy remains idempotent and now cleans a binding-owned node even when create timed out before returning a facade node id. | Covered by Android JVM `nodeStoreRemovesHandlesEvenWhenNativeCloseFails`, iOS XCTest `testNodeStoreLifecycleAndFinalCleanupState` and `testNodeStoreClearAllRemovesNodesAndSigners`, plus `test/utexo_wallet_test.dart::timed-out create can still be destroyed after native completion`. iOS UniFFI node shutdown itself is non-throwing, so iOS fault injection is represented by deterministic final-state store assertions rather than a throwing shutdown double. |
-| LIFE-009 | P1 | Verified | Android and iOS detach now unregister generated Pigeon APIs and clear engine-owned native node/signer stores; same-storage restart after shutdown uses deterministic created-state replacement, and Android/iOS native bridge suites plus store-level tests pass on the current candidate. | Keep crash/restart, cancellation, and fault-injection store checks under LIFE-007/LIFE-008/TEST-007. |
-| LIFE-010 | P1 | Verified | iOS same-path replacement now removes the old shutdown node before installing the replacement node, returns the same handle in `created` state, and both Android and iOS reject `markInitialized` after unlocked/shutdown state drift. | Covered by Android JVM `nodeStoreRejectsDuplicateActiveStoragePathAndReusesShutdownPath`/`nodeStoreTransitionsUnlockLifecycleAndRemovesClosedNodes` and iOS XCTest `testNodeStoreRejectsDuplicateActiveStorageAndReusesShutdownPath`/`testNodeStoreLifecycleAndFinalCleanupState`. |
-| LIFE-011 | P2 | Verified | `RLNBinding` now has explicit `RlnOperationTimeoutPolicy` categories for lifecycle, unlock, network, channel/payment, send/asset/UTXO, and sync/refresh operations. Defaults match core `DEFAULT_API_TIMEOUT`; `RlnOperationTimeoutException` documents the elapsed operation/deadline. Since Pigeon cannot cancel an in-flight native RLN call, timeout marks the binding unknown for regular operations, keeps the queue waiting for native completion, and leaves destroy as the ordered cleanup gate. | Covered by `test/rln_manager_contract_test.dart::native operation timeout quarantines binding until destroy`, `test/utexo_wallet_test.dart::timed-out create can still be destroyed after native completion`, and `doc/PUBLIC_API_REFERENCE.md` timeout semantics. |
+| LIFE-009 | P1 | In progress | Reopened by 2026-09-20 audit (AUD-04, AUD-05): iOS engine-detach cleanup is not registered for notification; Android detach is neither an in-flight barrier nor engine-scoped. Earlier evidence: Android and iOS detach now unregister generated Pigeon APIs and clear engine-owned native node/signer stores; same-storage restart after shutdown uses deterministic created-state replacement, and Android/iOS native bridge suites plus store-level tests pass on the current candidate. | Complete the corrective contracts and verification in the September remediation register below. Earlier passing tests do not close these reproduced/source-confirmed gaps. |
+| LIFE-010 | P1 | In progress | Reopened by 2026-09-20 audit (AUD-06): Reused handle IDs let an old wallet destroy a replacement. Earlier evidence: iOS same-path replacement now removes the old shutdown node before installing the replacement node, returns the same handle in `created` state, and both Android and iOS reject `markInitialized` after unlocked/shutdown state drift. | Complete the corrective contracts and verification in the September remediation register below. Earlier passing tests do not close these reproduced/source-confirmed gaps. |
+| LIFE-011 | P1 | Verified | Reopened by 2026-09-20 audit (AUD-01): Invalid send deadline still dispatches the send. Earlier evidence: `RLNBinding` now has explicit `RlnOperationTimeoutPolicy` categories for lifecycle, unlock, network, channel/payment, send/asset/UTXO, and sync/refresh operations. Defaults match core `DEFAULT_API_TIMEOUT`; `RlnOperationTimeoutException` documents the elapsed operation/deadline. Since Pigeon cannot cancel an in-flight native RLN call, timeout marks the binding unknown for regular operations, keeps the queue waiting for native completion, and leaves destroy as the ordered cleanup gate. | 2026-09-20 corrective verification (working tree, not release qualification): Deadline validation precedes queueing; expired queued work never dispatches; timeout quarantine retains native queue ownership. Corrective safety and wallet suites pass. |
 | LIFE-012 | P2 | Verified | Wallet public contract types/status helpers live in `utexo_wallet_types.dart`, `UtexoWallet` owns lifecycle/orchestration, raw operations live in an advanced-only extension, and native plugin files stay below the documented 1500-line guardrail. | Keep DTOs, raw adaptation, orchestration, and native ownership in their current focused modules. |
 | LIFE-013 | P2 | Verified | The misleading template platform-interface/method-channel abstraction was removed along with the `plugin_platform_interface` dependency. Native runtime work now has one owner: generated Pigeon `RlnHostApi` wrapped by `RlnClient` and serialized/quarantined by `RLNBinding`; `RgbSdkFlutter.nativeArtifactInfo()` is explicitly an internal diagnostics read through the same generated host API. | Keep metadata diagnostics internal and do not reintroduce a partial platform substitution layer unless it owns the complete bridge contract. |
 | LIFE-014 | P1 | Verified | Native init/unlock no longer treats message text containing `"conflict"` as success, and init no longer returns an empty pubkey after a failed native init. The platform state machines either validate already-unlocked readiness or throw the original bridge error. | Keep conflict/error normalization covered whenever native init or unlock paths change. |
@@ -406,12 +513,12 @@ native-bridge layers. Remaining release work is deliberately narrow:
 | LSP-007 | P2 | Verified | LSP polling and sleep now use `Stopwatch` monotonic elapsed time; timeout and poll interval inputs are validated before polling. | Add injectable time/sleep only if deterministic virtual-time tests become necessary. |
 | LSP-008 | P2 | Verified | Peer-connect idempotence now accepts only typed `ConflictError`/`CONFLICT` errors; the Group 3 wallet test proves typed conflicts are swallowed and an untyped `StateError('already connected')` is rethrown instead of substring-matched. | Keep native bridge conflict mapping centralized in `native_bridge_error_mapper.dart`; do not reintroduce service-level substring matching. |
 | LSP-009 | P2 | Verified | `UtexoLspClient` now tracks HTTP client ownership: SDK-created clients are closed, injected `http.Client`s are not; the public integration/security guide documents the contract. | Keep `IUtexoLspClient` lifecycle ownership explicit for future adapters. |
-| LSP-010 | P1 | Verified | The concrete client implements strict discovery, `/lightning_send`, and relay-status calls; maps every beta.9 snake-case DTO; isolates bearer credentials from foreign LNURL hosts; enforces HTTPS except explicit loopback; and has deterministic request, timeout, redaction, response-size, and malformed-wire tests. | Keep new LSP routes inside the injectable transport owner and add exact request/response vectors before exposing them. |
+| LSP-010 | P1 | Verified | Reopened by 2026-09-20 audit (AUD-14): Status lookup accepts another payment's hash. Earlier evidence: The concrete client implements strict discovery, `/lightning_send`, and relay-status calls; maps every beta.9 snake-case DTO; isolates bearer credentials from foreign LNURL hosts; enforces HTTPS except explicit loopback; and has deterministic request, timeout, redaction, response-size, and malformed-wire tests. | 2026-09-20 corrective verification (working tree, not release qualification): Relay-status payment identity is checked against the requested hash; mismatch tests pass before callers can accept another payment status. |
 | LSP-011 | P0 | Verified | `receiveAsset()` now defaults to canonical/convertible resolution by omitting `asset_id`, offers explicit payout compatibility mode, and returns the resolved on-chain asset plus conversion flag. Both body shapes and results are covered. | Preserve omission semantics; sending a JSON null is not equivalent to omitting the key for older LSPs. |
-| LSP-012 | P0 | Verified | `quoteExternalPayment` and `payExternalInvoice` locally decode both BOLT11 invoices and reject payment-hash, network, payee, asset, asset-amount, msat, fee, expiry, conversion, and reported-leg mismatches before payment. Only verifier-created quote instances report `verified: true`. | Keep every invariant in the adversarial mismatch matrix; no payment may occur after a failed check. |
+| LSP-012 | P0 | Verified | Reopened by 2026-09-20 audit (AUD-08): Relay quote verification does not bind the selected funding asset. Earlier evidence: `quoteExternalPayment` and `payExternalInvoice` locally decode both BOLT11 invoices and reject payment-hash, network, payee, asset, asset-amount, msat, fee, expiry, conversion, and reported-leg mismatches before payment. Only verifier-created quote instances report `verified: true`. | 2026-09-20 corrective verification (working tree, not release qualification): Verified relay funding asset matches the caller-selected asset before any native payment; adversarial substitution tests pass in lsp_beta9_contract_test.dart. |
 | LSP-013 | P1 | Verified | Address discovery is projected into payout/accepted/convertible menus, and selection uses the largest usable single-channel balance with payout-first ordering, deterministic deduplication, and typed empty/unknown/ambiguous/insufficient-liquidity failures. | Do not sum channels until cross-channel RGB MPP exists. |
-| LSP-014 | P1 | Verified | `quoteAddress` and `requestExternalInvoice` support explicit or selected assets, own/foreign addresses, APay proof propagation, and external-payer metadata. Discovery and its consuming callback are retained as one coherent exchange so verification cannot bind a later response to stale metadata. | Keep callback consumption one-attempt until upstream provides an idempotency contract. |
-| LSP-015 | P1 | Verified | Cancelled receives are terminal, liquidity timeout reports the last observed outbound amount, and all beta.9 errors use the package taxonomy while retaining monotonic cancellation, peer scoping, and missing-preimage fail-closed behavior. | Keep terminal status vocabularies and typed errors aligned with core/RN changes. |
+| LSP-014 | P1 | Verified | Reopened by 2026-09-20 audit (AUD-09): Default own-receive invoice is not bound to the local wallet identity. Earlier evidence: `quoteAddress` and `requestExternalInvoice` support explicit or selected assets, own/foreign addresses, APay proof propagation, and external-payer metadata. Discovery and its consuming callback are retained as one coherent exchange so verification cannot bind a later response to stale metadata. | 2026-09-20 corrective verification (working tree, not release qualification): Default own receive is bound to local identity, while explicit third-party receive remains supported; adversarial beta.9 tests pass. |
+| LSP-015 | P1 | Verified | Reopened by 2026-09-20 audit (AUD-12, AUD-13): Liquidity wait only examines the first usable channel; Polling deadlines/cancellation do not bound an iteration. Earlier evidence: Cancelled receives are terminal, liquidity timeout reports the last observed outbound amount, and all beta.9 errors use the package taxonomy while retaining monotonic cancellation, peer scoping, and missing-preimage fail-closed behavior. | 2026-09-20 corrective verification (working tree, not release qualification): Polling deadlines/cancellation bound each asynchronous iteration and use the largest eligible single channel; no MPP sum is assumed. Deadline and liquidity tests pass. |
 | LSP-016 | P1 | Verified | The concrete LSP client uses core's 15-second default with positive per-client overrides, independent of the 120-second native-operation deadline. Contract tests and hardening validation pin the distinction. | Keep HTTP quote/discovery deadlines separate from long native RLN operations. |
 | LSP-017 | P0 | Verified | Core/RN propagated APay proofs without validating them, allowing a payer to trust substituted hashes or unbound metadata. Flutter now verifies BOLT11 amount/asset/network/expiry/metadata hash/payee, address ownership, APay host/recipient/batch validity, Merkle inclusion, signed batch commitment, and external LDK recoverable-signature vectors before returning or paying a quote. | Retain this documented funds-safety divergence until core provides equivalent verification; every signed field needs a tamper vector. |
 | LSP-018 | P1 | Verified | The original HTTP path trusted ambient DNS/proxy/redirect behavior and unbounded bodies. The SDK-owned transport now uses DIRECT connections, disables redirects, caps responses, aborts on timeout, strips secrets, rejects credential-bearing/non-public targets, rejects mixed public/private DNS answers, pins the selected IP while preserving TLS hostname validation, and covers IPv4 plus IPv6 loopback/private/mapped forms. True loopback is the only foreign-target exception; Android's `10.0.2.2` alias is restricted to an explicitly configured LSP base URL. | Injected clients remain caller-owned and must provide equivalent transport policy; this responsibility is documented. |
@@ -420,7 +527,7 @@ native-bridge layers. Remaining release work is deliberately narrow:
 | LSP-021 | P1 | Verified | A proofless same-host LNURL invoice was structurally checked but not tied to the configured LSP identity. Same-host quotes now require the recovered BOLT11 payee to equal the configured peer even when a legacy server omits APay proof; foreign-host invoices retain domain-scoped verification. | Keep configured-peer binding in the invoice verifier and cover both proof-bearing and proofless paths. |
 | LSP-022 | P1 | Verified | Core beta.9 retries a consuming foreign LNURL/APay callback and resolves discovery separately, so a lost response can consume more than one hash or bind verification to stale metadata. Flutter now returns discovery plus callback as one immutable resolution and attempts the consuming callback once. | Preserve one-attempt callback semantics until upstream provides idempotency/reconciliation; coherent resolution tests and the core adaptation manifest must remain current. |
 | LSP-023 | P1 | Verified | `10.0.2.2` was treated as generic loopback, allowing a user-controlled external Lightning Address domain or callback to target host-side Android development services. It is now permitted only for an explicitly configured LSP base URL; external discovery accepts true loopback or public destinations under the existing DNS policy. | Keep configured development aliases separate from externally supplied trust decisions and retain the adversarial target vector. |
-| LSP-024 | P0 | Verified | `receiveAsset()` trusted returned RGB metadata, while `sendAsset()` immediately paid the LSP-returned BOLT11 without locally binding it to the target RGB invoice. A compromised or misconfigured LSP could substitute an asset, amount, network, expiry, payee, or invoice. Flutter now decodes and verifies both signed legs and echoed metadata before exposing the receive result or paying; every mismatch proves zero payment calls. | Keep `ILspWallet.decodeRgbInvoice` as an explicit safety adaptation and require adversarial no-payment vectors for every new bridge field. |
+| LSP-024 | P0 | Verified | Reopened by 2026-09-20 audit (AUD-10): Supported same-asset `Any` receives are rejected after the mapping request. Earlier evidence: `receiveAsset()` trusted returned RGB metadata, while `sendAsset()` immediately paid the LSP-returned BOLT11 without locally binding it to the target RGB invoice. A compromised or misconfigured LSP could substitute an asset, amount, network, expiry, payee, or invoice. Flutter now decodes and verifies both signed legs and echoed metadata before exposing the receive result or paying; every mismatch proves zero payment calls. | 2026-09-20 corrective verification (working tree, not release qualification): Same-asset Any receive is supported without weakening converted-send/receive amount binding; beta.9 Any/conversion tests pass. |
 | LSP-025 | P1 | Verified | The three signed-invoice verifiers independently canonicalized only `bitcoin`/`testnet3`; the stable wallet exposed its configured value unchanged. A valid default `utexo` wallet therefore compared against RLN-decoded `signet` and failed every APay/relay/bridge verification, while numeric network aliases could fail similarly. `LspNetworkPolicy` now owns exact alias identity and `UtexoWallet.network` exposes the canonical native network. APay, bridge, relay, numeric-alias, and wallet vectors cover the boundary. | Keep wallet creation and every signed invoice verifier on the same canonical policy; add a policy vector before accepting any new network alias. |
 | LSP-026 | P2 | Verified | Plain Lightning Address parsing preserves local-part case for provider compatibility, but APay ownership verification also compared the DNS domain byte-for-byte. Mixed-case user input could resolve the same DNS host and then reject a valid lowercase-domain signature. Verification now accepts the exact signed domain first and its DNS-equivalent lowercase form second, without changing or lowercasing the username. | Keep domain canonicalization limited to DNS case equivalence; never normalize the signed local part or accept an unrelated host. |
 | LSP-027 | P1 | Verified | Bridge inputs allowed a zero-satoshi receive to create a native invoice before failing fixed-amount verification, the locally created signed BOLT11 was not checked until after the durable LSP mapping call, and caller-supplied description/payment hashes plus `minFinalCltvExpiryDelta` were only checked for positivity/nonblank text. Receive now requires positive sats and verifies the signed invoice's network, validity, requested expiry duration, amount, asset, and asset amount before HTTP contact; hashes require exactly 32-byte hexadecimal; and CLTV fits UInt16. Tests assert no invoice/network/payment side effect after rejection. | Validate every future mutation-bound override and signed local artifact completely before the first native or HTTP side effect, and retain zero-contact assertions. |
@@ -431,9 +538,9 @@ native-bridge layers. Remaining release work is deliberately narrow:
 | ID | Pri | Status | Finding and evidence | Required outcome |
 | --- | --- | --- | --- | --- |
 | SEC-001 | P0 | Verified | The former ephemeral VLS signer path was replaced with `newWithStorage(storageDirPath)` and transactional handle ownership. | Disk-backed signer creation and funded restart/channel-payment tests pass on both platforms. |
-| SEC-002 | P1 | Verified | SDK-owned seed/private-key byte buffers are wiped after derivation/signing where Dart allows it; `NativeExternalRlnSigner` consumes seed hex immediately after native signer handoff so retries require a fresh signer; `PasswordRlnSigner` clears password/mnemonic references after unlock and accepts explicit password refresh for future sessions; docs state that strings, BIP32 internals, VM copies, and app-owned storage cannot be reliably zeroized by this package. | Keep secret-bearing strings out of logs/reports and consider native/keychain-backed secret handles if app requirements demand stronger zeroization than Dart can provide. |
+| SEC-002 | P1 | Verified | Reopened by 2026-09-20 audit (AUD-07): Disposal retains avoidable unused secret references. Earlier evidence: SDK-owned seed/private-key byte buffers are wiped after derivation/signing where Dart allows it; `NativeExternalRlnSigner` consumes seed hex immediately after native signer handoff so retries require a fresh signer; `PasswordRlnSigner` clears password/mnemonic references after unlock and accepts explicit password refresh for future sessions; docs state that strings, BIP32 internals, VM copies, and app-owned storage cannot be reliably zeroized by this package. | 2026-09-20 corrective verification (working tree, not release qualification): Password/mnemonic/unused seed references are released on failed init and disposal. This minimizes references, not guaranteed erasure of immutable Dart strings. Corrective safety tests pass. |
 | SEC-003 | P1 | Verified | `RlnClient` now maps every Pigeon `PlatformException` through a centralized native bridge mapper into typed SDK errors with operation, native code, details, and retryability in `NativeBridgeFailure`; unit tests cover direct mapping and wallet fallback behavior. | Extend redaction and taxonomy as new native error categories appear. |
-| SEC-004 | P1 | Verified | LSP support-safe diagnostics now redact bearer tokens, common credential fields, preimages, seed hex/long hex material, and oversized previews; tests assert secret text is absent from `LspError.toString()`. | Extend the same redaction layer to native `PlatformException` mapping under SEC-003. |
+| SEC-004 | P1 | Verified | Reopened by 2026-09-20 audit (AUD-15): Diagnostic serialization bypasses secret redaction. Earlier evidence: LSP support-safe diagnostics now redact bearer tokens, common credential fields, preimages, seed hex/long hex material, and oversized previews; tests assert secret text is absent from `LspError.toString()`. | 2026-09-20 corrective verification (working tree, not release qualification): Serialized errors omit raw bodies/causes; native bridge messages are generic; malformed JSON, arbitrary status strings and claim failures no longer leak raw diagnostics. Safety and beta.9 regression tests pass. |
 | SEC-005 | P1 | Verified | `LspError` response previews are bounded to 512 characters and redacted before exception display; full bodies are not preserved in public exceptions. | Add opt-in secure diagnostics only with explicit app consent. |
 | SEC-006 | P1 | Verified | LSP/LNURL HTTP rejects non-loopback plain HTTP before requests are sent; HTTPS and explicit loopback development hosts remain allowed. | Apply the same transport policy to VSS/client APIs that still accept URLs. |
 | SEC-007 | P1 | Accepted constraint | Standalone account-key BIP340 signing now fails closed by default with `ExperimentalCryptoException` and can only execute when callers explicitly pass `SchnorrSigningMode.experimentalDart`. This deliberately diverges from RN's top-level core `signMessage`, which is callable by default through `@utexo/rgb-sdk-core`. The divergence is accepted for this release line because Flutter's pure-Dart PointyCastle implementation is not audited/proven constant-time; wallet node-message signing remains native RLN-backed and RN-aligned. | Keep pure-Dart signing documented as experimental until replaced by a vetted/native primitive or a formal crypto review; do not remove the fail-closed default without a new tracker row, updated parity/divergence docs, and audited evidence. |
@@ -462,10 +569,10 @@ native-bridge layers. Remaining release work is deliberately narrow:
 | PKG-013 | P2 | Accepted constraint | `publish_to: none` and Git/path install are intentionally retained for this internal-beta line; immutable pub.dev/version distribution policy is deferred until publication work starts. | Before pub.dev or external production distribution, decide the tagged-release and package-publishing policy and document integrity/rollback. |
 | PKG-014 | P2 | Verified | Package contents are intentional and exclude vendored native artifacts. The clean-consumer matrix runs `dart pub publish --dry-run` against a committed candidate snapshot and rejects warnings or unintended files. | Keep warning-free dry-run in every exact clean-candidate release run. |
 | PKG-015 | P2 | Verified | Podspec metadata now declares MIT license type/file, path source, iOS 18.5, deployment-target xconfigs, privacy bundle, and source/preserve paths. `pod ipc spec ios/rgb_sdk_flutter.podspec` resolves this metadata. Plain `pod lib lint` is documented as non-authoritative because CocoaPods resolves public `Flutter` 3.13.0, which lacks the `FlutterBinaryMessenger` task-queue API required by the pinned Flutter 3.41.9/Pigeon bridge. | Use `pod ipc spec` plus clean Flutter consumer archive builds as the pod integration gate unless Flutter publishes a CocoaPods spec that matches the pinned toolchain API. |
-| PKG-016 | P1 | Verified | `tool/test_clean_consumer_matrix.sh` snapshots tracked/unignored candidate files, validates tarball contents with `dart pub publish --dry-run`, installs into fresh consumers by path and local Git ref, builds Android release APKs and iOS release no-codesign apps for both, checks prepared RLN iOS artifacts, and reruns CocoaPods with `--deployment --no-repo-update`; the archive-enabled Group 4 run passed with report `build/test-reports/group-4/clean-consumer-matrix-20260805T114259Z-d366bca.json`. | Fully air-gapped CocoaPods/Gradle builds are not claimed; add them only if the release policy requires offline distribution. |
+| PKG-016 | P1 | In progress | Reopened by 2026-09-20 audit (AUD-23): Failed consumer builds can be recorded as passed. Earlier evidence: `tool/test_clean_consumer_matrix.sh` snapshots tracked/unignored candidate files, validates tarball contents with `dart pub publish --dry-run`, installs into fresh consumers by path and local Git ref, builds Android release APKs and iOS release no-codesign apps for both, checks prepared RLN iOS artifacts, and reruns CocoaPods with `--deployment --no-repo-update`; the archive-enabled Group 4 run passed with report `build/test-reports/group-4/clean-consumer-matrix-20260805T114259Z-d366bca.json`. | Complete the corrective contracts and verification in the September remediation register below. Earlier passing tests do not close these reproduced/source-confirmed gaps. |
 | PKG-017 | P2 | Verified | `tool/release_baseline.json` keeps `releaseTier: internal-beta`, `validate_release_package.dart` gates that value, and public docs state that artifacts are development/internal beta only until provenance gates pass. | Change releaseTier only after provenance/SBOM/license/reproducibility gates are verified. |
-| PKG-018 | P1 | In progress | Exact RLN 0.13.0-beta.3 artifacts are installed and pinned to tag/commit `v0.13.0-beta.3`/`af03c7f1a65135a429f05a5820600338215954dc`: iOS archive 216,369,546 bytes/SHA-256 `c272c35d…`, Android AAR 90,444,658 bytes/SHA-256 `237f1e9a…`, plus installed-file hashes, slices/ABIs, Maven coordinate, generated APIs, and provenance. Dirty-candidate native suites pass 20 Android and 18 iOS cases. | Close only after the exact committed candidate passes artifact verification and clean path/Git consumer Android+iOS archives; PKG-006 remains independent. |
-| PKG-019 | P1 | Verified | RN's core dependency previously had only a version assertion. The baseline now pins the exact beta.9 npm archive URL, size, SHA-256, registry SHA-512 integrity, and extracted `package.json`, `dist/index.d.ts`, and `dist/index.mjs` hashes; parity validation also requires RN's exact `yarn.lock` entry and verifies a supplied tarball byte-for-byte. | Keep the core tarball check in release evidence so a reused version label or registry mutation cannot silently change the audited contract. |
+| PKG-018 | P1 | Verified | Reopened by 2026-09-20 audit (AUD-32): Permanent local iOS artifacts are stale. Earlier evidence: Exact RLN 0.13.0-beta.3 artifacts are installed and pinned to tag/commit `v0.13.0-beta.3`/`af03c7f1a65135a429f05a5820600338215954dc`: iOS archive 216,369,546 bytes/SHA-256 `c272c35d…`, Android AAR 90,444,658 bytes/SHA-256 `237f1e9a…`, plus installed-file hashes, slices/ABIs, Maven coordinate, generated APIs, and provenance. Dirty-candidate native suites pass 20 Android and 18 iOS cases. | 2026-09-20 corrective verification (working tree, not release qualification): The complete pinned iOS artifact set was reinstalled, not partially patched. Both installed iOS files/slices and Android AAR pass verify_native_artifacts.sh --require-android. Native execution remains TEST-036. |
+| PKG-019 | P1 | In progress | Reopened by 2026-09-20 audit (AUD-29): Production provenance gate trusts status assertions. Earlier evidence: RN's core dependency previously had only a version assertion. The baseline now pins the exact beta.9 npm archive URL, size, SHA-256, registry SHA-512 integrity, and extracted `package.json`, `dist/index.d.ts`, and `dist/index.mjs` hashes; parity validation also requires RN's exact `yarn.lock` entry and verifies a supplied tarball byte-for-byte. | Complete the corrective contracts and verification in the September remediation register below. Earlier passing tests do not close these reproduced/source-confirmed gaps. |
 
 ### Testing and Release Evidence
 
@@ -482,7 +589,7 @@ native-bridge layers. Remaining release work is deliberately narrow:
 | TEST-009 | P2 | Verified | Group 2/3 tests now cover native integer-string boundaries, strict model decoding, enum/status normalization, parser rejection paths, official BIP340 vectors, BIP340 message/public-key/signature tampering, Schnorr scalar/byte-length boundaries, and fail-closed standalone signing without explicit experimental opt-in. | Extend with generated fuzz corpora if future API changes add new parsers or wire formats. |
 | TEST-010 | P1 | Verified | `validate_rn_parity.dart` now compares exact RN commit/package/core/RLN pins, live upstream `origin/dev` drift, multiline NativeRgb method names, low-level parameter names/types/nullability, return categories, wallet method inventory, and runtime exports against RN `dev`. | Add generated AST/schema extraction later if regex parsing becomes insufficient, but current static parity is machine-checked. |
 | TEST-011 | P1 | Verified | `tool/test_matrix/evidence_catalog.json` maps every evidence bucket to executable test IDs, platform report families, claim levels, and independent assertions; `dart run tool/validate_test_matrix.dart` now fails uncataloged buckets and still checks implementation symbols/source coverage. | Move from bucket-level links to row-specific immutable platform reports where later runtime rows require stronger evidence. |
-| TEST-012 | P1 | Verified | `tool/test_release_candidate.sh` now records required skipped gates as exit code `125`, includes skip notes in the JSON report, and fails unless `ALLOW_SKIPPED_RELEASE_GATES=1`; dry run failed because `IOS_DEVICE` and platform smokes were skipped. | Keep skipped required gates non-green for every release-candidate run. |
+| TEST-012 | P1 | Verified | Reopened by 2026-09-20 audit (AUD-24): Required skips can still produce `releaseEligible: true`. Earlier evidence: `tool/test_release_candidate.sh` now records required skipped gates as exit code `125`, includes skip notes in the JSON report, and fails unless `ALLOW_SKIPPED_RELEASE_GATES=1`; dry run failed because `IOS_DEVICE` and platform smokes were skipped. | 2026-09-20 corrective verification (working tree, not release qualification): Required skips cannot yield release eligibility. Drafts remain ineligible until finalization. Nested failures and skipped-gate regression tests pass; combined candidate execution is separately open. |
 | TEST-013 | P1 | Verified | Android JVM, iOS XCTest, four platform smokes, and the all-up local release runner passed on the exact clean beta.27/core beta.7/RLN 0.10 candidate. This verifies the release-evidence mechanism, not the current beta.32 candidate; `TEST-036` owns that rerun. | Keep rerunning this exact stack for every release-candidate commit; dirty and prior-baseline reports remain non-release evidence. |
 | TEST-014 | P2 | Verified | `doc/RELEASE_EVIDENCE_SCHEMA.md` defines evidence IDs, required fields, sanitization, and release eligibility. `tool/test_release_candidate.sh`, `tool/test_native_android.sh`, `tool/test_native_ios.sh`, `tool/test_platform_unfunded.sh`, `tool/test_platform_funded.sh`, and `tool/test_external_signer_restart.sh` now emit unique run-ID filenames with schema version, evidence ID, full commit, dirty state, sanitized repo-relative log path, and log SHA-256. Exact clean run `20260806T094500Z` produced release-eligible child reports with `dirty: false`. | Continue treating skipped gates and dirty-worktree runs as non-release-eligible. |
 | TEST-015 | P2 | Verified | Integration smokes now track low-level node creation, always attempt node/wallet cleanup, delete every temp storage directory they create, emit `RGB_SDK_FLUTTER_CLEANUP_ERROR` diagnostics for cleanup failures, and fail otherwise-successful low-level, facade, and funded smokes if cleanup did not complete. | Keep storage cleanup failure observable in every new integration smoke; native handle/store cleanup is covered under LIFE-008/TEST-007. |
@@ -506,7 +613,7 @@ native-bridge layers. Remaining release work is deliberately narrow:
 | TEST-033 | P1 | Verified | The RN wallet parser was line-based and silently omitted multiline method declarations, allowing incomplete parity to pass. It now parses the complete class body, requires every RN method to have a canonical return contract or explicit advanced alias, pins high-risk stable input contracts, and gates all 62 low-level plus all current high-level methods. | Keep the validator pinned to live `origin/dev`; any new RN method or changed high-risk input must fail until its Dart shape and evidence are declared. |
 | TEST-034 | P2 | Verified | The combined release runner's format gate omitted `example/integration_test`, even though those sources carry the funded, unfunded, and process-restart candidate flows. | The runner now formats `lib`, `test`, `example/integration_test`, `tool`, and `pigeons` before any release evidence is accepted. |
 | TEST-035 | P1 | Verified | The SDK-owned regtest stack defaulted its RGB proxy to host port `3003`, which collides with the app devstack's Esplora service. Compose could recreate the SDK proxy without a host mapping, while all platform smokes then failed wallet unlock with `unable to connect to proxy`. | Host port `3013` is reserved by `tool/regtest/config.sh`, every smoke/release entrypoint sources that contract, Compose and Dart integration defaults agree, and package validation rejects drift. Fresh iOS and Android unfunded lifecycle smokes pass against the corrected mapping; the exact clean all-up runner remains the release evidence gate. |
-| TEST-036 | P1 | Open | Beta.32/core beta.9/RLN 0.13 static gates, 223 Dart tests, 20 Android bridge tests, and 18 iOS bridge tests pass on the dirty working candidate. Existing clean-consumer, funded/unfunded, restart, and combined release-eligible reports still describe the earlier beta.27 commit and cannot be relabeled. | Commit the reviewed source, then run clean consumers, unfunded/funded iOS and Android smokes, both restart proofs, and the combined candidate with no required skips; every report must name that exact clean commit. |
+| TEST-036 | P1 | Open | Reopened by 2026-09-20 audit (AUD-31, AUD-33): New LSP/APay/linked success platform scenarios do not exist; Exact-current clean native/consumer release evidence remains absent. Earlier evidence: Beta.32/core beta.9/RLN 0.13 static gates, 223 Dart tests, 20 Android bridge tests, and 18 iOS bridge tests pass on the dirty working candidate. Existing clean-consumer, funded/unfunded, restart, and combined release-eligible reports still describe the earlier beta.27 commit and cannot be relabeled. | Complete the corrective contracts and verification in the September remediation register below. Earlier passing tests do not close these reproduced/source-confirmed gaps. |
 | TEST-037 | P1 | Verified | Machine-readable inventories now cover `UtexoLsp`, `IUtexoLspClient`, `ILspWallet`, the network getter, exact signatures, runtime errors, RN-exported LSP types, beta.32 wallet/native methods, bridge vectors, RLN 0.13 chain-sync markers, and every reviewed UDL-to-RN exclusion. Live RN `origin/dev` and exact core tarball provenance pass. | Extend these inventories before updating the baseline whenever RN/core/RLN changes. |
 | TEST-038 | P1 | Verified | New linked/canonical and APay paths initially had only happy-path parity coverage. `test/lsp_beta9_contract_test.dart` now has 46 deterministic contract tests spanning wire requests, strict DTOs, asset policy, callback consumption, APay cryptography and native batches, network aliases, relay mismatch/tamper cases, signed receive preflight and expiry exhaustion, timeout/redaction/transport policy, IPv4/IPv6 SSRF vectors, and no-payment-on-failure assertions. The complete Dart suite passes 223 tests; exact current coverage is refreshed by the coverage-policy gate before commit. | Keep adversarial behavior evidence distinct from static declaration parity and from funded platform smokes under TEST-036. |
 | TEST-039 | P1 | Verified | RN parity validation compared all method names and canonical return contracts but pinned Dart input shapes for only selected high-risk methods. An existing RN method's parameter or return declaration could therefore drift after a baseline update without a second independent shape gate. `rn_parity_manifest.json` now pins a normalized SHA-256 fingerprint over every non-constructor `UTEXOWallet` parameter and return declaration, while the existing inventories retain actionable method-level coverage. | Any fingerprint change requires a method-by-method input/output audit before the immutable value is updated; live `origin/dev` and the exact local RN commit must still match the release baseline. |
@@ -528,7 +635,7 @@ native-bridge layers. Remaining release work is deliberately narrow:
 | CODE-011 | P2 | Verified | Public collection-bearing wallet configs/requests, binding params, RLN/core DTOs, LSP wire wrappers, and UTEXO network presets now defensively copy list/map inputs into unmodifiable collections; `test/public_dto_immutability_test.dart` proves source-list mutation and exposed collection mutation do not alter DTO state. | Value equality/copyWith remains a future API-design choice; current release boundary prevents mutable collection aliasing. |
 | CODE-012 | P2 | Verified | Public LSP failures now inherit from `RgbSdkException` subclasses, `OperationCancelledError` covers caller cancellation, root-exported timeout policy misuse throws `ValidationError`, the stable wallet constructor dependency mismatch throws `ConfigurationError`, and public docs define the catch contract. `test/utexo_wallet_test.dart::public facade and LSP failures use SDK error taxonomy` plus hardening validation guard against the previous public `ArgumentError`/`StateError`/direct-`Exception` paths. | Keep raw native diagnostics behind advanced APIs; all stable public boundaries should surface typed SDK errors with causes preserved where available. |
 | CODE-013 | P2 | Verified | `flutter analyze --no-fatal-warnings --no-fatal-infos` now reports no diagnostics, and `dart run tool/validate_codebase_hardening.dart` runs `dart analyze --format=json` internally and fails unless analyzer output is zero-diagnostic, not merely a zero exit code. | Keep the release gate zero-diagnostic for hand-written source and tools. |
-| CODE-014 | P2 | Verified | Native bridge errors now carry structured category, retryability, operation, and feature/details metadata from Swift/Kotlin where known errors are generated. Dart maps by category first, falls back only to exact legacy native codes, and no longer classifies stable errors by message substrings; tests prove misleading message text does not alter taxonomy. | Keep prose-only native diagnostics generic unless a structured category or exact known native code is present. |
+| CODE-014 | P1 | In progress | Reopened by 2026-09-20 audit (AUD-16, AUD-17): iOS flattens native enum cases into `RlnError`; Native error taxonomy omits current native cases. Earlier evidence: Native bridge errors now carry structured category, retryability, operation, and feature/details metadata from Swift/Kotlin where known errors are generated. Dart maps by category first, falls back only to exact legacy native codes, and no longer classifies stable errors by message substrings; tests prove misleading message text does not alter taxonomy. | Complete the corrective contracts and verification in the September remediation register below. Earlier passing tests do not close these reproduced/source-confirmed gaps. |
 | CODE-015 | P2 | Verified | `UtexoWallet` is split into lifecycle, LSP/APay, on-chain/RGB, Lightning, guard, and unlock-resolution ownership files while retaining the public class surface through private internal mixins. `RLNBinding` is split into request/timeout types plus lifecycle, Lightning, and on-chain/RGB operation owners. The iOS bridge taxonomy helper moved to its own Swift file, and hardening now requires these ownership files and enforces line-count guardrails. Current root owner sizes: `utexo_wallet.dart` 207 lines, `rln_binding.dart` 161 lines, iOS plugin 1468 lines, Android plugin 1376 lines. | Keep future feature work in the focused owner files and update the part-aware API/matrix validators whenever the library layout changes. |
 | CODE-016 | P2 | Verified | Dead prerelease compatibility code was removed: obsolete bridge/network helpers, `RNSigner`, standalone signer duplication, unused native `unsupported` helpers, duplicate `*Core`/Lightning aliases, deprecated fee scalar aliases, and internal signer-client adapters accidentally exported by the advanced barrel. | API snapshot, wallet matrix, hardening scans, and advanced import tests gate against stale surface regrowth. |
 | CODE-017 | P1 | Verified | Stable facade success paths no longer fabricate values from malformed native responses. BTC send, transfer failure, HODL claim, payment send, keysend, asset maps, and related domain mappers require their documented fields and throw `NativeProtocolException` on malformed success payloads. | `test/utexo_wallet_test.dart::rejects malformed native wallet success payloads` and strict model tests must grow with every new response mapper. |
@@ -545,7 +652,7 @@ native-bridge layers. Remaining release work is deliberately narrow:
 | DOC-007 | P1 | Verified | This row established consistent beta.27 documentation and exact report-to-`HEAD` evidence language. It is now historical; `DOC-010` owns beta.32/core beta.9/RLN 0.13 documentation truth, and `TEST-036` owns current clean evidence. | Keep docs updated whenever public model/API behavior changes; current baseline truth is guarded by `validate_release_language.dart` and `validate_release_governance.dart`. |
 | DOC-008 | P1 | Verified | The tracker contained verified rows that still described removed aliases or demanded unfinished work, and its evidence counts predated the current facade. Rows now describe implemented behavior, accepted constraints remain explicit, and governance rejects duplicate issue IDs. | Keep tracker updates in the same change as code, tests, snapshots, and release evidence. |
 | DOC-009 | P2 | Verified | Historical evidence commands in the authoritative tracker embedded a previous contributor's absolute checkout path, leaking workstation identity and making the commands non-portable. | All RN checkout references now use `<rgb-sdk-rn-checkout>`; the release package identity scan and final tracked-file review contain no previous contributor names or email addresses. |
-| DOC-010 | P1 | Verified | README, public API reference, compatibility/divergence guide, bridge contract, integration/release guide, matrices, changelog, and this tracker now describe beta.32/core beta.9/RLN 0.13, detailed refresh, linked/canonical assets, relay/APay invariants, transport ownership, and upstream exclusions. Public-doc validation covers 217 stable symbols. | Keep historical evidence explicitly labeled and let release-language/governance validators reject stale current-baseline claims. |
+| DOC-010 | P1 | Verified | Reopened by 2026-09-20 audit (AUD-30): Public README examples do not compile or use actual facade names. Earlier evidence: README, public API reference, compatibility/divergence guide, bridge contract, integration/release guide, matrices, changelog, and this tracker now describe beta.32/core beta.9/RLN 0.13, detailed refresh, linked/canonical assets, relay/APay invariants, transport ownership, and upstream exclusions. Public-doc validation covers 217 stable symbols. | 2026-09-20 corrective verification (working tree, not release qualification): README examples use actual facade names, named unlock arguments and replenished restart credentials. Real fenced examples compile with zero diagnostics; dart doc reports zero warnings/errors. |
 
 ## Accepted Decisions and Constraints
 
@@ -606,3 +713,333 @@ reproducible-build/source attestations for every native artifact.
 Any future RN/core/RLN change, public API change, native artifact change,
 security policy change, or evidence gap must reopen the relevant row or add a
 new row before the README, changelog, or release verdict is updated.
+
+## September Remediation Register
+
+This register preserves every numbered audit finding. Status is owned by the
+linked master-ledger row, not by a second parallel tally. References identify
+the audited source; line numbers can move as fixes land. Each completion must
+record commands/results here before changing its owner to Verified.
+
+### AUD-01: Invalid send deadline still dispatches the send
+
+Owner: `LIFE-011`. Audit priority: P1.
+
+**Reproduced, Flutter-specific.** [RLNBinding queues the operation first](lib/src/binding/rln_binding.dart:78), then rejects a nonpositive timeout at line 93. With `sendTimeout: Duration.zero`, the caller gets a validation failure, but the queued fake-native send still executes once. An application could retry believing validation prevented any side effect.
+
+Fix: validate the policy before scheduling or changing the queue. Add invalid-deadline tests across all mutation families that assert zero native invocations. Never equate a validation exception with non-dispatch unless this is guaranteed.
+
+### AUD-02: Failed reinit can orphan a native signer after successful destroy
+
+Owner: `LIFE-007`. Audit priority: P1.
+
+**Reproduced, Flutter-specific.** [Reinit failure clears the node identity](lib/src/wallet/utexo_wallet_lifecycle.dart:152); [destroy disposes the signer only when that identity exists](lib/src/wallet/utexo_wallet_lifecycle.dart:212). A created/attached external signer survives failed unlock, node cleanup, and a later successful terminal `destroy()`.
+
+The mock-host test leaves signer 99 in the host store and the wallet reports disposed. Signer ownership must be independent of a live node ID, with retryable cleanup after partial initialization and attachment failures.
+
+### AUD-03: Stable signer lifecycle bypasses configured operation deadlines
+
+Owner: `LIFE-004`. Audit priority: P2.
+
+**Reproduced for password and external-signer unlock.** [Facade unlock](lib/src/wallet/utexo_wallet_lifecycle.dart:86) delegates directly through the signer host/client rather than the deadline-aware binding. With a 5 ms unlock policy, both tested calls remain pending after 1,000 ms of virtual time, also holding queued shutdown/destroy until the mock resolves. Initialization uses the same direct boundary but was source-reviewed rather than independently timed.
+
+The accepted lack of native cancellation does not justify failing to apply the promised Dart deadline. Unify dispatch/deadline/unknown-outcome semantics while retaining ordered native completion and cleanup.
+
+### AUD-04: iOS engine-detach cleanup is not registered for notification
+
+Owner: `LIFE-009`. Audit priority: P1.
+
+**Source-confirmed against the pinned Flutter engine contract.** [Plugin registration](ios/Classes/RgbSdkFlutterPlugin.swift:5) sets up Pigeon but does not publish the plugin instance. Flutter calls `detachFromEngine` on published plugins. The cleanup method therefore is not enough to ensure cleanup when an engine is destroyed without explicit wallet disposal.
+
+Register lifecycle ownership correctly and verify engine destruction/recreation with actual node/signer handles. Coordinate this with engine-scoped stores; simply enabling global cleanup could affect another engine.
+
+### AUD-05: Android detach is neither an in-flight barrier nor engine-scoped
+
+Owner: `LIFE-009`. Audit priority: P1.
+
+**Source-confirmed; no device race reproduction.** [Detach unregisters handlers and clears the global store](android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPlugin.kt:1412). An already-running create can insert a node after cleanup. Separately, detaching one engine clears handles owned by another engine because store ownership is global.
+
+Use engine ownership and a closing generation/barrier. Test pending create/attach work during detach and two simultaneously active engines, including failure paths.
+
+### AUD-06: Reused handle IDs let an old wallet destroy a replacement
+
+Owner: `LIFE-010`. Audit priority: P2.
+
+**Source-confirmed, shared design risk with RN.** [Swift store](ios/Classes/RlnNodeStore.swift:30) and [Kotlin store](android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnNodeStore.kt:29) reuse the same identifier after shutdown/same-path replacement. Wallet A can shut down, wallet B can reopen the path under the reused ID, then A's delayed destroy removes B's active node.
+
+Use generation-safe handles or enforce explicit exclusive ownership through transfer/destruction. Single app-owned runtime discipline reduces exposure but does not establish a safe public SDK contract.
+
+### AUD-07: Disposal retains avoidable unused secret references
+
+Owner: `SEC-002`. Audit priority: P2.
+
+**Source-confirmed.** [PasswordRlnSigner](lib/src/wallet/rln_signers.dart:149) inherits no-op disposal: init followed by destroy without unlock retains its password; failed initialization can retain its mnemonic. [NativeExternalRlnSigner.dispose](lib/src/wallet/rln_signers.dart:295) does not clear unused `_seedHex`. The wallet retains the signer object after disposal.
+
+Clear SDK-owned secret references on all terminal/error paths and release the signer reference after successful cleanup. This is distinct from the unavoidable limitation that immutable Dart strings cannot be guaranteed zeroized.
+
+### AUD-08: Relay quote verification does not bind the selected funding asset
+
+Owner: `LSP-012`. Audit priority: P1.
+
+**Reproduced with Dart and core fixtures; inherited upstream.** [Orchestration resolves `payWithAssetId`](lib/src/lsp/utexo_lsp_relay.dart:28) but never gives it to [the verifier](lib/src/lsp/lsp_quote_verifier.dart:78). A request selecting asset A accepts a response whose signed inbound invoice and echoed inbound leg consistently specify C. The resulting quote is marked verified and the payment path submits C's invoice.
+
+Other invariants remain valid in the reproduction. Financial impact requires a misbehaving LSP and a payable substituted asset; no funded exploit was run. Verify against caller-selected funding asset, not only agreement between two server-provided values. Submit the equivalent fix upstream rather than preserving the defect for parity.
+
+### AUD-09: Default own-receive invoice is not bound to the local wallet identity
+
+Owner: `LSP-014`. Audit priority: P1.
+
+**Reproduced in Dart with valid fixture proof signatures; inherited source omission in core.** [requestExternalInvoice without an address](lib/src/lsp/utexo_lsp_address.dart:138) resolves an address for wallet A, but [proof verification](lib/src/lsp/lsp_address_quote_verifier.dart:219) only binds recipient B to discovery B. It does not require that recipient to be A. A wrong-account lookup can yield a valid invoice for another recipient presented as this wallet's receive invoice.
+
+Carry the expected local node key through the own-address path and enforce it on lookup/discovery/proof. Preserve explicit other-address use cases. Native payment to the returned fixture was not exercised.
+
+### AUD-10: Supported same-asset `Any` receives are rejected after the mapping request
+
+Owner: `LSP-024`. Audit priority: P1.
+
+**Reproduced compatibility difference with decoded fixtures.** [Receive request](lib/src/lsp/utexo_lsp_asset_bridge.dart:52) can omit assignment. [Flutter verification](lib/src/lsp/utexo_lsp_bridge_quote_verifier.dart:240) nevertheless unconditionally requires a positive `Fungible` assignment. A same-asset/payout fixture decoded as `Any` is rejected after the mocked mapping endpoint returns. Core accepts the response without decoding its RGB invoice; no real `Any` invoice was parsed by core. Source order places this verification after the real mapping mutation in production, but no real mapping was created during the audit.
+
+The inspected LSP source preserves `Any` for non-converted receives; the deployed-server revision was not verified. Define verification by flow: preserve supported open/same-asset receives while requiring fixed, bound amounts where conversion requires them. Do not remove the other integrity checks wholesale.
+
+### AUD-11: LNURL error envelopes become misleading protocol exceptions
+
+Owner: `MODEL-028`. Audit priority: P2.
+
+**Reproduced, Flutter compatibility difference.** HTTP 200 `{"status":"ERROR","reason":"hash_pool_empty"}` reaches [the callback parser](lib/src/lsp/lsp_types.dart:393), which requires an invoice before interpreting failure. Flutter throws about missing `pr`; core retains the business error/reason.
+
+Parse the error/success union first. Expose a typed failure retaining safe business status so callers can distinguish hash-pool exhaustion from malformed success data.
+
+### AUD-12: Liquidity wait only examines the first usable channel
+
+Owner: `LSP-015`. Audit priority: P2.
+
+**Reproduced in Dart/core; inherited.** [Channel selection](lib/src/lsp/utexo_lsp_connection.dart:114) uses `firstOrNull`. Two usable peer channels with 1 and 1,000,000 msat produce a false timeout for 500,000 msat when the smaller channel is first.
+
+Select a sufficient individual channel or the largest eligible one. Do not sum channels without a supported multipath-payment contract. `isUsable: false` is already handled correctly and is not this bug.
+
+### AUD-13: Polling deadlines/cancellation do not bound an iteration
+
+Owner: `LSP-015`. Audit priority: P2.
+
+**Deadline overrun reproduced; cancellation consequence source-confirmed; inherited structure.** [Polling loops](lib/src/lsp/utexo_lsp_connection.dart:25) check before awaited work, then can accept success after the configured deadline or cancellation. A 20 ms deadline accepted success after a roughly 150 ms hook.
+
+Define whether timeout is an overall deadline or polling budget. Enforce the documented deadline across awaits and recheck cancellation before success; preserve unknown-outcome semantics for native calls already dispatched. Cover channel, liquidity, and settlement waits.
+
+### AUD-14: Status lookup accepts another payment's hash
+
+Owner: `LSP-010`. Audit priority: P2.
+
+**Reproduced; inherited response-integrity weakness.** [lightningSendStatus](lib/src/lsp/utexo_lsp_client.dart:400) requests hash A but accepts a response for B with status settled. This permits wrong-row/cache results to pass through.
+
+Bind response ID to requested ID. This is an identity check, not proof that an LSP's settlement claim is independently trustworthy; final settlement still needs appropriate wallet evidence.
+
+### AUD-15: Diagnostic serialization bypasses secret redaction
+
+Owner: `SEC-004`. Audit priority: P1.
+
+**Reproduced on two independent HTTP paths and a synthetic native error.** [Base exception JSON](lib/src/errors/rgb_sdk_exception.dart:15) serializes `cause.toString()` verbatim. Malformed secret-bearing HTTP JSON becomes a `FormatException` whose source snippet leaks through `LspError.toJson()['cause']`, although its displayed message/body are redacted. Separately, [truncating before redaction](lib/src/lsp/utexo_lsp_client.dart:575) can expose a sensitive value prefix when its closing delimiter falls beyond the preview boundary. Native error message/details are also preserved without a central safe diagnostic boundary.
+
+Use structured allowlisted diagnostics; redact before truncation and never serialize arbitrary causes or raw native payloads. Keep developer-only causes separate from safe public serialization. All probes used synthetic values, not user secrets.
+
+### AUD-16: iOS flattens native enum cases into `RlnError`
+
+Owner: `CODE-014`. Audit priority: P1.
+
+**Source-confirmed against current generated Swift and RN helper.** [errorClassName](ios/Classes/RgbSdkFlutterPlugin.swift:281) returns the enum type, not its case. `Conflict`, `NotFound`, and `InvalidRequest` therefore lose category information, producing generic node errors. The message extractor also looks for an outdated `details:` representation instead of the actual associated message contract.
+
+This affects conflict/retry handling, including already-connected logic. Match exact generated enum cases and extract associated messages deliberately. Test every native category through the actual Swift bridge, not only manually constructed Dart exceptions. RN's Swift helper preserves case identity.
+
+### AUD-17: Native error taxonomy omits current native cases
+
+Owner: `CODE-014`. Audit priority: P2.
+
+**Source-confirmed.** [Dart fallback taxonomy](lib/src/errors/native_bridge_error_mapper.dart:92) and native category tables do not classify current names such as `FailedPeerConnection`, `FailedBitcoindConnection`, and `UnsupportedInExternalSignerMode`. Even after correcting iOS case extraction, these become generic native errors rather than appropriate network/unsupported errors.
+
+Maintain one explicit category contract against the pinned generated native enum and test complete case coverage. Do not derive mutation retry safety solely from an error category.
+
+### AUD-18: RN-compatible error names have incompatible base type/status defaults
+
+Owner: `API-026`. Audit priority: P2.
+
+**Reproduced.** [NetworkError and other aliases](lib/src/errors/rgb_sdk_exception.dart:155) extend `RgbSdkException`, not `SDKError`. Catching `SDKError` misses them, unlike core. `BadRequestError`, `NotFoundError`, and `ConflictError` default to null status rather than core's 400/404/409.
+
+Make the error hierarchy and default metadata match the promised contract while retaining Dart-specific extra context. Test catches and serialization, not just class names.
+
+### AUD-19: Fee-rate boundary can trap on iOS or clamp on Android
+
+Owner: `MODEL-014`. Audit priority: P2.
+
+**Source-confirmed with isolated Swift numeric reproduction.** [Swift conversion](ios/Classes/RgbSdkFlutterPlugin.swift:242) admits `Double(UInt64.max)`, which rounds to 2^64, then converts with a trapping UInt64 initializer. Kotlin's signed bound also rounds and `.toLong()` saturates. [Dart validation](lib/src/wallet/wallet_policy.dart:102) has no matching upper bound.
+
+The isolated Swift check confirmed guard acceptance and `UInt64(exactly:) == nil`; no application crash was deliberately triggered. Establish a consistent exact range and reject before dispatch; test adjacent representable boundary values on both platforms.
+
+### AUD-20: Malformed numeric wire amounts can silently saturate
+
+Owner: `MODEL-002`. Audit priority: P2.
+
+**Reproduced defensive parsing defect.** [Raw integer helpers](lib/src/models/rln_models.dart:35) accept a finite integral double then use `.toInt()` without a range check. An out-of-range balance double becomes `9223372036854775807` rather than failing. The string path is stricter.
+
+Current native bridges normally encode large unsigned values as strings, so this is not evidence of ordinary valid balances being corrupted. Make all wire representations fail closed on overflow and keep raw BigInt versus stable signed-int policy explicit.
+
+### AUD-21: Password RGS configuration is incorrectly blocked
+
+Owner: `API-030`. Audit priority: P2.
+
+**Source-confirmed all the way to pinned native consumption.** [resolveUnlockConfig](lib/src/wallet/utexo_unlock_config_resolver.dart:7) rejects every nonempty `gossipRgsServerUrl` and later writes null. Both Flutter password bridges forward the field, and native password unlock constructs `RapidGossipSync` and fetches/applies its snapshots.
+
+The external-signer UniFFI method really does discard this option, so that signer-specific restriction remains correct. Reopen API-030, preserve password forwarding, retain external-signer fail-fast, and correct the divergence docs and rejection test. [Native consumer](https://github.com/UTEXO-Protocol/rgb-lightning-node/blob/af03c7f1a65135a429f05a5820600338215954dc/src/gossip.rs#L108).
+
+### AUD-22: Stable transfer model drops `requestedAssignment`
+
+Owner: `MODEL-012`. Audit priority: P2.
+
+**Source-confirmed, also omitted by current RN mapper.** [CoreTransfer](lib/src/models/utexo_core_models.dart:197) and its adapter omit a field that raw/native preserve and core beta.9 declares. Pending requested receives can lose requested amount/type before actual assignments exist.
+
+Preserve the optional domain field and its units; test null/Any/Fungible cases. This is a core-model completeness issue inherited from RN, not a missing Flutter native method.
+
+### AUD-23: Failed consumer builds can be recorded as passed
+
+Owner: `PKG-016`. Audit priority: P1.
+
+**Reproduced with exact shell functions and stub commands.** [run_step](tool/test_clean_consumer_matrix.sh:38) disables `errexit`; [build_consumer](tool/test_clean_consumer_matrix.sh:217) does not propagate each command failure. Injected exit 41 from pub get, analyze, APK, or iOS build on Darwin was overwritten by later success. Linux APK failure was overwritten by the final false Darwin `if`. All five probes recorded exit 0 and `FAILED=0`.
+
+[Native iOS runner](tool/test_native_ios.sh:59) has the same class of failure masking for setup followed by xcodebuild. Use explicit failure propagation or isolated fail-fast subprocesses and regression-test every stage. These probes do not claim that an actual archive failed this turn; they prove the gate would hide one.
+
+### AUD-24: Required skips can still produce `releaseEligible: true`
+
+Owner: `TEST-012`. Audit priority: P1.
+
+**Reproduced.** [Required-skip handling](tool/test_release_candidate.sh:101) leaves `FAILED=0` with `ALLOW_SKIPPED_RELEASE_GATES=1`, and [eligibility calculation](tool/test_release_candidate.sh:212) then accepts a clean tree. Probe output: `status=passed releaseEligible=true skipped_exit=125`. Consumer archives can also be disabled while the parent accepts the child exit code.
+
+Diagnostic runs may continue after skips, but must never become release-eligible. Require complete child evidence, not exit code alone. TEST-012/TEST-017 claims are stronger than this implementation.
+
+### AUD-25: Evidence attribution is not bound to the final immutable candidate
+
+Owner: `TEST-040`. Audit priority: P1.
+
+**Source-confirmed.** [Release metadata](tool/test_release_candidate.sh:14) records commit and dirtiness only before dependency resolution/generation. [Consumer snapshot](tool/test_clean_consumer_matrix.sh:85) copies working files rather than an immutable commit tree. Subsequent source changes are not rejected at completion.
+
+Execute from an immutable committed snapshot or record/verify the entire source tree at start and end. Bind every child report to that same tree, native artifacts, and baseline. Do not attribute working-file results to an earlier HEAD by convention.
+
+### AUD-26: Log hashes and child report schema are not reliably enforced
+
+Owner: `TEST-041`. Audit priority: P1.
+
+**Source-confirmed with historical report mismatch checks.** [Report hashing](tool/test_release_candidate.sh:217) occurs before final output and `tee` completion. All three inspected August 6 combined reports had final log hashes different from the recorded hashes. Required toolchain/host/device/stack/artifact fields from the evidence schema are also absent or not enforced across child reports.
+
+Finalize logs before hashing, validate the evidence schema, record every relevant binary/tool/device/stack identity, and verify child attribution/completeness. Historical passes remain historical, but their evidence must not be overstated as cryptographically bound.
+
+### AUD-27: Test-matrix labels can pass without executable scenarios
+
+Owner: `TEST-042`. Audit priority: P2.
+
+**Source-confirmed.** [Matrix validation](tool/validate_test_matrix.dart:172) checks test identifiers in some source languages, but shell evidence can pass with file existence alone. Funded HODL/VSS-recovery scenario names are not actually implemented by their referenced shell entrypoints. APay evidence marked platform smoke points to Dart tests. [Bridge-vector validation](tool/validate_bridge_vectors.dart:64) does not enforce required vector coverage per family.
+
+Use explicit executable test IDs and suite types, validate required family/vector membership, and distinguish unit, bridge, live-service, restart, and funded results. A catalog row cannot substitute for a passing scenario.
+
+### AUD-28: Coverage validator accepts incomplete, unattributed LCOV
+
+Owner: `TEST-043`. Audit priority: P2.
+
+**Reproduced using the permanent checkout's old LCOV.** [Coverage policy](tool/validate_coverage_policy.dart:95) trusts supplied source records. August coverage still passes today while omitting 14 current non-generated LSP files, including APay/address/relay/bridge code.
+
+The fresh 223-test run did generate current coverage and passed at 83.5%; this finding does not invalidate that run. Require current source inventory, fresh run/commit attribution, and a deliberate exclusions policy before accepting LCOV as release evidence.
+
+### AUD-29: Production provenance gate trusts status assertions
+
+Owner: `PKG-019`. Audit priority: P2.
+
+**Source-confirmed; not bypassed against a real release.** [Supply-chain validator](tool/validate_supply_chain.dart:256) counts `status: verified` fields for signatures, attestations, and reproducibility instead of independently validating the evidence. Changing the six status fields would satisfy that provenance subgate without cryptographic proof.
+
+Current unverified statuses correctly keep production blocked. The enforcement weakness is distinct from accepted PKG-006: implement trusted-key/signature/attestation verification before this gate can authorize production. Current vulnerability inventory also covers Pub, not every Maven/Rust/native transitive dependency; no specific native vulnerability was established.
+
+### AUD-30: Public README examples do not compile or use actual facade names
+
+Owner: `DOC-010`. Audit priority: P2.
+
+**Source-confirmed.** [README unlock example](README.md:141) passes positional config to a named `config:` API; line 178 similarly miscalls reinit. Password restart must replenish the consumed password. The Lightning section names nonexistent facade methods rather than `createLightningInvoice`, `payLightningInvoice`, and `decodeLnInvoice`.
+
+Compile documentation snippets as tests/examples. Existing documentation validation checks symbol mentions and Dartdoc link/syntax health, not the correctness of the getting-started workflow.
+
+### AUD-31: New LSP/APay/linked success platform scenarios do not exist
+
+Owner: `TEST-036`. Audit priority: P1.
+
+**Test implementation gap, not simply an unexecuted gate.** The two current integration files declare five tests: generic metadata/lifecycle/facade/funded NIA-Lightning behavior plus external-signer restart. The funded path uses one NIA asset, not a linked/canonical conversion. The restart path is BTC. No real LSP fixture is present in the SDK Compose stack.
+
+The beta.9 contract file has 46 deterministic test declarations using fake wallet/client implementations. These are valuable but do not exercise native APay registration/refill/claim, linked/canonical conversion/settlement, external address proofs, and relay payment/status against a real service on Android and iOS. Zero of the 18 core orchestration methods is covered by a real-LSP platform success scenario in the inspected suite; zero of the nine core HTTP methods is exercised against that real service there. This does not mean all native platform tests are absent.
+
+Implement those scenarios and failure/restart/ambiguity cases before collecting qualification evidence. Expand TEST-036; rerunning its existing commands alone cannot close this gap.
+
+### AUD-32: Permanent local iOS artifacts are stale
+
+Owner: `PKG-018`. Audit priority: P2.
+
+**Reproduced local environment gap.** `tool/verify_native_artifacts.sh --ios-only` rejects the installed generated Swift: actual SHA starts `d3d2eea3`, current expected SHA starts `72aee4f1`. The installed XCFramework slices also differ from the current manifest. These are ignored local artifacts; committed pins are current.
+
+Install and verify the entire pinned artifact set before native testing. The downloader correctly verifies before reuse. No local-CocoaPods preparation bug was found: official CocoaPods 1.16.2 runs preparation for local pods. Copying only the current Swift for static parity is not native qualification.
+
+### AUD-33: Exact-current clean native/consumer release evidence remains absent
+
+Owner: `TEST-036`. Audit priority: P1.
+
+**Evidence gap already partly tracked.** The inspected 20 Android and 18 iOS bridge results belong to an earlier dirty September candidate. Clean consumers, funded/unfunded smokes, restart proofs, and combined eligible reports are historical beta.27 evidence, not proof for `a443470`.
+
+After fixing the source and gates, commit one reviewed candidate and run the complete no-skip matrix on it. Include clean path/Git consumers, both bridge suites, four platform funding states, restart proofs, new LSP/APay/linked scenarios, artifact verification, and valid finalized reports. Existing BASE-010/PKG-018/TEST-036 remain open until then.
+
+### AUD-34: Three default indexers differ from the latest core contract
+
+Owner: `API-022`. Audit priority: P2.
+
+**Source-confirmed, Flutter drift despite matching package-version pins.** [Flutter constants](lib/src/crypto/constants.dart:69) use Iris Electrum endpoints for mainnet, testnet, and testnet4. Exact core beta.9 uses `https://esplora-mainnet.utexo.com`, `https://esplora-testnet3.utexo.com`, and `https://esplora-testnet4.utexo.com`. RN consumes the core defaults.
+
+This changes provider, protocol, and connectivity requirements. Align defaults or explicitly justify a supported divergence, and test default resolution by value, not merely export presence. Endpoint availability was not tested during this audit.
+
+### AUD-35: Some valid native UInt64 asset values are unreadable
+
+Owner: `MODEL-015`. Audit priority: P2.
+
+**Source-confirmed range limitation, separate from AUD-20's silent double saturation.** Native serializes upper-half UInt64 values as exact decimal strings, but [raw integer parsing](lib/src/models/rln_models.dart:43) rejects values above Int64.max for many balances/supplies. [Eager asset-list decoding](lib/src/models/rln_models.dart:803) means one such valid asset can fail the whole list.
+
+Signed-int boundaries are documented in part, so this is not undisclosed silent corruption. Full native amount coverage requires BigInt-compatible read models and deliberate consumer semantics, or an explicitly accepted narrower asset range. RN's floating-point loss is not a correctness target. The current policy cannot justify an unrestricted 1:1 value-domain claim.
+
+### AUD-36: Stable network fields are not normalized like RN/core
+
+Owner: `API-010`. Audit priority: P2.
+
+**Source-confirmed.** [Network-info adapter](lib/src/models/utexo_core_models.dart:659), decoded Lightning adapter, and decoded RGB adapter pass native network strings through. RN maps native aliases to canonical names before exposing stable results.
+
+Inputs such as native `Bitcoin` or `SignetCustom` can differ from app-facing `mainnet` or `utexo`. Canonicalize recognized values at the stable adapter, preserving unknown values only according to a documented policy. Keep raw native names available in the advanced API. Internal signed-invoice comparison policy does not automatically normalize public outputs.
+
+### AUD-37: Expanded seed-list input silently wraps invalid byte values
+
+Owner: `SEC-013`. Audit priority: P2.
+
+**Source-confirmed, Dart-specific input extension.** [normalizeSeedInput](lib/src/crypto/keys.dart:123) accepts `List<int>` and calls `Uint8List.fromList` without validating 0..255. Negative/oversized integers wrap, so malformed seed material can become a different wallet identity instead of failing. Core accepts typed byte input, not an arbitrary numeric array.
+
+Validate every element before conversion, or restrict the public contract to typed bytes and documented hex. Add negative/256/large-integer boundary and caller-buffer ownership tests.
+
+### AUD-38: Wallet identity configuration accepts options that are ignored
+
+Owner: `API-045`. Audit priority: P2.
+
+**Source-confirmed.** [UtexoWalletConfig](lib/src/wallet/utexo_wallet_types.dart:24) accepts `xpubVan`, `xpubCol`, and `masterFingerprint`, described as external-signer options. No wallet code consumes them to establish or check identity.
+
+Do not imply that these values validate the supplied signer. Either implement the intended identity checks or remove/reject the inert options with a clear migration note. This is not a claim that RN offers watch-only functionality absent from Flutter.
+
+### AUD-39: Sats-to-msats multiplication can overflow before validation
+
+Owner: `MODEL-031`. Audit priority: P3.
+
+**Source-confirmed defensive boundary defect.** [Invoice creation](lib/src/wallet/utexo_wallet_lightning.dart:13) and [payment](lib/src/wallet/utexo_wallet_lightning.dart:123) validate nonnegativity, multiply by 1000, and validate the already-overflowed result. Under signed-64 arithmetic, `18446744073709552 * 1000` wraps to positive 384.
+
+Check the pre-multiplication limit or use BigInt/exact conversion. The input is far above Bitcoin's total supply; this is not evidence of ordinary payment amounts failing.
+
+
+### Additional contract and investigation scope
+
+API-046 owns all rows in the audit's additional parity/adaptation table, including
+field spellings, node-level local balance, capability carrier signatures, export
+placement, constructor adaptation, requested UTXO count and HODL acknowledgement
+semantics, raw link metadata and fee defaults. LSP-029 owns the two explicitly
+unverified trust/routing questions. These are not silently accepted limitations.

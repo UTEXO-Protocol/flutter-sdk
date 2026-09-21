@@ -6,9 +6,9 @@ mixin _UtexoLspAssetBridge on _UtexoLspInternals {
     if (options.assetId.trim().isEmpty) {
       throw const ValidationError('assetId is required.', 'assetId');
     }
-    if (options.amountSats <= 0) {
+    if (options.amountSats <= 0 || options.amountSats > 9223372036854775) {
       throw const ValidationError(
-        'amountSats must be a positive integer.',
+        'amountSats must be positive and fit the native millisatoshi range.',
         'amountSats',
       );
     }

@@ -255,7 +255,9 @@ Map<String, Object?> _validateProvenanceManifest({
     );
     final signatureStatus = signature?['status']?.toString() ?? 'missing';
     if (signatureStatus == 'verified') {
-      verifiedSignatures += 1;
+      failures.add(
+        '${entry.key}: signature status is a claim, not trusted-key verification. No production signature verifier is configured (PKG-006).',
+      );
     } else if (signatureStatus == 'absent') {
       absentSignatures += 1;
       _addProvenanceBlocker(
@@ -290,7 +292,9 @@ Map<String, Object?> _validateProvenanceManifest({
     );
     final attestationStatus = attestation?['status']?.toString() ?? 'missing';
     if (attestationStatus == 'verified') {
-      verifiedAttestations += 1;
+      failures.add(
+        '${entry.key}: attestation status is a claim, not cryptographic source/builder verification (PKG-006).',
+      );
     } else if (attestationStatus == 'absent') {
       _addProvenanceBlocker(
         production: production,
@@ -314,7 +318,9 @@ Map<String, Object?> _validateProvenanceManifest({
     );
     final reproducibleStatus = reproducible?['status']?.toString() ?? 'missing';
     if (reproducibleStatus == 'verified') {
-      verifiedReproducibleBuilds += 1;
+      failures.add(
+        '${entry.key}: reproducible-build status is a claim, not an independently reproduced artifact (PKG-006).',
+      );
     } else if (reproducibleStatus == 'absent') {
       _addProvenanceBlocker(
         production: production,

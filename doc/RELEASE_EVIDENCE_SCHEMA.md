@@ -3,6 +3,27 @@
 Release evidence must be attributable, sanitized, and tied to the exact source
 candidate. A passing script name is never enough.
 
+## Current Enforcement
+
+The September corrective implementation emits schema version 2 only after
+finalization. Draft reports are always `releaseEligible: false`. Finalization
+compares the starting and ending commit, tracked source content, baseline,
+artifact-provenance manifest, dependency lock, and clean-worktree status. It
+hashes logs after their writers have exited, records Flutter/Dart/host and
+available native build-tool identities, and labels repository paths.
+
+The combined runner requires nine current-run child reports: consumer matrix,
+Android JVM, iOS XCTest, and funded, unfunded and external-signer restart reports
+for both explicit devices. Each child must match the parent candidate and its
+completed log checksum. Platform reports additionally require the exact device
+OS identity and SDK-owned regtest container/image IDs. A checked children
+manifest is attached to the final combined report.
+
+This is not a claim that qualification has run. TEST-040/TEST-041 stay open until
+an exact clean combined run exercises these contracts end to end. The expanded
+native/compiler inventory, attachment provenance and sanitization requirements
+below must also be verified before those rows close; hashes are not signatures.
+
 ## Evidence Identifier
 
 Every release evidence file must have a stable identifier:

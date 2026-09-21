@@ -1,4 +1,10 @@
+import 'dart:convert';
 import 'dart:io';
+
+import 'package:crypto/crypto.dart';
+
+import 'coverage_evidence.dart';
+import 'lcov.dart';
 
 const _coveragePath = 'coverage/lcov.info';
 
@@ -15,12 +21,12 @@ void main() {
   if (!file.existsSync()) {
     stderr.writeln(
       'Coverage policy validation failed: missing $_coveragePath. '
-      'Run `flutter test --coverage` first.',
+      'Run `dart run tool/test_dart_coverage.dart` first.',
     );
     exit(1);
   }
 
-  final records = _parseLcov(
+  final records = parseLcov(
     file.readAsStringSync(),
   ).where((record) => _includedSource(record.path)).toList(growable: false);
   if (records.isEmpty) {
@@ -29,6 +35,41 @@ void main() {
   }
 
   final failures = <String>[];
+  final sources = coverageSources().toSet();
+  final recordedSources = records.map((record) => record.path).toSet();
+  for (final missing in sources.difference(recordedSources)) {
+    if (!isDeclarationOnlySource(missing)) {
+      failures.add('LCOV omits current executable source $missing.');
+    }
+  }
+  if (recordedSources.length != records.length) {
+    failures.add('LCOV contains duplicate source records.');
+  }
+  for (final stale in recordedSources.difference(sources)) {
+    failures.add('LCOV contains stale source $stale.');
+  }
+  final receiptFile = File('coverage/evidence.json');
+  if (!receiptFile.existsSync()) {
+    failures.add('Missing coverage receipt; run tool/test_dart_coverage.dart.');
+  } else {
+    try {
+      final receipt =
+          jsonDecode(receiptFile.readAsStringSync()) as Map<String, Object?>;
+      if (receipt['schemaVersion'] != 1 ||
+          receipt['exitCode'] != 0 ||
+          receipt['commit'] != coverageCommit() ||
+          receipt['inputSha256'] != coverageInputHash() ||
+          receipt['lcovSha256'] !=
+              sha256.convert(file.readAsBytesSync()).toString() ||
+          jsonEncode(receipt['sourceFiles']) != jsonEncode(coverageSources())) {
+        failures.add(
+          'Coverage receipt does not match the current source, tests, commit, or LCOV.',
+        );
+      }
+    } on Object {
+      failures.add('Coverage receipt is malformed.');
+    }
+  }
   _checkBucket('package', records, failures);
   for (final prefix in _thresholds.keys.where((key) => key != 'package')) {
     _checkBucket(
@@ -68,7 +109,7 @@ bool _includedSource(String path) {
 
 void _checkBucket(
   String label,
-  Iterable<_LcovRecord> records,
+  Iterable<LcovRecord> records,
   List<String> failures,
 ) {
   final threshold = _thresholds[label]!;
@@ -81,7 +122,7 @@ void _checkBucket(
   }
 }
 
-double _coverage(Iterable<_LcovRecord> records) {
+double _coverage(Iterable<LcovRecord> records) {
   var found = 0;
   var hit = 0;
   for (final record in records) {
@@ -90,61 +131,4 @@ double _coverage(Iterable<_LcovRecord> records) {
   }
   if (found == 0) return 0;
   return hit * 100 / found;
-}
-
-List<_LcovRecord> _parseLcov(String text) {
-  final records = <_LcovRecord>[];
-  String? path;
-  int? linesFound;
-  int? linesHit;
-
-  void flush() {
-    if (path != null && linesFound != null && linesHit != null) {
-      records.add(
-        _LcovRecord(
-          path: _repoRelative(path!),
-          linesFound: linesFound!,
-          linesHit: linesHit!,
-        ),
-      );
-    }
-    path = null;
-    linesFound = null;
-    linesHit = null;
-  }
-
-  for (final line in text.split('\n')) {
-    if (line.startsWith('SF:')) {
-      flush();
-      path = line.substring(3);
-    } else if (line.startsWith('LF:')) {
-      linesFound = int.parse(line.substring(3));
-    } else if (line.startsWith('LH:')) {
-      linesHit = int.parse(line.substring(3));
-    } else if (line == 'end_of_record') {
-      flush();
-    }
-  }
-  flush();
-  return records;
-}
-
-String _repoRelative(String path) {
-  final normalized = path.replaceAll('\\', '/');
-  final libIndex = normalized.indexOf('/lib/');
-  if (libIndex >= 0) return normalized.substring(libIndex + 1);
-  if (normalized.startsWith('lib/')) return normalized;
-  return normalized;
-}
-
-class _LcovRecord {
-  const _LcovRecord({
-    required this.path,
-    required this.linesFound,
-    required this.linesHit,
-  });
-
-  final String path;
-  final int linesFound;
-  final int linesHit;
 }

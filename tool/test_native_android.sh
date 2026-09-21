@@ -3,8 +3,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
+source "${SCRIPT_DIR}/evidence_shell.sh"
 REPORT_DIR="${REPORT_DIR:-${REPO_DIR}/build/test-reports/native}"
-GRADLE_ARGS=(":rgb_sdk_flutter:testDebugUnitTest" "--no-daemon")
+GRADLE_ARGS=(":rgb_sdk_flutter:testDebugUnitTest" "--rerun" "--no-daemon")
 
 json_escape() {
   printf '%s' "$1" | sed 's/\\/\\\\/g; s/"/\\"/g'
@@ -23,6 +24,7 @@ else
 fi
 REPORT_FILE="${REPORT_DIR}/native-android-${RUN_ID}-${SHORT_COMMIT}.json"
 LOG_FILE="${REPORT_DIR}/native-android-${RUN_ID}-${SHORT_COMMIT}.log"
+start_evidence "${REPORT_FILE}"
 
 sha256_file() {
   if command -v shasum >/dev/null 2>&1; then
@@ -42,6 +44,7 @@ repo_label_path() {
 
 set +e
 (
+  set -euo pipefail
   cd "${REPO_DIR}/example/android"
   ./gradlew "${GRADLE_ARGS[@]}"
 ) 2>&1 | tee "${LOG_FILE}"
@@ -54,11 +57,8 @@ if [[ "${EXIT_CODE}" -eq 0 ]]; then
 else
   STATUS="failed"
 fi
-if [[ "${EXIT_CODE}" -eq 0 && "${WORKTREE_DIRTY}" == "false" ]]; then
-  RELEASE_ELIGIBLE="true"
-else
-  RELEASE_ELIGIBLE="false"
-fi
+# Finalization alone can authorize a clean, complete report.
+RELEASE_ELIGIBLE="false"
 
 cat >"${REPORT_FILE}" <<JSON
 {
@@ -80,4 +80,5 @@ cat >"${REPORT_FILE}" <<JSON
 JSON
 
 echo "native Android report: ${REPORT_FILE}"
+finish_evidence "${REPORT_FILE}"
 exit "${EXIT_CODE}"

@@ -151,7 +151,7 @@ class LspInsufficientAssetLiquidityException extends WalletException {
         .map(
           (candidate) => <String, Object?>{
             'assetId': candidate.assetId,
-            'localAmount': candidate.localAmount,
+            'localAmount': candidate.localAmount.toString(),
           },
         )
         .toList(growable: false),

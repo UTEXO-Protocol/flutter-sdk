@@ -21,35 +21,41 @@ mixin _UtexoLspConnection on _UtexoLspInternals {
     final timeoutMs = _validatedTimeoutMs(options, _defaultChannelTimeoutMs);
     final pollIntervalMs = _validatedPollIntervalMs(options);
     final timer = Stopwatch()..start();
+    final deadline = _PollDeadline(timer, timeoutMs, options);
 
     while (timer.elapsedMilliseconds < timeoutMs) {
-      _checkCancelled(options);
-      await options.onEachPoll?.call();
-      await wallet.syncWallet();
-      final channels = await wallet.listChannels();
-      final match = channels
-          .where(
-            (channel) =>
-                channel.peerPubkey == peer.peerPubkey &&
-                channel.assetId == assetId &&
-                _isUsableChannel(channel),
-          )
-          .firstOrNull;
-      options.onProgress?.call(
-        'channels: ${channels.length}; RGB usable: ${match == null ? 'no' : 'yes'}',
-      );
-      if (match != null) {
-        return ChannelReadyInfo(
-          channelId: match.channelId,
-          peerPubkey: match.peerPubkey,
-          capacitySat: match.capacitySat,
-          outboundBalanceMsat:
-              match.outboundBalanceMsat ?? match.localBalanceMsat ?? 0,
-          inboundBalanceMsat:
-              match.inboundBalanceMsat ?? match.remoteBalanceMsat ?? 0,
+      try {
+        _checkCancelled(options);
+        await deadline.run(() async => options.onEachPoll?.call());
+        await deadline.run(wallet.syncWallet);
+        final channels = await deadline.run(wallet.listChannels);
+        final match = channels
+            .where(
+              (channel) =>
+                  channel.peerPubkey == peer.peerPubkey &&
+                  channel.assetId == assetId &&
+                  _isUsableChannel(channel),
+            )
+            .firstOrNull;
+        options.onProgress?.call(
+          'channels: ${channels.length}; RGB usable: ${match == null ? 'no' : 'yes'}',
         );
+        deadline.check();
+        if (match != null) {
+          return ChannelReadyInfo(
+            channelId: match.channelId,
+            peerPubkey: match.peerPubkey,
+            capacitySat: match.capacitySat,
+            outboundBalanceMsat:
+                match.outboundBalanceMsat ?? match.localBalanceMsat ?? 0,
+            inboundBalanceMsat:
+                match.inboundBalanceMsat ?? match.remoteBalanceMsat ?? 0,
+          );
+        }
+        await deadline.pause(pollIntervalMs);
+      } on _PollDeadlineExpired {
+        break;
       }
-      await _sleep(pollIntervalMs, options);
     }
 
     throw LspChannelTimeoutException(
@@ -70,23 +76,31 @@ mixin _UtexoLspConnection on _UtexoLspInternals {
     final timeoutMs = _validatedTimeoutMs(options, _defaultSettlementTimeoutMs);
     final pollIntervalMs = _validatedPollIntervalMs(options);
     final timer = Stopwatch()..start();
+    final deadline = _PollDeadline(timer, timeoutMs, options);
 
     while (timer.elapsedMilliseconds < timeoutMs) {
-      _checkCancelled(options);
-      await options.onEachPoll?.call();
-      await wallet.syncWallet();
-      final status = await wallet.getLightningReceiveStatus(lnInvoice);
-      options.onProgress?.call(status);
+      try {
+        _checkCancelled(options);
+        await deadline.run(() async => options.onEachPoll?.call());
+        await deadline.run(wallet.syncWallet);
+        final status = await deadline.run(
+          () => wallet.getLightningReceiveStatus(lnInvoice),
+        );
+        options.onProgress?.call(status);
+        deadline.check();
 
-      if (status == RlnInvoiceStatuses.succeeded) {
-        return ReceiveSettlementOutcomes.settled;
+        if (status == RlnInvoiceStatuses.succeeded) {
+          return ReceiveSettlementOutcomes.settled;
+        }
+        if (status == RlnInvoiceStatuses.failed ||
+            status == RlnInvoiceStatuses.expired ||
+            status == RlnInvoiceStatuses.cancelled) {
+          throw LspSettlementException(step: 'ln_invoice', status: status);
+        }
+        await deadline.pause(pollIntervalMs);
+      } on _PollDeadlineExpired {
+        break;
       }
-      if (status == RlnInvoiceStatuses.failed ||
-          status == RlnInvoiceStatuses.expired ||
-          status == RlnInvoiceStatuses.cancelled) {
-        throw LspSettlementException(step: 'ln_invoice', status: status);
-      }
-      await _sleep(pollIntervalMs, options);
     }
 
     options.onProgress?.call('timeout');
@@ -104,27 +118,39 @@ mixin _UtexoLspConnection on _UtexoLspInternals {
     final timeoutMs = _validatedTimeoutMs(options, _defaultChannelTimeoutMs);
     final pollIntervalMs = _validatedPollIntervalMs(options);
     final timer = Stopwatch()..start();
+    final deadline = _PollDeadline(timer, timeoutMs, options);
     var lastOutboundMsat = 0;
 
     while (timer.elapsedMilliseconds < timeoutMs) {
-      _checkCancelled(options);
-      await options.onEachPoll?.call();
-      await wallet.syncWallet();
-      final channels = await wallet.listChannels();
-      final lspChannel = channels
-          .where(
-            (channel) =>
-                channel.peerPubkey == peer.peerPubkey &&
-                _isUsableChannel(channel),
-          )
-          .firstOrNull;
-      lastOutboundMsat =
-          lspChannel?.outboundBalanceMsat ?? lspChannel?.localBalanceMsat ?? 0;
-      options.onProgress?.call(
-        'outbound: $lastOutboundMsat msat (need $minMsat)',
-      );
-      if (lastOutboundMsat >= minMsat) return;
-      await _sleep(pollIntervalMs, options);
+      try {
+        _checkCancelled(options);
+        await deadline.run(() async => options.onEachPoll?.call());
+        await deadline.run(wallet.syncWallet);
+        final channels = await deadline.run(wallet.listChannels);
+        final balances = channels
+            .where(
+              (channel) =>
+                  channel.peerPubkey == peer.peerPubkey &&
+                  _isUsableChannel(channel),
+            )
+            .map(
+              (channel) =>
+                  channel.outboundBalanceMsat ?? channel.localBalanceMsat ?? 0,
+            );
+        // One sufficiently funded channel is required; no MPP contract is assumed.
+        lastOutboundMsat = balances.fold<int>(
+          0,
+          (largest, value) => value > largest ? value : largest,
+        );
+        options.onProgress?.call(
+          'outbound: $lastOutboundMsat msat (need $minMsat)',
+        );
+        deadline.check();
+        if (lastOutboundMsat >= minMsat) return;
+        await deadline.pause(pollIntervalMs);
+      } on _PollDeadlineExpired {
+        break;
+      }
     }
 
     throw LspLiquidityTimeoutException(
@@ -138,5 +164,76 @@ mixin _UtexoLspConnection on _UtexoLspInternals {
   bool _isAlreadyConnectedError(Object error) {
     if (error is ConflictError) return true;
     return error is RgbSdkException && error.code == 'CONFLICT';
+  }
+}
+
+final class _PollDeadlineExpired implements Exception {
+  const _PollDeadlineExpired();
+}
+
+/// Bounds polling without implying cancellation of an already dispatched call.
+/// Each continuation checks the budget before it may start another operation.
+final class _PollDeadline {
+  _PollDeadline(this.timer, this.timeoutMs, this.options);
+
+  final Stopwatch timer;
+  final int timeoutMs;
+  final WaitOptions options;
+
+  void check() {
+    _checkCancelled(options);
+    if (timer.elapsedMilliseconds >= timeoutMs) {
+      throw const _PollDeadlineExpired();
+    }
+  }
+
+  Future<void> pause(int milliseconds) async {
+    Timer? delay;
+    try {
+      await run(() {
+        final completed = Completer<void>();
+        delay = Timer(Duration(milliseconds: milliseconds), completed.complete);
+        return completed.future;
+      });
+    } finally {
+      delay?.cancel();
+    }
+  }
+
+  Future<T> run<T>(Future<T> Function() operation) async {
+    check();
+    final result = Completer<T>();
+    final deadlineTimer = Timer(
+      Duration(milliseconds: timeoutMs - timer.elapsedMilliseconds),
+      () => result.completeError(const _PollDeadlineExpired()),
+    );
+    final cancellationTimer = options.isCancelled == null
+        ? null
+        : Timer.periodic(const Duration(milliseconds: 25), (_) {
+            if (result.isCompleted) return;
+            try {
+              _checkCancelled(options);
+            } catch (error, stack) {
+              result.completeError(error, stack);
+            }
+          });
+    try {
+      unawaited(
+        Future<T>.sync(operation).then(
+          (value) {
+            if (!result.isCompleted) result.complete(value);
+          },
+          onError: (Object error, StackTrace stack) {
+            if (!result.isCompleted) result.completeError(error, stack);
+          },
+        ),
+      );
+      final value = await result.future;
+      check();
+      return value;
+    } finally {
+      deadlineTimer.cancel();
+      cancellationTimer?.cancel();
+    }
   }
 }

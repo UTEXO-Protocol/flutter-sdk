@@ -7,6 +7,27 @@ import '../errors/rgb_sdk_exception.dart';
 /// only place that translates native enum/status spelling into the public
 /// domain vocabulary.
 abstract final class UtexoDomainPolicy {
+  /// Recognized native aliases become core names; unknown networks fail closed.
+  static String normalizeNetwork(String raw) {
+    final key = raw.trim().toLowerCase().replaceAll(RegExp(r'[_\s-]+'), '');
+    final canonical = const <String, String>{
+      'bitcoin': 'mainnet',
+      'mainnet': 'mainnet',
+      'testnet': 'testnet',
+      'testnet3': 'testnet',
+      'testnet4': 'testnet4',
+      'signet': 'signet',
+      'signetcustom': 'utexo',
+      'utexo': 'utexo',
+      'regtest': 'regtest',
+    }[key];
+    if (canonical != null) return canonical;
+    throw const NativeProtocolException(
+      'Unsupported native network.',
+      field: 'network',
+    );
+  }
+
   static const Map<String, String> transactionTypes = <String, String>{
     'RGB_SEND': 'RgbSend',
     'DRAIN': 'Drain',

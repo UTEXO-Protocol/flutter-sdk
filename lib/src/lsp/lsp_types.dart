@@ -1,4 +1,5 @@
 import '../errors/rgb_sdk_exception.dart';
+import '../models/exact_integer.dart';
 import 'lsp_protocol_policy.dart';
 
 const _maxUnsigned64Decimal = '18446744073709551615';
@@ -391,6 +392,12 @@ class LspLnurlpCallbackResponse {
   }) : routes = List<Object?>.unmodifiable(routes);
 
   factory LspLnurlpCallbackResponse.fromWire(Map<String, Object?> map) {
+    final status = _optionalString(map, 'status', 'LspLnurlpCallbackResponse');
+    if (status == 'ERROR') {
+      throw LnurlCallbackException(
+        reason: _requiredString(map, 'reason', 'LspLnurlpCallbackResponse'),
+      );
+    }
     final proof = map['proof'];
     return LspLnurlpCallbackResponse(
       pr: _requiredString(map, 'pr', 'LspLnurlpCallbackResponse'),
@@ -680,6 +687,9 @@ class HodlInvoice {
   });
 
   final String bolt11;
+
+  /// Core-compatible spelling of [bolt11].
+  String get invoice => bolt11;
   final String paymentHash;
   final int? amtMsat;
   final int expirySec;
@@ -692,6 +702,9 @@ class HodlInvoice {
 class HodlInvoiceResult {
   const HodlInvoiceResult({required this.changed});
 
+  /// Native claim result, or acknowledgement for cancellation.
+  /// Cancellation's void native API does not prove a state transition. Query
+  /// invoice/payment state before treating this as an observed cancellation.
   final bool changed;
 }
 
@@ -750,12 +763,7 @@ int _requiredUInt8(Map<String, Object?> map, String key, String typeName) {
   return value;
 }
 
-int? _intValue(Object? value) {
-  if (value is int) return value;
-  if (value is double && value.isFinite && value % 1 == 0) return value.toInt();
-  if (value is String) return int.tryParse(value);
-  return null;
-}
+int? _intValue(Object? value) => exactWireInt(value);
 
 String _requiredString(Map<String, Object?> map, String key, String typeName) {
   final value = _stringValue(map[key]);

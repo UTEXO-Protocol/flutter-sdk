@@ -2,6 +2,29 @@ import 'package:flutter/services.dart';
 
 import 'rgb_sdk_exception.dart';
 
+const _nativeErrorCodes = <String>{
+  'RlnError',
+  'NotInitialized',
+  'InvalidRequest',
+  'NotFound',
+  'Conflict',
+  'FailedBitcoindConnection',
+  'FailedBdkSync',
+  'FailedBroadcast',
+  'FailedPeerConnection',
+  'InsufficientCapacity',
+  'InsufficientFunds',
+  'NoAvailableUtxos',
+  'NoRoute',
+  'ExternalSignerRequired',
+  'ExternalSignerMismatch',
+  'ExternalSignerUnavailable',
+  'ExternalSignerProtocolError',
+  'UnsupportedInExternalSignerMode',
+  'FailedVssInit',
+  'Internal',
+};
+
 /// Structured cause attached to SDK exceptions created from native bridge
 /// failures.
 class NativeBridgeFailure {
@@ -46,16 +69,27 @@ RgbSdkException mapNativeBridgeException(
   required String operation,
 }) {
   final code = error.code.trim().isEmpty ? 'PlatformException' : error.code;
-  final message = _nativeMessage(error, operation);
   final details = _NativeBridgeErrorDetails.parse(error.details);
   final category = details.category ?? _categoryFromExactNativeCode(code);
+  // Native exception text/details are not a support-safe contract: RLN may
+  // include request material, credentials, paths or invoices in either field.
+  final message = 'Native wallet operation failed (${category.name}).';
   final retryable = details.retryable ?? _retryableFromCategory(category);
   final cause = NativeBridgeFailure(
     operation: operation,
-    nativeCode: code,
+    nativeCode:
+        !_nativeErrorCodes.contains(code) &&
+            _categoryFromExactNativeCode(code) ==
+                NativeBridgeFailureCategory.native
+        ? 'NativeError'
+        : code,
     category: category,
     message: message,
-    details: error.details,
+    details: <String, Object?>{
+      'operation': operation,
+      'category': category.name,
+      'retryable': retryable,
+    },
     retryable: retryable,
     structured: details.category != null,
   );
@@ -74,18 +108,21 @@ RgbSdkException mapNativeBridgeException(
     case NativeBridgeFailureCategory.unsupported:
       return UnsupportedWalletFeatureException(
         message,
-        feature: details.feature ?? operation,
+        feature:
+            const <String>{
+              'sendRgb.skipSync',
+              'rlnSendRgb.skipSync',
+              'rlnBackup',
+              'backup',
+              'unlock.gossipRgsServerUrl',
+            }.contains(details.feature)
+            ? details.feature!
+            : operation,
         cause: cause,
       );
     case NativeBridgeFailureCategory.native:
       return RgbNodeError(message, cause: cause);
   }
-}
-
-String _nativeMessage(PlatformException error, String operation) {
-  final message = error.message?.trim();
-  if (message != null && message.isNotEmpty) return message;
-  return 'Native bridge operation $operation failed with ${error.code}.';
 }
 
 NativeBridgeFailureCategory _categoryFromExactNativeCode(String code) {
@@ -108,15 +145,25 @@ NativeBridgeFailureCategory _categoryFromExactNativeCode(String code) {
     case 'Network':
     case 'Transport':
     case 'Timeout':
+    case 'FailedPeerConnection':
+    case 'FailedBitcoindConnection':
+    case 'FailedBdkSync':
+    case 'FailedBroadcast':
+    case 'NoRoute':
       return NativeBridgeFailureCategory.network;
     case 'Configuration':
     case 'StorageDirectoryPolicy':
     case 'RlnStorageDirectoryPolicyError':
     case 'RlnStorageDirectoryPolicyException':
+    case 'NotInitialized':
+    case 'ExternalSignerRequired':
+    case 'ExternalSignerMismatch':
+    case 'ExternalSignerUnavailable':
       return NativeBridgeFailureCategory.configuration;
     case 'unsupported':
     case 'Unsupported':
     case 'UnsupportedOperation':
+    case 'UnsupportedInExternalSignerMode':
       return NativeBridgeFailureCategory.unsupported;
     default:
       return NativeBridgeFailureCategory.native;

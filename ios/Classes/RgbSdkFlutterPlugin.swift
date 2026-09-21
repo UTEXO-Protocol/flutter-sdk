@@ -2,14 +2,32 @@ import Flutter
 import UIKit
 
 public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
+  let nodeStore = RlnNodeStore()
+  private let operationQueue = DispatchQueue(label: "com.utexo.rgb_sdk_flutter.engine")
+  private let closingLock = NSLock()
+  private var closing = false
+
   public static func register(with registrar: FlutterPluginRegistrar) {
     let instance = RgbSdkFlutterPlugin()
     RlnHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: instance)
+    registrar.publish(instance)
   }
 
   public func detachFromEngine(for registrar: FlutterPluginRegistrar) {
     RlnHostApiSetup.setUp(binaryMessenger: registrar.messenger(), api: nil)
-    RlnNodeStore.shared.clearAll()
+    closeEngine()
+  }
+
+  // Detach is delivered on the platform thread. Drain native work off-thread;
+  // setting closing first rejects messages already waiting on Pigeon's queue.
+  func closeEngine(completion: @escaping () -> Void = {}) {
+    closingLock.lock()
+    closing = true
+    closingLock.unlock()
+    operationQueue.async {
+      self.nodeStore.clearAll()
+      completion()
+    }
   }
 
   func getNativeArtifactInfo() throws -> RlnNativeArtifactInfo {
@@ -23,12 +41,20 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
   }
 
   private func runRln<T>(_ operation: String, _ block: () throws -> T) throws -> T {
-    do {
-      return try block()
-    } catch let error as PigeonError {
-      throw error
-    } catch {
-      throw bridgeError(error, operation: operation)
+    try operationQueue.sync {
+      closingLock.lock()
+      let isClosing = closing
+      closingLock.unlock()
+      guard !isClosing else {
+        throw PigeonError(code: "Conflict", message: "Flutter engine is detached.", details: nil)
+      }
+      do {
+        return try block()
+      } catch let error as PigeonError {
+        throw error
+      } catch {
+        throw bridgeError(error, operation: operation)
+      }
     }
   }
 
@@ -36,76 +62,14 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     _ operation: String,
     _ block: () throws -> T
   ) throws -> RlnWireResponse {
-    try wireResponse(runRln(operation, block))
+    try RlnWireCodec.encode(runRln(operation, block))
   }
 
   private func runRlnWireList<T>(
     _ operation: String,
     _ block: () throws -> [T]
   ) throws -> [RlnWireResponse] {
-    try runRln(operation, block).map(wireResponse)
-  }
-
-  private func wireResponse(_ value: Any?) throws -> RlnWireResponse {
-    let jsonValue = try jsonCompatibleValue(value)
-    let data = try JSONSerialization.data(withJSONObject: jsonValue, options: [.sortedKeys])
-    guard let json = String(data: data, encoding: .utf8) else {
-      throw PigeonError(
-        code: "nativeProtocol",
-        message: "Native response JSON was not valid UTF-8.",
-        details: nil
-      )
-    }
-    return RlnWireResponse(json: json)
-  }
-
-  private func jsonCompatibleValue(_ value: Any?) throws -> Any {
-    guard let value else {
-      return NSNull()
-    }
-    switch value {
-    case let value as [AnyHashable?: Any?]:
-      var object = [String: Any]()
-      for (key, entryValue) in value {
-        let keyString = key.map { String(describing: $0) } ?? "null"
-        object[keyString] = try jsonCompatibleValue(entryValue ?? nil)
-      }
-      return object
-    case let value as [String: Any?]:
-      var object = [String: Any]()
-      for (key, entryValue) in value {
-        object[key] = try jsonCompatibleValue(entryValue ?? nil)
-      }
-      return object
-    case let value as [Any?]:
-      return try value.map { try jsonCompatibleValue($0) }
-    case let value as Bool:
-      return value
-    case let value as String:
-      return value
-    case let value as UInt64:
-      return value <= UInt64(Int64.max) ? NSNumber(value: value) : String(value)
-    case let value as UInt32:
-      return NSNumber(value: value)
-    case let value as UInt16:
-      return NSNumber(value: value)
-    case let value as UInt8:
-      return NSNumber(value: value)
-    case let value as Int64:
-      return NSNumber(value: value)
-    case let value as Int32:
-      return NSNumber(value: value)
-    case let value as Int:
-      return NSNumber(value: value)
-    case let value as Double:
-      return NSNumber(value: value)
-    case let value as Float:
-      return NSNumber(value: value)
-    case let value as NSNumber:
-      return value
-    default:
-      return String(describing: value)
-    }
+    try runRln(operation, block).map(RlnWireCodec.encode)
   }
 
   private func bridgeError(_ error: Error, operation: String) -> PigeonError {
@@ -114,7 +78,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     }
     return PigeonError(
       code: errorClassName(error),
-      message: errorMessage(error),
+      message: "Native wallet operation failed (\(errorClassName(error))).",
       details: bridgeErrorDetails(
         operation,
         category: nativeErrorCategory(errorClassName(error)),
@@ -240,10 +204,11 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
   }
 
   private func requireFeeRate(_ value: Double, field: String, operation: String) throws -> UInt64 {
-    guard value.isFinite, value >= 0, value <= Double(UInt64.max), value.rounded(.towardZero) == value else {
+    guard value.isFinite, value >= 0, value < 9223372036854775808.0,
+          let exact = UInt64(exactly: value) else {
       throw invalidArgument(operation, field: field, message: "\(field) must be a finite non-negative integer fee rate.")
     }
-    return UInt64(value.rounded(.towardZero))
+    return exact
   }
 
   private func requireUInt64List(_ values: [Int64], field: String, operation: String) throws -> [UInt64] {
@@ -279,27 +244,19 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
   }
 
   private func errorClassName(_ error: Error) -> String {
+    if let nativeError = error as? RlnError { return rlnErrorCode(nativeError) }
+    if let storeError = error as? RlnStoreError {
+      switch storeError {
+      case .nodeNotFound: return "NodeNotFound"
+      case .signerNotFound: return "SignerNotFound"
+      case .nodeAlreadyExists, .invalidState: return "Conflict"
+      }
+    }
     let errorType = String(describing: type(of: error))
     if let dotIndex = errorType.lastIndex(of: ".") {
       return String(errorType[errorType.index(after: dotIndex)...])
     }
     return errorType
-  }
-
-  private func errorMessage(_ error: Error) -> String {
-    if let localized = (error as? LocalizedError)?.errorDescription, !localized.isEmpty {
-      return localized
-    }
-
-    let errorString = String(describing: error)
-    if let detailsRange = errorString.range(of: "details: \"") {
-      let afterDetails = String(errorString[detailsRange.upperBound...])
-      if let endQuote = afterDetails.firstIndex(of: "\"") {
-        return String(afterDetails[..<endQuote])
-      }
-    }
-
-    return error.localizedDescription
   }
 
   private func isNodeReady(_ node: SdkNode) -> Bool {
@@ -631,24 +588,23 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
         vssAllowEmptyRestore: vssAllowEmptyRestore,
         reuseAddresses: reuseAddresses
       )
+      try nodeStore.ensureStorageAvailable(storageDirPath)
       try prepareStorageDirectory(storageDirPath, operation: "rlnCreateNode")
       let node = try SdkNode.create(request: initRequest)
-      return try RlnNodeStore.shared.create(node: node, storageDirPath: storageDirPath)
+      return try nodeStore.create(node: node, storageDirPath: storageDirPath)
     }
   }
 
   func rlnInitNode(nodeId: Int64, password: String, mnemonic: String?) throws -> String {
-    do {
-      let node = try RlnNodeStore.shared.get(id: nodeId)
-      let state = try RlnNodeStore.shared.getState(id: nodeId)
+    try runRln("rlnInitNode") {
+      let node = try nodeStore.get(id: nodeId)
+      let state = try nodeStore.getState(id: nodeId)
       if state != .created {
         throw RlnStoreError.invalidState("RLN init is not allowed while node is in state: \(state)")
       }
       let pubkey = try node.`init`(password: password, mnemonic: mnemonic)
-      try RlnNodeStore.shared.markInitialized(id: nodeId)
+      try nodeStore.markInitialized(id: nodeId)
       return pubkey
-    } catch {
-      throw bridgeError(error, operation: "rlnInitNode")
     }
   }
 
@@ -678,28 +634,28 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
           permissivePolicy: permissivePolicy
         )
       }
-      return RlnNodeStore.shared.createSigner(signer)
+      return nodeStore.createSigner(signer)
     }
   }
 
   func rlnInitNodeWithNativeExternalSigner(nodeId: Int64, signerId: Int64) throws {
     try runRln("rlnInitNodeWithNativeExternalSigner") {
-      let node = try RlnNodeStore.shared.get(id: nodeId)
-      let state = try RlnNodeStore.shared.getState(id: nodeId)
+      let node = try nodeStore.get(id: nodeId)
+      let state = try nodeStore.getState(id: nodeId)
       if state != .created {
         throw RlnStoreError.invalidState("RLN init is not allowed while node is in state: \(state)")
       }
-      let signer = try RlnNodeStore.shared.getSigner(id: signerId)
+      let signer = try nodeStore.getSigner(id: signerId)
       try node.initWithNativeExternalSigner(signer: signer)
       node.detachExternalSigner()
-      try RlnNodeStore.shared.markInitialized(id: nodeId)
+      try nodeStore.markInitialized(id: nodeId)
     }
   }
 
   func rlnAttachNativeExternalSigner(nodeId: Int64, signerId: Int64) throws {
     try runRln("rlnAttachNativeExternalSigner") {
-      let node = try RlnNodeStore.shared.get(id: nodeId)
-      let signer = try RlnNodeStore.shared.getSigner(id: signerId)
+      let node = try nodeStore.get(id: nodeId)
+      let signer = try nodeStore.getSigner(id: signerId)
       try node.attachNativeExternalSigner(signer: signer)
     }
   }
@@ -717,51 +673,62 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     announceAlias: String?,
     gossipRgsServerUrl: String?
   ) throws {
-    do {
-      let node = try RlnNodeStore.shared.get(id: nodeId)
-      let signer = try RlnNodeStore.shared.getSigner(id: signerId)
-      switch try RlnNodeStore.shared.beginUnlock(id: nodeId) {
-      case .unlocked:
-        if isNodeReady(node) {
-          return
-        }
-        throw RlnStoreError.invalidState("RLN node is marked unlocked but nodeInfo is not available")
-      case .unlocking:
-        break
-      default:
-        throw RlnStoreError.invalidState("Unexpected RLN node state before unlock")
+    try runRln("rlnUnlockNodeWithNativeExternalSigner") {
+      if gossipRgsServerUrl != nil {
+        throw PigeonError(code: "UnsupportedOperationException",
+          message: "External-signer unlock does not support RGS configuration.",
+          details: bridgeErrorDetails("rlnUnlockNodeWithNativeExternalSigner",
+            category: "unsupported", retryable: false,
+            extra: ["feature": "externalSigner.gossipRgsServerUrl"]))
       }
+      do {
+        let node = try nodeStore.get(id: nodeId)
+        let signer = try nodeStore.getSigner(id: signerId)
+        switch try nodeStore.beginUnlock(id: nodeId) {
+        case .unlocked:
+          if isNodeReady(node) {
+            return
+          }
+          throw RlnStoreError.invalidState("RLN node is marked unlocked but nodeInfo is not available")
+        case .unlocking:
+          break
+        default:
+          throw RlnStoreError.invalidState("Unexpected RLN node state before unlock")
+        }
 
-      try node.unlockWithNativeExternalSigner(
-        signer: signer,
-        ldkChainSync: try requireLdkChainSync(
-          bitcoindRpcUsername: bitcoindRpcUsername,
-          bitcoindRpcPassword: bitcoindRpcPassword,
-          bitcoindRpcHost: bitcoindRpcHost,
-          bitcoindRpcPort: bitcoindRpcPort,
+        try node.unlockWithNativeExternalSigner(
+          signer: signer,
+          ldkChainSync: try requireLdkChainSync(
+            bitcoindRpcUsername: bitcoindRpcUsername,
+            bitcoindRpcPassword: bitcoindRpcPassword,
+            bitcoindRpcHost: bitcoindRpcHost,
+            bitcoindRpcPort: bitcoindRpcPort,
+            indexerUrl: indexerUrl,
+            operation: "rlnUnlockNodeWithNativeExternalSigner"
+          ),
           indexerUrl: indexerUrl,
-          operation: "rlnUnlockNodeWithNativeExternalSigner"
-        ),
-        indexerUrl: indexerUrl,
-        proxyEndpoint: proxyEndpoint,
-        announceAddresses: announceAddresses,
-        announceAlias: announceAlias
-      )
-      RlnNodeStore.shared.markUnlocked(id: nodeId)
-    } catch {
-      RlnNodeStore.shared.rollbackUnlock(id: nodeId)
-      throw bridgeError(error, operation: "rlnUnlockNodeWithNativeExternalSigner")
+          proxyEndpoint: proxyEndpoint,
+          announceAddresses: announceAddresses,
+          announceAlias: announceAlias
+        )
+        nodeStore.markUnlocked(id: nodeId)
+      } catch {
+        nodeStore.rollbackUnlock(id: nodeId)
+        throw bridgeError(error, operation: "rlnUnlockNodeWithNativeExternalSigner")
+      }
     }
   }
 
   func rlnDestroyNativeExternalSigner(signerId: Int64) throws {
-    RlnNodeStore.shared.removeSigner(id: signerId)
+    try runRln("rlnDestroyNativeExternalSigner") {
+      nodeStore.removeSigner(id: signerId)
+    }
   }
 
   func rlnInitNodeWithExternalSigner(nodeId: Int64, nodePublicKeyHex: String, accountXpubVanilla: String, accountXpubColored: String, masterFingerprint: String, protocolVersion: String, apiLevel: Int64) throws {
     try runRln("rlnInitNodeWithExternalSigner") {
-      let node = try RlnNodeStore.shared.get(id: nodeId)
-      let state = try RlnNodeStore.shared.getState(id: nodeId)
+      let node = try nodeStore.get(id: nodeId)
+      let state = try nodeStore.getState(id: nodeId)
       if state != .created {
         throw RlnStoreError.invalidState("RLN init is not allowed while node is in state: \(state)")
       }
@@ -773,7 +740,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
         protocolVersion: protocolVersion,
         apiLevel: try requireUInt32(apiLevel, field: "apiLevel", operation: "rlnInitNodeWithExternalSigner")
       ))
-      try RlnNodeStore.shared.markInitialized(id: nodeId)
+      try nodeStore.markInitialized(id: nodeId)
     }
   }
 
@@ -790,50 +757,54 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     announceAlias: String?,
     gossipRgsServerUrl: String?
   ) throws {
-    do {
-      let node = try RlnNodeStore.shared.get(id: nodeId)
-      switch try RlnNodeStore.shared.beginUnlock(id: nodeId) {
-      case .unlocked:
-        if isNodeReady(node) {
-          return
+    try runRln("rlnUnlockNode") {
+      do {
+        let node = try nodeStore.get(id: nodeId)
+        switch try nodeStore.beginUnlock(id: nodeId) {
+        case .unlocked:
+          if isNodeReady(node) {
+            return
+          }
+          throw RlnStoreError.invalidState("RLN node is marked unlocked but nodeInfo is not available")
+        case .unlocking:
+          break
+        default:
+          throw RlnStoreError.invalidState("Unexpected RLN node state before unlock")
         }
-        throw RlnStoreError.invalidState("RLN node is marked unlocked but nodeInfo is not available")
-      case .unlocking:
-        break
-      default:
-        throw RlnStoreError.invalidState("Unexpected RLN node state before unlock")
-      }
 
-      try node.unlock(request: SdkUnlockRequest(
-        password: password,
-        ldkChainSync: try requireLdkChainSync(
-          bitcoindRpcUsername: bitcoindRpcUsername,
-          bitcoindRpcPassword: bitcoindRpcPassword,
-          bitcoindRpcHost: bitcoindRpcHost,
-          bitcoindRpcPort: bitcoindRpcPort,
+        try node.unlock(request: SdkUnlockRequest(
+          password: password,
+          ldkChainSync: try requireLdkChainSync(
+            bitcoindRpcUsername: bitcoindRpcUsername,
+            bitcoindRpcPassword: bitcoindRpcPassword,
+            bitcoindRpcHost: bitcoindRpcHost,
+            bitcoindRpcPort: bitcoindRpcPort,
+            indexerUrl: indexerUrl,
+            operation: "rlnUnlockNode"
+          ),
           indexerUrl: indexerUrl,
-          operation: "rlnUnlockNode"
-        ),
-        indexerUrl: indexerUrl,
-        proxyEndpoint: proxyEndpoint,
-        announceAddresses: announceAddresses,
-        announceAlias: announceAlias,
-        gossipRgsServerUrl: gossipRgsServerUrl
-      ))
-      RlnNodeStore.shared.markUnlocked(id: nodeId)
-    } catch {
-      RlnNodeStore.shared.rollbackUnlock(id: nodeId)
-      throw bridgeError(error, operation: "rlnUnlockNode")
+          proxyEndpoint: proxyEndpoint,
+          announceAddresses: announceAddresses,
+          announceAlias: announceAlias,
+          gossipRgsServerUrl: gossipRgsServerUrl
+        ))
+        nodeStore.markUnlocked(id: nodeId)
+      } catch {
+        nodeStore.rollbackUnlock(id: nodeId)
+        throw bridgeError(error, operation: "rlnUnlockNode")
+      }
     }
   }
 
   func rlnDestroyNode(nodeId: Int64) throws {
-    RlnNodeStore.shared.remove(id: nodeId)
+    try runRln("rlnDestroyNode") {
+      nodeStore.remove(id: nodeId)
+    }
   }
 
   func rlnNodeInfo(nodeId: Int64) throws -> RlnWireResponse {
     try runRlnWire("rlnNodeInfo") {
-      let info = try RlnNodeStore.shared.get(id: nodeId).nodeInfo()
+      let info = try nodeStore.get(id: nodeId).nodeInfo()
       return [
         "pubkey": info.pubkey,
         "numChannels": pigeonInteger(info.numChannels),
@@ -853,14 +824,14 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
         "channelAssetMaxAmount": String(info.channelAssetMaxAmount),
         "networkNodes": pigeonInteger(info.networkNodes),
         "networkChannels": pigeonInteger(info.networkChannels),
-        "latestRgsSnapshotTimestamp": info.latestRgsSnapshotTimestamp.map(pigeonInteger),
+        "latestRgsSnapshotTimestamp": info.latestRgsSnapshotTimestamp.map(pigeonInteger) ?? NSNull(),
       ]
     }
   }
 
   func rlnNetworkInfo(nodeId: Int64) throws -> RlnWireResponse {
     try runRlnWire("rlnNetworkInfo") {
-      let info = try RlnNodeStore.shared.get(id: nodeId).networkInfo()
+      let info = try nodeStore.get(id: nodeId).networkInfo()
       return [
         "network": info.network,
         "height": info.height,
@@ -870,7 +841,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnListPeers(nodeId: Int64) throws -> [RlnWireResponse] {
     try runRlnWireList("rlnListPeers") {
-      try RlnNodeStore.shared.get(id: nodeId)
+      try nodeStore.get(id: nodeId)
         .listPeers()
         .map { ["pubkey": $0.pubkey] }
     }
@@ -878,19 +849,19 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnConnectPeer(nodeId: Int64, peerPubkeyAndAddr: String) throws {
     try runRln("rlnConnectPeer") {
-      try RlnNodeStore.shared.get(id: nodeId).connectpeer(peerPubkeyAndAddr: peerPubkeyAndAddr)
+      try nodeStore.get(id: nodeId).connectpeer(peerPubkeyAndAddr: peerPubkeyAndAddr)
     }
   }
 
   func rlnDisconnectPeer(nodeId: Int64, peerPubkey: String) throws {
     try runRln("rlnDisconnectPeer") {
-      try RlnNodeStore.shared.get(id: nodeId).disconnectpeer(request: SdkDisconnectPeerRequest(peerPubkey: peerPubkey))
+      try nodeStore.get(id: nodeId).disconnectpeer(request: SdkDisconnectPeerRequest(peerPubkey: peerPubkey))
     }
   }
 
   func rlnListChannels(nodeId: Int64) throws -> [RlnWireResponse] {
     try runRlnWireList("rlnListChannels") {
-      try RlnNodeStore.shared.get(id: nodeId)
+      try nodeStore.get(id: nodeId)
         .listChannels()
         .map(channelMap)
     }
@@ -898,7 +869,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnOpenChannel(nodeId: Int64, peerPubkeyAndOptAddr: String, capacitySat: Int64, pushMsat: Int64, publicChannel: Bool, withAnchors: Bool, feeBaseMsat: Int64?, feeProportionalMillionths: Int64?, temporaryChannelId: String?, assetId: String?, assetAmount: Int64?, pushAssetAmount: Int64?, virtualOpenMode: String?) throws -> RlnWireResponse {
     try runRlnWire("rlnOpenChannel") {
-      let request = try SdkOpenChannelRequest(
+      let request = SdkOpenChannelRequest(
         peerPubkeyAndOptAddr: peerPubkeyAndOptAddr,
         capacitySat: try requireUInt64(capacitySat, field: "capacitySat", operation: "rlnOpenChannel"),
         pushMsat: try requireUInt64(pushMsat, field: "pushMsat", operation: "rlnOpenChannel"),
@@ -912,14 +883,14 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
         pushAssetAmount: try optionalUInt64(pushAssetAmount, field: "pushAssetAmount", operation: "rlnOpenChannel"),
         virtualOpenMode: virtualOpenMode
       )
-      let response = try RlnNodeStore.shared.get(id: nodeId).openchannel(request: request)
+      let response = try nodeStore.get(id: nodeId).openchannel(request: request)
       return ["temporaryChannelId": response.temporaryChannelId]
     }
   }
 
   func rlnCloseChannel(nodeId: Int64, channelId: String, peerPubkey: String, force: Bool) throws {
     try runRln("rlnCloseChannel") {
-      try RlnNodeStore.shared.get(id: nodeId).closechannel(request: SdkCloseChannelRequest(
+      try nodeStore.get(id: nodeId).closechannel(request: SdkCloseChannelRequest(
         channelId: channelId,
         peerPubkey: peerPubkey,
         force: force
@@ -929,7 +900,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnListPayments(nodeId: Int64) throws -> [RlnWireResponse] {
     try runRlnWireList("rlnListPayments") {
-      try RlnNodeStore.shared.get(id: nodeId)
+      try nodeStore.get(id: nodeId)
         .listPayments()
         .map(paymentMap)
     }
@@ -937,26 +908,26 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnAddress(nodeId: Int64) throws -> RlnWireResponse {
     try runRlnWire("rlnAddress") {
-      ["address": try RlnNodeStore.shared.get(id: nodeId).address().address]
+      ["address": try nodeStore.get(id: nodeId).address().address]
     }
   }
 
   func rlnRotateAddress(nodeId: Int64) throws -> RlnWireResponse {
     try runRlnWire("rlnRotateAddress") {
-      ["address": try RlnNodeStore.shared.get(id: nodeId).rotateAddress().address]
+      ["address": try nodeStore.get(id: nodeId).rotateAddress().address]
     }
   }
 
   func rlnSignMessage(nodeId: Int64, message: String) throws -> RlnWireResponse {
     try runRlnWire("rlnSignMessage") {
-      ["signedMessage": try RlnNodeStore.shared.get(id: nodeId).signMessage(message: message).signedMessage]
+      ["signedMessage": try nodeStore.get(id: nodeId).signMessage(message: message).signedMessage]
     }
   }
 
   func rlnVerifyMessage(nodeId: Int64, message: String, signature: String) throws -> RlnWireResponse {
     try runRlnWire("rlnVerifyMessage") {
       [
-        "valid": try RlnNodeStore.shared.get(id: nodeId)
+        "valid": try nodeStore.get(id: nodeId)
           .verifyMessage(message: message, signature: signature)
           .valid,
       ]
@@ -965,7 +936,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnAssetBalance(nodeId: Int64, assetId: String) throws -> RlnWireResponse {
     try runRlnWire("rlnAssetBalance") {
-      assetBalanceMap(try RlnNodeStore.shared.get(id: nodeId).assetBalance(assetId: assetId))
+      assetBalanceMap(try nodeStore.get(id: nodeId).assetBalance(assetId: assetId))
     }
   }
 
@@ -984,7 +955,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnBtcBalance(nodeId: Int64, skipSync: Bool) throws -> RlnWireResponse {
     try runRlnWire("rlnBtcBalance") {
-      let balance = try RlnNodeStore.shared.get(id: nodeId).btcBalance(skipSync: skipSync)
+      let balance = try nodeStore.get(id: nodeId).btcBalance(skipSync: skipSync)
       return [
         "vanilla": btcBalanceMap(balance.vanilla),
         "colored": btcBalanceMap(balance.colored),
@@ -994,14 +965,14 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnCheckIndexerUrl(nodeId: Int64, indexerUrl: String) throws -> RlnWireResponse {
     try runRlnWire("rlnCheckIndexerUrl") {
-      let response = try RlnNodeStore.shared.get(id: nodeId).checkIndexerUrl(indexerUrl: indexerUrl)
+      let response = try nodeStore.get(id: nodeId).checkIndexerUrl(indexerUrl: indexerUrl)
       return ["indexerProtocol": response.indexerProtocol]
     }
   }
 
   func rlnCheckProxyEndpoint(nodeId: Int64, proxyEndpoint: String) throws {
     try runRln("rlnCheckProxyEndpoint") {
-      try RlnNodeStore.shared.get(id: nodeId).checkProxyEndpoint(proxyEndpoint: proxyEndpoint)
+      try nodeStore.get(id: nodeId).checkProxyEndpoint(proxyEndpoint: proxyEndpoint)
     }
   }
 
@@ -1014,25 +985,25 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
         feeRate: try requireFeeRate(feeRate, field: "feeRate", operation: "rlnCreateUtxos"),
         skipSync: skipSync
       )
-      try RlnNodeStore.shared.get(id: nodeId).createutxos(request: request)
+      try nodeStore.get(id: nodeId).createutxos(request: request)
     }
   }
 
   func rlnDecodeLnInvoice(nodeId: Int64, invoice: String) throws -> RlnWireResponse {
     try runRlnWire("rlnDecodeLnInvoice") {
-      decodeLnInvoiceMap(try RlnNodeStore.shared.get(id: nodeId).decodeLnInvoice(invoice: invoice))
+      decodeLnInvoiceMap(try nodeStore.get(id: nodeId).decodeLnInvoice(invoice: invoice))
     }
   }
 
   func rlnDecodeRgbInvoice(nodeId: Int64, invoice: String) throws -> RlnWireResponse {
     try runRlnWire("rlnDecodeRgbInvoice") {
-      decodeRgbInvoiceMap(try RlnNodeStore.shared.get(id: nodeId).decodeRgbInvoice(invoice: invoice))
+      decodeRgbInvoiceMap(try nodeStore.get(id: nodeId).decodeRgbInvoice(invoice: invoice))
     }
   }
 
   func rlnEstimateFee(nodeId: Int64, blocks: Int64) throws -> RlnWireResponse {
     try runRlnWire("rlnEstimateFee") {
-      let response = try RlnNodeStore.shared.get(id: nodeId)
+      let response = try nodeStore.get(id: nodeId)
         .estimateFee(blocks: try requireUInt16(blocks, field: "blocks", operation: "rlnEstimateFee"))
       return ["feeRate": response.feeRate]
     }
@@ -1040,7 +1011,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnFailTransfers(nodeId: Int64, batchTransferIdx: Int64?, noAssetOnly: Bool, skipSync: Bool) throws -> RlnWireResponse {
     try runRlnWire("rlnFailTransfers") {
-      let response = try RlnNodeStore.shared.get(id: nodeId).failtransfers(request: SdkFailTransfersRequest(
+      let response = try nodeStore.get(id: nodeId).failtransfers(request: SdkFailTransfersRequest(
         batchTransferIdx: try optionalInt32(batchTransferIdx, field: "batchTransferIdx", operation: "rlnFailTransfers"),
         noAssetOnly: noAssetOnly,
         skipSync: skipSync
@@ -1051,13 +1022,13 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnGetChannelId(nodeId: Int64, temporaryChannelId: String) throws -> String {
     try runRln("rlnGetChannelId") {
-      try RlnNodeStore.shared.get(id: nodeId).getChannelId(temporaryChannelId: temporaryChannelId)
+      try nodeStore.get(id: nodeId).getChannelId(temporaryChannelId: temporaryChannelId)
     }
   }
 
   func rlnGetPayment(nodeId: Int64, paymentHash: String) throws -> RlnWireResponse {
     try runRlnWire("rlnGetPayment") {
-      let node = try RlnNodeStore.shared.get(id: nodeId)
+      let node = try nodeStore.get(id: nodeId)
       var lastError: Error?
       for paymentType in [PaymentType.outbound, .inboundAutoClaim, .inboundHodl] {
         do {
@@ -1072,32 +1043,32 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnInvoiceStatus(nodeId: Int64, invoice: String) throws -> RlnWireResponse {
     try runRlnWire("rlnInvoiceStatus") {
-      ["status": String(describing: try RlnNodeStore.shared.get(id: nodeId).invoiceStatus(invoice: invoice))]
+      ["status": String(describing: try nodeStore.get(id: nodeId).invoiceStatus(invoice: invoice))]
     }
   }
 
   func rlnKeysend(nodeId: Int64, destPubkey: String, amtMsat: Int64, assetId: String?, assetAmount: Int64?) throws -> RlnWireResponse {
     try runRlnWire("rlnKeysend") {
-      let request = try SdkKeysendRequest(
+      let request = SdkKeysendRequest(
         destPubkey: destPubkey,
         amtMsat: try requireUInt64(amtMsat, field: "amtMsat", operation: "rlnKeysend"),
         assetId: assetId,
         assetAmount: try optionalUInt64(assetAmount, field: "assetAmount", operation: "rlnKeysend")
       )
-      let response = try RlnNodeStore.shared.get(id: nodeId).keysend(request: request)
+      let response = try nodeStore.get(id: nodeId).keysend(request: request)
       return keysendMap(response)
     }
   }
 
   func rlnListAssets(nodeId: Int64, filterAssetSchemas: [String]) throws -> RlnWireResponse {
     try runRlnWire("rlnListAssets") {
-      listAssetsMap(try RlnNodeStore.shared.get(id: nodeId).listAssets(filterAssetSchemas: filterAssetSchemas))
+      listAssetsMap(try nodeStore.get(id: nodeId).listAssets(filterAssetSchemas: filterAssetSchemas))
     }
   }
 
   func rlnListTransactions(nodeId: Int64, skipSync: Bool) throws -> [RlnWireResponse] {
     try runRlnWireList("rlnListTransactions") {
-      try RlnNodeStore.shared.get(id: nodeId)
+      try nodeStore.get(id: nodeId)
         .listTransactions(skipSync: skipSync, txid: nil)
         .map(transactionMap)
     }
@@ -1105,7 +1076,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnListTransactionsByTxid(nodeId: Int64, txid: String, skipSync: Bool) throws -> [RlnWireResponse] {
     try runRlnWireList("rlnListTransactionsByTxid") {
-      try RlnNodeStore.shared.get(id: nodeId)
+      try nodeStore.get(id: nodeId)
         .listTransactions(skipSync: skipSync, txid: txid)
         .map(transactionMap)
     }
@@ -1113,7 +1084,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnListTransfers(nodeId: Int64, assetId: String) throws -> [RlnWireResponse] {
     try runRlnWireList("rlnListTransfers") {
-      try RlnNodeStore.shared.get(id: nodeId)
+      try nodeStore.get(id: nodeId)
         .listTransfers(assetId: assetId.isEmpty ? nil : assetId, txid: nil)
         .map(transferMap)
     }
@@ -1121,7 +1092,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnListTransfersByTxid(nodeId: Int64, txid: String) throws -> [RlnWireResponse] {
     try runRlnWireList("rlnListTransfersByTxid") {
-      try RlnNodeStore.shared.get(id: nodeId)
+      try nodeStore.get(id: nodeId)
         .listTransfers(assetId: nil, txid: txid)
         .map(transferMap)
     }
@@ -1129,7 +1100,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnListUnspents(nodeId: Int64, skipSync: Bool) throws -> [RlnWireResponse] {
     try runRlnWireList("rlnListUnspents") {
-      try RlnNodeStore.shared.get(id: nodeId)
+      try nodeStore.get(id: nodeId)
         .listUnspents(skipSync: skipSync)
         .map(unspentMap)
     }
@@ -1146,7 +1117,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     descriptionHash: String?
   ) throws -> RlnWireResponse {
     try runRlnWire("rlnLnInvoice") {
-      let request = try LnInvoiceRequest(
+      let request = LnInvoiceRequest(
         amtMsat: try optionalUInt64(amtMsat, field: "amtMsat", operation: "rlnLnInvoice"),
         expirySec: try requireUInt32(expirySec, field: "expirySec", operation: "rlnLnInvoice"),
         assetId: assetId,
@@ -1155,14 +1126,14 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
         descriptionHash: descriptionHash,
         minFinalCltvExpiryDelta: try optionalUInt16(minFinalCltvExpiryDelta, field: "minFinalCltvExpiryDelta", operation: "rlnLnInvoice")
       )
-      let response = try RlnNodeStore.shared.get(id: nodeId).lnInvoice(request: request)
+      let response = try nodeStore.get(id: nodeId).lnInvoice(request: request)
       return ["invoice": response.invoice]
     }
   }
 
   func rlnClaimHodlInvoice(nodeId: Int64, paymentHash: String, paymentPreimage: String) throws -> RlnWireResponse {
     try runRlnWire("rlnClaimHodlInvoice") {
-      let response = try RlnNodeStore.shared.get(id: nodeId).claimhodlinvoice(request: ClaimHodlInvoiceRequest(
+      let response = try nodeStore.get(id: nodeId).claimhodlinvoice(request: ClaimHodlInvoiceRequest(
         paymentHash: paymentHash,
         paymentPreimage: paymentPreimage
       ))
@@ -1172,13 +1143,13 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnCancelHodlInvoice(nodeId: Int64, paymentHash: String) throws {
     try runRln("rlnCancelHodlInvoice") {
-      try RlnNodeStore.shared.get(id: nodeId).cancelhodlinvoice(request: CancelHodlInvoiceRequest(paymentHash: paymentHash))
+      try nodeStore.get(id: nodeId).cancelhodlinvoice(request: CancelHodlInvoiceRequest(paymentHash: paymentHash))
     }
   }
 
   func rlnApayNew(nodeId: Int64, hostNodeId: String) throws -> RlnWireResponse {
     try runRlnWire("rlnApayNew") {
-      let response = try RlnNodeStore.shared.get(id: nodeId).apayNew(hostNodeId: hostNodeId)
+      let response = try nodeStore.get(id: nodeId).apayNew(hostNodeId: hostNodeId)
       let hashes = response.hashes.map { hash in
         [
           "hashIndex": pigeonInteger(hash.hashIndex),
@@ -1204,7 +1175,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnApayNewWithAddress(nodeId: Int64, hostNodeId: String, username: String, domain: String) throws -> RlnWireResponse {
     try runRlnWire("rlnApayNewWithAddress") {
-      let response = try RlnNodeStore.shared.get(id: nodeId).apayNewWithAddress(
+      let response = try nodeStore.get(id: nodeId).apayNewWithAddress(
         hostNodeId: hostNodeId,
         username: username,
         domain: domain
@@ -1234,7 +1205,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnRefreshTransfers(nodeId: Int64, skipSync: Bool) throws -> RlnRefreshTransfersData {
     try runRln("rlnRefreshTransfers") {
-      let response = try RlnNodeStore.shared.get(id: nodeId).refreshtransfers(
+      let response = try nodeStore.get(id: nodeId).refreshtransfers(
         request: SdkRefreshTransfersRequest(skipSync: skipSync)
       )
       return RlnRefreshTransfersData(
@@ -1295,7 +1266,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
         minConfirmations: try requireUInt8(minConfirmations, field: "minConfirmations", operation: "rlnRgbInvoice"),
         witness: witness
       )
-      return rgbInvoiceMap(try RlnNodeStore.shared.get(id: nodeId).rgbinvoice(request: request))
+      return rgbInvoiceMap(try nodeStore.get(id: nodeId).rgbinvoice(request: request))
     }
   }
 
@@ -1307,20 +1278,20 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
         feeRate: try requireFeeRate(feeRate, field: "feeRate", operation: "rlnSendBtc"),
         skipSync: skipSync
       )
-      let response = try RlnNodeStore.shared.get(id: nodeId).sendbtc(request: request)
+      let response = try nodeStore.get(id: nodeId).sendbtc(request: request)
       return ["txid": response.txid]
     }
   }
 
   func rlnSendPayment(nodeId: Int64, invoice: String, amtMsat: Int64?, assetId: String?, assetAmount: Int64?) throws -> RlnWireResponse {
     try runRlnWire("rlnSendPayment") {
-      let request = try SdkSendPaymentRequest(
+      let request = SdkSendPaymentRequest(
         invoice: invoice,
         amtMsat: try optionalUInt64(amtMsat, field: "amtMsat", operation: "rlnSendPayment"),
         assetId: assetId,
         assetAmount: try optionalUInt64(assetAmount, field: "assetAmount", operation: "rlnSendPayment")
       )
-      let response = try RlnNodeStore.shared.get(id: nodeId).sendpayment(request: request)
+      let response = try nodeStore.get(id: nodeId).sendpayment(request: request)
       return sendPaymentMap(response)
     }
   }
@@ -1366,7 +1337,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
           ),
         ]
       )
-      let response = try RlnNodeStore.shared.get(id: nodeId).sendRgb(request: request)
+      let response = try nodeStore.get(id: nodeId).sendRgb(request: request)
       return [
         "txid": response.txid,
         "batchTransferIdx": Int64(response.batchTransferIdx),
@@ -1376,21 +1347,21 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnShutdown(nodeId: Int64) throws {
     try runRln("rlnShutdown") {
-      let node = try RlnNodeStore.shared.get(id: nodeId)
+      let node = try nodeStore.get(id: nodeId)
       node.shutdown()
-      RlnNodeStore.shared.markShutdown(id: nodeId)
+      nodeStore.markShutdown(id: nodeId)
     }
   }
 
   func rlnSync(nodeId: Int64) throws {
     try runRln("rlnSync") {
-      try RlnNodeStore.shared.get(id: nodeId).sync()
+      try nodeStore.get(id: nodeId).sync()
     }
   }
 
   func rlnIssueAssetNia(nodeId: Int64, ticker: String, name: String, precision: Int64, amounts: [Int64]) throws -> RlnWireResponse {
     try runRlnWire("rlnIssueAssetNia") {
-      let asset = try RlnNodeStore.shared.get(id: nodeId).issueassetnia(request: SdkIssueAssetNiaRequest(
+      let asset = try nodeStore.get(id: nodeId).issueassetnia(request: SdkIssueAssetNiaRequest(
         amounts: try requireUInt64List(amounts, field: "amounts", operation: "rlnIssueAssetNia"),
         ticker: ticker,
         name: name,
@@ -1402,7 +1373,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnIssueAssetCfa(nodeId: Int64, name: String, details: String?, precision: Int64, amounts: [Int64], fileDigest: String?) throws -> RlnWireResponse {
     try runRlnWire("rlnIssueAssetCfa") {
-      let asset = try RlnNodeStore.shared.get(id: nodeId).issueassetcfa(request: SdkIssueAssetCfaRequest(
+      let asset = try nodeStore.get(id: nodeId).issueassetcfa(request: SdkIssueAssetCfaRequest(
         amounts: try requireUInt64List(amounts, field: "amounts", operation: "rlnIssueAssetCfa"),
         name: name,
         details: details,
@@ -1415,7 +1386,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnIssueAssetIfa(nodeId: Int64, ticker: String, name: String, precision: Int64, amounts: [Int64], inflationAmounts: [Int64], rejectListUrl: String?) throws -> RlnWireResponse {
     try runRlnWire("rlnIssueAssetIfa") {
-      let asset = try RlnNodeStore.shared.get(id: nodeId).issueassetifa(request: SdkIssueAssetIfaRequest(
+      let asset = try nodeStore.get(id: nodeId).issueassetifa(request: SdkIssueAssetIfaRequest(
         amounts: try requireUInt64List(amounts, field: "amounts", operation: "rlnIssueAssetIfa"),
         inflationAmounts: try requireUInt64List(inflationAmounts, field: "inflationAmounts", operation: "rlnIssueAssetIfa"),
         ticker: ticker,
@@ -1449,14 +1420,14 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
           operation: "rlnInflate"
         )
       )
-      let response = try RlnNodeStore.shared.get(id: nodeId).inflate(request: request)
+      let response = try nodeStore.get(id: nodeId).inflate(request: request)
       return ["txid": response.txid]
     }
   }
 
   func rlnIssueAssetUda(nodeId: Int64, ticker: String, name: String, details: String?, precision: Int64, mediaFileDigest: String?, attachmentsFileDigests: [String]) throws -> RlnWireResponse {
     try runRlnWire("rlnIssueAssetUda") {
-      let asset = try RlnNodeStore.shared.get(id: nodeId).issueassetuda(request: SdkIssueAssetUdaRequest(
+      let asset = try nodeStore.get(id: nodeId).issueassetuda(request: SdkIssueAssetUdaRequest(
         ticker: ticker,
         name: name,
         details: details,
@@ -1470,7 +1441,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnVssBackup(nodeId: Int64) throws -> Int64 {
     try runRln("rlnVssBackup") {
-      let version = try RlnNodeStore.shared.get(id: nodeId).vssBackup()
+      let version = try nodeStore.get(id: nodeId).vssBackup()
       guard let value = Int64(exactly: version) else {
         throw PigeonError(
           code: "integerOverflow",
@@ -1488,7 +1459,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnVssClearFence(nodeId: Int64, password: String) throws {
     try runRln("rlnVssClearFence") {
-      try RlnNodeStore.shared.get(id: nodeId).vssClearFence(
+      try nodeStore.get(id: nodeId).vssClearFence(
         request: SdkVssClearFenceRequest(password: password)
       )
     }

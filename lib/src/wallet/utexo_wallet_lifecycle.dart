@@ -14,6 +14,7 @@ mixin _UtexoWalletLifecycle on _UtexoWalletInternals {
             );
           }
           _validateConfig();
+          _validateSignerCanUnlock(password: password);
           final hadNode = _nodeId != null;
           _lifecycleState = _WalletLifecycleState.initializing;
           try {
@@ -31,13 +32,23 @@ mixin _UtexoWalletLifecycle on _UtexoWalletInternals {
           }
           final signer = _ensureSigner(password: password, mnemonic: mnemonic);
           try {
-            await initializeRlnSigner(
-              signer: signer,
-              client: _client,
-              nodeId: _nodeId!,
-              storageDirPath: _config.storageDirPath,
+            await _binding.runSignerOperation(
+              'rlnInitSigner',
+              () => initializeRlnSigner(
+                signer: signer,
+                client: _client,
+                nodeId: _nodeId!,
+                storageDirPath: _config.storageDirPath,
+              ),
             );
           } catch (error, stackTrace) {
+            // Failed password initialization consumes its secrets as well.
+            // A retry must supply credentials before allocating another node.
+            _markPasswordSignerConsumed(signer);
+            if (error is RlnOperationTimeoutException) {
+              _lifecycleState = _WalletLifecycleState.uninitialized;
+              Error.throwWithStackTrace(error, stackTrace);
+            }
             if (!hadNode &&
                 _nodeId != null &&
                 _signer is! NativeExternalRlnSigner) {
@@ -79,16 +90,19 @@ mixin _UtexoWalletLifecycle on _UtexoWalletInternals {
         _withLifecycle(() async {
           _ensureInitialized();
           if (isUnlocked) return;
-          final signer = _ensureSigner(password: password);
           final resolvedConfig = _resolveUnlockConfig(config);
+          final signer = _ensureSigner(password: password);
           _lifecycleState = _WalletLifecycleState.unlocking;
           try {
-            await unlockRlnSigner(
-              signer: signer,
-              client: _client,
-              nodeId: _nodeId!,
-              config: resolvedConfig,
-              storageDirPath: _config.storageDirPath,
+            await _binding.runSignerOperation(
+              'rlnUnlockSigner',
+              () => unlockRlnSigner(
+                signer: signer,
+                client: _client,
+                nodeId: _nodeId!,
+                config: resolvedConfig,
+                storageDirPath: _config.storageDirPath,
+              ),
             );
           } catch (error, stackTrace) {
             _lifecycleState = _WalletLifecycleState.initialized;
@@ -115,6 +129,10 @@ mixin _UtexoWalletLifecycle on _UtexoWalletInternals {
       if (unlockConfig != null) {
         _validateSignerCanUnlock(password: password);
       }
+      // Resolve all local preconditions before shutting down the active node.
+      final resolvedConfig = unlockConfig == null
+          ? null
+          : _resolveUnlockConfig(unlockConfig);
       final previousNodeId = _nodeId;
       final hadPreviousNode = previousNodeId != null;
       final wasShutdown = _lifecycleState == _WalletLifecycleState.shutDown;
@@ -137,19 +155,25 @@ mixin _UtexoWalletLifecycle on _UtexoWalletInternals {
       _nodeId = restartedNodeId;
       _nodeCreated = true;
       _lifecycleState = _WalletLifecycleState.initialized;
-      if (unlockConfig != null) {
+      if (resolvedConfig != null) {
         final signer = _ensureSigner(password: password, mnemonic: mnemonic);
-        final resolvedConfig = _resolveUnlockConfig(unlockConfig);
         _lifecycleState = _WalletLifecycleState.unlocking;
         try {
-          await unlockRlnSigner(
-            signer: signer,
-            client: _client,
-            nodeId: _nodeId!,
-            config: resolvedConfig,
-            storageDirPath: _config.storageDirPath,
+          await _binding.runSignerOperation(
+            'rlnUnlockSigner',
+            () => unlockRlnSigner(
+              signer: signer,
+              client: _client,
+              nodeId: _nodeId!,
+              config: resolvedConfig,
+              storageDirPath: _config.storageDirPath,
+            ),
           );
         } catch (error, stackTrace) {
+          if (error is RlnOperationTimeoutException) {
+            _lifecycleState = _WalletLifecycleState.initialized;
+            Error.throwWithStackTrace(error, stackTrace);
+          }
           try {
             await _binding.rlnDestroyNode();
           } catch (cleanupError) {
@@ -210,11 +234,16 @@ mixin _UtexoWalletLifecycle on _UtexoWalletInternals {
         }
       }
       var signerDisposed = true;
-      if (id != null) {
+      if (_signer != null) {
         try {
           final signer = _signer;
           if (signer != null) {
-            await disposeRlnSigner(signer: signer, client: _client, nodeId: id);
+            await _binding.runSignerOperation(
+              'rlnDestroySigner',
+              () =>
+                  disposeRlnSigner(signer: signer, client: _client, nodeId: id),
+            );
+            _signer = null;
           }
         } catch (error) {
           signerDisposed = false;
@@ -228,14 +257,18 @@ mixin _UtexoWalletLifecycle on _UtexoWalletInternals {
       } catch (error) {
         errors.add(error);
       }
-      if (nodeDestroyed && signerDisposed) {
+      if (nodeDestroyed) {
         _nodeId = null;
         _nodeCreated = false;
+      }
+      if (nodeDestroyed && signerDisposed) {
         _lifecycleState = _WalletLifecycleState.disposed;
       }
       if (errors.isNotEmpty) {
         if (!nodeDestroyed || !signerDisposed) {
-          _lifecycleState = _WalletLifecycleState.initialized;
+          _lifecycleState = nodeDestroyed
+              ? _WalletLifecycleState.uninitialized
+              : _WalletLifecycleState.initialized;
         }
         throw WalletException(
           'Wallet destroy did not complete cleanly.',

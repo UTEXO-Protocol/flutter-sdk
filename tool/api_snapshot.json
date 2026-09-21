@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "description": "AST-normalized public API and bridge snapshot. Update only with a tracker row and migration note.",
   "dartExportedSurface": {
-    "count": 1624,
-    "hash": "b194f83c219694bc49c6c5a0acd21fa40acbecb6693ee081500f30a43f64c2d0",
+    "count": 1655,
+    "hash": "6ec7bc88de35bab82d424b77c5d642b132e028d4f5dba906881fd5ebdb5194f0",
     "files": [
       "lib/rgb_sdk_flutter.dart",
       "lib/rgb_sdk_flutter_advanced.dart",
@@ -195,14 +195,15 @@
     ]
   },
   "nativeBridgeSurface": {
-    "count": 337,
-    "hash": "a8a37e813f8b0e79b0700ee50c7cbc2246658fb89538a4a1d1db78689e783dda",
+    "count": 348,
+    "hash": "fea352043d4d245450cabd39179a057af5f966c5aaf531b0728706d6a805cca7",
     "files": [
       "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPlugin.kt",
       "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnNodeStore.kt",
       "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnStorageDirectoryPolicy.kt",
       "ios/Classes/RgbSdkFlutterPlugin.swift",
       "ios/Classes/RlnBridgeErrorDetails.swift",
+      "ios/Classes/RlnWireCodec.swift",
       "ios/Classes/RlnNodeStore.swift",
       "ios/Classes/RlnStorageDirectoryPolicy.swift"
     ]

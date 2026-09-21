@@ -68,14 +68,41 @@ class RLNBinding extends _RlnBindingInternals
 
   int? get rlnNodeId => _rlnNodeId;
 
+  /// Runs a whole signer strategy under the node's queue and deadline.
+  ///
+  /// The callback must use the supplied client directly, not enqueue another
+  /// binding operation (which would deadlock). Native completion continues to
+  /// own the queue after a Dart timeout; cleanup must wait for it.
+  Future<T> runSignerOperation<T>(
+    String operationName,
+    Future<T> Function() operation,
+  ) => _withNodeQueue(operationName, () {
+    if (!operationName.contains('Destroy')) _assertRegularOpsAllowed();
+    return operation();
+  });
+
   @override
   Future<T> _withNodeQueue<T>(
     String operationName,
     Future<T> Function() operation,
   ) {
+    // Rejected policy must never enqueue an operation with side effects.
+    final timeout = _operationTimeouts.timeoutFor(operationName);
+    if (timeout != null && timeout <= Duration.zero) {
+      throw const ValidationError('timeout must be positive', 'timeout');
+    }
     final previous = _nodeOperationQueue;
     var timedOut = false;
-    final nativeCompletion = previous.then((_) => operation());
+    final nativeCompletion = previous.then((_) {
+      // A deadline reached while waiting is not permission to dispatch later.
+      if (timedOut) {
+        throw RlnOperationTimeoutException(
+          operation: operationName,
+          timeout: timeout!,
+        );
+      }
+      return operation();
+    });
     _nodeOperationQueue = nativeCompletion.then<void>(
       (_) {
         if (timedOut && _lifecycleState != _RlnLifecycleState.destroying) {
@@ -88,11 +115,7 @@ class RLNBinding extends _RlnBindingInternals
         }
       },
     );
-    final timeout = _operationTimeouts.timeoutFor(operationName);
     if (timeout == null) return nativeCompletion;
-    if (timeout <= Duration.zero) {
-      throw const ValidationError('timeout must be positive', 'timeout');
-    }
     return nativeCompletion.timeout(
       timeout,
       onTimeout: () {

@@ -102,6 +102,9 @@ class LspError extends NetworkError {
 
   final String endpoint;
   final int status;
+
+  /// Diagnostic detail. Treat caller-supplied values as untrusted and private.
+  /// The HTTP client supplies fixed descriptions, never response body previews.
   final String body;
 
   @override
@@ -109,17 +112,15 @@ class LspError extends NetworkError {
     ...super.toJson(),
     'endpoint': _redactEndpoint(endpoint),
     'status': status,
-    'body': redactSupportText(body),
+    'hasDiagnosticBody': body.isNotEmpty,
   };
 
   @override
   String toString() {
     if (status == 0) {
-      return 'LSP ${_redactEndpoint(endpoint)} -> '
-          '${redactSupportText(cause?.toString() ?? 'request failed')}';
+      return 'LSP ${_redactEndpoint(endpoint)} -> request failed';
     }
-    return 'LSP ${_redactEndpoint(endpoint)} -> HTTP $status: '
-        '${redactSupportText(body)}';
+    return 'LSP ${_redactEndpoint(endpoint)} -> HTTP $status';
   }
 }
 
@@ -162,7 +163,6 @@ class UtexoLspClient implements IUtexoLspClient {
   // SDK/native operation timeout. A stalled HTTP quote must not hold a wallet
   // flow for two minutes.
   static const _defaultTimeoutMs = 15000;
-  static const _maxBodyPreviewChars = 512;
   static const _maxResponseBytes = 1024 * 1024;
 
   final LspClientConfig config;
@@ -401,9 +401,16 @@ class UtexoLspClient implements IUtexoLspClient {
     String paymentHash,
   ) async {
     final hash = _requiredPathSegment(paymentHash, 'paymentHash');
-    return LspLightningSendStatusResponse.fromWire(
+    final response = LspLightningSendStatusResponse.fromWire(
       await _requestMap('/lightning_send/${Uri.encodeComponent(hash)}'),
     );
+    if (response.paymentHash.toLowerCase() != hash.toLowerCase()) {
+      throw const NativeProtocolException(
+        'LSP payment status does not match the requested payment.',
+        field: 'LspLightningSendStatusResponse.paymentHash',
+      );
+    }
+    return response;
   }
 
   Future<Map<String, Object?>> _requestMap(
@@ -496,7 +503,7 @@ class UtexoLspClient implements IUtexoLspClient {
       throw LspError(
         endpoint: endpoint,
         status: response.statusCode,
-        body: _redactedPreview(text),
+        body: 'HTTP request rejected by the LSP',
       );
     }
     if (text.isEmpty) return null as T;
@@ -506,8 +513,8 @@ class UtexoLspClient implements IUtexoLspClient {
       throw LspError(
         endpoint: endpoint,
         status: response.statusCode,
-        body: 'invalid JSON: ${_redactedPreview(text)}',
-        cause: error,
+        body: 'Invalid JSON response',
+        cause: const FormatException('Malformed LSP JSON response'),
       );
     }
   }
@@ -570,14 +577,6 @@ class UtexoLspClient implements IUtexoLspClient {
           queryParameters: <String, String>{...uri.queryParameters, ...params},
         )
         .toString();
-  }
-
-  static String _redactedPreview(String text) {
-    final trimmed = text.trim();
-    final preview = trimmed.length > _maxBodyPreviewChars
-        ? '${trimmed.substring(0, _maxBodyPreviewChars)}...'
-        : trimmed;
-    return redactSupportText(preview);
   }
 }
 

@@ -3,6 +3,13 @@ part of 'utexo_wallet.dart';
 mixin _UtexoWalletGuards on _UtexoWalletInternals {
   @override
   UtexoUnlockConfig _resolveUnlockConfig(UtexoUnlockConfig config) {
+    if (_signer is NativeExternalRlnSigner &&
+        _blankToNull(config.gossipRgsServerUrl) != null) {
+      throw const UnsupportedWalletFeatureException(
+        'Native external signer unlock does not support rapid gossip sync.',
+        feature: 'unlock.gossipRgsServerUrl',
+      );
+    }
     return resolveUnlockConfig(_config.network, config);
   }
 

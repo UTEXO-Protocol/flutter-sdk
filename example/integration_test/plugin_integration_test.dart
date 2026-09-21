@@ -269,6 +269,20 @@ void main() {
       _step('wait wallet B spendable');
       await _waitForSpendable(walletB, 1, label: 'wallet B');
 
+      _step('send and confirm Bitcoin');
+      final bitcoinTxid = await walletA.sendBtc(
+        amount: 20000,
+        address: await walletB.getAddress(),
+      );
+      expect(bitcoinTxid, matches(RegExp(r'^[0-9a-f]{64}$')));
+      await _mineAndWait(walletA, blocks: 1);
+      await _waitForConfirmedBitcoinTransfer(walletA, bitcoinTxid);
+      final receivedBitcoin = await _waitForConfirmedBitcoinTransfer(
+        walletB,
+        bitcoinTxid,
+      );
+      expect(receivedBitcoin.received, 20000);
+
       _step('create wallet A utxos');
       await walletA.createUtxos(num: 10, size: 100000, feeRate: 1);
       _step('create wallet B utxos');
@@ -316,7 +330,7 @@ void main() {
       expect(
         walletBTransfers.any(
           (transfer) => transfer.assignments.any(
-            (assignment) => assignment.amount == 100,
+            (assignment) => assignment.amount == BigInt.from(100),
           ),
         ),
         true,
@@ -330,12 +344,12 @@ void main() {
 
       _step('read wallet A asset balance');
       final walletABalance = await walletA.getAssetBalance(issued.assetId);
-      expect(walletABalance.spendable, lessThanOrEqualTo(900));
+      expect(walletABalance.spendable, lessThanOrEqualTo(BigInt.from(900)));
 
       _step('read node info');
       final walletAInfo = await walletA.getNodeInfo();
       final walletBInfo = await walletB.getNodeInfo();
-      final walletAPeer = '${walletAInfo.pubkey}@127.0.0.1:34033';
+      final walletAPeer = '${walletAInfo.pubkey}@127.0.0.1:34032';
       final walletBPeer = '${walletBInfo.pubkey}@127.0.0.1:34034';
       _step('connect wallet A to wallet B');
       await walletA.connectPeer(walletBPeer);
@@ -519,6 +533,25 @@ Future<void> _waitForSpendable(
   fail('$label did not reach $minSat spendable sats.');
 }
 
+Future<CoreTransaction> _waitForConfirmedBitcoinTransfer(
+  UtexoWallet wallet,
+  String txid,
+) async {
+  for (var attempt = 0; attempt < 60; attempt++) {
+    await wallet.syncWallet();
+    final transactions = await wallet.listTransactionsByTxid(txid);
+    final match = transactions.where(
+      (transaction) =>
+          transaction.txid == txid && transaction.confirmationTime != null,
+    );
+    if (match.isNotEmpty) return match.single;
+    await Future<void>.delayed(const Duration(seconds: 1));
+  }
+  throw StateError(
+    'Bitcoin transfer was not confirmed within the test deadline.',
+  );
+}
+
 Future<void> _waitForAssetSpendable(
   UtexoWallet wallet,
   String assetId,
@@ -528,7 +561,7 @@ Future<void> _waitForAssetSpendable(
   for (var attempt = 0; attempt < 90; attempt++) {
     await wallet.refreshWallet();
     final balance = await wallet.getAssetBalance(assetId);
-    if (balance.spendable >= minAmount) return;
+    if (balance.spendable >= BigInt.from(minAmount)) return;
     await Future<void>.delayed(const Duration(seconds: 1));
   }
   fail('$label did not reach $minAmount spendable units for $assetId.');

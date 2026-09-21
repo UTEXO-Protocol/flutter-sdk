@@ -1,6 +1,9 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'bridge_vector_applicability.dart';
+import 'evidence_target.dart';
+
 void main() {
   final root = Directory.current;
   final errors = <String>[];
@@ -97,6 +100,29 @@ void _validateFamilies(
     }
     if (testIds is! List<Object?> || testIds.whereType<String>().isEmpty) {
       errors.add('Bridge vector family ${entry.key} has no testIds.');
+    } else {
+      for (final id in testIds.whereType<String>()) {
+        final error = evidenceTargetError(id);
+        if (error != null) errors.add('${entry.key}: $error');
+      }
+    }
+    final requirements = policy['requiredFamilyVectors'];
+    final required = requirements is List<Object?>
+        ? requirements.whereType<String>().toSet()
+        : <String>{};
+    final present = vectors is List<Object?>
+        ? vectors.whereType<String>().toSet()
+        : <String>{};
+    final applicable = applicableFamilyVectors(
+      pigeonSource: File('pigeons/rln_api.dart').readAsStringSync(),
+      hostMethods: rows
+          .where((row) => row['group'] == entry.key)
+          .map((row) => row['hostApi']! as String)
+          .toSet(),
+      requiredVectors: required,
+    );
+    for (final missing in applicable.difference(present)) {
+      errors.add('Bridge family ${entry.key} lacks required vector $missing.');
     }
   }
 }
@@ -129,6 +155,11 @@ void _validateCriticalMethods(
     }
     if (testIds is! List<Object?> || testIds.whereType<String>().isEmpty) {
       errors.add('Critical bridge vector method $method lacks testIds.');
+    } else {
+      for (final id in testIds.whereType<String>()) {
+        final error = evidenceTargetError(id);
+        if (error != null) errors.add('$method: $error');
+      }
     }
   }
 }

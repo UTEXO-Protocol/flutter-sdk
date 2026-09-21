@@ -21,7 +21,7 @@ final class _VerifiedRgbBridgeInvoice {
   });
 
   final String assetId;
-  final int amount;
+  final BigInt? amount;
   final int expiresAt;
 }
 
@@ -46,7 +46,7 @@ abstract final class _LspBridgeQuoteVerifier {
         requested.assetId.trim()) {
       _fail('the created Lightning invoice asset differs from the request');
     }
-    if (decodedLightning.assetAmount != requested.amountRgb) {
+    if (decodedLightning.assetAmount != BigInt.from(requested.amountRgb)) {
       _fail(
         'the created Lightning invoice asset amount differs from the request',
       );
@@ -81,8 +81,9 @@ abstract final class _LspBridgeQuoteVerifier {
       decodedRgb,
       walletNetwork: walletNetwork,
       nowEpochSeconds: nowEpochSeconds,
+      allowAnyForAssetId: requested.assetId.trim(),
     );
-    if (rgb.amount != requested.amountRgb) {
+    if (rgb.amount != null && rgb.amount != BigInt.from(requested.amountRgb)) {
       _fail('the returned RGB invoice amount differs from the request');
     }
     if ((rgb.expiresAt - lightningExpiry).abs() >
@@ -146,7 +147,7 @@ abstract final class _LspBridgeQuoteVerifier {
         'ln.assetId',
       );
     }
-    if (ln.assetAmount != null && ln.assetAmount != rgb.amount) {
+    if (ln.assetAmount != null && BigInt.from(ln.assetAmount!) != rgb.amount) {
       throw const ValidationError(
         'ln.assetAmount must match the RGB invoice amount.',
         'ln.assetAmount',
@@ -212,7 +213,11 @@ abstract final class _LspBridgeQuoteVerifier {
     if (expected == null) return;
     _requireEqualIfPresent('amount', expected.amtMsat, amountMsat);
     _requireEqualIfPresent('asset', expected.assetId?.trim(), rgb.assetId);
-    _requireEqualIfPresent('asset amount', expected.assetAmount, rgb.amount);
+    _requireEqualIfPresent(
+      'asset amount',
+      expected.assetAmount == null ? null : BigInt.from(expected.assetAmount!),
+      rgb.amount,
+    );
     _requireEqualIfPresent(
       'expiry duration',
       expected.expirySec,
@@ -234,14 +239,20 @@ abstract final class _LspBridgeQuoteVerifier {
     CoreInvoiceData invoice, {
     required String walletNetwork,
     required int nowEpochSeconds,
+    String? allowAnyForAssetId,
   }) {
     _verifyNetwork(invoice.network, walletNetwork, 'RGB');
     final assetId = _requiredValue(invoice.assetId, 'RGB asset');
-    if (invoice.assignment.type.trim().toLowerCase() != 'fungible') {
+    final isOpenSameAsset =
+        invoice.assignment.type.trim().toLowerCase() == 'any' &&
+        assetId == allowAnyForAssetId &&
+        invoice.assignment.amount == null;
+    if (!isOpenSameAsset &&
+        invoice.assignment.type.trim().toLowerCase() != 'fungible') {
       _fail('the RGB invoice does not contain a fungible assignment');
     }
     final amount = invoice.assignment.amount;
-    if (amount == null || amount <= 0) {
+    if (!isOpenSameAsset && (amount == null || amount <= BigInt.zero)) {
       _fail('the RGB invoice has no positive fungible amount');
     }
     final expiresAt = invoice.expirationTimestamp;

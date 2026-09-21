@@ -3,7 +3,7 @@ package com.utexo.rgb_sdk_flutter
 import org.utexo.rgblightningnode.NativeExternalSigner
 import org.utexo.rgblightningnode.SdkNode
 
-internal object RlnNodeStore {
+internal class RlnNodeStore {
     private val nodes = mutableMapOf<Long, SdkNode>()
     private val states = mutableMapOf<Long, NodeLifecycleState>()
     private val preUnlockStates = mutableMapOf<Long, NodeLifecycleState>()
@@ -21,19 +21,26 @@ internal object RlnNodeStore {
     }
 
     @Synchronized
+    fun ensureStorageAvailable(storageDirPath: String) {
+        val existing = storageDirByNodeId.entries.firstOrNull {
+            it.value == storageDirPath.trim()
+        }?.key
+        if (existing != null && states[existing] != NodeLifecycleState.SHUTDOWN) {
+            throw RlnStateConflict("RLN storage is already owned by an active node")
+        }
+    }
+
+    @Synchronized
     fun create(node: SdkNode, storageDirPath: String): Long {
         val normalizedPath = storageDirPath.trim()
         if (normalizedPath.isNotEmpty()) {
             val existingId = storageDirByNodeId.entries.firstOrNull { it.value == normalizedPath }?.key
             if (existingId != null) {
                 if (states[existingId] == NodeLifecycleState.SHUTDOWN) {
-                    nodes[existingId]?.close()
-                    nodes[existingId] = node
-                    states[existingId] = NodeLifecycleState.CREATED
-                    return existingId
+                    remove(existingId)
+                } else {
+                    throw RlnStateConflict("RLN storage is already owned by an active node")
                 }
-
-                throw IllegalStateException("RLN node already exists for storageDirPath: $normalizedPath")
             }
         }
 
@@ -46,12 +53,12 @@ internal object RlnNodeStore {
 
     @Synchronized
     fun get(id: Long): SdkNode {
-        return nodes[id] ?: throw IllegalStateException("RLN node with id $id not found")
+        return nodes[id] ?: throw NodeNotFound()
     }
 
     @Synchronized
     fun getState(id: Long): NodeLifecycleState {
-        return states[id] ?: throw IllegalStateException("RLN node with id $id not found")
+        return states[id] ?: throw NodeNotFound()
     }
 
     @Synchronized
@@ -60,10 +67,10 @@ internal object RlnNodeStore {
             NodeLifecycleState.CREATED -> states[id] = NodeLifecycleState.INITIALIZED
             NodeLifecycleState.INITIALIZED -> Unit
             NodeLifecycleState.UNLOCKED,
-            NodeLifecycleState.SHUTDOWN -> throw IllegalStateException(
+            NodeLifecycleState.SHUTDOWN -> throw RlnStateConflict(
                 "RLN init is not allowed while node is in state: $state"
             )
-            NodeLifecycleState.UNLOCKING -> throw IllegalStateException(
+            NodeLifecycleState.UNLOCKING -> throw RlnStateConflict(
                 "Cannot initialize RLN node while unlock is in progress"
             )
         }
@@ -80,7 +87,7 @@ internal object RlnNodeStore {
                 NodeLifecycleState.UNLOCKING
             }
             NodeLifecycleState.UNLOCKED -> NodeLifecycleState.UNLOCKED
-            NodeLifecycleState.UNLOCKING -> throw IllegalStateException("RLN unlock is already in progress")
+            NodeLifecycleState.UNLOCKING -> throw RlnStateConflict("RLN unlock is already in progress")
         }
     }
 
@@ -109,10 +116,19 @@ internal object RlnNodeStore {
     @Synchronized
     fun remove(id: Long) {
         val node = nodes.remove(id)
-        states.remove(id)
+        val state = states.remove(id)
         preUnlockStates.remove(id)
         storageDirByNodeId.remove(id)
-        node?.close()
+        if (node != null) closeNode(node, state)
+    }
+
+    private fun closeNode(node: SdkNode, state: NodeLifecycleState?) {
+        try {
+            if (state != NodeLifecycleState.SHUTDOWN) node.shutdown()
+        } finally {
+            // Releasing the UniFFI handle alone is not a node shutdown contract.
+            node.close()
+        }
     }
 
     @Synchronized
@@ -124,7 +140,7 @@ internal object RlnNodeStore {
 
     @Synchronized
     fun getSigner(id: Long): NativeExternalSigner {
-        return signers[id] ?: throw IllegalStateException("Native signer with id $id not found")
+        return signers[id] ?: throw SignerNotFound()
     }
 
     @Synchronized
@@ -135,25 +151,25 @@ internal object RlnNodeStore {
 
     @Synchronized
     fun clearAll() {
-        val nodesToClose = nodes.values.toList()
+        val nodesToClose = nodes.map { (id, node) -> node to states[id] }
         val signersToClose = signers.values.toList()
         nodes.clear()
         states.clear()
         preUnlockStates.clear()
         storageDirByNodeId.clear()
         signers.clear()
-        var firstFailure: RuntimeException? = null
-        nodesToClose.forEach { node ->
+        var firstFailure: Exception? = null
+        nodesToClose.forEach { (node, state) ->
             try {
-                node.close()
-            } catch (error: RuntimeException) {
+                closeNode(node, state)
+            } catch (error: Exception) {
                 firstFailure = firstFailure ?: error
             }
         }
         signersToClose.forEach { signer ->
             try {
                 signer.close()
-            } catch (error: RuntimeException) {
+            } catch (error: Exception) {
                 firstFailure = firstFailure ?: error
             }
         }
@@ -170,6 +186,10 @@ internal object RlnNodeStore {
         )
     }
 }
+
+internal class NodeNotFound : IllegalStateException("Native node handle is unavailable.")
+internal class SignerNotFound : IllegalStateException("Native signer handle is unavailable.")
+internal class RlnStateConflict(message: String) : IllegalStateException(message)
 
 internal data class RlnNodeStoreSnapshot(
     val nodeCount: Int,

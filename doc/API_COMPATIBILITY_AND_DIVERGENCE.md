@@ -30,12 +30,54 @@ ship.
 | --- | --- | --- | --- | --- | --- |
 | `createBackup` / `rlnBackup` | Native artifact owner plus Flutter maintainer | `API-019`, `G-11` | Keep native-blocked and fail before claiming recovery support. | `test/utexo_wallet_test.dart::keeps local backup explicitly native-blocked`; Android/iOS native backup-blocked bridge cases. | Pinned native RLN exposes a working backup/recovery implementation and cross-platform funded recovery tests pass. |
 | `sendRgb(skipSync: true)` | Flutter maintainer | `API-006` | Fail fast instead of accepting and silently discarding the value. | `test/rln_client_contract_test.dart::sendRgb rejects skipSync true before native call`; Android/iOS native skip-sync rejection cases. | Pinned native RLN exposes a real skip-sync request field and RN/core define semantics. |
-| `gossipRgsServerUrl` unlock field | Flutter maintainer | `API-030` | Reject non-empty values because native signer unlock currently ignores the field. | `test/utexo_wallet_test.dart::rejects no-op gossip RGS unlock configuration`. | Pinned native RLN signer unlock consumes the field end to end. |
+| `gossipRgsServerUrl` unlock field | Flutter maintainer | `API-030` | Forward for password-backed unlock. Reject non-empty values only for native external signers, whose ABI has no RGS argument. | Password forwarding and external-signer rejection tests in `test/utexo_wallet_test.dart`. | Pinned native external-signer unlock consumes the field end to end. |
 | Fractional native fee rates | Flutter maintainer | `MODEL-014` | Require integer-equivalent sats/vbyte and reject fractional values before native execution. RN currently defaults some calls to `1.5`, then truncates through the UInt64 bridge; Flutter does not reproduce that data-loss bug. | Dart wallet validation plus mirrored Android/iOS bridge numeric vectors. | Native/core adopt an exact fractional fee-rate representation end to end. |
 | High-level CFA/UDA issuance | Flutter maintainer | `API-017` | Expose only through low-level RN-parity `RlnClient`/`RLNBinding`, not the stable wallet facade. | Wallet matrix excludes `issueAssetCfa`/`issueAssetUda`; low-level matrix keeps the RN methods. | RN adds wallet-level CFA/UDA methods or product approves a Flutter-only extension library. |
 | Standalone account-key Schnorr signing default | Flutter maintainer plus release security owner | `SEC-007` | Fail closed by default and require `SchnorrSigningMode.experimentalDart` for the pure-Dart signer, even though RN's top-level core `signMessage` is callable by default. Wallet/node-key signing remains native RLN-backed and RN-aligned. | `test/crypto_bip340_vectors_test.dart::standalone Schnorr signing fails closed without explicit opt in`; `test/utexo_wallet_test.dart::signs and verifies RN-core compatible Schnorr messages`; `tool/validate_codebase_hardening.dart`. | Replace the pure-Dart implementation with a vetted/native signing primitive or complete a formal crypto review proving production suitability, then update public docs and parity tests before changing the default. |
 | Durable credential storage | Consuming app owner plus Flutter maintainer | `SEC-009` | App-owned storage boundary; SDK owns only in-memory minimization and diagnostics. | `doc/INTEGRATION_SECURITY_AND_RELEASE.md`; release package validation requires `doc/SECURITY.md`. | SDK product scope expands to include a native secure-storage subsystem. |
-| Native builds/regtest in CI | Release owner | `TEST-017`, `G-12` | Keep native builds and funded regtest smokes local-only, but mandatory for release evidence. | `tool/test_release_candidate.sh` fails skipped required gates unless explicitly debug-overridden. | CI is provisioned with reliable simulators/emulators and a funded regtest stack. |
+| Native builds/regtest in CI | Release owner | `TEST-017`, `G-12` | Keep native builds and funded regtest smokes local-only, but mandatory for release evidence. | `tool/test_release_candidate.sh` fails every skipped required gate; no debug override can make it release-eligible. | CI is provisioned with reliable simulators/emulators and a funded regtest stack. |
+
+## September Corrective Contract Changes
+
+These are intentional pre-release changes to the unpublished `0.1.0` line,
+not silent compatibility shims. Consumers must compile against the updated
+immutable commit. Tracker: `MODEL-002`, `MODEL-012`, `MODEL-015`, `API-026`,
+`API-030`, `API-045`, `API-046`, `CODE-014`, `SEC-004`.
+
+- RGB read balances/supplies/assignments and Lightning RGB amounts now use
+  `BigInt`, preserving the native UInt64 range. Requests are still signed-int
+  bounded. Compare with `BigInt.zero`/`BigInt.from(value)` and serialize decimal
+  strings. Check request limits explicitly before conversion; do not use double.
+- `CoreAssetBalance` no longer inherits the Bitcoin `CoreBalance` signed-int
+  contract. Missing required RGB balance fields are protocol errors, not zero.
+- Core network outputs normalize `Bitcoin` to `mainnet` and `SignetCustom` to
+  `utexo`; unknown native networks fail closed. Transfer requested assignments
+  and core-compatible block-height/invoice/local-msat aliases are retained.
+- Core error subclasses inherit `SDKError`; bad request/not found/conflict have
+  HTTP defaults 400/404/409. Native Swift/Kotlin enum identity survives mapping,
+  but raw native messages and HTTP response bodies are excluded from serialized
+  diagnostics. `LnurlCallbackException.reason` is untrusted business detail,
+  available deliberately, not automatically logged.
+- `PsbtWalletCarrier` and `BeginEndWalletCarrier` declare typed method contracts.
+  `PsbtFeeEstimate` describes sat fees/vbytes/rate. The wallet still returns null
+  for these optional capabilities, matching RN; no implementation is fabricated.
+- Unsupported wallet identity overrides (`xpubVan`, `xpubCol`,
+  `masterFingerprint`) are rejected before native creation instead of ignored.
+- `createUtxos()` returns the requested count because native returns void.
+  `cancelHodlInvoice()` acknowledges the native call; it does not establish a
+  terminal payment transition. Callers must refresh observed state separately.
+
+### Relay Conversion Authority
+
+Automatic `payWith` selection preserves core's first-funded-alternative policy.
+That is a provisional quote candidate, not proof of conversion eligibility.
+The inspected LSP source (`b859ecbeca06a795e99b18e753c64c6b99f05ef9`,
+`internal/lspapi/convertible_asset.go`) authorizes pairs from its operator policy
+and checks equal precision. `/get_info` does not expose that pair graph.
+Flutter never retries another asset silently and never pays a rejected quote.
+A successful quote must bind the caller-selected funding asset and original
+target invoice before payment. Deployed-service proof remains a separate local
+platform gate under `TEST-036`; this source inspection is not settlement proof.
 
 ## API Stability Tiers
 

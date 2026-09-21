@@ -97,6 +97,20 @@ cd ios
 pod install
 ```
 
+Set the app's iOS deployment target and Podfile platform to `18.5`. In the
+existing `post_install` hook, also lift lower pod targets to the same minimum
+after `flutter_additional_ios_build_settings(target)`. New Xcode versions may
+reject Flutter's generated placeholder pod target even when Runner is correct:
+
+```ruby
+target.build_configurations.each do |config|
+  current = config.build_settings['IPHONEOS_DEPLOYMENT_TARGET']
+  if current.nil? || Gem::Version.new(current) < Gem::Version.new('18.5')
+    config.build_settings['IPHONEOS_DEPLOYMENT_TARGET'] = '18.5'
+  end
+end
+```
+
 For deterministic local release runs, prefer a pre-resolved archive or cache:
 
 ```sh
@@ -139,7 +153,7 @@ final wallet = UtexoWallet(
 
 await wallet.init();
 await wallet.unlock(
-  UtexoUnlockConfig(
+  config: UtexoUnlockConfig(
     bitcoindRpcUsername: 'user',
     bitcoindRpcPassword: 'password',
     bitcoindRpcHost: '127.0.0.1',
@@ -166,16 +180,17 @@ final receive = await wallet.onchainReceive(
   ),
 );
 
-print(address);
-print(balance.vanilla.spendable);
-print(receive.invoice);
+// Present these values in your UI. Never log private wallet data or invoices.
 ```
 
 Restart the same wallet instance after shutdown:
 
 ```dart
 await wallet.shutdown();
-await wallet.reinit(unlockConfig);
+await wallet.reinit(
+  password: passwordFromApprovedSecureStorage,
+  unlockConfig: unlockConfig,
+);
 ```
 
 Release all SDK-owned native resources when the app is done with the wallet:
@@ -240,7 +255,7 @@ the advanced entrypoint.
 | RGB assets | `listAssets`, `getAssetBalance`, `issueAssetNia`, `issueAssetIfa` |
 | RGB receive/send | `onchainReceive`, `blindReceive`, `witnessReceive`, `onchainSend`, `decodeRgbInvoice` |
 | Transactions/transfers | `listTransactions`, `listTransfers`, `failTransfers`, `refreshTransfers`, `refreshWallet`, `syncWallet` |
-| Lightning | `createBolt11Invoice`, `sendPayment`, `keysend`, `listPayments`, `decodeLightningInvoice` |
+| Lightning | `createLightningInvoice`, `payLightningInvoice`, `keysend`, `listPayments`, `decodeLnInvoice` |
 | Channels/peers | `connectPeer`, `disconnectPeer`, `listPeers`, `openChannel`, `closeChannel`, `listChannels` |
 | LSP/APay | `createLsp`, `discoverAddress`, `quoteAddress`, `selectPaymentAsset`, `receiveAsset`, `sendAsset`, `requestExternalInvoice`, `quoteExternalPayment`, `payExternalInvoice`, `enableLightningAddress`, `refillHashPool` |
 | Signing | wallet node-message signing plus explicit experimental account-key Schnorr opt-in |
@@ -271,8 +286,8 @@ Use the pinned Flutter toolchain from `.fvmrc`.
 ```sh
 flutter pub get
 dart format --output=none --set-exit-if-changed lib test example/integration_test tool pigeons
-flutter analyze --no-fatal-warnings --no-fatal-infos
-flutter test --coverage
+flutter analyze --fatal-infos
+dart run tool/test_dart_coverage.dart
 dart run tool/validate_coverage_policy.dart
 dart run tool/validate_release_governance.dart
 dart run tool/validate_codebase_hardening.dart

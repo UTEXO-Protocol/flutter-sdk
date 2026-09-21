@@ -44,6 +44,9 @@ mixin _UtexoWalletOnchain on _UtexoWalletInternals {
         .toList(growable: false);
   }
 
+  /// Creates UTXOs and returns the requested count (or zero when unspecified).
+  /// The native API acknowledges completion but reports no created count. This
+  /// matches RN; inspect listUnspents to observe resulting wallet state.
   Future<int> createUtxos({
     bool upTo = true,
     int? num,

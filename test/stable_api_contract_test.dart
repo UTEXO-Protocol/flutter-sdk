@@ -28,7 +28,7 @@ void main() {
 }
 
 final class _CustomSigner extends RlnSigner {
-  final List<int> disposedNodeIds = <int>[];
+  final List<int?> disposedNodeIds = <int?>[];
 
   @override
   Future<void> initNode({
@@ -56,7 +56,7 @@ final class _CustomSigner extends RlnSigner {
   @override
   Future<void> dispose({
     required RlnSignerHost host,
-    required int nodeId,
+    required int? nodeId,
   }) async {
     disposedNodeIds.add(nodeId);
   }

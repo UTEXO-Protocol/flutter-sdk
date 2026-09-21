@@ -16,6 +16,7 @@ abstract final class LspRelayQuoteVerifier {
     required int maxFeeMsat,
     required String walletNetwork,
     required String expectedLspPubkey,
+    required String? expectedFundingAssetId,
     required int nowEpochSeconds,
   }) {
     if (maxFeeMsat < 0) {
@@ -71,6 +72,11 @@ abstract final class LspRelayQuoteVerifier {
     }
 
     _requireSame(
+      label: 'caller-selected funding asset',
+      expected: expectedFundingAssetId,
+      actual: hodl.assetId,
+    );
+    _requireSame(
       label: 'asset amount',
       expected: target.assetAmount,
       actual: hodl.assetAmount,
@@ -88,12 +94,16 @@ abstract final class LspRelayQuoteVerifier {
     _requireSame(
       label: 'inbound asset amount',
       expected: hodl.assetAmount,
-      actual: quoted.inbound.assetAmount,
+      actual: quoted.inbound.assetAmount == null
+          ? null
+          : BigInt.from(quoted.inbound.assetAmount!),
     );
     _requireSame(
       label: 'outbound asset amount',
       expected: target.assetAmount,
-      actual: quoted.outbound.assetAmount,
+      actual: quoted.outbound.assetAmount == null
+          ? null
+          : BigInt.from(quoted.outbound.assetAmount!),
     );
     final targetPayee = target.payeePubkey?.trim();
     final outboundPayee = quoted.outbound.payeePubkey?.trim();

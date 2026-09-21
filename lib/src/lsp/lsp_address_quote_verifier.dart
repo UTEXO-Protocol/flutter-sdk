@@ -59,6 +59,7 @@ abstract final class LspAddressQuoteVerifier {
     required int nowEpochSeconds,
     String? expectedLspPubkey,
     bool requireApayProof = false,
+    String? expectedRecipientPubkey,
   }) {
     final discovery = resolution.discovery;
     final callback = resolution.callback;
@@ -75,6 +76,15 @@ abstract final class LspAddressQuoteVerifier {
     );
 
     final proof = callback.proof;
+    if (expectedRecipientPubkey != null) {
+      _decodeCompressedPubkey(expectedRecipientPubkey, 'wallet public key');
+      if (discovery.recipientPubkey?.toLowerCase() !=
+              expectedRecipientPubkey.toLowerCase() ||
+          proof?.recipientPubkey.toLowerCase() !=
+              expectedRecipientPubkey.toLowerCase()) {
+        _fail('the receive invoice recipient differs from the local wallet');
+      }
+    }
     if (proof == null) {
       if (requireApayProof) {
         _fail('the APay flow returned no signed inclusion proof');
@@ -119,7 +129,10 @@ abstract final class LspAddressQuoteVerifier {
     if (invoice.assetId != expectedAssetId) {
       _fail('the BOLT11 asset differs from the requested LNURL asset');
     }
-    if (invoice.assetAmount != expectedAssetAmount) {
+    if (invoice.assetAmount !=
+        (expectedAssetAmount == null
+            ? null
+            : BigInt.from(expectedAssetAmount))) {
       _fail('the BOLT11 asset amount differs from the requested amount');
     }
     if (LspNetworkPolicy.canonical(invoice.network) !=

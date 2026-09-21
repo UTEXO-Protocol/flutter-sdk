@@ -5,6 +5,20 @@ import XCTest
 final class RunnerTests: XCTestCase {
   private let plugin = RgbSdkFlutterPlugin()
 
+  func testWireCodecPreservesUnsignedAmountsAndNestedNulls() throws {
+    let response = try RlnWireCodec.encode([
+      "maximum": UInt64.max, "zero": Int64(0), "one": Int64(1),
+      "nested": ["value": NSNull()], "enabled": true
+    ] as [String: Any])
+    let decoded = try XCTUnwrap(JSONSerialization.jsonObject(
+      with: Data(response.json.utf8)) as? [String: Any])
+    XCTAssertEqual(decoded["maximum"] as? String, "18446744073709551615")
+    XCTAssertEqual(decoded["zero"] as? Int, 0)
+    XCTAssertEqual(decoded["one"] as? Int, 1)
+    XCTAssertEqual(decoded["enabled"] as? Bool, true)
+    XCTAssertTrue((decoded["nested"] as? [String: Any])?["value"] is NSNull)
+  }
+
   func testNativeArtifactInfoMatchesPinnedIOSArtifact() throws {
     let info = try plugin.getNativeArtifactInfo()
 
@@ -49,7 +63,7 @@ final class RunnerTests: XCTestCase {
 
   func testChainSyncFactoryRejectsPartialOrInvalidConfiguration() {
     assertChainSyncError(field: "bitcoindRpc") {
-      try RlnChainSyncFactory.make(
+      _ = try RlnChainSyncFactory.make(
         bitcoindRpcUsername: "rpc-user",
         bitcoindRpcPassword: nil,
         bitcoindRpcHost: nil,
@@ -58,7 +72,7 @@ final class RunnerTests: XCTestCase {
       )
     }
     assertChainSyncError(field: "indexerUrl") {
-      try RlnChainSyncFactory.make(
+      _ = try RlnChainSyncFactory.make(
         bitcoindRpcUsername: nil,
         bitcoindRpcPassword: nil,
         bitcoindRpcHost: nil,
@@ -68,7 +82,7 @@ final class RunnerTests: XCTestCase {
     }
     for port in [Int64(0), Int64(65_536)] {
       assertChainSyncError(field: "bitcoindRpcPort") {
-        try RlnChainSyncFactory.make(
+        _ = try RlnChainSyncFactory.make(
           bitcoindRpcUsername: "rpc-user",
           bitcoindRpcPassword: "rpc-password",
           bitcoindRpcHost: "127.0.0.1",
@@ -78,7 +92,7 @@ final class RunnerTests: XCTestCase {
       }
     }
     assertChainSyncError(field: "indexerUrl") {
-      try RlnChainSyncFactory.make(
+      _ = try RlnChainSyncFactory.make(
         bitcoindRpcUsername: nil,
         bitcoindRpcPassword: nil,
         bitcoindRpcHost: nil,
@@ -87,7 +101,7 @@ final class RunnerTests: XCTestCase {
       )
     }
     assertChainSyncError(field: "bitcoindRpcUsername") {
-      try RlnChainSyncFactory.make(
+      _ = try RlnChainSyncFactory.make(
         bitcoindRpcUsername: " ",
         bitcoindRpcPassword: "",
         bitcoindRpcHost: "127.0.0.1",
@@ -96,7 +110,7 @@ final class RunnerTests: XCTestCase {
       )
     }
     assertChainSyncError(field: "bitcoindRpcHost") {
-      try RlnChainSyncFactory.make(
+      _ = try RlnChainSyncFactory.make(
         bitcoindRpcUsername: "rpc-user",
         bitcoindRpcPassword: "",
         bitcoindRpcHost: "\t",
@@ -122,6 +136,18 @@ final class RunnerTests: XCTestCase {
       let details = expectDetails(pigeon)
       XCTAssertEqual(details["operation"] as? String, "rlnBackup")
       XCTAssertEqual(details["phase"] as? String, "rln-parity")
+    }
+  }
+
+  func testExternalSignerRgsFailsBeforeNativeLookup() {
+    XCTAssertThrowsError(try plugin.rlnUnlockNodeWithNativeExternalSigner(
+      nodeId: 9999, signerId: 9999, bitcoindRpcUsername: nil,
+      bitcoindRpcPassword: nil, bitcoindRpcHost: nil, bitcoindRpcPort: nil,
+      indexerUrl: nil, proxyEndpoint: nil, announceAddresses: [],
+      announceAlias: nil, gossipRgsServerUrl: "https://rgs.example")) { error in
+      let pigeon = expectPigeonError(error)
+      XCTAssertEqual(pigeon.code, "UnsupportedOperationException")
+      XCTAssertEqual(expectDetails(pigeon)["category"] as? String, "unsupported")
     }
   }
 
@@ -293,6 +319,15 @@ final class RunnerTests: XCTestCase {
 
   func testBridgeReportsUnknownNodeForGroupTwoMethodFamilies() {
     let cases: [(String, () throws -> Void)] = [
+      ("rlnInitNodeWithNativeExternalSigner", { try self.plugin.rlnInitNodeWithNativeExternalSigner(nodeId: 9_999, signerId: 8_888) }),
+      ("rlnAttachNativeExternalSigner", { try self.plugin.rlnAttachNativeExternalSigner(nodeId: 9_999, signerId: 8_888) }),
+      ("rlnNodeInfo", { _ = try self.plugin.rlnNodeInfo(nodeId: 9_999) }),
+      ("rlnCheckIndexerUrl", { _ = try self.plugin.rlnCheckIndexerUrl(nodeId: 9_999, indexerUrl: "electrum://127.0.0.1:50001") }),
+      ("rlnListPeers", { _ = try self.plugin.rlnListPeers(nodeId: 9_999) }),
+      ("rlnListChannels", { _ = try self.plugin.rlnListChannels(nodeId: 9_999) }),
+      ("rlnListPayments", { _ = try self.plugin.rlnListPayments(nodeId: 9_999) }),
+      ("rlnVssBackup", { _ = try self.plugin.rlnVssBackup(nodeId: 9_999) }),
+      ("rlnVssClearFence", { _ = try self.plugin.rlnVssClearFence(nodeId: 9_999, password: "never-log-this-password") }),
       ("rlnRotateAddress", { _ = try self.plugin.rlnRotateAddress(nodeId: 9_999) }),
       ("rlnSignMessage", { _ = try self.plugin.rlnSignMessage(nodeId: 9_999, message: "message") }),
       ("rlnVerifyMessage", { _ = try self.plugin.rlnVerifyMessage(nodeId: 9_999, message: "message", signature: "signature") }),
@@ -305,7 +340,8 @@ final class RunnerTests: XCTestCase {
         let pigeon = expectPigeonError(error)
         let details = expectDetails(pigeon)
         XCTAssertEqual(details["operation"] as? String, operation)
-        XCTAssertTrue((pigeon.message ?? "").contains("not found"))
+        XCTAssertEqual(pigeon.code, "NodeNotFound")
+        XCTAssertEqual(details["category"] as? String, "notFound")
       }
     }
   }
@@ -460,17 +496,17 @@ final class RunnerTests: XCTestCase {
     var nodeId: Int64?
     defer {
       if let nodeId {
-        RlnNodeStore.shared.remove(id: nodeId)
+        plugin.nodeStore.remove(id: nodeId)
       }
     }
 
-    let firstId = try RlnNodeStore.shared.create(node: firstNode, storageDirPath: path)
+    let firstId = try plugin.nodeStore.create(node: firstNode, storageDirPath: path)
     nodeId = firstId
-    XCTAssertIdentical(firstNode, try RlnNodeStore.shared.get(id: firstId))
-    XCTAssertEqual(try RlnNodeStore.shared.getState(id: firstId), .created)
+    XCTAssertIdentical(firstNode, try plugin.nodeStore.get(id: firstId))
+    XCTAssertEqual(try plugin.nodeStore.getState(id: firstId), .created)
 
     XCTAssertThrowsError(
-      try RlnNodeStore.shared.create(node: duplicateNode, storageDirPath: path)
+      try plugin.nodeStore.create(node: duplicateNode, storageDirPath: path)
     ) { error in
       guard case RlnStoreError.nodeAlreadyExists = error else {
         XCTFail("Expected nodeAlreadyExists, got \(type(of: error)): \(error)")
@@ -479,64 +515,118 @@ final class RunnerTests: XCTestCase {
     }
     XCTAssertEqual(duplicateNode.shutdownCount, 0)
 
-    RlnNodeStore.shared.markShutdown(id: firstId)
-    let reusedId = try RlnNodeStore.shared.create(node: replacementNode, storageDirPath: path)
-    XCTAssertEqual(reusedId, firstId)
-    XCTAssertIdentical(replacementNode, try RlnNodeStore.shared.get(id: reusedId))
-    XCTAssertEqual(try RlnNodeStore.shared.getState(id: reusedId), .created)
+    plugin.nodeStore.markShutdown(id: firstId)
+    let reusedId = try plugin.nodeStore.create(node: replacementNode, storageDirPath: path)
+    XCTAssertNotEqual(reusedId, firstId)
+    nodeId = reusedId
+    plugin.nodeStore.remove(id: firstId)
+    XCTAssertIdentical(replacementNode, try plugin.nodeStore.get(id: reusedId))
+    XCTAssertEqual(try plugin.nodeStore.getState(id: reusedId), .created)
     XCTAssertEqual(firstNode.shutdownCount, 1)
 
-    let snapshot = RlnNodeStore.shared.snapshot()
+    let snapshot = plugin.nodeStore.snapshot()
     XCTAssertEqual(snapshot.nodeCount, 1)
     XCTAssertEqual(snapshot.storageDirByNodeId[reusedId], path)
   }
 
   func testNodeStoreLifecycleAndFinalCleanupState() throws {
     let node = CloseTrackingSdkNode()
-    let nodeId = try RlnNodeStore.shared.create(
+    let nodeId = try plugin.nodeStore.create(
       node: node,
       storageDirPath: uniquePath("native-store-lifecycle")
     )
 
-    XCTAssertEqual(try RlnNodeStore.shared.beginUnlock(id: nodeId), .unlocking)
-    RlnNodeStore.shared.rollbackUnlock(id: nodeId)
-    XCTAssertEqual(try RlnNodeStore.shared.getState(id: nodeId), .created)
+    XCTAssertEqual(try plugin.nodeStore.beginUnlock(id: nodeId), .unlocking)
+    plugin.nodeStore.rollbackUnlock(id: nodeId)
+    XCTAssertEqual(try plugin.nodeStore.getState(id: nodeId), .created)
 
-    try RlnNodeStore.shared.markInitialized(id: nodeId)
-    XCTAssertEqual(try RlnNodeStore.shared.getState(id: nodeId), .initialized)
+    try plugin.nodeStore.markInitialized(id: nodeId)
+    XCTAssertEqual(try plugin.nodeStore.getState(id: nodeId), .initialized)
 
-    XCTAssertEqual(try RlnNodeStore.shared.beginUnlock(id: nodeId), .unlocking)
-    RlnNodeStore.shared.markUnlocked(id: nodeId)
-    XCTAssertEqual(try RlnNodeStore.shared.getState(id: nodeId), .unlocked)
-    XCTAssertThrowsError(try RlnNodeStore.shared.markInitialized(id: nodeId))
+    XCTAssertEqual(try plugin.nodeStore.beginUnlock(id: nodeId), .unlocking)
+    plugin.nodeStore.markUnlocked(id: nodeId)
+    XCTAssertEqual(try plugin.nodeStore.getState(id: nodeId), .unlocked)
+    XCTAssertThrowsError(try plugin.nodeStore.markInitialized(id: nodeId))
 
-    RlnNodeStore.shared.markShutdown(id: nodeId)
-    XCTAssertEqual(try RlnNodeStore.shared.getState(id: nodeId), .shutdown)
-    XCTAssertThrowsError(try RlnNodeStore.shared.markInitialized(id: nodeId))
+    plugin.nodeStore.markShutdown(id: nodeId)
+    XCTAssertEqual(try plugin.nodeStore.getState(id: nodeId), .shutdown)
+    XCTAssertThrowsError(try plugin.nodeStore.markInitialized(id: nodeId))
 
-    RlnNodeStore.shared.remove(id: nodeId)
-    XCTAssertThrowsError(try RlnNodeStore.shared.get(id: nodeId))
-    XCTAssertEqual(RlnNodeStore.shared.snapshot().nodeCount, 0)
+    plugin.nodeStore.remove(id: nodeId)
+    XCTAssertThrowsError(try plugin.nodeStore.get(id: nodeId))
+    XCTAssertEqual(plugin.nodeStore.snapshot().nodeCount, 0)
     XCTAssertEqual(node.shutdownCount, 0)
   }
 
   func testNodeStoreClearAllRemovesNodesAndSigners() throws {
     let node = CloseTrackingSdkNode()
     let signer = NativeExternalSigner(noPointer: NativeExternalSigner.NoPointer())
-    let nodeId = try RlnNodeStore.shared.create(
+    let nodeId = try plugin.nodeStore.create(
       node: node,
       storageDirPath: uniquePath("native-store-clear")
     )
-    let signerId = RlnNodeStore.shared.createSigner(signer)
+    let signerId = plugin.nodeStore.createSigner(signer)
 
-    RlnNodeStore.shared.clearAll()
+    plugin.nodeStore.clearAll()
 
-    let snapshot = RlnNodeStore.shared.snapshot()
+    let snapshot = plugin.nodeStore.snapshot()
     XCTAssertEqual(snapshot.nodeCount, 0)
     XCTAssertEqual(snapshot.signerCount, 0)
     XCTAssertEqual(node.shutdownCount, 1)
-    XCTAssertThrowsError(try RlnNodeStore.shared.get(id: nodeId))
-    XCTAssertThrowsError(try RlnNodeStore.shared.getSigner(id: signerId))
+    XCTAssertThrowsError(try plugin.nodeStore.get(id: nodeId))
+    XCTAssertThrowsError(try plugin.nodeStore.getSigner(id: signerId))
+  }
+
+  func testEngineCleanupDoesNotTouchAnotherEngine() throws {
+    let other = RgbSdkFlutterPlugin()
+    let mine = try plugin.nodeStore.create(node: CloseTrackingSdkNode(), storageDirPath: uniquePath("engine-a"))
+    let theirs = try other.nodeStore.create(node: CloseTrackingSdkNode(), storageDirPath: uniquePath("engine-b"))
+    defer { other.nodeStore.remove(id: theirs) }
+    let closed = expectation(description: "engine resources released")
+    plugin.closeEngine { closed.fulfill() }
+    wait(for: [closed], timeout: 5)
+    XCTAssertThrowsError(try plugin.nodeStore.get(id: mine))
+    XCTAssertNoThrow(try other.nodeStore.get(id: theirs))
+    XCTAssertThrowsError(try plugin.rlnShutdown(nodeId: mine))
+  }
+
+  func testEngineCleanupWaitsForInFlightUnlock() throws {
+    let node = BlockingUnlockSdkNode()
+    let owner = plugin
+    let id = try owner.nodeStore.create(node: node, storageDirPath: uniquePath("unlock-drain"))
+    let unlocked = expectation(description: "in-flight unlock finishes")
+    let closed = expectation(description: "engine drains then clears")
+    defer { node.release.signal() }
+    DispatchQueue.global().async {
+      do {
+        try owner.rlnUnlockNode(
+          nodeId: id, password: "test-only", bitcoindRpcUsername: nil,
+          bitcoindRpcPassword: nil, bitcoindRpcHost: nil, bitcoindRpcPort: nil,
+          indexerUrl: "electrum://127.0.0.1:50001", proxyEndpoint: nil,
+          announceAddresses: [], announceAlias: nil, gossipRgsServerUrl: nil
+        )
+      } catch {
+        XCTFail("Unexpected unlock failure: \(error)")
+      }
+      unlocked.fulfill()
+    }
+    XCTAssertEqual(node.entered.wait(timeout: .now() + 5), .success)
+    owner.closeEngine { closed.fulfill() }
+    XCTAssertEqual(node.cleanup.wait(timeout: .now() + 0.05), .timedOut)
+    node.release.signal()
+    wait(for: [unlocked, closed], timeout: 5)
+    XCTAssertEqual(node.cleanup.wait(timeout: .now() + 5), .success)
+    XCTAssertEqual(owner.nodeStore.snapshot().nodeCount, 0)
+    XCTAssertThrowsError(try owner.rlnInitNode(nodeId: id, password: "test", mnemonic: nil))
+    XCTAssertThrowsError(try owner.rlnDestroyNode(nodeId: id))
+    XCTAssertThrowsError(try owner.rlnDestroyNativeExternalSigner(signerId: 1))
+  }
+
+  func testNativeEnumIdentityAndCategoryArePreserved() {
+    XCTAssertEqual(rlnErrorCode(.Conflict(message: "private")), "Conflict")
+    XCTAssertEqual(rlnErrorCode(.NotFound(message: "private")), "NotFound")
+    XCTAssertEqual(nativeErrorCategory(rlnErrorCode(.FailedPeerConnection(message: "private"))), "network")
+    XCTAssertEqual(nativeErrorCategory(rlnErrorCode(.UnsupportedInExternalSignerMode(message: "private"))), "unsupported")
   }
 
   private func assertChainSyncError(
@@ -600,4 +690,22 @@ private final class CloseTrackingSdkNode: SdkNode {
   override func shutdown() {
     shutdownCount += 1
   }
+}
+
+private final class BlockingUnlockSdkNode: SdkNode {
+  let entered = DispatchSemaphore(value: 0)
+  let release = DispatchSemaphore(value: 0)
+  let cleanup = DispatchSemaphore(value: 0)
+
+  init() { super.init(noPointer: SdkNode.NoPointer()) }
+  required init(unsafeFromRawPointer pointer: UnsafeMutableRawPointer) {
+    super.init(unsafeFromRawPointer: pointer)
+  }
+
+  override func unlock(request: SdkUnlockRequest) throws {
+    entered.signal()
+    XCTAssertEqual(release.wait(timeout: .now() + 5), .success)
+  }
+
+  override func shutdown() { cleanup.signal() }
 }

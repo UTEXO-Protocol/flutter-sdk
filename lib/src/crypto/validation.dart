@@ -259,9 +259,9 @@ String fromUnitsBigInt(BigInt units, int precision) {
 int? toNumber(Object? value) {
   if (value == null) return null;
   if (value is int) return value;
-  if (value is BigInt) return value.toInt();
+  if (value is BigInt && value.isValidInt) return value.toInt();
   throw ValidationError(
-    'value must be an int, BigInt, null, or omitted.',
+    'value must fit a signed integer, or be null or omitted.',
     'value',
   );
 }

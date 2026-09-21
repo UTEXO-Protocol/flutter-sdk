@@ -4,14 +4,6 @@ UtexoUnlockConfig resolveUnlockConfig(
   String network,
   UtexoUnlockConfig config,
 ) {
-  if (config.gossipRgsServerUrl != null &&
-      config.gossipRgsServerUrl!.trim().isNotEmpty) {
-    throw const UnsupportedWalletFeatureException(
-      'gossipRgsServerUrl is not supported by the pinned RLN native signer '
-      'unlock APIs and would be ignored by native platforms.',
-      feature: 'unlock.gossipRgsServerUrl',
-    );
-  }
   final defaults = getNetworkDefaults(network);
   final indexerUrl = _blankToNull(config.indexerUrl) ?? defaults?.indexerUrl;
   final proxyEndpoint =
@@ -27,7 +19,7 @@ UtexoUnlockConfig resolveUnlockConfig(
     proxyEndpoint: proxyEndpoint,
     announceAddresses: config.announceAddresses,
     announceAlias: config.announceAlias,
-    gossipRgsServerUrl: null,
+    gossipRgsServerUrl: _blankToNull(config.gossipRgsServerUrl),
   );
 
   final hasIndexer = resolved.indexerUrl != null;

@@ -15,8 +15,8 @@ const int rlnPigeonMaxSignedInt64 = 9223372036854775807;
 /// Largest unsigned 64-bit value that native RLN may return on the wire.
 ///
 /// Native outputs greater than [rlnPigeonMaxSignedInt64] are serialized as
-/// decimal strings by the Swift/Kotlin bridge, but current public Dart models
-/// expose signed `int` values and reject larger numbers at decode time.
+/// decimal strings by the Swift/Kotlin bridge. RGB balances and supplies use
+/// BigInt so a valid asset cannot make the entire asset list unreadable.
 const String rlnMaxUnsigned64Decimal = '18446744073709551615';
 
 /// Native RGB assignment type accepted by RLN invoices.
@@ -35,10 +35,14 @@ enum RlnAssignmentKind {
 int? _intOrNull(Object? value, [String field = 'native integer']) {
   if (value == null) return null;
   if (value is int) return value;
-  if (value is double && value.isFinite && value % 1 == 0) {
-    return value.toInt();
+  if (value is double &&
+      value.isFinite &&
+      value % 1 == 0 &&
+      value.abs() <= 9007199254740991) {
+    // BigInt conversion is exact for integral doubles and cannot saturate.
+    return _intOrNull(BigInt.from(value).toString(), field);
   }
-  if (value is String) {
+  if (value is String && RegExp(r'^-?[0-9]+$').hasMatch(value)) {
     final parsed = BigInt.tryParse(value);
     if (parsed == null) return null;
     if (parsed > BigInt.from(rlnPigeonMaxSignedInt64) ||
@@ -57,10 +61,13 @@ BigInt? _uint64OrNull(Object? value, [String field = 'native UInt64']) {
   if (value == null) return null;
   final parsed = switch (value) {
     int() when value >= 0 => BigInt.from(value),
-    double() when value.isFinite && value % 1 == 0 && value >= 0 => BigInt.from(
-      value.toInt(),
-    ),
-    String() => BigInt.tryParse(value),
+    double()
+        when value.isFinite &&
+            value % 1 == 0 &&
+            value >= 0 &&
+            value <= 9007199254740991 =>
+      BigInt.from(value),
+    String() when RegExp(r'^[0-9]+$').hasMatch(value) => BigInt.tryParse(value),
     _ => null,
   };
   if (parsed == null) return null;
@@ -79,6 +86,18 @@ int _requiredInt(RlnMap map, String key, String typeName) {
     throw NativeProtocolException(
       '$typeName.$key must be an integer.',
       field: '$typeName.$key',
+    );
+  }
+  return value;
+}
+
+BigInt _requiredUInt64(RlnMap map, String key, String typeName) {
+  final field = '$typeName.$key';
+  final value = _uint64OrNull(map[key], field);
+  if (value == null) {
+    throw NativeProtocolException(
+      '$field must be an unsigned integer.',
+      field: field,
     );
   }
   return value;
@@ -449,30 +468,47 @@ class RlnBtcBalance {
 }
 
 /// RGB asset balance, including off-chain channel amounts.
-class RlnAssetBalance extends RlnBalance {
+class RlnAssetBalance {
   const RlnAssetBalance({
-    required super.settled,
-    required super.future,
-    required super.spendable,
+    required this.settled,
+    required this.future,
+    required this.spendable,
     required this.offchainOutbound,
     required this.offchainInbound,
   });
 
   factory RlnAssetBalance.fromMap(RlnMap map) {
     return RlnAssetBalance(
-      settled: _requiredInt(map, 'settled', 'RlnAssetBalance'),
-      future: _requiredInt(map, 'future', 'RlnAssetBalance'),
-      spendable: _requiredInt(map, 'spendable', 'RlnAssetBalance'),
-      offchainOutbound: _intOrNull(map['offchainOutbound']) ?? 0,
-      offchainInbound: _intOrNull(map['offchainInbound']) ?? 0,
+      settled: _requiredUInt64(map, 'settled', 'RlnAssetBalance'),
+      future: _requiredUInt64(map, 'future', 'RlnAssetBalance'),
+      spendable: _requiredUInt64(map, 'spendable', 'RlnAssetBalance'),
+      offchainOutbound: _requiredUInt64(
+        map,
+        'offchainOutbound',
+        'RlnAssetBalance',
+      ),
+      offchainInbound: _requiredUInt64(
+        map,
+        'offchainInbound',
+        'RlnAssetBalance',
+      ),
     );
   }
 
   /// Off-chain outbound RGB amount in the asset's smallest unit.
-  final int offchainOutbound;
+  final BigInt offchainOutbound;
 
   /// Off-chain inbound RGB amount in the asset's smallest unit.
-  final int offchainInbound;
+  final BigInt offchainInbound;
+
+  /// Settled RGB units, before applying the asset precision.
+  final BigInt settled;
+
+  /// Future RGB units, including pending transfers.
+  final BigInt future;
+
+  /// Spendable RGB units; not necessarily the same as the total balance.
+  final BigInt spendable;
 }
 
 /// Media metadata attached to RGB assets or tokens.
@@ -599,7 +635,7 @@ class RlnAssetNia extends RlnAsset {
       name: _requiredString(map, 'name', 'RlnAssetNia'),
       details: _stringOrNull(map['details']),
       precision: _requiredInt(map, 'precision', 'RlnAssetNia'),
-      issuedSupply: _requiredInt(map, 'issuedSupply', 'RlnAssetNia'),
+      issuedSupply: _requiredUInt64(map, 'issuedSupply', 'RlnAssetNia'),
       timestamp: _requiredInt(map, 'timestamp', 'RlnAssetNia'),
       addedAt: _requiredInt(map, 'addedAt', 'RlnAssetNia'),
       balance: RlnAssetBalance.fromMap(
@@ -612,7 +648,7 @@ class RlnAssetNia extends RlnAsset {
   }
 
   final String ticker;
-  final int issuedSupply;
+  final BigInt issuedSupply;
   final RlnMedia? media;
 }
 
@@ -636,7 +672,7 @@ class RlnAssetCfa extends RlnAsset {
       name: _requiredString(map, 'name', 'RlnAssetCfa'),
       details: _stringOrNull(map['details']),
       precision: _requiredInt(map, 'precision', 'RlnAssetCfa'),
-      issuedSupply: _requiredInt(map, 'issuedSupply', 'RlnAssetCfa'),
+      issuedSupply: _requiredUInt64(map, 'issuedSupply', 'RlnAssetCfa'),
       timestamp: _requiredInt(map, 'timestamp', 'RlnAssetCfa'),
       addedAt: _requiredInt(map, 'addedAt', 'RlnAssetCfa'),
       balance: RlnAssetBalance.fromMap(
@@ -648,7 +684,7 @@ class RlnAssetCfa extends RlnAsset {
     );
   }
 
-  final int issuedSupply;
+  final BigInt issuedSupply;
   final RlnMedia? media;
 }
 
@@ -702,9 +738,9 @@ class RlnAssetIfa extends RlnAsset {
       name: _requiredString(map, 'name', 'RlnAssetIfa'),
       details: _stringOrNull(map['details']),
       precision: _requiredInt(map, 'precision', 'RlnAssetIfa'),
-      initialSupply: _requiredInt(map, 'initialSupply', 'RlnAssetIfa'),
-      maxSupply: _requiredInt(map, 'maxSupply', 'RlnAssetIfa'),
-      knownCirculatingSupply: _requiredInt(
+      initialSupply: _requiredUInt64(map, 'initialSupply', 'RlnAssetIfa'),
+      maxSupply: _requiredUInt64(map, 'maxSupply', 'RlnAssetIfa'),
+      knownCirculatingSupply: _requiredUInt64(
         map,
         'knownCirculatingSupply',
         'RlnAssetIfa',
@@ -742,9 +778,9 @@ class RlnAssetIfa extends RlnAsset {
   }
 
   final String ticker;
-  final int initialSupply;
-  final int maxSupply;
-  final int knownCirculatingSupply;
+  final BigInt initialSupply;
+  final BigInt maxSupply;
+  final BigInt knownCirculatingSupply;
   final RlnMedia? media;
   final String? rejectListUrl;
   final RlnRgbOutpoint? issuanceLinkRightOutpoint;
@@ -1257,7 +1293,7 @@ class RlnDecodedLnInvoice {
       expirySec: _requiredInt(map, 'expirySec', 'RlnDecodedLnInvoice'),
       timestamp: _requiredInt(map, 'timestamp', 'RlnDecodedLnInvoice'),
       assetId: _stringOrNull(map['assetId']),
-      assetAmount: _intOrNull(map['assetAmount']),
+      assetAmount: _uint64OrNull(map['assetAmount']),
       description: _optionalString(map, 'description', 'RlnDecodedLnInvoice'),
       descriptionHash: _optionalString(
         map,
@@ -1288,7 +1324,7 @@ class RlnDecodedLnInvoice {
   final String? assetId;
 
   /// RGB asset amount in the asset's smallest unit.
-  final int? assetAmount;
+  final BigInt? assetAmount;
   final String? description;
   final String? descriptionHash;
   final String paymentHash;
@@ -1355,7 +1391,7 @@ class RlnPayment {
   factory RlnPayment.fromMap(RlnMap map) {
     return RlnPayment(
       amtMsat: _intOrNull(map['amtMsat']),
-      assetAmount: _intOrNull(map['assetAmount']),
+      assetAmount: _uint64OrNull(map['assetAmount']),
       assetId: _stringOrNull(map['assetId']),
       paymentHash: _requiredString(map, 'paymentHash', 'RlnPayment'),
       paymentType: map['paymentType'] == null
@@ -1378,7 +1414,7 @@ class RlnPayment {
   final int? amtMsat;
 
   /// RGB asset amount in the asset's smallest unit.
-  final int? assetAmount;
+  final BigInt? assetAmount;
   final String? assetId;
   final String paymentHash;
   final String? paymentType;
@@ -1439,8 +1475,8 @@ class RlnChannel {
       peerAlias: _stringOrNull(map['peerAlias']),
       shortChannelId: _intOrNull(map['shortChannelId']),
       assetId: _stringOrNull(map['assetId']),
-      assetLocalAmount: _intOrNull(map['assetLocalAmount']),
-      assetRemoteAmount: _intOrNull(map['assetRemoteAmount']),
+      assetLocalAmount: _uint64OrNull(map['assetLocalAmount']),
+      assetRemoteAmount: _uint64OrNull(map['assetRemoteAmount']),
       virtualOpenMode: _stringOrNull(map['virtualOpenMode']),
     );
   }
@@ -1475,10 +1511,10 @@ class RlnChannel {
   final String? assetId;
 
   /// Local RGB asset amount in the asset's smallest unit.
-  final int? assetLocalAmount;
+  final BigInt? assetLocalAmount;
 
   /// Remote RGB asset amount in the asset's smallest unit.
-  final int? assetRemoteAmount;
+  final BigInt? assetRemoteAmount;
   final String? virtualOpenMode;
 }
 

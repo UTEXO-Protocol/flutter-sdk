@@ -103,7 +103,7 @@ class LspAssetLiquidityCandidate {
   final String assetId;
 
   /// Largest spendable amount on one usable channel, in smallest asset units.
-  final int localAmount;
+  final BigInt localAmount;
 }
 
 /// Asset selected for a Lightning Address payment.
@@ -121,7 +121,7 @@ class AssetSelection {
   final bool converted;
 
   /// Largest spendable amount on one matching channel, in smallest units.
-  final int localAssetAmount;
+  final BigInt localAssetAmount;
 
   final LspSupportedAsset? payoutAsset;
 }

@@ -7,6 +7,8 @@ source "${SCRIPT_DIR}/regtest/config.sh"
 REPORT_DIR="${REPORT_DIR:-${REPO_DIR}/build/test-reports/release}"
 FLUTTER_BIN="${FLUTTER_BIN:-flutter}"
 DART_BIN="${DART_BIN:-dart}"
+export DART_BIN FLUTTER_BIN
+source "${SCRIPT_DIR}/evidence_shell.sh"
 
 mkdir -p "${REPORT_DIR}"
 
@@ -82,7 +84,7 @@ run_step() {
   echo "==> ${name}"
   start="$(date +%s)"
   set +e
-  "$@"
+  (set -euo pipefail; "$@")
   code="$?"
   set -e
   finish="$(date +%s)"
@@ -107,17 +109,16 @@ mark_required_skip() {
   STEP_CODES+=(125)
   STEP_DURATIONS+=(0)
   STEP_NOTES+=("required gate skipped: ${reason}")
-  if [[ "${ALLOW_SKIPPED_RELEASE_GATES:-0}" != "1" ]]; then
-    FAILED=1
-  fi
+  FAILED=1
 }
 
 ensure_ios_simulator_visible() {
   local device="$1"
 
-  xcrun simctl boot "${device}" >/dev/null 2>&1 || true
-  xcrun simctl bootstatus "${device}" -b >/dev/null 2>&1 || true
-  open -a Simulator --args -CurrentDeviceUDID "${device}" >/dev/null 2>&1 || true
+  if ! xcrun simctl list devices booted -j | python3 -c 'import json,sys; target=sys.argv[1]; sys.exit(not any(d["udid"] == target for ds in json.load(sys.stdin)["devices"].values() for d in ds))' "${device}"; then
+    xcrun simctl boot "${device}"
+  fi
+  xcrun simctl bootstatus "${device}" -b
 
   for _ in 1 2 3 4 5 6; do
     if "${FLUTTER_BIN}" devices 2>/dev/null | grep -F "${device}" >/dev/null; then
@@ -135,26 +136,41 @@ ensure_android_device_visible() {
   local android_home="${ANDROID_HOME:-${HOME}/Library/Android/sdk}"
   local adb_bin="${ADB_BIN:-${android_home}/platform-tools/adb}"
   local emulator_bin="${ANDROID_EMULATOR_BIN:-${android_home}/emulator/emulator}"
-  local serial=""
+  local serial="${requested_device}"
   local booted=""
   local device_list=""
 
   if [[ -n "${requested_device}" ]] &&
     "${adb_bin}" devices 2>/dev/null |
       grep -E "^${requested_device}[[:space:]]+device" >/dev/null; then
+    if [[ "${requested_device}" == emulator-* ]]; then
+      local existing_avd
+      existing_avd="$("${adb_bin}" -s "${requested_device}" emu avd name | head -n 1 | tr -d '\r')"
+      if [[ -z "${ANDROID_EMULATOR:-}" || "${existing_avd}" != "${ANDROID_EMULATOR}" ]]; then
+        echo "Explicit matching ANDROID_EMULATOR ownership is required." >&2
+        return 1
+      fi
+    fi
     ANDROID_DEVICE="${requested_device}"
     return 0
   fi
 
-  if [[ -z "${ANDROID_EMULATOR:-}" ]]; then
+  if [[ -z "${ANDROID_EMULATOR:-}" || ! "${requested_device}" =~ ^emulator-([0-9]+)$ ]]; then
+    echo "Set ANDROID_DEVICE to an explicit emulator serial and ANDROID_EMULATOR to its app-owned AVD." >&2
     "${FLUTTER_BIN}" devices || true
     "${adb_bin}" devices -l || true
     return 1
   fi
 
   "${adb_bin}" start-server >/dev/null
+  local emulator_port="${requested_device#emulator-}"
+  if (( emulator_port < 5554 || emulator_port > 5682 || emulator_port % 2 != 0 )); then
+    echo "Invalid Android emulator console port: ${emulator_port}" >&2
+    return 1
+  fi
   nohup "${emulator_bin}" \
     -avd "${ANDROID_EMULATOR}" \
+    -port "${emulator_port}" \
     -no-window \
     -no-snapshot-load \
     -gpu swiftshader_indirect \
@@ -169,13 +185,14 @@ ensure_android_device_visible() {
     if [[ -n "${requested_device}" ]] &&
       grep -E "^${requested_device}[[:space:]]+device" <<<"${device_list}" >/dev/null; then
       serial="${requested_device}"
-    else
-      serial="$(awk '/^emulator-[0-9]+[[:space:]]+device/{print $1; exit}' <<<"${device_list}")"
-    fi
-    if [[ -n "${serial}" ]]; then
+      local avd_name
+      avd_name="$("${adb_bin}" -s "${serial}" emu avd name 2>/dev/null | head -n 1 | tr -d '\r')"
+      if [[ "${avd_name}" != "${ANDROID_EMULATOR}" ]]; then
+        echo "The requested emulator serial belongs to another AVD." >&2
+        return 1
+      fi
       booted="$("${adb_bin}" -s "${serial}" shell getprop sys.boot_completed 2>/dev/null | tr -d '\r' || true)"
       if [[ "${booted}" == "1" ]]; then
-        ANDROID_DEVICE="${serial}"
         "${adb_bin}" -s "${serial}" shell true >/dev/null
         return 0
       fi
@@ -209,11 +226,7 @@ write_report() {
   else
     status="failed"
   fi
-  if [[ "${FAILED}" -eq 0 && "${WORKTREE_DIRTY}" == "false" ]]; then
-    release_eligible="true"
-  else
-    release_eligible="false"
-  fi
+  local release_eligible="false"
   local log_sha
   if [[ -f "${LOG_FILE}" ]]; then
     log_sha="$(sha256_file "${LOG_FILE}")"
@@ -259,6 +272,11 @@ write_report() {
 
 main() {
   cd "${REPO_DIR}"
+  if [[ "${WORKTREE_DIRTY}" == true ]]; then
+    echo "Release qualification requires an immutable clean commit." >&2
+    FAILED=1
+    return 1
+  fi
 
   run_step "package dependency resolution" "${FLUTTER_BIN}" pub get
   run_step "example dependency resolution" bash -lc "cd '${REPO_DIR}/example' && '${FLUTTER_BIN}' pub get"
@@ -267,6 +285,7 @@ main() {
   run_step "bridge behavior vector validation" "${DART_BIN}" run tool/validate_bridge_vectors.dart
   run_step "codebase hardening validation" "${DART_BIN}" run tool/validate_codebase_hardening.dart
   run_step "public API documentation validation" "${DART_BIN}" run tool/validate_public_api_docs.dart
+  run_step "README Dart example compilation" "${DART_BIN}" run tool/validate_readme_examples.dart
   run_step "release language validation" "${DART_BIN}" run tool/validate_release_language.dart
   run_step "release governance validation" "${DART_BIN}" run tool/validate_release_governance.dart
   run_step "API and bridge snapshot validation" "${DART_BIN}" run tool/validate_api_snapshot.dart
@@ -281,11 +300,12 @@ main() {
     mark_required_skip "clean consumer install and archive matrix" "RUN_CONSUMER_MATRIX is not 1"
   fi
   run_step "pigeon drift check" bash -lc "before=\$(mktemp) && after=\$(mktemp) && git -C '${REPO_DIR}' diff -- pigeons/rln_api.dart lib/src/pigeon/rln_api.g.dart android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnApi.g.kt ios/Classes/RlnApi.g.swift > \"\${before}\" && '${REPO_DIR}/tool/generate_pigeon.sh' && '${DART_BIN}' format '${REPO_DIR}/lib/src/pigeon/rln_api.g.dart' && git -C '${REPO_DIR}' diff -- pigeons/rln_api.dart lib/src/pigeon/rln_api.g.dart android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnApi.g.kt ios/Classes/RlnApi.g.swift > \"\${after}\" && cmp -s \"\${before}\" \"\${after}\""
-  run_step "package analyze" "${FLUTTER_BIN}" analyze
-  run_step "package tests with Dart coverage" "${FLUTTER_BIN}" test --coverage
+  run_step "package analyze" "${FLUTTER_BIN}" analyze --fatal-infos
+  run_step "package tests with Dart coverage" env FLUTTER_BIN="${FLUTTER_BIN}" "${DART_BIN}" run tool/test_dart_coverage.dart
   run_step "Dart coverage policy validation" "${DART_BIN}" run tool/validate_coverage_policy.dart
   run_step "example widget tests" bash -lc "cd '${REPO_DIR}/example' && '${FLUTTER_BIN}' test test"
   run_step "native Android JVM bridge tests" bash -lc "REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_native_android.sh'"
+  run_step "Swift wire codec host regression" bash "${REPO_DIR}/tool/test_swift_wire_codec.sh"
 
   if [[ -n "${IOS_DEVICE:-}" ]]; then
     run_step "native iOS XCTest bridge tests" bash -lc "DEVICE='${IOS_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_native_ios.sh'"
@@ -324,10 +344,39 @@ main() {
     mark_required_skip "iOS/Android external-signer process restart" "RUN_PLATFORM is not 1"
   fi
 
-  write_report
+  if [[ "$(git rev-parse HEAD)" != "${FULL_COMMIT}" || -n "$(git status --porcelain)" ]]; then
+    echo "Candidate changed during qualification." >&2
+    WORKTREE_DIRTY=true
+    FAILED=1
+  fi
+  run_step "child evidence validation" "${DART_BIN}" run tool/validate_child_evidence.dart "${REPORT_DIR}" "${RUN_ID}"
   if [[ "${FAILED}" -ne 0 ]]; then
-    exit 1
+    return 1
   fi
 }
 
-main "$@" 2>&1 | tee "${LOG_FILE}"
+# A direct child works with macOS Bash 3.2, which cannot wait for process
+# substitutions. Close the writer before waiting so tee receives EOF.
+start_logging() {
+  begin_evidence_log
+}
+
+finalize() {
+  local result=$?
+  trap - EXIT
+  set +e
+  if [[ "${result}" -ne 0 ]]; then FAILED=1; fi
+  end_evidence_log
+  if [[ "$?" -ne 0 ]]; then FAILED=1; result=1; fi
+  write_report || result=1
+  if [[ -n "${EVIDENCE_SNAPSHOT:-}" ]]; then
+    finish_evidence "${REPORT_FILE}" || result=1
+  fi
+  exit "${result}"
+}
+if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
+  start_evidence "${REPORT_FILE}"
+  start_logging
+  trap finalize EXIT
+  main "$@"
+fi

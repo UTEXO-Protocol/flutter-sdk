@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'evidence_target.dart';
+
 const _validSupport = <String>{
   'supported',
   'native-blocked',
@@ -157,28 +159,8 @@ void _validateEvidenceTargets(
     final testIds = bucket['testIds'];
     if (testIds is! List<Object?>) continue;
     for (final testId in testIds.whereType<String>()) {
-      final separator = testId.indexOf('::');
-      if (separator < 1 || separator == testId.length - 2) {
-        errors.add('${entry.key} has malformed testId $testId.');
-        continue;
-      }
-      final path = testId.substring(0, separator);
-      final identifier = testId.substring(separator + 2);
-      final file = File(path);
-      if (!file.existsSync()) {
-        errors.add('${entry.key} references missing evidence file $path.');
-        continue;
-      }
-      final isNamedTestSource =
-          path.endsWith('.dart') ||
-          path.endsWith('.kt') ||
-          path.endsWith('.swift');
-      if (isNamedTestSource && !file.readAsStringSync().contains(identifier)) {
-        errors.add(
-          '${entry.key} references missing test identifier $identifier in '
-          '$path.',
-        );
-      }
+      final error = evidenceTargetError(testId);
+      if (error != null) errors.add('${entry.key}: $error');
     }
   }
 }

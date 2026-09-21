@@ -3,8 +3,9 @@ part of 'utexo_lsp.dart';
 mixin _UtexoLspApay on _UtexoLspInternals {
   /// Registers the first attested APay hash batch for this wallet.
   Future<LightningAddressInfo> enableLightningAddress() async {
-    final address = await _ownLightningAddress(this, 'enableLightningAddress');
     final lspInfo = await http.getInfo();
+    _requireConfiguredLsp(lspInfo);
+    final address = await _ownLightningAddress(this, 'enableLightningAddress');
     final pool = await wallet.apayNewWithAddress(
       lspInfo.pubkey,
       address.username,
@@ -29,12 +30,24 @@ mixin _UtexoLspApay on _UtexoLspInternals {
       );
     }
     final lspInfo = await http.getInfo();
+    _requireConfiguredLsp(lspInfo);
     final address = await http.getLightningAddressByPubkey(nodeInfo.pubkey);
     return wallet.apayNewWithAddress(
       lspInfo.pubkey,
       address.username,
       address.domain,
     );
+  }
+
+  void _requireConfiguredLsp(LspGetInfoResponse info) {
+    if (info.pubkey.trim().toLowerCase() !=
+            peer.peerPubkey.trim().toLowerCase() ||
+        LspNetworkPolicy.canonical(info.network) !=
+            LspNetworkPolicy.canonical(wallet.network)) {
+      throw const LspQuoteMismatchException(
+        reason: 'APay host identity or network differs from the configured LSP',
+      );
+    }
   }
 
   /// Claims every locally claimable payment that has a non-empty preimage.
@@ -60,12 +73,12 @@ mixin _UtexoLspApay on _UtexoLspInternals {
         results.add(
           ClaimResult(paymentHash: payment.paymentHash, claimed: true),
         );
-      } catch (error) {
+      } catch (_) {
         results.add(
           ClaimResult(
             paymentHash: payment.paymentHash,
             claimed: false,
-            error: redactSupportText(error.toString()),
+            error: 'Payment claim failed. Check its status before retrying.',
           ),
         );
       }

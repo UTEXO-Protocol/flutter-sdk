@@ -11,7 +11,7 @@ class Assignment {
   final String type;
 
   /// RGB asset amount in the asset's smallest unit.
-  final int? amount;
+  final BigInt? amount;
 }
 
 class Outpoint {
@@ -112,20 +112,30 @@ class CoreBtcBalance {
   final CoreBalance colored;
 }
 
-class CoreAssetBalance extends CoreBalance {
+/// Exact RGB balances in smallest asset units, including the full UInt64 range.
+class CoreAssetBalance {
   const CoreAssetBalance({
-    required super.settled,
-    required super.future,
-    required super.spendable,
+    required this.settled,
+    required this.future,
+    required this.spendable,
     required this.offchainOutbound,
     required this.offchainInbound,
   });
 
   /// Off-chain outbound RGB amount in the asset's smallest unit.
-  final int offchainOutbound;
+  final BigInt offchainOutbound;
 
   /// Off-chain inbound RGB amount in the asset's smallest unit.
-  final int offchainInbound;
+  final BigInt offchainInbound;
+
+  /// Settled RGB units, before applying the asset precision.
+  final BigInt settled;
+
+  /// Future RGB units, including pending transfers.
+  final BigInt future;
+
+  /// Spendable RGB units; excludes amounts native considers unavailable.
+  final BigInt spendable;
 }
 
 class CoreUtxo {
@@ -202,6 +212,7 @@ class CoreTransfer {
     this.updatedAt,
     required this.status,
     required List<Assignment> assignments,
+    this.requestedAssignment,
     required this.kind,
     this.txid,
     this.recipientId,
@@ -224,6 +235,9 @@ class CoreTransfer {
   final int? updatedAt;
   final String status;
   final List<Assignment> assignments;
+
+  /// Original receive assignment, which can differ from settled assignments.
+  final Assignment? requestedAssignment;
   final String kind;
   final String? txid;
   final String? recipientId;
@@ -297,7 +311,7 @@ class CoreAsset {
 
   /// Asset wallet-addition Unix timestamp in seconds.
   final int addedAt;
-  final CoreBalance balance;
+  final CoreAssetBalance balance;
   final CoreMedia? media;
 }
 
@@ -315,7 +329,7 @@ class CoreAssetNia extends CoreAsset {
     required this.issuedSupply,
   });
 
-  final int issuedSupply;
+  final BigInt issuedSupply;
 }
 
 class CoreAssetCfa extends CoreAsset {
@@ -331,7 +345,7 @@ class CoreAssetCfa extends CoreAsset {
     required this.issuedSupply,
   });
 
-  final int issuedSupply;
+  final BigInt issuedSupply;
 }
 
 class CoreAssetIfa extends CoreAsset {
@@ -351,9 +365,9 @@ class CoreAssetIfa extends CoreAsset {
     this.rejectListUrl,
   });
 
-  final int initialSupply;
-  final int maxSupply;
-  final int knownCirculatingSupply;
+  final BigInt initialSupply;
+  final BigInt maxSupply;
+  final BigInt knownCirculatingSupply;
   final String? rejectListUrl;
 }
 
@@ -427,6 +441,10 @@ class WalletNodeInfo {
 
   /// Local on-chain/channel wallet balance in sats.
   final int localBalanceSat;
+
+  /// Exact derived local balance in millisatoshis, without signed-int overflow.
+  BigInt get localBalanceMsat =>
+      BigInt.from(localBalanceSat) * BigInt.from(1000);
   final int? eventualCloseFeesSat;
   final int? pendingOutboundPaymentsSat;
   final int numPeers;
@@ -464,6 +482,9 @@ class WalletNetworkInfo {
 
   final String network;
   final int height;
+
+  /// Core-compatible spelling of [height].
+  int get blockHeight => height;
 }
 
 /// Canonical Lightning channel shape used by the RN/core contract.
@@ -524,10 +545,10 @@ class LightningChannel {
   final String? assetId;
 
   /// Local RGB asset amount in the asset's smallest unit.
-  final int? assetLocalAmount;
+  final BigInt? assetLocalAmount;
 
   /// Remote RGB asset amount in the asset's smallest unit.
-  final int? assetRemoteAmount;
+  final BigInt? assetRemoteAmount;
   final String? virtualOpenMode;
 }
 
@@ -567,17 +588,23 @@ class DecodedLightningInvoice {
   /// Lightning invoice expiry duration in seconds.
   final int expirySec;
 
+  /// Core-compatible spelling of [expirySec].
+  int get expirySeconds => expirySec;
+
   /// Lightning invoice creation Unix timestamp in seconds.
   final int timestamp;
   final String? assetId;
 
   /// RGB asset amount in the asset's smallest unit.
-  final int? assetAmount;
+  final BigInt? assetAmount;
   final String? description;
   final String? descriptionHash;
   final String paymentHash;
   final String paymentSecret;
   final String? payeePubkey;
+
+  /// Core-compatible spelling of [payeePubkey].
+  String? get payee => payeePubkey;
   final String network;
 }
 
@@ -602,7 +629,7 @@ class LightningPayment {
   final int? amtMsat;
 
   /// RGB asset amount in the asset's smallest unit.
-  final int? assetAmount;
+  final BigInt? assetAmount;
   final String? assetId;
   final String paymentHash;
   final String? paymentType;
@@ -658,7 +685,10 @@ extension RlnWalletNodeInfoMapper on RlnNodeInfo {
 
 extension RlnWalletNetworkInfoMapper on RlnNetworkInfo {
   WalletNetworkInfo toWalletNetworkInfo() {
-    return WalletNetworkInfo(network: network, height: height);
+    return WalletNetworkInfo(
+      network: UtexoDomainPolicy.normalizeNetwork(network),
+      height: height,
+    );
   }
 }
 
@@ -687,7 +717,7 @@ extension RlnDecodedLightningInvoiceMapper on RlnDecodedLnInvoice {
       paymentHash: paymentHash,
       paymentSecret: paymentSecret,
       payeePubkey: payeePubkey,
-      network: network,
+      network: UtexoDomainPolicy.normalizeNetwork(network),
     );
   }
 }
@@ -728,9 +758,12 @@ extension RlnLightningPaymentMapper on RlnPayment {
 }
 
 Assignment parseCoreAssignment(String assignment) {
-  final fungible = RegExp(r'Fungible\((\d+)\)').firstMatch(assignment);
+  final fungible = RegExp(r'^Fungible\((\d+)\)$').firstMatch(assignment);
   if (fungible != null) {
-    return Assignment(type: 'Fungible', amount: int.parse(fungible.group(1)!));
+    return Assignment(
+      type: 'Fungible',
+      amount: _assignmentAmount(fungible.group(1)!),
+    );
   }
   for (final type in <String>[
     'NonFungible',
@@ -740,12 +773,24 @@ Assignment parseCoreAssignment(String assignment) {
   ]) {
     if (assignment == type) return Assignment(type: type);
   }
-  final amount = int.tryParse(assignment);
-  if (amount != null) return Assignment(type: 'Fungible', amount: amount);
+  if (RegExp(r'^\d+$').hasMatch(assignment)) {
+    return Assignment(type: 'Fungible', amount: _assignmentAmount(assignment));
+  }
   throw NativeProtocolException(
-    'Unsupported RGB assignment shape "$assignment".',
+    'Unsupported RGB assignment shape.',
     field: 'assignment',
   );
+}
+
+BigInt _assignmentAmount(String value) {
+  final amount = BigInt.parse(value);
+  if (amount > BigInt.parse(rlnMaxUnsigned64Decimal)) {
+    throw const NativeProtocolException(
+      'RGB assignment exceeds UInt64.',
+      field: 'assignment',
+    );
+  }
+  return amount;
 }
 
 Outpoint parseCoreOutpoint(String value) {
@@ -922,6 +967,9 @@ extension RlnCoreTransferMapper on RlnTransfer {
       updatedAt: updatedAt,
       status: UtexoDomainPolicy.requireTransferStatus(status),
       assignments: assignments.map(parseCoreAssignment).toList(growable: false),
+      requestedAssignment: requestedAssignment == null
+          ? null
+          : parseCoreAssignment(requestedAssignment!),
       kind: kind,
       txid: txid,
       recipientId: recipientId,
@@ -953,7 +1001,7 @@ extension RlnCoreDecodedRgbInvoiceMapper on RlnDecodedRgbInvoice {
       recipientId: recipientId,
       assetSchema: assetSchema,
       assetId: assetId,
-      network: network,
+      network: UtexoDomainPolicy.normalizeNetwork(network),
       assignment: parseCoreAssignment(assignment),
       expirationTimestamp: expirationTimestamp,
       transportEndpoints: transportEndpoints,

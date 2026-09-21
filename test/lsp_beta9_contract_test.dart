@@ -101,7 +101,7 @@ LightningChannel _channel({
     inboundBalanceMsat: inboundMsat,
     remoteBalanceMsat: remoteMsat,
     assetId: assetId,
-    assetLocalAmount: assetLocalAmount,
+    assetLocalAmount: BigInt.from(assetLocalAmount),
   );
 }
 
@@ -121,7 +121,7 @@ DecodedLightningInvoice _decoded({
     expirySec: expirySec,
     timestamp: timestamp,
     assetId: assetId,
-    assetAmount: assetAmount,
+    assetAmount: assetAmount == null ? null : BigInt.from(assetAmount),
     descriptionHash: descriptionHash,
     paymentHash: hash,
     paymentSecret:
@@ -134,7 +134,7 @@ DecodedLightningInvoice _decoded({
 CoreInvoiceData _decodedRgb({
   required String invoice,
   required String assetId,
-  required int amount,
+  int? amount,
   int expiresAt = 1700003600,
   String network = 'regtest',
 }) {
@@ -144,7 +144,9 @@ CoreInvoiceData _decodedRgb({
     assetSchema: 'Nia',
     assetId: assetId,
     network: network,
-    assignment: Assignment(type: 'Fungible', amount: amount),
+    assignment: amount == null
+        ? const Assignment(type: 'Any')
+        : Assignment(type: 'Fungible', amount: BigInt.from(amount)),
     expirationTimestamp: expiresAt,
     transportEndpoints: const <String>['rpc://proxy/json-rpc'],
   );
@@ -439,7 +441,9 @@ DecodedLightningInvoice _copyDecoded(
     expirySec: expirySec ?? source.expirySec,
     timestamp: timestamp ?? source.timestamp,
     assetId: assetId ?? source.assetId,
-    assetAmount: assetAmount ?? source.assetAmount,
+    assetAmount: assetAmount == null
+        ? source.assetAmount
+        : BigInt.from(assetAmount),
     description: source.description,
     descriptionHash: descriptionHash ?? source.descriptionHash,
     paymentHash: paymentHash ?? source.paymentHash,
@@ -663,6 +667,7 @@ class _FakeLspClient implements IUtexoLspClient {
   LspLightningReceiveRequest? lastReceive;
   LspOnchainSendRequest? lastOnchainSend;
   LspLightningSendRequest? lastRelayRequest;
+  Object? relayFailure;
   String? lastRelayStatusHash;
   String? lastAssetId;
   int? lastAssetAmount;
@@ -722,6 +727,7 @@ class _FakeLspClient implements IUtexoLspClient {
   ) async {
     events.add('quote:${params.invoice}');
     lastRelayRequest = params;
+    if (relayFailure case final error?) throw error;
     return relay;
   }
 
@@ -1799,6 +1805,50 @@ void main() {
       expect(client.lastReceive?.rgb.toWire()['asset_id'], 'rgb:payout');
     });
 
+    test(
+      'same-asset Any receive is valid but converted Any receive is rejected',
+      () async {
+        final wallet = _FakeWallet()
+          ..decoded['lnbc1receive'] = _decoded(
+            hash: _targetHash,
+            amtMsat: 3000000,
+            assetId: 'rgb:payout',
+            assetAmount: 10,
+          )
+          ..decodedRgb['rgb:invoice'] = _decodedRgb(
+            invoice: 'rgb:invoice',
+            assetId: 'rgb:payout',
+          );
+        final client = _FakeLspClient();
+        final lsp = _lsp(wallet, client);
+        final result = await lsp.receiveAsset(
+          const ReceiveAssetOptions(
+            assetId: 'rgb:payout',
+            amountSats: 3000,
+            amountRgb: 10,
+            onchainAsset: ReceiveOnchainAsset.payout,
+          ),
+        );
+        expect(result.onchainAssetId, 'rgb:payout');
+        expect(result.converted, isFalse);
+        wallet.decodedRgb['rgb:invoice'] = _decodedRgb(
+          invoice: 'rgb:invoice',
+          assetId: 'rgb:canonical',
+        );
+        await expectLater(
+          lsp.receiveAsset(
+            const ReceiveAssetOptions(
+              assetId: 'rgb:payout',
+              amountSats: 3000,
+              amountRgb: 10,
+            ),
+          ),
+          throwsA(isA<LspBridgeQuoteVerificationException>()),
+        );
+        expect(wallet.paidInvoices, isEmpty);
+      },
+    );
+
     test('sendAsset pays only the invoice returned by the LSP', () async {
       final wallet = _FakeWallet()
         ..decodedRgb['rgb:recipient'] = _decodedRgb(
@@ -2288,7 +2338,7 @@ void main() {
         );
 
         expect(fallback.assetId, 'rgb:bridge');
-        expect(fallback.localAssetAmount, 8);
+        expect(fallback.localAssetAmount, BigInt.from(8));
         expect(fallback.converted, isTrue);
         expect(preferred.assetId, 'rgb:payout');
         expect(preferred.converted, isFalse);
@@ -2318,7 +2368,7 @@ void main() {
               .having(
                 (error) => error.candidates.map((item) => item.localAmount),
                 'candidate amounts',
-                <int>[4, 6],
+                <BigInt>[BigInt.from(4), BigInt.from(6)],
               ),
         ),
       );
@@ -2396,6 +2446,7 @@ void main() {
           acceptedAssets: <LspSupportedAsset>[payout, bridge],
         );
         final wallet = _FakeWallet()
+          ..nodePubkey = preferredFixture.discovery.recipientPubkey!
           ..decoded[preferredFixture.callback.pr] = preferredFixture.decoded;
         final client = _FakeLspClient()
           ..localDiscovery = preferredFixture.discovery
@@ -2435,6 +2486,53 @@ void main() {
         expect(explicit.converted, isFalse);
       },
     );
+
+    test(
+      'own receive rejects another valid recipient while explicit recipient remains allowed',
+      () async {
+        final fixture = _apayFixture(
+          invoice: 'lnbc1other-recipient',
+          payoutAsset: payout,
+          acceptedAssets: <LspSupportedAsset>[payout, bridge],
+        );
+        final wallet = _FakeWallet()
+          ..nodePubkey = '02${'12' * 32}'
+          ..decoded[fixture.callback.pr] = fixture.decoded;
+        final client = _FakeLspClient()
+          ..localDiscovery = fixture.discovery
+          ..callback = fixture.callback;
+        final lsp = _lsp(wallet, client, peerPubkey: fixture.hostPubkey);
+        await expectLater(
+          lsp.requestExternalInvoice(
+            const RequestExternalInvoiceOptions(amtMsat: 3000, assetAmount: 10),
+          ),
+          throwsA(isA<LspAddressQuoteVerificationException>()),
+        );
+        final explicit = await lsp.requestExternalInvoice(
+          const RequestExternalInvoiceOptions(
+            amtMsat: 3000,
+            assetAmount: 10,
+            address: 'alice@lsp.example',
+          ),
+        );
+        expect(explicit.paymentHash, _targetHash);
+        expect(wallet.paidInvoices, isEmpty);
+      },
+    );
+
+    test('APay host mismatch prevents hash registration', () async {
+      final wallet = _FakeWallet();
+      final client = _FakeLspClient();
+      final lsp = _lsp(wallet, client, peerPubkey: 'unexpected-peer');
+      await expectLater(
+        lsp.enableLightningAddress(),
+        throwsA(isA<LspQuoteMismatchException>()),
+      );
+      await expectLater(
+        lsp.refillHashPool(),
+        throwsA(isA<LspQuoteMismatchException>()),
+      );
+    });
 
     test(
       'requestExternalInvoice refuses ambiguous convertible assets',
@@ -2483,6 +2581,41 @@ void main() {
   });
 
   group('external relay funds safety', () {
+    test(
+      'rejects a self-consistent substituted funding asset before payment',
+      () async {
+        final wallet = _FakeWallet()
+          ..decoded = <String, DecodedLightningInvoice>{
+            'lnbc1target': _decoded(
+              hash: _targetHash,
+              amtMsat: 1000,
+              assetId: 'rgb:target',
+              assetAmount: 10,
+              payeePubkey: 'recipient-pubkey',
+            ),
+            'lnbc1hodl': _decoded(
+              hash: _targetHash,
+              amtMsat: 1010,
+              assetId: 'rgb:substituted',
+              assetAmount: 10,
+              payeePubkey: 'lsp-pubkey',
+            ),
+          };
+        final client = _FakeLspClient()
+          ..relay = _relayQuote(inboundAsset: 'rgb:substituted');
+        await expectLater(
+          _lsp(wallet, client).payExternalInvoice(
+            const PayExternalInvoiceOptions(
+              invoice: 'lnbc1target',
+              payWith: 'rgb:selected',
+              maxFeeMsat: 10,
+            ),
+          ),
+          throwsA(isA<LspQuoteMismatchException>()),
+        );
+        expect(wallet.paidInvoices, isEmpty);
+      },
+    );
     test(
       'decodes both invoices before paying and returns a verified quote',
       () async {
@@ -2566,6 +2699,43 @@ void main() {
       expect(quote.verified, isTrue);
       expect(wallet.paidInvoices, isEmpty);
     });
+
+    test(
+      'a rejected automatic conversion quote never triggers payment',
+      () async {
+        final wallet = _FakeWallet()
+          ..channels = <LightningChannel>[
+            _channel(id: 'b', assetId: 'rgb:alternative', assetLocalAmount: 20),
+          ]
+          ..decoded = <String, DecodedLightningInvoice>{
+            'lnbc1target': _decoded(
+              hash: _targetHash,
+              amtMsat: 1000,
+              assetId: 'rgb:target',
+              assetAmount: 10,
+              payeePubkey: 'recipient-pubkey',
+            ),
+          };
+        final client = _FakeLspClient()
+          ..relayFailure = const LspError(
+            endpoint: '/lightning_send',
+            status: 400,
+            body: 'pair not convertible',
+          );
+        await expectLater(
+          _lsp(wallet, client).payExternalInvoice(
+            const PayExternalInvoiceOptions(
+              invoice: 'lnbc1target',
+              maxFeeMsat: 10,
+            ),
+          ),
+          throwsA(isA<LspError>()),
+        );
+        expect(client.lastRelayRequest?.payWithAssetId, 'rgb:alternative');
+        expect(client.events, <String>['quote:lnbc1target']);
+        expect(wallet.paidInvoices, isEmpty);
+      },
+    );
 
     test('selects the first locally funded alternative like core', () async {
       final wallet = _FakeWallet()
@@ -2875,6 +3045,48 @@ void main() {
   });
 
   group('polling semantics', () {
+    test('liquidity uses the largest usable channel, not the first', () async {
+      final wallet = _FakeWallet()
+        ..channels = <LightningChannel>[
+          _channel(
+            id: 'small',
+            assetId: 'rgb:asset',
+            assetLocalAmount: 1,
+            outboundMsat: 1,
+          ),
+          _channel(
+            id: 'large',
+            assetId: 'rgb:asset',
+            assetLocalAmount: 1,
+            outboundMsat: 1000000,
+          ),
+        ];
+      await _lsp(wallet, _FakeLspClient()).waitForOutboundLiquidity(
+        500000,
+        options: const WaitOptions(timeoutMs: 200, pollIntervalMs: 50),
+      );
+      expect(wallet.syncCalls, 1);
+    });
+
+    test('poll deadline prevents follow-up dispatch after slow hook', () async {
+      final hook = Completer<void>();
+      final wallet = _FakeWallet();
+      await expectLater(
+        _lsp(wallet, _FakeLspClient()).waitForOutboundLiquidity(
+          1,
+          options: WaitOptions(
+            timeoutMs: 20,
+            pollIntervalMs: 50,
+            onEachPoll: () => hook.future,
+          ),
+        ),
+        throwsA(isA<LspLiquidityTimeoutException>()),
+      );
+      expect(wallet.syncCalls, 0);
+      hook.complete();
+      await Future<void>.value();
+      expect(wallet.syncCalls, 0);
+    });
     test(
       'waitForChannel selects the configured peer and preserves remote fallback',
       () async {

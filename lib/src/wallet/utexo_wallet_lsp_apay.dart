@@ -2,6 +2,7 @@ part of 'utexo_wallet.dart';
 
 mixin _UtexoWalletLspApay on _UtexoWalletInternals {
   Future<ApayNewResponse> apayNew(String hostNodeId) async {
+    _assertLightningEnabled();
     _requireNonEmpty(hostNodeId, 'hostNodeId');
     _requireUnlockedNode();
     return decodeNativeApayNewResponse(
@@ -15,6 +16,7 @@ mixin _UtexoWalletLspApay on _UtexoWalletInternals {
     String username,
     String domain,
   ) async {
+    _assertLightningEnabled();
     _requireNonEmpty(hostNodeId, 'hostNodeId');
     _requireNonEmpty(username, 'username');
     _requireNonEmpty(domain, 'domain');
@@ -26,6 +28,7 @@ mixin _UtexoWalletLspApay on _UtexoWalletInternals {
   }
 
   Future<UtexoLsp> createLsp([LspPeer? peer, int peerPort = 9735]) async {
+    _assertLightningEnabled();
     _ensureNotDisposed();
     if (peer != null) return UtexoLsp(wallet: _walletSelf, peer: peer);
     _ensureVirtualChannelsMutable();

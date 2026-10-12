@@ -31,7 +31,8 @@ The release gate requires:
 - `lib/src/wallet/**` at or above `80.0%`;
 - `lib/src/lsp/**` at or above `65.0%`;
 - `lib/src/crypto/**` at or above `70.0%`;
-- `lib/src/models/**` at or above `70.0%`.
+- `lib/src/models/**` at or above `70.0%`;
+- `lib/src/integrations/webrgb/**` at or above `85.0%`.
 
 These are floor thresholds for the current release-hardening phase, not a
 target quality ceiling. When a feature group adds high-risk logic, it must add

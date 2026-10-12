@@ -31,8 +31,8 @@ class UtexoWalletConfig {
   /// Persistent RLN node storage directory path.
   final String storageDirPath;
 
-  /// SDK-facing network name. `regtest`, `testnet`, `signet`, `bitcoin`, and
-  /// the native-only `utexo` compatibility value are recognized at the boundary.
+  /// SDK-facing network name: `mainnet`, `testnet`, `testnet4`, `signet`,
+  /// `utexo`, or `regtest`. Native Bitcoin naming is not an input alias.
   final String network;
 
   /// Lightning daemon listening port.
@@ -91,6 +91,7 @@ class UtexoUnlockConfig {
     List<String> announceAddresses = const <String>[],
     this.announceAlias,
     this.gossipRgsServerUrl,
+    this.ethRpcUrl,
   }) : announceAddresses = List<String>.unmodifiable(announceAddresses);
 
   /// Optional Bitcoin RPC username.
@@ -121,6 +122,12 @@ class UtexoUnlockConfig {
   /// Native external-signer mode rejects it before dispatch because that native
   /// unlock API does not accept RGS configuration.
   final String? gossipRgsServerUrl;
+
+  /// Ethereum RPC for BFA validation in password-backed native wallets.
+  ///
+  /// May contain credentials; never log or expose it to a dApp.
+  /// External signer unlock does not support this option.
+  final String? ethRpcUrl;
 }
 
 /// Capability flags for optional wallet feature groups.

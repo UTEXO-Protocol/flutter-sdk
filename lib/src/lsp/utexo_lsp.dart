@@ -3,6 +3,7 @@ import 'dart:async';
 import '../crypto/validation.dart';
 import '../errors/rgb_sdk_exception.dart';
 import '../models/utexo_core_models.dart';
+import '../wallet/lightning_policy.dart';
 import '../wallet/utexo_wallet_types.dart';
 import 'lsp_address_quote_verifier.dart';
 import 'lsp_address_types.dart';
@@ -32,6 +33,9 @@ abstract class _UtexoLspInternals {
   LspPeer get peer;
   IUtexoLspClient get http;
   int get nowEpochSeconds;
+
+  void _assertLightningEnabled() =>
+      LightningPolicy.requireEnabled(wallet.network);
 }
 
 /// Composes LSP channel, bridge, Lightning Address, APay, and relay flows.
@@ -42,18 +46,14 @@ class UtexoLsp extends _UtexoLspInternals
         _UtexoLspAddress,
         _UtexoLspApay,
         _UtexoLspRelay {
+  /// Rejects mainnet before allocating an HTTP client. Every operation also
+  /// rechecks the wallet network, including adapters whose network can change.
   UtexoLsp({
     required this.wallet,
     required this.peer,
     IUtexoLspClient? httpClient,
     DateTime Function()? clock,
-  }) : http =
-           httpClient ??
-           UtexoLspClient(
-             baseUrl: peer.baseUrl,
-             bearerToken: peer.bearerToken,
-             timeoutMs: peer.timeoutMs,
-           ),
+  }) : http = _checkedLspClient(wallet, peer, httpClient),
        _clock = clock ?? DateTime.now;
 
   @override
@@ -62,7 +62,8 @@ class UtexoLsp extends _UtexoLspInternals
   @override
   final LspPeer peer;
 
-  /// Direct access to the configured LSP HTTP client.
+  /// Low-level transport access, without a wallet/network policy boundary.
+  /// Prefer the guarded orchestration methods for wallet operations.
   @override
   final IUtexoLspClient http;
 
@@ -80,6 +81,20 @@ class UtexoLsp extends _UtexoLspInternals
   void dispose() {
     close();
   }
+}
+
+IUtexoLspClient _checkedLspClient(
+  ILspWallet wallet,
+  LspPeer peer,
+  IUtexoLspClient? client,
+) {
+  LightningPolicy.requireEnabled(wallet.network);
+  return client ??
+      UtexoLspClient(
+        baseUrl: peer.baseUrl,
+        bearerToken: peer.bearerToken,
+        timeoutMs: peer.timeoutMs,
+      );
 }
 
 void _checkCancelled(WaitOptions options) {
@@ -124,7 +139,9 @@ void _requirePositiveMsat(int value, String field) {
 }
 
 Future<Map<String, BigInt>> _localAssetAmounts(ILspWallet wallet) async {
+  LightningPolicy.requireEnabled(wallet.network);
   await wallet.syncWallet();
+  LightningPolicy.requireEnabled(wallet.network);
   final amounts = <String, BigInt>{};
   for (final channel in await wallet.listChannels()) {
     final assetId = channel.assetId;
@@ -142,6 +159,7 @@ Future<LspLightningAddressByPubkeyResponse> _ownLightningAddress(
   _UtexoLspInternals lsp,
   String operation,
 ) async {
+  lsp._assertLightningEnabled();
   final nodeInfo = await lsp.wallet.getNodeInfo();
   if (nodeInfo.pubkey.isEmpty) {
     throw WalletException('$operation requires an unlocked wallet.');
@@ -158,6 +176,7 @@ Future<LspLightningAddressByPubkeyResponse> _resolveLightningAddress(
 }) async {
   Object? lastError;
   for (var attempt = 0; attempt < attempts; attempt += 1) {
+    lsp._assertLightningEnabled();
     try {
       final address = await lsp.http.getLightningAddressByPubkey(pubkey);
       if (address.username.isNotEmpty && address.domain.isNotEmpty) {

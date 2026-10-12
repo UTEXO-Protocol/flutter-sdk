@@ -6,12 +6,14 @@ import '../client/rln_client.dart';
 import '../crypto/constants.dart';
 import '../errors/native_bridge_error_mapper.dart';
 import '../errors/rgb_sdk_exception.dart';
+import '../models/burn_models.dart';
 import '../models/rln_models.dart';
 
 part 'rln_binding_types.dart';
 part 'rln_binding_lifecycle.dart';
 part 'rln_binding_lightning.dart';
 part 'rln_binding_onchain.dart';
+part 'rln_binding_bfa.dart';
 
 enum _RlnLifecycleState { idle, active, shuttingDown, destroying, timedOut }
 
@@ -42,7 +44,11 @@ abstract class _RlnBindingInternals {
 }
 
 class RLNBinding extends _RlnBindingInternals
-    with _RlnBindingLifecycle, _RlnBindingLightning, _RlnBindingOnchain {
+    with
+        _RlnBindingLifecycle,
+        _RlnBindingLightning,
+        _RlnBindingOnchain,
+        _RlnBindingBfa {
   RLNBinding({
     RlnClient? client,
     RlnOperationTimeoutPolicy operationTimeouts =

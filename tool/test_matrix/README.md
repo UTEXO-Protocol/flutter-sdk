@@ -30,8 +30,9 @@ and assertions. The RN parity validator also checks the exact RN baseline,
 NativeRgb method names, low-level parameter names/types/nullability, return
 categories, wallet method inventory, and runtime exports.
 
-The inventory is aligned to RN `1.0.0-beta.32`, core `1.0.0-beta.9`, and RLN
-`0.13.0-beta.3`. It still does not prove defaults, request/response fields,
+The inventory targets RN `1.0.0-beta.34`, core `1.0.0-beta.9`, and RLN
+`0.15.0-beta.3`. BFA burn and consignment methods require funded runtime
+evidence, not merely passing mocked contracts. The inventory does not prove defaults, request/response fields,
 native implementations, native error categories, lifecycle behavior, platform
 agreement, or real funds behavior. A row can be linked to executable evidence
 that proves only a unit contract, expected failure, or current smoke path; the

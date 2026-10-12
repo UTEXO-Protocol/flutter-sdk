@@ -91,6 +91,17 @@ int _requiredInt(RlnMap map, String key, String typeName) {
   return value;
 }
 
+int _requiredSats(RlnMap map, String key, String typeName) {
+  final value = _requiredInt(map, key, typeName);
+  if (value < 0) {
+    throw NativeProtocolException(
+      '$typeName.$key must be non-negative satoshis.',
+      field: '$typeName.$key',
+    );
+  }
+  return value;
+}
+
 BigInt _requiredUInt64(RlnMap map, String key, String typeName) {
   final field = '$typeName.$key';
   final value = _uint64OrNull(map[key], field);
@@ -652,6 +663,46 @@ class RlnAssetNia extends RlnAsset {
   final RlnMedia? media;
 }
 
+/// Bridged fungible RGB asset. Monetary fields preserve the full native u64.
+class RlnAssetBfa extends RlnAsset {
+  const RlnAssetBfa({
+    required super.assetId,
+    required this.ticker,
+    required super.name,
+    super.details,
+    required super.precision,
+    required this.initialSupply,
+    required super.timestamp,
+    required super.addedAt,
+    required super.balance,
+    this.media,
+    this.rejectListUrl,
+  });
+
+  factory RlnAssetBfa.fromMap(RlnMap map) => RlnAssetBfa(
+    assetId: _requiredString(map, 'assetId', 'RlnAssetBfa'),
+    ticker: _requiredString(map, 'ticker', 'RlnAssetBfa'),
+    name: _requiredString(map, 'name', 'RlnAssetBfa'),
+    details: _optionalString(map, 'details', 'RlnAssetBfa'),
+    precision: _requiredInt(map, 'precision', 'RlnAssetBfa'),
+    initialSupply: _requiredUInt64(map, 'initialSupply', 'RlnAssetBfa'),
+    timestamp: _requiredInt(map, 'timestamp', 'RlnAssetBfa'),
+    addedAt: _requiredInt(map, 'addedAt', 'RlnAssetBfa'),
+    balance: RlnAssetBalance.fromMap(
+      _requiredMap(map, 'balance', 'RlnAssetBfa'),
+    ),
+    media: map['media'] == null
+        ? null
+        : RlnMedia.fromMap(_map(map['media'], 'RlnAssetBfa.media')),
+    rejectListUrl: _optionalString(map, 'rejectListUrl', 'RlnAssetBfa'),
+  );
+
+  final String ticker;
+  final BigInt initialSupply;
+  final RlnMedia? media;
+  final String? rejectListUrl;
+}
+
 /// Collectible CFA RGB asset.
 class RlnAssetCfa extends RlnAsset {
   const RlnAssetCfa({
@@ -827,17 +878,23 @@ class RlnAssetUda extends RlnAsset {
 /// Asset groups returned by `listAssets`.
 class RlnAssets {
   RlnAssets({
+    List<RlnAssetBfa> bfa = const [],
     required List<RlnAssetNia> nia,
     required List<RlnAssetUda> uda,
     required List<RlnAssetCfa> cfa,
     required List<RlnAssetIfa> ifa,
-  }) : nia = List<RlnAssetNia>.unmodifiable(nia),
+  }) : bfa = List<RlnAssetBfa>.unmodifiable(bfa),
+       nia = List<RlnAssetNia>.unmodifiable(nia),
        uda = List<RlnAssetUda>.unmodifiable(uda),
        cfa = List<RlnAssetCfa>.unmodifiable(cfa),
        ifa = List<RlnAssetIfa>.unmodifiable(ifa);
 
   factory RlnAssets.fromMap(RlnMap map) {
     return RlnAssets(
+      bfa: _mapList(
+        map['bfa'],
+        'RlnAssets.bfa',
+      ).map(RlnAssetBfa.fromMap).toList(growable: false),
       nia: _mapList(
         map['nia'],
         'RlnAssets.nia',
@@ -858,11 +915,13 @@ class RlnAssets {
   }
 
   final List<RlnAssetNia> nia;
+  final List<RlnAssetBfa> bfa;
   final List<RlnAssetUda> uda;
   final List<RlnAssetCfa> cfa;
   final List<RlnAssetIfa> ifa;
 
   Iterable<String> get assetIds sync* {
+    yield* bfa.map((asset) => asset.assetId);
     yield* nia.map((asset) => asset.assetId);
     yield* uda.map((asset) => asset.assetId);
     yield* cfa.map((asset) => asset.assetId);
@@ -998,9 +1057,9 @@ class RlnTransaction {
     return RlnTransaction(
       transactionType: _canonicalEnum(map['transactionType']),
       txid: _requiredString(map, 'txid', 'RlnTransaction'),
-      received: _intOrNull(map['received']) ?? 0,
-      sent: _intOrNull(map['sent']) ?? 0,
-      fee: _intOrNull(map['fee']) ?? 0,
+      received: _requiredSats(map, 'received', 'RlnTransaction'),
+      sent: _requiredSats(map, 'sent', 'RlnTransaction'),
+      fee: _requiredSats(map, 'fee', 'RlnTransaction'),
       confirmationTime: map['confirmationTime'] == null
           ? null
           : RlnBlockTime.fromMap(

@@ -5,6 +5,36 @@ import 'package:rgb_sdk_flutter/src/lsp/lsp_native_decoders.dart';
 import 'package:rgb_sdk_flutter/src/models/exact_integer.dart';
 
 void main() {
+  test(
+    'transaction amounts never fabricate zero for malformed native data',
+    () {
+      final valid = <Object?, Object?>{
+        'transactionType': 'INCOMING',
+        'txid': 'test-only',
+        'received': 100,
+        'sent': 0,
+        'fee': 0,
+      };
+      final transaction = RlnTransaction.fromMap(valid);
+      expect(transaction.received, 100);
+      expect(transaction.sent, 0);
+      expect(transaction.fee, 0);
+      for (final field in ['received', 'sent', 'fee']) {
+        expect(
+          () => RlnTransaction.fromMap({...valid}..remove(field)),
+          throwsA(isA<NativeProtocolException>()),
+        );
+        for (final bad in <Object?>[null, 'oops', -1, 1.5, 1e30]) {
+          expect(
+            () => RlnTransaction.fromMap({...valid, field: bad}),
+            throwsA(isA<NativeProtocolException>()),
+            reason: field,
+          );
+        }
+      }
+    },
+  );
+
   test('malformed relay status never enters serialized diagnostics', () {
     const privateValue = 'unstructured-private-response';
     try {

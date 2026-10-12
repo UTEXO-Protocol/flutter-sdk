@@ -1,0 +1,1601 @@
+{
+  "schemaVersion": 1,
+  "date": "2026-10-08",
+  "baseCommit": "734f5ae6fb175bbf2d8500a9b43f29b5363c1e52",
+  "candidate": "uncommitted working tree, not release-qualified",
+  "meaning": "Source-reviewed means every line was read in this follow-up, not that runtime behavior was proven. Pending includes partially inspected files. Inventory generation is not review.",
+  "exclusions": "This receipt itself; ignored dependencies, downloaded native artifacts and build outputs. Generated bridge/baseline files have separate generation checks, not manual review.",
+  "findingOwner": "doc/RELEASE_READINESS_TRACKER.md, including OCT-006/007 and OCT-017 through OCT-023",
+  "counts": {
+    "source-reviewed": 98,
+    "pending-fresh-full-review": 160,
+    "generated-not-manually-reviewed": 6
+  },
+  "runtimeSourceFilesReviewed": 75,
+  "files": [
+    {
+      "path": ".fvmrc",
+      "sha256": "8ba80c9a9ae7fe43755abdaf33e2787f6b761e8f94ed31301d48a00faa5fbae7",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/implementation.md",
+      "sha256": "175d2363ce1426cf56bb3c8a17c73955f1063ced2e9ed319c6437608621f1f00",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/parity_gap.md",
+      "sha256": "1faf29d8f9b8fc7843b99e3eef4cb998949a92b1dc0aacaec568dcdf989d848d",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": ".github/ISSUE_TEMPLATE/research.md",
+      "sha256": "ae2ffe208121b3ea32930feec6e87d4c4ed5055d02722aaf9f0365f1f64b9603",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": ".github/workflows/quality.yml",
+      "sha256": "94cc205ca8fa16d257ac684615305dbedb68adf784925ea5b3b34796d149f3e4",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": ".gitignore",
+      "sha256": "b4ef89b55c6237fea9abdc4649a71bebe9091a4d3e7a7437c53fb26fb9dc295d",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": ".metadata",
+      "sha256": "64d25e8f96ee3612ce47f4966c3db26236db579f81c9e452b83f2205805455c0",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": ".pubignore",
+      "sha256": "d30e5815166af0a7e016e83ec4590ecfc567b2905746d35dacf73da5aed49f03",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "CHANGELOG.md",
+      "sha256": "f3b4043d45a37a809bf36f663f89417b4fc8136f6c6d9acdf7a256d7e2110665",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "LICENSE",
+      "sha256": "be2a83ec8de576271f666aacb000d07fc469f9d4882f8148fe0a041d2722c863",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "README.md",
+      "sha256": "08b4c761cef4e69300d272071d684ec1c85430af34983ef4fa7847b378e7cd76",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "analysis_options.yaml",
+      "sha256": "3e605223b324630637c084267b7635e07b46406069b5beb27cbe345ae922ce62",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "android/.gitignore",
+      "sha256": "419c1e3c95573dbbc3676451a01808dcd07953c55aff02fff27e201703af725c",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "android/build.gradle.kts",
+      "sha256": "ce16ac8914f535678b29113730c442bd2e189899f791b5110a051d035e2faf87",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "android/settings.gradle.kts",
+      "sha256": "02334beef8891a9c99024de5f7817539a1f6a8e5fc46830a762d3192a9a5112b",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "android/src/main/AndroidManifest.xml",
+      "sha256": "bd28a5565b320caf1dee58937426e4ba21a0391661b422e40a9b7131493d65e0",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/ReleaseBaseline.g.kt",
+      "sha256": "66f9b174eeb041c30b19840417672a50d803b7ac6daec4782df8751d357a3bdd",
+      "state": "generated-not-manually-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPlugin.kt",
+      "sha256": "daa0a9ef05a782486377ba80709cb84f8df5bc755d78680311468896d9392b11",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnApi.g.kt",
+      "sha256": "1d8b3575edd0d1747ab8a21751faaac9d6d0a815e153df59e845f07957a18ddd",
+      "state": "generated-not-manually-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnAssetMapper.kt",
+      "sha256": "bb093be278ba31bae6612d6911d5ef13754ff9f256359a4cfdbb04a4839ee9e1",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnChainSyncFactory.kt",
+      "sha256": "8710720f1d5d1a8d31d4e1d33922dce777b71bc852022ebe86b51dc703b02386",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnNodeStore.kt",
+      "sha256": "e882a8a07c286a3e0a53e6bc37b528c51df58ac4e224b49647347a2395a67cc1",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnStorageDirectoryPolicy.kt",
+      "sha256": "024c914e3332d0b1ddc4586b10cb530636c0766f8790325cc4843c47fcc82d4e",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt",
+      "sha256": "6b40407751ef0a634d55b40eb1d9ae5c09f854506e5011119370121c9836997e",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "doc/API_COMPATIBILITY_AND_DIVERGENCE.md",
+      "sha256": "143370fd82b0816279b798d9685aaffa245e103741b9134069efdac8247387ed",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "doc/BRIDGE_BEHAVIOR_CONTRACT.md",
+      "sha256": "526fa4200378a1d1a10a67f364304a7c1d94b4d450c5d6b9c98200cd88d494bf",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "doc/COVERAGE_POLICY.md",
+      "sha256": "be25032d013bdc6a9530621790e1c3f3be104382ba36655959c3164b9739e638",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "doc/INTEGRATION_SECURITY_AND_RELEASE.md",
+      "sha256": "535b812371b0318daa6c760dcad3e0bb69397468044cb8ae5463a3a5de947b58",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "doc/PUBLIC_API_REFERENCE.md",
+      "sha256": "6c16e142f1cc525166ccb5cdeabcca771c3315417a13729957c5531dc67a221e",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "doc/RELEASE_EVIDENCE_SCHEMA.md",
+      "sha256": "4a2cb0c98fc1f7192b0c690539d0a963601276339ababfa5764648ee123fbfaf",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "doc/RELEASE_READINESS_TRACKER.md",
+      "sha256": "ec2976986eea2a39dbd398bb47888fed6ecbb6a28067828f4e90e37f06746030",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "doc/SECURITY.md",
+      "sha256": "0ba416416b44988693c2f9a7a58ac4aa3a3735864edc47255f2c1b59ceb21a2b",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "doc/WEBRGB_AND_BURNS.md",
+      "sha256": "4e2df2c5ed8c360e9d9050b0e363943d46b32d83852f2953a4284a691c645443",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/.gitignore",
+      "sha256": "4a8d984279954e0461e0ffef9b9e7455340a0a762f227c01065a53482a83a4f1",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/README.md",
+      "sha256": "603205ed721f0bf6bd7e336d7c02a0201d5e1721e5662f663759ef258cfa99ce",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/analysis_options.yaml",
+      "sha256": "403d2c563287e55f12ff36526c0eeebec0510f7bf1a7b18a44bb6fef89cf7661",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/.gitignore",
+      "sha256": "3c823bd95ac32f55db141323152f8b715b5dd5090815aeab838e45ca2527544e",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/app/build.gradle.kts",
+      "sha256": "5988afaaeb0632505b0564fe11982042b17872de26d6102638bb5633e66ab1ff",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/app/src/debug/AndroidManifest.xml",
+      "sha256": "30b0832ed8b92dfbd6ae2abfa939ccf26333d37600056b1572bd4a397a18a74b",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/app/src/main/AndroidManifest.xml",
+      "sha256": "07283ed62784a186c34e0ca7abfac5c64c5eee8543e9a97d7da11f1544c0c987",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/app/src/main/kotlin/com/utexo/rgb_sdk_flutter_example/MainActivity.kt",
+      "sha256": "ba629eb8bc3ab97a5db8778e6eaac510443689002f7a468eda3f8364d713b98c",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/app/src/main/res/drawable-v21/launch_background.xml",
+      "sha256": "7ca6d5cec2169c5a98661a119db23a6f3399c8fef2256ff04f3a642831282478",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/app/src/main/res/drawable/launch_background.xml",
+      "sha256": "94433756fe10005ddd6fc55cc5c0b1e9f3c10b66a08ceac795ece6713d34e28a",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/app/src/main/res/mipmap-hdpi/ic_launcher.png",
+      "sha256": "6a7c8f0d703e3682108f9662f813302236240d3f8f638bb391e32bfb96055fef",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/app/src/main/res/mipmap-mdpi/ic_launcher.png",
+      "sha256": "c7c0c0189145e4e32a401c61c9bdc615754b0264e7afae24e834bb81049eaf81",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/app/src/main/res/mipmap-xhdpi/ic_launcher.png",
+      "sha256": "e14aa40904929bf313fded22cf7e7ffcbf1d1aac4263b5ef1be8bfce650397aa",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/app/src/main/res/mipmap-xxhdpi/ic_launcher.png",
+      "sha256": "4d470bf22d5c17d84edc5f82516d1ba8a1c09559cd761cefb792f86d9f52b540",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/app/src/main/res/mipmap-xxxhdpi/ic_launcher.png",
+      "sha256": "3c34e1f298d0c9ea3455d46db6b7759c8211a49e9ec6e44b635fc5c87dfb4180",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/app/src/main/res/values-night/styles.xml",
+      "sha256": "8c5bad5152f217e837519f9c15211d19f39bd45f5f67faf6dd81cb4b299e518f",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/app/src/main/res/values/styles.xml",
+      "sha256": "937d7c82f539c72eb94fd3a3773f29b3d3fef1997213c92cb632298cedf4bda9",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/app/src/profile/AndroidManifest.xml",
+      "sha256": "30b0832ed8b92dfbd6ae2abfa939ccf26333d37600056b1572bd4a397a18a74b",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/build.gradle.kts",
+      "sha256": "6a26dba2cb8dfba1e74f540b0d17a89d96c1301d3c3bfda14348bed257fddcba",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/gradle.properties",
+      "sha256": "5539cf5f17c53900a72cf0065e450f0a8ba5b929dd2b364724c1296d0285d9dc",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/gradle/wrapper/gradle-wrapper.jar",
+      "sha256": "16caeaf66d57a0d1d2087fef6a97efa62de8da69afa5b908f40db35afc4342da",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/gradle/wrapper/gradle-wrapper.properties",
+      "sha256": "297c9e63b6fa6e7e8b221900fa1787c1a0e38869d8957da66389fd0f6b00f78e",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/gradlew",
+      "sha256": "ec56c02543666d92d9ac5ae7fcc48f88ce4de0deb8b7f9b39928ca46f68c1b2b",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/gradlew.bat",
+      "sha256": "c13c6e91b9a517783976de213d46398c661ea9e17651376d7301e839eaedcc62",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/android/settings.gradle.kts",
+      "sha256": "a9b5756048f668d4ebf355116678fd334cd5f2169b7d4518ad19b8df14d3af36",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/integration_test/external_signer_restart_test.dart",
+      "sha256": "fcdef3a3fe8832f13863202bf7047fc9939c396b4e416dac47811440c7fd9e61",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/integration_test/plugin_integration_test.dart",
+      "sha256": "207e4c92b9f11194590a466807161dba48cc97624cba3f91f644fd7b280d86a3",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/.gitignore",
+      "sha256": "37380775aeb2499662b7aca80f4ac4c95ae827c3ba2bfa179aa3e9af4812c623",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Flutter/AppFrameworkInfo.plist",
+      "sha256": "da12038f9b2688a8a26160fea2609fa8fcb11421448c109f09c0f573efe7698d",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Flutter/Debug.xcconfig",
+      "sha256": "690b8a8b1ae15ddd29b241429963e971bbc6720ab22f154cf8cf6b085b6d4925",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Flutter/Release.xcconfig",
+      "sha256": "75abb819a9de1e0e41c835e7307bc64a506cac25a9a5c0b0d8253fa1c3d5d422",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Podfile",
+      "sha256": "9e0d8906a8c2707368352d71e648e45a5d4db185fb8ade75e37967d689ffba44",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Podfile.lock",
+      "sha256": "3dcbbc1b460dd5a9a1c4df1596d247e8e5c3a5a9966ab2992b8157f19d36d1a4",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner.xcodeproj/project.pbxproj",
+      "sha256": "c965ae06fb712ad0151a374286ab577f1def60b4a7ce4fef9e2f0d2a8feafe84",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner.xcodeproj/project.xcworkspace/contents.xcworkspacedata",
+      "sha256": "7f3b00b5c3fdb45242d7b87e1e5c4e25d1fa8129a16c94295ecc4e8ea2235c5f",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist",
+      "sha256": "dfa0f9bb85b95ccba9c6811adadf8cb407fb5d52088e89db83ebc308ec448542",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner.xcodeproj/project.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings",
+      "sha256": "11b247bc6796892d67c9a821d18604db4dd6a880981b34f38460b9866e6b247f",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner.xcodeproj/xcshareddata/xcschemes/Runner.xcscheme",
+      "sha256": "2dd28b879e66081e28a3324cf2bee7ab2f70be9a3e50e08926b7366dadff7d6e",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner.xcworkspace/contents.xcworkspacedata",
+      "sha256": "465e6de5660384eb6832e8078920ba6cd5305c445cb29a24a86a2fda4aa6b67e",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner.xcworkspace/xcshareddata/IDEWorkspaceChecks.plist",
+      "sha256": "dfa0f9bb85b95ccba9c6811adadf8cb407fb5d52088e89db83ebc308ec448542",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner.xcworkspace/xcshareddata/WorkspaceSettings.xcsettings",
+      "sha256": "11b247bc6796892d67c9a821d18604db4dd6a880981b34f38460b9866e6b247f",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/AppDelegate.swift",
+      "sha256": "451c6d9ba0a2b3ff43092ea349c60fa79a91f1158b915eb29dbdd357cb95d7b8",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/AppIcon.appiconset/Contents.json",
+      "sha256": "3b1e214f466ffedff74baa5598ad5c4421130eea6bc8d57b8fe23435e8280ae4",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-1024x1024@1x.png",
+      "sha256": "7770183009e914112de7d8ef1d235a6a30c5834424858e0d2f8253f6b8d31926",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@1x.png",
+      "sha256": "cab10a0d391ec5bc09ef50ce49e8ad401cee7ef03707ec0923a222c5c2b3d212",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@2x.png",
+      "sha256": "b9ad02cf6576a04d1b6806ac02a2431481b448dd0c2e505ce25842d1f7c4730b",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-20x20@3x.png",
+      "sha256": "c6e6d3b215ae744a9c391f4c4d44157eff5e739d6ad6c39f9bfa5df66dddd267",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@1x.png",
+      "sha256": "5dee24dc104ac76dc162e42ae0beb163d426bf365562ee28ba7b3ad368559a60",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@2x.png",
+      "sha256": "a9b21eb6f4271385655a8771f76e29eef8c1107d7879cbcfc567e6619d1f716a",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-29x29@3x.png",
+      "sha256": "e677d701ffe4af7bc2935098d6b3984cc9ab7ace573e6900955a5535b12410cf",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@1x.png",
+      "sha256": "b9ad02cf6576a04d1b6806ac02a2431481b448dd0c2e505ce25842d1f7c4730b",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@2x.png",
+      "sha256": "7c61c42fc7b657d9cf314d32a4ec458f0647c3aaf360be1b9377857266ec2499",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-40x40@3x.png",
+      "sha256": "19be171481dc71a0b2803ebcd01dd8b0c5fd5778dee34c0a3cabc948c225f24e",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@2x.png",
+      "sha256": "19be171481dc71a0b2803ebcd01dd8b0c5fd5778dee34c0a3cabc948c225f24e",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-60x60@3x.png",
+      "sha256": "4209a49e44a92ec40a327d3455eb1b1c153ee83d75de1c2be0a12ab18b2ff9de",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@1x.png",
+      "sha256": "836c918cb613249eba0483a6b02fa3df3c1c0a89a315ee4d3b88509b83c7ab73",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-76x76@2x.png",
+      "sha256": "41c7d42f6e61f8fe7f30b1ffa2256aecbc9682be06d18c4a3062043e1a2e547c",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/AppIcon.appiconset/Icon-App-83.5x83.5@2x.png",
+      "sha256": "5d7e5bdf01b93802bc973345b3a78c038907147625035952a08a115a563b7f81",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/LaunchImage.imageset/Contents.json",
+      "sha256": "ccc7950fd5f5b82067c85f667940a9d59189151460761ece8098ca78daa19469",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage.png",
+      "sha256": "93ae7d494fad0fb30cbf3ae746a39c4bc7a0f8bbf87fbb587a3f3c01f3c5ce20",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@2x.png",
+      "sha256": "93ae7d494fad0fb30cbf3ae746a39c4bc7a0f8bbf87fbb587a3f3c01f3c5ce20",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/LaunchImage.imageset/LaunchImage@3x.png",
+      "sha256": "93ae7d494fad0fb30cbf3ae746a39c4bc7a0f8bbf87fbb587a3f3c01f3c5ce20",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Assets.xcassets/LaunchImage.imageset/README.md",
+      "sha256": "a985b626c4f7546a8ba392d135e9226c3547c8e2b46895f5f2bdf40d7b14ef9f",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Base.lproj/LaunchScreen.storyboard",
+      "sha256": "857e61203b3deafb05766d8fcda898b86a7cb6f3d5e385ecc9926c4d698215e9",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Base.lproj/Main.storyboard",
+      "sha256": "fd367b6c43006d61b730f674970dd48b9f662c8f2264e52ffc1558102a2c9f2d",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Info.plist",
+      "sha256": "89b6e1f1f343b13509b28ecc7ccb1da3306f81e2ca7ae95d3e0be80e9836b4fe",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/Runner-Bridging-Header.h",
+      "sha256": "1a8d11d01d1cc92c650c9c9ed35299240052d4683a15a719a2315ef44185e074",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/Runner/SceneDelegate.swift",
+      "sha256": "add68b905971dedfcc0d0b5b7118030de5925ba8c081ad9815463699e3a444ad",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/ios/RunnerTests/RunnerTests.swift",
+      "sha256": "7813f7b4d6dd0c128d40e001efdcaaa16fc41908e38a8384e7940d7020cec48f",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/lib/main.dart",
+      "sha256": "82236572402f6d7a87704e0d5604d1314d630e2b685a5bde9580308888d797d4",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/pubspec.lock",
+      "sha256": "233854455a104809bf5c30c5b32a9b1c9a1ee4fd601ae6b22ac52040136077e6",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/pubspec.yaml",
+      "sha256": "d3b56f6f5a5e7029cfe96881ead9835a11a17e0a3ef383adb4c731d8f0b8433e",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "example/test/widget_test.dart",
+      "sha256": "e5cc743d9cd570cda52fec7ba70494f8b3f00a088327e0fab5817727e197f567",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "ios/.gitignore",
+      "sha256": "e9cfa4dfcb9bab821da4048c87dd0d0622383a6d2d76bb0edd8c7013030924a1",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "ios/Assets/.gitkeep",
+      "sha256": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "ios/Classes/ReleaseBaseline.g.swift",
+      "sha256": "6705e872a26ff3bd742e6640a1d48fc94767e02086890f4b4bad1ba572da6078",
+      "state": "generated-not-manually-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "ios/Classes/RgbSdkFlutterPlugin.swift",
+      "sha256": "60a02c04ac43512fac607973563923cd98253e4cf4085877d3517e35f329b814",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "ios/Classes/RlnApi.g.swift",
+      "sha256": "f6988e331b03252de88ce715f3bd1d9879a8eb88c1f32801132ccbf4d755eff0",
+      "state": "generated-not-manually-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "ios/Classes/RlnAssetMapper.swift",
+      "sha256": "de0d1e89bbe1436f4a4c37ecf35695535d9905ecbf8bda8d89421f7f734c82a6",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "ios/Classes/RlnBridgeErrorDetails.swift",
+      "sha256": "d06bdbccca1112faae8db5159e847660372a70e4337a8b08a4ff85c632febe67",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "ios/Classes/RlnChainSyncFactory.swift",
+      "sha256": "dabd86c01a521ef8d3cce36ac26d959cf177162a7eaf8ca806274cbdd0b822c5",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "ios/Classes/RlnNodeStore.swift",
+      "sha256": "5eca8461d188ee84b70bd8fe7aeed52e68725bd550cc5720f9cbf434942b3d84",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "ios/Classes/RlnStorageDirectoryPolicy.swift",
+      "sha256": "2397630d312c8251c9d3706ec7c97f63cc1c856951e16ef37729a6faa5646b8c",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "ios/Classes/RlnWireCodec.swift",
+      "sha256": "bdc9aaff305d384165f182a3edd96b938f2988716bfc554ee0ab00e860e93283",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "ios/Resources/PrivacyInfo.xcprivacy",
+      "sha256": "6d2da0d8d930227d428c1d9363b0ad6e3a12e2c9b68c5ce297158a7412fc8c31",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "ios/rgb_sdk_flutter.podspec",
+      "sha256": "a3ff9a9130407dbf61dbf57c47a57756c2ea9142e403f4966c8a6e42a0142db7",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "lib/rgb_sdk_flutter.dart",
+      "sha256": "4b7f4e1758e1b579cb0ddd5e1b811ab1f8951c36d1bc1c9cadd028f3f49da148",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/rgb_sdk_flutter_advanced.dart",
+      "sha256": "ad8705d069b998a21b6ea56398f87183eed06c7f0bc0330928a72df711b3183b",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/rgb_sdk_flutter_webrgb.dart",
+      "sha256": "1d336c0a43db58d450e065103113a8fe6ba36fd5c546c4477dd83b648c97fe38",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/binding/rln_binding.dart",
+      "sha256": "090e41d71d29f3345ba91e074e155afa848d33f24f3cc1f0e6d4b79cb7aa92b4",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/binding/rln_binding_bfa.dart",
+      "sha256": "b7d186f1be6cab4c03459f543ff18b2ad49233a064aad9244850a3c61eef442f",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/binding/rln_binding_lifecycle.dart",
+      "sha256": "37540afa0c00108070ace1be308ac065279c8819328aaae1bbdc51332545b898",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/binding/rln_binding_lightning.dart",
+      "sha256": "229b18fe0ae7470ab64e00d907605ed1ab08699f7800f005ad7269f0b0a5e085",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/binding/rln_binding_onchain.dart",
+      "sha256": "eca67a4c50c21e8fac0a023f096ab610bc7921afb04eda734a66a41b4c569581",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/binding/rln_binding_types.dart",
+      "sha256": "58a96861cbef15ad10de61d9bd594917c1ddd73963ea3a645b53d1e60aa0a39e",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/client/rln_client.dart",
+      "sha256": "a1a8af8191425cd8b9483308bb35932d9695af13e9cef18e4de65ee44dd5993b",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/crypto/constants.dart",
+      "sha256": "0e5e2b29e49bde7b57adae958449aca7068ac8d76cc7d1b25ff7a9908dfffd96",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/crypto/keys.dart",
+      "sha256": "9a72ef80c7194cd4459549fbbd69040e02bc0af96a68f6700cb2d563667e52ea",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/crypto/message.dart",
+      "sha256": "362b55fd57124e086c9b01bc1a0bd6c02b59207db89470afcaf889c5f384ebb8",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/crypto/validation.dart",
+      "sha256": "799dd2fc9ba2312b41c87c5aa19826f14740366a49e08bab9e5246fa4894253e",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/errors/native_bridge_error_mapper.dart",
+      "sha256": "35c3b683382858ed3718b8a2f85334adf2a53288c201b91eace49d579b7d5b72",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/errors/rgb_sdk_exception.dart",
+      "sha256": "19710ffab599734aa14f44e7f329473f83a339144b6669824eb944d19537aac9",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/integrations/webrgb/burn.dart",
+      "sha256": "b274f7b1ff0f582990287dcc4791e9ae7edca80e04d8955906b1b6ca3df694d0",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/integrations/webrgb/errors.dart",
+      "sha256": "8891713e1728db0ed1ab3dfde9e3bce01dcf62dc59bbe91311be05f5fcd7b0f8",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/integrations/webrgb/provider.dart",
+      "sha256": "394469b7a2c7609a6cf660fb8d91264637ca85b3d530c575a6bbdc0b6d20ef39",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/integrations/webrgb/session.dart",
+      "sha256": "a91839d520ed24f0cbac0228ea626c252f5b7655c52469332f8f2a4cbcf68d6d",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/integrations/webrgb/types.dart",
+      "sha256": "4c4fe70cf00be6ceade9640bec39b3297d69f6aed75606829c9fce6438f96d3e",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/lsp/lsp_address_quote_verifier.dart",
+      "sha256": "dafd32284054e3dbb4b827160821821765f97f425fa1654791c5cf40ff91a59c",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/lsp/lsp_address_types.dart",
+      "sha256": "386465e8c5cd25bc0a4a5950d77f6c5cd77936ac3df508011f7a5c13bd8e6194",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/lsp/lsp_asset_selection.dart",
+      "sha256": "d1da4c0742afa8448b33bc193e1471563a9b68f8d6288cff8727c134b7ef77af",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/lsp/lsp_errors.dart",
+      "sha256": "5de8a71edea95f213e85b47d9af21258bfdb943fca8214ed5b1d7de1bbb68121",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/lsp/lsp_flow_types.dart",
+      "sha256": "62c8674950fe1966b07830dccc2e085dcf738eb62002719860b97ceaefa16546",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/lsp/lsp_native_decoders.dart",
+      "sha256": "93d9a0e497acd89047d6d9411c90cc29d2a3b8119abe88bbf727f467f823e7e8",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/lsp/lsp_protocol_policy.dart",
+      "sha256": "1156f5b0ae52fd639bec1a12997fe1e9c35ce2d4bf42e91b5773027e4c355420",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/lsp/lsp_quote_verifier.dart",
+      "sha256": "cc2c0abd63da84573a2bc2cd73c8a671ce715c5737eac275710163424f63d03a",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/lsp/lsp_relay_types.dart",
+      "sha256": "591a84ee30671a65f5732003590189e66db82f7e29afe68f9d608306396fb761",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/lsp/lsp_types.dart",
+      "sha256": "408edd0a721fa7d9d5344cd075ff5509bce9ca8d1770ce202262554a8d91d4bc",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/lsp/lsp_wallet.dart",
+      "sha256": "ab4455b08b15c72057bee33cf8fee9e48d075197b8ad16c4606464d89bd0f0ee",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/lsp/utexo_lsp.dart",
+      "sha256": "7c42dd664af35a292a0d625ebfaaffd2109c4a34067d41ab686fc358dd457173",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/lsp/utexo_lsp_address.dart",
+      "sha256": "07aa268510b8366b7aab51cc30429f724302c41bd3ffe7f543d1e239b7df5fbd",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/lsp/utexo_lsp_apay.dart",
+      "sha256": "ea35c9b03c4de4a7bde7d9f118c736f998662e2b2aa051a5040ae9d0752bc141",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/lsp/utexo_lsp_asset_bridge.dart",
+      "sha256": "76b624469af70beb8b40c7c9115c3d1f740a66d5c68836d500cf0f8ff21f54f4",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/lsp/utexo_lsp_bridge_quote_verifier.dart",
+      "sha256": "c107bff46d7381e6cf6e8b9371acdb59e9f0ab891bb2fcf76a254f2197f7ead5",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/lsp/utexo_lsp_client.dart",
+      "sha256": "c8dc19ff6c21e56433d3bce37ddbc979350ab6ac2b3bc108a40dbd74fa18be35",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/lsp/utexo_lsp_connection.dart",
+      "sha256": "c27765fcefa786dd09a1145d6721e5c5258708036a9926aa9af8e925eba24385",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/lsp/utexo_lsp_relay.dart",
+      "sha256": "84a78a1cb8750f9c7b055cd6ac74fa65c6b9d810637d2b110a730ad848cbda9a",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/models/burn_models.dart",
+      "sha256": "943ee03a111f535d07ce7ac666646b2d7d63c2a16e53e3953fcf2b23f7ff6310",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/models/exact_integer.dart",
+      "sha256": "7d4fe17cd4522456643b3deda83758ddab69fe05ddf0b87e239aa71da70ee383",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/models/rln_models.dart",
+      "sha256": "d9f74f7eb06e101a195862ef3a84674e0e86ee1f88f842e3203bac278ff27b11",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/models/utexo_core_models.dart",
+      "sha256": "995bc86ac2a7badbae790ca0985763c1c8a7b338475a75a162070966729fced0",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/models/utexo_domain_policy.dart",
+      "sha256": "309ca5b898421361248a73e41996ffe1f9d65e78762576edb72c322ad49adf01",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/native_artifact_info.dart",
+      "sha256": "abfc99678ae13cd53f94fe0ac0c8f5b880cc2a215f7b4e22fbb1f7a1348c2372",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/native_artifact_provider.dart",
+      "sha256": "6e1ad0bf19902292086da05375863a358aed42a76369b51886b7db6b956ab964",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/pigeon/rln_api.g.dart",
+      "sha256": "250a753383c5c8efae5afbb764a48621b23e45ad2beaf2ccdc6a0f1dfa16a1a4",
+      "state": "generated-not-manually-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "lib/src/release_baseline.g.dart",
+      "sha256": "1f09728f26507a5fa05f30e679a3ff0ad11e358f4b3303cc6922ee17708ef2e7",
+      "state": "generated-not-manually-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "lib/src/utils/logger.dart",
+      "sha256": "24cdaffb753066ecb9c21d9251bbb7a51d900ee47b5e4c2ca40dad8752b9be9c",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/wallet/burn_operations.dart",
+      "sha256": "78f4de7775c834c8550c5758d7ae5a47d62477a02c9006062fd7e6c668fa4a5e",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/wallet/network_defaults.dart",
+      "sha256": "689ba9435bd09116c47a9c39efeb231976d715d0cf3d648855bdd0cac08d8aa2",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/wallet/rln_manager.dart",
+      "sha256": "f3fece971136aed3a7891d1afd407877fddec20a894b843f47ad870942afa178",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/wallet/rln_signers.dart",
+      "sha256": "e130864698b8df1c4109bb686916d94a6d0474ef186a055c98ea427b9bafbd8f",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/wallet/utexo_unlock_config_resolver.dart",
+      "sha256": "7bc6c0483d44e8d33442705d6d3cc255e793d587bb4ece160b4d1bd277a41d9c",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/wallet/utexo_wallet.dart",
+      "sha256": "7fc80b9a9becc84fc0f68c9d2b492ef539b9c649c0c91d58af3d35f435359a14",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/wallet/utexo_wallet_bfa.dart",
+      "sha256": "05692a0b0e651601b86b0b334485731553bdfd83925565f899789eddc8094fe6",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/wallet/utexo_wallet_guards.dart",
+      "sha256": "441190fc3fedf4d1bc0f49282bd6a84d6257627b331724f0ae3d732c3e260aef",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/wallet/utexo_wallet_lifecycle.dart",
+      "sha256": "5d5e84d6ecbb52849472bd11825504fd13dabd140e23e9eaeddde9248141de00",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/wallet/utexo_wallet_lightning.dart",
+      "sha256": "7b5af0e3a5acec79dddc0fa5339fd5d177d8ee64db8a18baa7e17092f1f7ac9f",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/wallet/utexo_wallet_lsp_apay.dart",
+      "sha256": "176be60a04dbbacdeedea224aa94722e3797685e2e91d4e1cac106a540361383",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/wallet/utexo_wallet_onchain.dart",
+      "sha256": "44900fba34752d2c0a9c9e8e61d86dafcb0e747f263aaa0c1c67123cb11c6e99",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/wallet/utexo_wallet_raw.dart",
+      "sha256": "fad3256d8084377ad6d5ea541e68b240badffff11527cb2f4fbf238cc15c08a7",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/wallet/utexo_wallet_types.dart",
+      "sha256": "b02bf5cc385abaa0ff4951a6b2e6be49d2cccd013f8a3a720ab5b0ce01f97a9b",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "lib/src/wallet/wallet_policy.dart",
+      "sha256": "1af508954eec0b93b208c274dec31c73ffad86b8998172c794e219da92e19898",
+      "state": "source-reviewed",
+      "runtimeSource": true
+    },
+    {
+      "path": "pigeons/rln_api.dart",
+      "sha256": "ff8563e51e00550b5ed8a136e371fe5a942f861c872f988615d7c2d8a53018ff",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "pubspec.lock",
+      "sha256": "3f9bb1d5495c959253bbb7b2cc73bd9e97187041c245d34720a4a41662ac06fe",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "pubspec.yaml",
+      "sha256": "bd9ab5d85f2531081307d316ab92e287eccc3c7e044cf50ea21244501dfad8dd",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/api_export_graph_test.dart",
+      "sha256": "8f9c4c665ff9bb520c4721f400655f77565450ee21ef1557b55d2d7669a203c8",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/bfa_wallet_contract_test.dart",
+      "sha256": "bf586d464fafae6eeebc3527b6ab67b8e283c009e7a39e0b93b0488df50654f6",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/bridge_vector_applicability_test.dart",
+      "sha256": "25b6803579d6f03420f4ed6d3659b25e24dc51bde86a6f4493ccb39801abbf32",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/burn_operations_test.dart",
+      "sha256": "f469d3b662a584b9be707194525d6d4745b486f53d7e2f7792d988ef66e0be66",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/corrective_safety_test.dart",
+      "sha256": "f8c63476eb4489ec11db1e8adaeb79a2aef2a5280cd434367cc1ee087603915d",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/crypto_bip340_vectors_test.dart",
+      "sha256": "8060fec91a9b47f022cee95db25cfb63fcfe646c3b38ab39896e9d5076a2bdc8",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/crypto_validation_contract_test.dart",
+      "sha256": "d6f77b9293677444b63030c9662a1191b3256437dd7d7e365c67bd79266fb5f0",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/evidence_report_test.dart",
+      "sha256": "3100398c37f78cbf1c37d66062048aac2d3fc655c0cef4bb834d67281be28358",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/evidence_target_test.dart",
+      "sha256": "1068982fbb7e1706d54110a0283041b98d95375c3d5c5a191435b82f6ba7499a",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/exact_rgb_models_test.dart",
+      "sha256": "ab0c5dc3120348612136690ee973d1164b8c82ce5c6d93afb275153a9003c142",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/fixtures/bip340_test_vectors.csv",
+      "sha256": "01c8cabba63b4c9b2f44c975902990086a4fe56eee9d265b187d1e2c1d98ccfb",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/lcov_evidence_test.dart",
+      "sha256": "036a3ee3475d3ccbb1eef7a47df0822466c6b9d8089aec875309b304ae97d720",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/lsp_beta9_contract_test.dart",
+      "sha256": "e48a98f586892f29ab248bd957963ba5521af1bf4be0ea90a4a5e13c31e40434",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/native/wire_codec_main.swift",
+      "sha256": "14342a9b9576d17ad4afcac26d0aeaaa305f756ddb496d335b2bde8995b5d391",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/public_dto_immutability_test.dart",
+      "sha256": "c5b0cba5766f52a8b91f2e57a56455cdba8145166179731c089b0e6b8cca72c1",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/release_runner_safety_test.dart",
+      "sha256": "726b2b2b64f4ee6844a71b1358f2c9870d955bb16105e45356283d832ea9af75",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/rgb_sdk_flutter_method_channel_test.dart",
+      "sha256": "fa7262ae4618c4524a5bef50391ea11441dd822d74060d9769f9d5640e7161a4",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/rgb_sdk_flutter_test.dart",
+      "sha256": "4808c6247b6c2a263b3b7bb65dd4d8363218549c9b64680320d28570935ada8d",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/rln_client_contract_test.dart",
+      "sha256": "630f2f8f1a1f7b74fd71a7d671bc96eec5f45c8763c9ff58e41afd7a202aceb5",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/rln_manager_contract_test.dart",
+      "sha256": "8438d63dff9b7f7dffd392a8e54ca3e880e7283ecf99c9ce94b0531ec5cc8428",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/stable_api_contract_test.dart",
+      "sha256": "23d19a3b264ba1a415ffe4b4ec6e476d9a17ed1227f81bf9da083a964a823fec",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/utexo_wallet_test.dart",
+      "sha256": "75e779ea52201b16e30d149d61bbed2240231f3beaf2220297c2505f6b71c6ad",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "test/webrgb_provider_test.dart",
+      "sha256": "b9e22c3928a85224a67eacd1efc02b673dace6aa6bd8101bf511c4528a22b908",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/api_export_graph.dart",
+      "sha256": "d1a2e1f37a762927a5ce5a09f62cd81280850b947cc5d10f0d29a0c746738d17",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/api_snapshot.json",
+      "sha256": "471e06fde5931e60ebd807828f5a9f834091588ecc7cc6f82964ef98026812dd",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/bridge_vector_applicability.dart",
+      "sha256": "26bb37ca2a8b2aeab3ff33f15e2139db48621d90e3611abf3de943611b07746c",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/core_lsp_parity_manifest.json",
+      "sha256": "e7a98d1c8a82e6427830110273ecfbfd2307979faedac59cdf0dbbed4a825dc5",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/coverage_evidence.dart",
+      "sha256": "82c9502be2d45c00ceffdd0ea5f611cb0ed10040649fc8b5a479aa74b415a0a3",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/download_rln_ios.sh",
+      "sha256": "6d93eb9a7e12143ccb4607a2f5063825c554e9d333675b012111fb43612b957c",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/evidence_report.dart",
+      "sha256": "c2229473a0871e30cdf0224392ba2744f3a3fa714f351b0220e08bfddcef496d",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/evidence_shell.sh",
+      "sha256": "91ad289c28d8ad3765d311be57ef9ffd462f723a0753d66320aef3d0cb35fc17",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/evidence_target.dart",
+      "sha256": "87eae366577d40a9253d4f2466991aeef0b6369216235e06a61d2b5c83fa3550",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/finalize_evidence.dart",
+      "sha256": "9e0cf1e907a1606e0ac563c8175c073a3cd27b07e523b143fd6e7c991a2d5ccd",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/generate_pigeon.sh",
+      "sha256": "2dd095f5e45a1cf0ef9ad6e3efec159554af0e922391dad761fb102e0ebf91d2",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/generate_release_baseline.dart",
+      "sha256": "9215b1131ad588c9dbf647db145c188a956afc55ae98cb6eac42ba058cc27762",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/lcov.dart",
+      "sha256": "f8c280fe6dfafbb99413c3b66ea5ee1bf3f7f19b9a8c46c4809b56cf94267871",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/native_artifact_provenance.json",
+      "sha256": "a8a95f4648c4c6f6d9efd96c1b18da88300e258671a71ec2c8cb416d62def3e4",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/regtest/compose.yaml",
+      "sha256": "1c05b6f9fa0c5f81d25220c824d1e31f2cdf628e7a3785d3c46d3928ce893484",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/regtest/config.sh",
+      "sha256": "98f3b8c82548417de2b89829c5774854fc1f6e65f4fe3a6b6bf69a79470fb7e6",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/regtest/flutter_external_signer_restart.sh",
+      "sha256": "de263baf7af8e1e84c0618750bfaba14b70fff88d281bab9186e8a26371411a2",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/regtest/flutter_funded_smoke.sh",
+      "sha256": "02c196f36ba4ca5f51e4c9204105ebeda1b9c1af9390455adbba42836d72533a",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/regtest/regtest.sh",
+      "sha256": "9033fb4f526e4a5a4e6255ff41ae4cdbd31bbe2cf1fee0da4e3113a525c9502c",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/release_baseline.json",
+      "sha256": "43359457fea1bc3c84854a88558c722823eb0ec24e60856ce6a0a8ef33b67d18",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/release_baseline.sh",
+      "sha256": "4d6810457f3cdff8861754a871e780b4928c862c199dcc1cd2541408b796209d",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/rn_parity_manifest.json",
+      "sha256": "9b1695f820a369f03dd226d00353b30f4c5e8790b12aea64ee7bb37058d17ab9",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/test_clean_consumer_matrix.sh",
+      "sha256": "c174f51b30fa7c919dc500ac8179fd3e8646885e3e12e7eca5a99229cd9bf201",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/test_dart_coverage.dart",
+      "sha256": "74f2595a432dcaa50c15af580252cff3c503e8aed375ef3020e4ccded1a33cdc",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/test_external_signer_restart.sh",
+      "sha256": "144680cb2ae799ef004d2713b1905863bab7fb796aad4b58399159b4bb958174",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/test_matrix/README.md",
+      "sha256": "789bd9cb91d95e0c4e87be151a56d332d09c2d222eec89a31caafec88af1acda",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/test_matrix/bridge_behavior_vectors.json",
+      "sha256": "1ddd810857a593e88792c68a51ef60b75d3012154007a3d3d16337484a5ffe0f",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/test_matrix/core_exports.json",
+      "sha256": "48ce4179c940e862c045b5851a2c2dc7fe8d6c04fb02be71fe80fef9640a7c24",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/test_matrix/evidence_catalog.json",
+      "sha256": "76e66c092c96f22770c296bb66bca7bd7286bba303128f5251d831905f272571",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/test_matrix/lsp_client_methods.json",
+      "sha256": "3a6e2d393d471473dee2b8467f248de52dafcaca3455adad897cf1df034cb296",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/test_matrix/lsp_methods.json",
+      "sha256": "a1503236a9ee6857c16835981f7758dfff957c3bbefc418943763f317efa5627",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/test_matrix/rln_methods.json",
+      "sha256": "8e8f8d4e5e2a5958bf5aea667e0cf5207d2cfbfa81c5eb82ab4e6f12e6e75d07",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/test_matrix/wallet_methods.json",
+      "sha256": "0ede019c2d129c146135a9116580d8fc63ce80adc0f00b30cc598362bd896adc",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/test_native_android.sh",
+      "sha256": "f2a8da987dc8c24c0ef8cf797bff077e5943d72dca9dd68eba11285e9a124c3e",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/test_native_ios.sh",
+      "sha256": "7e5f9575ac2b58e98282bc9d810b27d0231a4f778ee1aa91cb0bf29d442d0e53",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/test_platform_funded.sh",
+      "sha256": "eed95500b1d2fadfc4c170b8a883ccec1b26fe4b0e7c0c5219da3702c1e998dc",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/test_platform_unfunded.sh",
+      "sha256": "1442d6f8eb6dac7305ea04c03791ed42892f9cea7056ff05f87d503bd2956641",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/test_release_candidate.sh",
+      "sha256": "3d4a5a13aecde78b741ae3250d354ea2daf724f00613c4a111e3a8ebfce3bc00",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/test_swift_wire_codec.sh",
+      "sha256": "deaad2fd8b471fb468ba7d61f844887767a4a299eba3d297785f8f07b4c27dda",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/validate_api_snapshot.dart",
+      "sha256": "0417c0ce79aad4c8508a345813e4b078cd06f7a1d84ddc8bab6113dfad92c3b6",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/validate_bridge_vectors.dart",
+      "sha256": "bc0bd311272df281b808b9a76361f83e348f69e5175766e83f7c6dab41255df7",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/validate_child_evidence.dart",
+      "sha256": "7c448d3c2d7a2baeac962bda97e99fea8dafa974e1b0f8758c0a2bfdd58aa737",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/validate_codebase_hardening.dart",
+      "sha256": "e8ee0181d602930fa1ee338d239c1ec6b73ef96df97aee4be3774c27f2f0b768",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/validate_coverage_policy.dart",
+      "sha256": "40c24ccdd7ae508e954046707357de6051a0e94f3244493050900d02f2ee192c",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/validate_public_api_docs.dart",
+      "sha256": "a20e9881e0464a506edabc019393cbbb68be70c8f484bfc34b325ff81a916ff9",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/validate_readme_examples.dart",
+      "sha256": "464b25ebe8e765420ea47105b6336f9034a4817406073963d6ea8755df2dc75d",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/validate_release_governance.dart",
+      "sha256": "8dc3ade8b16b0fde4949bd17e26974098f81f177826e30c51bc3255e538f4cc6",
+      "state": "source-reviewed",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/validate_release_language.dart",
+      "sha256": "05162ebfc60dbd705e4f45c3f7ef1471127f7094434632abfdce61db9778bdbe",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/validate_release_package.dart",
+      "sha256": "391ce88a2cec55b7b9207b8bea52adc7cd47aa4251547767a36a697948f9fdaa",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/validate_rn_parity.dart",
+      "sha256": "cd94578142068cb6e13289c853cac4903a3cac2d726bd2db22e8255beb634053",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/validate_supply_chain.dart",
+      "sha256": "874d24839ec16a77ad3eda862605e69d62cff0f1373b34bb796312bf4c95bda6",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/validate_test_matrix.dart",
+      "sha256": "b40009c1b8b54cc0373800942870e7ab3e68fce9f6e41e6427e1faf3195ff606",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/verify_native_artifacts.sh",
+      "sha256": "cf490d7db4b11dc3fc95a57107c0cf82bf6d820af67ff724a4897d70d2add91f",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    },
+    {
+      "path": "tool/webrgb_parity_manifest.json",
+      "sha256": "b655ad613396e1aa23b1a3711ebb585b5623c68e89cbf3e1e2ae59ea7ebfc745",
+      "state": "pending-fresh-full-review",
+      "runtimeSource": false
+    }
+  ]
+}

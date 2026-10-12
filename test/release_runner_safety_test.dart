@@ -5,6 +5,37 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test('release preflight stops before work on insufficient disk', () async {
+    final temp = Directory.systemTemp.createTempSync('rgb-disk-test-');
+    addTearDown(() => temp.deleteSync(recursive: true));
+    final result = await Process.run(
+      'bash',
+      [
+        '-c',
+        '''
+source "\$1"
+WORKTREE_DIRTY=false
+ensure_release_disk_space() { return 1; }
+eval "\$(declare -f run_step | sed '1s/run_step/original_run_step/')"
+run_step() {
+  if [[ "\$1" != 'release disk-space preflight' ]]; then
+    printf 'UNEXPECTED_BUILD_WORK'
+    exit 73
+  fi
+  original_run_step "\$@"
+}
+main
+''',
+        'runner-test',
+        File('tool/test_release_candidate.sh').absolute.path,
+      ],
+      environment: {'REPORT_DIR': temp.path},
+    );
+    expect(result.exitCode, 1, reason: '${result.stdout}\n${result.stderr}');
+    expect(result.stdout, contains('release disk-space preflight'));
+    expect(result.stdout, isNot(contains('UNEXPECTED_BUILD_WORK')));
+  });
+
   for (final runner in [
     'test_clean_consumer_matrix.sh',
     'test_release_candidate.sh',

@@ -4,6 +4,42 @@
   "source": "lib/src/wallet/utexo_wallet.dart",
   "methods": [
     {
+      "id": "getBfaCapabilities",
+      "group": "rgb_assets",
+      "support": "supported",
+      "fixture": "unit_contract",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet_bfa.dart::UtexoWallet.getBfaCapabilities",
+      "evidenceBucket": "unit_contract"
+    },
+    {
+      "id": "burn",
+      "group": "rgb_assets",
+      "support": "supported",
+      "fixture": "funded_rgb",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet_bfa.dart::UtexoWallet.burn",
+      "evidenceBucket": "funded_rgb"
+    },
+    {
+      "id": "getConsignment",
+      "group": "rgb_assets",
+      "support": "supported",
+      "fixture": "funded_rgb",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet_bfa.dart::UtexoWallet.getConsignment",
+      "evidenceBucket": "funded_rgb"
+    },
+    {
+      "id": "getConsignmentPath",
+      "group": "rgb_assets",
+      "support": "supported",
+      "fixture": "funded_rgb",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet_bfa.dart::UtexoWallet.getConsignmentPath",
+      "evidenceBucket": "funded_rgb"
+    },
+    {
       "id": "init",
       "group": "lifecycle",
       "support": "supported",

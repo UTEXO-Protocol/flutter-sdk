@@ -44,8 +44,12 @@ class SDKError extends RgbSdkException {
 
 /// General wallet lifecycle or native-response error.
 class WalletException extends SDKError {
-  const WalletException(super.message, {super.statusCode, super.cause})
-    : super(code: 'WALLET_ERROR');
+  const WalletException(
+    super.message, {
+    super.code = 'WALLET_ERROR',
+    super.statusCode,
+    super.cause,
+  });
 }
 
 /// Native response violated the SDK's wire contract.
@@ -75,7 +79,7 @@ class NativeProtocolException extends SDKError {
 
 /// RN-core compatible wallet error name.
 class WalletError extends WalletException {
-  const WalletError(super.message, {super.statusCode, super.cause});
+  const WalletError(super.message, {super.code, super.statusCode, super.cause});
 }
 
 /// A Dart-side deadline elapsed before a native RLN operation returned.

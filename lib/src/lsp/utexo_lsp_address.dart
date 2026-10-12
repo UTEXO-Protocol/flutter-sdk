@@ -3,7 +3,9 @@ part of 'utexo_lsp.dart';
 mixin _UtexoLspAddress on _UtexoLspInternals {
   /// Resolves and pays a Lightning Address quote.
   Future<PayAddressResult> payAddress(PayAddressOptions options) async {
+    _assertLightningEnabled();
     final quote = await quoteAddress(options);
+    _assertLightningEnabled();
     final sendResult = await wallet.payLightningInvoice(
       lnInvoice: quote.invoice,
     );
@@ -16,6 +18,7 @@ mixin _UtexoLspAddress on _UtexoLspInternals {
 
   /// Resolves a Lightning Address without paying the returned invoice.
   Future<AddressQuote> quoteAddress(PayAddressOptions options) async {
+    _assertLightningEnabled();
     return _quoteAddress(options);
   }
 
@@ -24,6 +27,7 @@ mixin _UtexoLspAddress on _UtexoLspInternals {
     bool requireApayProof = false,
     String? expectedRecipientPubkey,
   }) async {
+    _assertLightningEnabled();
     _requirePositiveMsat(options.amtMsat, 'amtMsat');
     final parsed = parseLightningAddress(options.address);
     final asset = options.asset;
@@ -70,6 +74,7 @@ mixin _UtexoLspAddress on _UtexoLspInternals {
         body: 'No invoice returned for Lightning Address',
       );
     }
+    _assertLightningEnabled();
     final decoded = await wallet.decodeLnInvoice(callback.pr);
     LspAddressQuoteVerifier.verify(
       resolution: resolution,
@@ -97,6 +102,7 @@ mixin _UtexoLspAddress on _UtexoLspInternals {
 
   /// Fetches LNURL discovery from the address's own host.
   Future<LspLnurlpDiscovery> discoverAddress(String address) async {
+    _assertLightningEnabled();
     final parsed = parseLightningAddress(address);
     if (isSameLspHost(parsed.domain, peer.baseUrl)) {
       return http.discoverAddress(parsed.username);
@@ -106,6 +112,7 @@ mixin _UtexoLspAddress on _UtexoLspInternals {
 
   /// Lists the payout and convertible assets advertised by an address.
   Future<PayableAssets> listPayableAssets([String? address]) async {
+    _assertLightningEnabled();
     final target = address?.trim().isNotEmpty == true
         ? address!.trim()
         : await _ownAddressString('listPayableAssets');
@@ -116,8 +123,10 @@ mixin _UtexoLspAddress on _UtexoLspInternals {
   Future<AssetSelection> selectPaymentAsset(
     SelectPaymentAssetOptions options,
   ) async {
+    _assertLightningEnabled();
     final discovery =
         options.discovery ?? await discoverAddress(options.address);
+    _assertLightningEnabled();
     return LspAssetSelectionPolicy.selectForPayment(
       address: options.address,
       requiredAmount: options.assetAmount,
@@ -130,6 +139,7 @@ mixin _UtexoLspAddress on _UtexoLspInternals {
   Future<ExternalInvoice> requestExternalInvoice(
     RequestExternalInvoiceOptions options,
   ) async {
+    _assertLightningEnabled();
     _requirePositiveMsat(options.amtMsat, 'amtMsat');
     if (options.assetAmount <= 0) {
       throw const ValidationError(
@@ -190,6 +200,7 @@ mixin _UtexoLspAddress on _UtexoLspInternals {
     String? assetId,
     int? assetAmount,
   }) async {
+    _assertLightningEnabled();
     if (!isSameLspHost(domain, peer.baseUrl)) {
       return http.resolveExternalAddressWithDiscovery(
         domain,

@@ -3,9 +3,12 @@ part of 'utexo_lsp.dart';
 mixin _UtexoLspApay on _UtexoLspInternals {
   /// Registers the first attested APay hash batch for this wallet.
   Future<LightningAddressInfo> enableLightningAddress() async {
+    _assertLightningEnabled();
     final lspInfo = await http.getInfo();
+    _assertLightningEnabled();
     _requireConfiguredLsp(lspInfo);
     final address = await _ownLightningAddress(this, 'enableLightningAddress');
+    _assertLightningEnabled();
     final pool = await wallet.apayNewWithAddress(
       lspInfo.pubkey,
       address.username,
@@ -23,15 +26,20 @@ mixin _UtexoLspApay on _UtexoLspInternals {
 
   /// Registers a fresh attested APay hash batch for the assigned address.
   Future<ApayNewResponse> refillHashPool() async {
+    _assertLightningEnabled();
     final nodeInfo = await wallet.getNodeInfo();
     if (nodeInfo.pubkey.isEmpty) {
       throw const WalletException(
         'refillHashPool requires an unlocked wallet.',
       );
     }
+    _assertLightningEnabled();
     final lspInfo = await http.getInfo();
+    _assertLightningEnabled();
     _requireConfiguredLsp(lspInfo);
+    _assertLightningEnabled();
     final address = await http.getLightningAddressByPubkey(nodeInfo.pubkey);
+    _assertLightningEnabled();
     return wallet.apayNewWithAddress(
       lspInfo.pubkey,
       address.username,
@@ -52,11 +60,13 @@ mixin _UtexoLspApay on _UtexoLspInternals {
 
   /// Claims every locally claimable payment that has a non-empty preimage.
   Future<List<ClaimResult>> claimPendingPayments() async {
+    _assertLightningEnabled();
     final claimable = (await wallet.listPayments()).where(
       (payment) => isClaimablePaymentStatus(payment.status),
     );
     final results = <ClaimResult>[];
     for (final payment in claimable) {
+      _assertLightningEnabled();
       final preimage = payment.preimage;
       if (preimage == null || preimage.isEmpty) {
         results.add(

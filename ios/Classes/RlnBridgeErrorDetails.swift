@@ -23,6 +23,7 @@ func rlnErrorCode(_ error: RlnError) -> String {
   case .UnsupportedInExternalSignerMode: return "UnsupportedInExternalSignerMode"
   case .FailedVssInit: return "FailedVssInit"
   case .Internal: return "Internal"
+  case .LightningUnsupportedOnMainnet: return "LightningUnsupportedOnMainnet"
   }
 }
 
@@ -58,7 +59,8 @@ func nativeErrorCategory(_ code: String) -> String {
     return "configuration"
   case "InvalidArgument", "InvalidRequest", "BadRequest":
     return "invalidRequest"
-  case "Unsupported", "UnsupportedOperation", "UnsupportedInExternalSignerMode":
+  case "Unsupported", "UnsupportedOperation", "UnsupportedInExternalSignerMode",
+    "LightningUnsupportedOnMainnet":
     return "unsupported"
   default:
     return "native"

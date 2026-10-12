@@ -1400,6 +1400,49 @@ void main() {
       expect(credentialError.toString(), isNot(contains('secret')));
     });
 
+    test(
+      'redacts path secrets after removing endpoint credentials and query',
+      () {
+        final paymentHash = List.filled(64, 'a').join();
+        for (final endpoint in [
+          'https://alice:password@wallet.example/lightning_send/$paymentHash?token=secret#private',
+          '/lightning_send/$paymentHash?token=secret',
+        ]) {
+          final error = LspError(
+            endpoint: endpoint,
+            status: 500,
+            body: 'failed',
+          );
+          for (final diagnostic in [
+            error.toString(),
+            jsonEncode(error.toJson()),
+          ]) {
+            expect(diagnostic, isNot(contains(paymentHash)));
+            expect(diagnostic, isNot(contains('secret')));
+            expect(diagnostic, isNot(contains('password')));
+            expect(diagnostic, contains('REDACTED_HEX'));
+          }
+        }
+      },
+    );
+
+    test('transport policy diagnostics disclose only the endpoint origin', () {
+      final paymentHash = List.filled(64, 'b').join();
+      final error = LspTransportPolicyException(
+        'Blocked callback.',
+        uri: Uri.parse(
+          'https://alice:password@wallet.example:8443/callback/$paymentHash?token=secret#private',
+        ),
+      );
+      expect(error.toJson()['uri'], 'https://wallet.example:8443');
+      for (final diagnostic in [error.toString(), jsonEncode(error.toJson())]) {
+        expect(diagnostic, isNot(contains(paymentHash)));
+        expect(diagnostic, isNot(contains('secret')));
+        expect(diagnostic, isNot(contains('password')));
+        expect(diagnostic, isNot(contains('alice')));
+      }
+    });
+
     test('rejects redirects and oversized LSP responses', () async {
       final requests = <http.BaseRequest>[];
       final redirecting = UtexoLspClient(
@@ -1572,6 +1615,19 @@ void main() {
         ),
         isTrue,
       );
+    });
+
+    test('invalid secp256k1 points return typed quote failures', () {
+      final fixture = _apayFixture();
+      for (final invalid in ['02${'ff' * 32}', '02${'00' * 32}']) {
+        expect(
+          () => _verifyApayFixture(
+            fixture,
+            decoded: _copyDecoded(fixture.decoded, payeePubkey: invalid),
+          ),
+          throwsA(isA<LspAddressQuoteVerificationException>()),
+        );
+      }
     });
 
     test('accepts a fully bound APay quote and a proofless legacy quote', () {

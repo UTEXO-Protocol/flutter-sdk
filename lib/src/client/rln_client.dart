@@ -219,6 +219,7 @@ class RlnClient {
     List<String> announceAddresses = const <String>[],
     String? announceAlias,
     String? gossipRgsServerUrl,
+    String? ethRpcUrl,
   }) {
     return _native(
       'rlnUnlockNode',
@@ -234,6 +235,7 @@ class RlnClient {
         announceAddresses,
         announceAlias,
         gossipRgsServerUrl,
+        ethRpcUrl,
       ),
     );
   }
@@ -241,6 +243,44 @@ class RlnClient {
   Future<void> destroyNode(int nodeId) {
     return _native('rlnDestroyNode', () => _hostApi.rlnDestroyNode(nodeId));
   }
+
+  /// Native-build capabilities; signer support is applied by UtexoWallet.
+  Future<Map<Object?, Object?>> bfaCapabilities() =>
+      _nativeMap('rlnBfaCapabilities', _hostApi.rlnBfaCapabilities);
+
+  /// Irreversible one-attempt native burn. Amount is an exact u64 decimal.
+  Future<Map<Object?, Object?>> burn({
+    required int nodeId,
+    required String assetId,
+    required String amount,
+    String? burnRecipient,
+    required int feeRate,
+    required int minConfirmations,
+  }) => _nativeMap(
+    'rlnBurn',
+    () => _hostApi.rlnBurn(
+      nodeId,
+      assetId,
+      amount,
+      burnRecipient,
+      feeRate,
+      minConfirmations,
+    ),
+  );
+
+  /// Reads saved proof bytes as standard Base64; does not regenerate proofs.
+  Future<String> getConsignment(int nodeId, String assetId, String txid) =>
+      _native(
+        'rlnGetConsignment',
+        () => _hostApi.rlnGetConsignment(nodeId, assetId, txid),
+      );
+
+  /// Local sandbox path for wallet-owned use, never for dApp transport.
+  Future<String> getConsignmentPath(int nodeId, String assetId, String txid) =>
+      _native(
+        'rlnGetConsignmentPath',
+        () => _hostApi.rlnGetConsignmentPath(nodeId, assetId, txid),
+      );
 
   Future<Map<Object?, Object?>> nodeInfo(int nodeId) {
     return _nativeMap('rlnNodeInfo', () => _hostApi.rlnNodeInfo(nodeId));

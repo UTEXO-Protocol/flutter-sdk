@@ -3,6 +3,7 @@ part of 'utexo_lsp.dart';
 mixin _UtexoLspAssetBridge on _UtexoLspInternals {
   /// Creates the linked Lightning and RGB invoices for an LSP receive bridge.
   Future<ReceiveAssetResult> receiveAsset(ReceiveAssetOptions options) async {
+    _assertLightningEnabled();
     if (options.assetId.trim().isEmpty) {
       throw const ValidationError('assetId is required.', 'assetId');
     }
@@ -34,6 +35,7 @@ mixin _UtexoLspAssetBridge on _UtexoLspInternals {
         amount: options.amountRgb,
       ),
     );
+    _assertLightningEnabled();
     final decodedLightning = await wallet.decodeLnInvoice(receive.lnInvoice);
     _LspBridgeQuoteVerifier.verifyCreatedReceiveInvoice(
       requested: options,
@@ -49,6 +51,7 @@ mixin _UtexoLspAssetBridge on _UtexoLspInternals {
       );
     }
     final durationSeconds = expirySeconds - elapsedSeconds;
+    _assertLightningEnabled();
     final response = await http.lightningReceive(
       LspLightningReceiveRequest(
         lnInvoice: receive.lnInvoice,
@@ -60,6 +63,7 @@ mixin _UtexoLspAssetBridge on _UtexoLspInternals {
         ),
       ),
     );
+    _assertLightningEnabled();
     final decodedRgb = await wallet.decodeRgbInvoice(response.rgbInvoice);
     final verified = _LspBridgeQuoteVerifier.verifyReceive(
       requested: options,
@@ -81,6 +85,7 @@ mixin _UtexoLspAssetBridge on _UtexoLspInternals {
 
   /// Pays an on-chain RGB invoice through the LSP's Lightning bridge.
   Future<SendAssetResult> sendAsset(SendAssetOptions options) async {
+    _assertLightningEnabled();
     if (options.rgbInvoice.trim().isEmpty) {
       throw const ValidationError('rgbInvoice is required.', 'rgbInvoice');
     }
@@ -91,9 +96,11 @@ mixin _UtexoLspAssetBridge on _UtexoLspInternals {
       walletNetwork: wallet.network,
       nowEpochSeconds: nowEpochSeconds,
     );
+    _assertLightningEnabled();
     final issued = await http.onchainSend(
       LspOnchainSendRequest(rgbInvoice: options.rgbInvoice, ln: options.ln),
     );
+    _assertLightningEnabled();
     final decodedLightning = await wallet.decodeLnInvoice(issued.lnInvoice);
     _LspBridgeQuoteVerifier.verifySendResponse(
       requested: options,
@@ -104,6 +111,7 @@ mixin _UtexoLspAssetBridge on _UtexoLspInternals {
       expectedLspPubkey: peer.peerPubkey,
       nowEpochSeconds: nowEpochSeconds,
     );
+    _assertLightningEnabled();
     final sendResult = await wallet.payLightningInvoice(
       lnInvoice: issued.lnInvoice,
     );

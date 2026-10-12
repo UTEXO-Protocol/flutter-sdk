@@ -91,13 +91,12 @@ class LspError extends NetworkError {
     required this.endpoint,
     required this.status,
     required this.body,
-    Object? cause,
+    super.cause,
   }) : super(
          status == 0
              ? 'LSP request failed.'
              : 'LSP request failed with HTTP status.',
          statusCode: status == 0 ? null : status,
-         cause: cause,
        );
 
   final String endpoint;
@@ -615,12 +614,14 @@ String _redactEndpoint(String endpoint) {
   final uri = Uri.tryParse(endpoint);
   if (uri != null &&
       (uri.userInfo.isNotEmpty || uri.hasQuery || uri.hasFragment)) {
-    return Uri(
-      scheme: uri.scheme,
-      host: uri.host,
-      port: uri.hasPort ? uri.port : null,
-      path: uri.path,
-    ).toString();
+    return redactSupportText(
+      Uri(
+        scheme: uri.scheme,
+        host: uri.host,
+        port: uri.hasPort ? uri.port : null,
+        path: uri.path,
+      ).toString(),
+    );
   }
   return redactSupportText(endpoint);
 }

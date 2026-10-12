@@ -172,6 +172,8 @@
     "ClaimResult": "ClaimResult"
   },
   "rlnNodeMethodsScopedOutByRn": [
+    "importrgbcontract",
+    "importrgbtransferconsignment",
     "assetLink",
     "assetMetadata",
     "getAssetMedia",

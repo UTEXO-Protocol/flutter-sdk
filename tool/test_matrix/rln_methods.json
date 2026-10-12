@@ -4,6 +4,54 @@
   "source": "lib/src/client/rln_client.dart",
   "methods": [
     {
+      "id": "bfaCapabilities",
+      "hostApi": "rlnBfaCapabilities",
+      "group": "rgb_assets",
+      "support": "supported",
+      "fixture": "unit_contract",
+      "contract": "implemented",
+      "ios": "required",
+      "android": "required",
+      "implementation": "lib/src/client/rln_client.dart::RlnClient.bfaCapabilities",
+      "evidenceBucket": "unit_contract"
+    },
+    {
+      "id": "burn",
+      "hostApi": "rlnBurn",
+      "group": "rgb_assets",
+      "support": "supported",
+      "fixture": "funded_rgb",
+      "contract": "implemented",
+      "ios": "required",
+      "android": "required",
+      "implementation": "lib/src/client/rln_client.dart::RlnClient.burn",
+      "evidenceBucket": "funded_rgb"
+    },
+    {
+      "id": "getConsignment",
+      "hostApi": "rlnGetConsignment",
+      "group": "rgb_assets",
+      "support": "supported",
+      "fixture": "funded_rgb",
+      "contract": "implemented",
+      "ios": "required",
+      "android": "required",
+      "implementation": "lib/src/client/rln_client.dart::RlnClient.getConsignment",
+      "evidenceBucket": "funded_rgb"
+    },
+    {
+      "id": "getConsignmentPath",
+      "hostApi": "rlnGetConsignmentPath",
+      "group": "rgb_assets",
+      "support": "supported",
+      "fixture": "funded_rgb",
+      "contract": "implemented",
+      "ios": "required",
+      "android": "required",
+      "implementation": "lib/src/client/rln_client.dart::RlnClient.getConsignmentPath",
+      "evidenceBucket": "funded_rgb"
+    },
+    {
       "id": "createNode",
       "hostApi": "rlnCreateNode",
       "group": "lifecycle",

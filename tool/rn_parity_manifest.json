@@ -1,7 +1,9 @@
 {
   "schemaVersion": 1,
-  "walletSurfaceSha256": "4bff8674919c02b2e503e23e80916658d3962e42dca8d75f420f4247d78b6b5b",
+  "walletSurfaceSha256": "bbd9eb6e86ae23f988321ba0940e7befda85a043a031c787404a756c378c0550",
   "runtimeExportAliases": {
+    "BurnOperations": "BurnOperations",
+    "normalizeBurnRecord": "normalizeBurnRecord",
     "createWallet": "createWallet",
     "RLNManager": "RLNManager",
     "createRLNManager": "createRLNManager",
@@ -69,6 +71,13 @@
     "decodeRGBInvoice": "UtexoWalletRnCompatibility.decodeRGBInvoice"
   },
   "typeExportAliases": {
+    "BurnParams": "BurnParams",
+    "BurnResult": "BurnResult",
+    "BfaCapabilities": "BfaCapabilities",
+    "AssetBfa": "CoreAssetBfa",
+    "BurnOperationRecord": "BurnOperationRecord",
+    "BurnOperationStore": "BurnOperationStore",
+    "BurnOperationMetadata": "BurnOperationMetadata",
     "AccountXpubs": "AccountXpubs",
     "AddressQuote": "AddressQuote",
     "ApayHashEntry": "ApayHashEntry",
@@ -162,6 +171,8 @@
     "SendResult": "RlnSendResult",
     "Transaction": "CoreTransaction",
     "Transfer": "CoreTransfer",
+    "TransferAmount": "TransferAmount",
+    "TransferAssignment": "Assignment",
     "TransferStatus": "CoreTransferStatus",
     "UTEXOWalletNodeParams": "UtexoWalletConfig",
     "Unspent": "CoreUnspent",

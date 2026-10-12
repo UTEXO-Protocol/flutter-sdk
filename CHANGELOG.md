@@ -10,9 +10,18 @@ Initial internal-beta Flutter package release.
 - Added the advanced `rgb_sdk_flutter_advanced.dart` entrypoint for explicit
   RN/native parity access to `RlnClient`, `RLNBinding`, `RLNManager`, raw
   `Rln*` models, bridge diagnostics, and migration tooling.
-- Targeted `@utexo/rgb-sdk-rn` `1.0.0-beta.32`,
+- Targeted `@utexo/rgb-sdk-rn` `1.0.0-beta.36`,
   `@utexo/rgb-sdk-core` `1.0.0-beta.9`, and RGB Lightning Node
-  `0.13.0-beta.3`.
+  `0.15.0-beta.3`.
+- Added bridged fungible assets (BFA), signer-aware burn capabilities, exact-u64
+  burn requests, saved consignment bytes/path, and password-unlock `ethRpcUrl`.
+- Added durable `BurnOperations` with pending-outcome blocking and explicit
+  independent-proof reconciliation; a storage failure never retries a burn.
+- Added optional WebRGB receiving/read/burn integration with immutable typed
+  requests, per-session revocation, sanitized errors, chain policy, and bounded
+  Keccak-256 proof export. Hosts own transport, durable storage and user approval.
+- Blocked canonical Lightning methods on mainnet with the upstream error code.
+  Native `LightningUnsupportedOnMainnet` remains a typed unsupported failure.
 - Implemented iOS and Android Pigeon bridges backed by the pinned native RGB
   Lightning Node artifacts.
 - Added wallet workflows for Bitcoin, RGB assets, Lightning payments, peers,

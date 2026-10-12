@@ -220,6 +220,8 @@ class RgbSdkFlutterPlugin :
     }
 
     private fun bridgeError(exception: Exception, operation: String): FlutterError {
+        // Unlock rollback also receives already-classified bridge validation errors.
+        if (exception is FlutterError) return exception
         val code = errorClassName(exception)
         val category = nativeErrorCategory(code)
         return FlutterError(
@@ -261,7 +263,8 @@ class RgbSdkFlutterPlugin :
             "Configuration", "RlnStorageDirectoryPolicyException", "NotInitialized",
             "ExternalSignerRequired", "ExternalSignerMismatch", "ExternalSignerUnavailable" -> "configuration"
             "InvalidArgument", "InvalidRequest", "BadRequest" -> "invalidRequest"
-            "Unsupported", "UnsupportedOperation", "UnsupportedInExternalSignerMode" -> "unsupported"
+            "Unsupported", "UnsupportedOperation", "UnsupportedInExternalSignerMode",
+            "LightningUnsupportedOnMainnet" -> "unsupported"
             else -> "native"
         }
     }
@@ -284,121 +287,6 @@ class RgbSdkFlutterPlugin :
             "settled" to balance.settled,
             "future" to balance.future,
             "spendable" to balance.spendable
-        )
-    }
-
-    private fun assetBalanceMap(balance: org.utexo.rgblightningnode.AssetBalanceInfo): Map<Any?, Any?> {
-        return mapOf(
-            "settled" to balance.settled,
-            "future" to balance.future,
-            "spendable" to balance.spendable,
-            "offchainOutbound" to balance.offchainOutbound,
-            "offchainInbound" to balance.offchainInbound
-        )
-    }
-
-    private fun mediaMap(media: org.utexo.rgblightningnode.Media?): Map<Any?, Any?>? {
-        if (media == null) return null
-        return mapOf(
-            "filePath" to media.filePath,
-            "digest" to media.digest,
-            "mime" to media.mime
-        )
-    }
-
-    private fun mediaAttachmentMap(attachment: org.utexo.rgblightningnode.MediaAttachment): Map<Any?, Any?> {
-        return mapOf(
-            "key" to attachment.key,
-            "media" to mediaMap(attachment.media)
-        )
-    }
-
-    private fun tokenLightMap(token: org.utexo.rgblightningnode.TokenLight?): Map<Any?, Any?>? {
-        if (token == null) return null
-        return mapOf(
-            "index" to token.index,
-            "ticker" to token.ticker,
-            "name" to token.name,
-            "details" to token.details,
-            "embeddedMedia" to token.embeddedMedia,
-            "media" to mediaMap(token.media),
-            "attachments" to token.attachments.map(::mediaAttachmentMap),
-            "reserves" to token.reserves
-        )
-    }
-
-    private fun assetNiaMap(asset: org.utexo.rgblightningnode.AssetNia): Map<Any?, Any?> {
-        return mapOf(
-            "assetId" to asset.assetId,
-            "ticker" to asset.ticker,
-            "name" to asset.name,
-            "details" to asset.details,
-            "precision" to asset.precision,
-            "issuedSupply" to asset.issuedSupply.toString(),
-            "timestamp" to asset.timestamp,
-            "addedAt" to asset.addedAt,
-            "balance" to assetBalanceMap(asset.balance),
-            "media" to mediaMap(asset.media)
-        )
-    }
-
-    private fun assetCfaMap(asset: org.utexo.rgblightningnode.AssetCfa): Map<Any?, Any?> {
-        return mapOf(
-            "assetId" to asset.assetId,
-            "name" to asset.name,
-            "details" to asset.details,
-            "precision" to asset.precision,
-            "issuedSupply" to asset.issuedSupply.toString(),
-            "timestamp" to asset.timestamp,
-            "addedAt" to asset.addedAt,
-            "balance" to assetBalanceMap(asset.balance),
-            "media" to mediaMap(asset.media)
-        )
-    }
-
-    private fun assetIfaMap(asset: org.utexo.rgblightningnode.AssetIfa): Map<Any?, Any?> {
-        return mapOf(
-            "assetId" to asset.assetId,
-            "ticker" to asset.ticker,
-            "name" to asset.name,
-            "details" to asset.details,
-            "precision" to asset.precision,
-            "initialSupply" to asset.initialSupply.toString(),
-            "maxSupply" to asset.maxSupply.toString(),
-            "knownCirculatingSupply" to asset.knownCirculatingSupply.toString(),
-            "timestamp" to asset.timestamp,
-            "addedAt" to asset.addedAt,
-            "balance" to assetBalanceMap(asset.balance),
-            "media" to mediaMap(asset.media),
-            "rejectListUrl" to asset.rejectListUrl,
-            "issuanceLinkRightOutpoint" to asset.issuanceLinkRightOutpoint?.let {
-                mapOf("txid" to it.txid, "vout" to it.vout.toLong())
-            },
-            "linkedFromAssetId" to asset.linkedFromAssetId,
-            "linkedToAssetId" to asset.linkedToAssetId
-        )
-    }
-
-    private fun assetUdaMap(asset: org.utexo.rgblightningnode.AssetUda): Map<Any?, Any?> {
-        return mapOf(
-            "assetId" to asset.assetId,
-            "ticker" to asset.ticker,
-            "name" to asset.name,
-            "details" to asset.details,
-            "precision" to asset.precision,
-            "timestamp" to asset.timestamp,
-            "addedAt" to asset.addedAt,
-            "balance" to assetBalanceMap(asset.balance),
-            "token" to tokenLightMap(asset.token)
-        )
-    }
-
-    private fun listAssetsMap(assets: org.utexo.rgblightningnode.ListAssetsResponse): Map<Any?, Any?> {
-        return mapOf(
-            "nia" to (assets.nia ?: emptyList()).map(::assetNiaMap),
-            "uda" to (assets.uda ?: emptyList()).map(::assetUdaMap),
-            "cfa" to (assets.cfa ?: emptyList()).map(::assetCfaMap),
-            "ifa" to (assets.ifa ?: emptyList()).map(::assetIfaMap)
         )
     }
 
@@ -757,7 +645,8 @@ class RgbSdkFlutterPlugin :
         proxyEndpoint: String?,
         announceAddresses: List<String>,
         announceAlias: String?,
-        gossipRgsServerUrl: String?
+        gossipRgsServerUrl: String?,
+        ethRpcUrl: String?
     ) {
         runRln("rlnUnlockNode") {
             try {
@@ -787,7 +676,8 @@ class RgbSdkFlutterPlugin :
                         proxyEndpoint = proxyEndpoint,
                         announceAddresses = announceAddresses,
                         announceAlias = announceAlias,
-                        gossipRgsServerUrl = gossipRgsServerUrl
+                        gossipRgsServerUrl = gossipRgsServerUrl,
+                        ethRpcUrl = ethRpcUrl
                     )
                 )
                 nodeStore.markUnlocked(nodeId)
@@ -801,6 +691,55 @@ class RgbSdkFlutterPlugin :
     override fun rlnDestroyNode(nodeId: Long) {
         runRln("rlnDestroyNode") { nodeStore.remove(nodeId) }
     }
+
+    override fun rlnBfaCapabilities(): RlnWireResponse = runRlnWire("rlnBfaCapabilities") {
+        mapOf("burn" to true, "consignment" to true, "bfa" to true)
+    }
+
+    private fun requireBurnAssetId(assetId: String, operation: String) {
+        if (!assetId.startsWith("rgb:") || assetId.length > 256)
+            throw invalidArgument(operation, "assetId", "Invalid asset ID.")
+    }
+
+    private fun requireConsignmentLookup(assetId: String, txid: String, operation: String) {
+        requireBurnAssetId(assetId, operation)
+        if (!Regex("^[a-fA-F0-9]{64}$").matches(txid))
+            throw invalidArgument(operation, "txid", "Expected a 32-byte hex transaction ID.")
+    }
+
+    override fun rlnBurn(nodeId: Long, assetId: String, amount: String, burnRecipient: String?,
+                         feeRate: Long, minConfirmations: Long): RlnWireResponse = runRlnWire("rlnBurn") {
+        requireBurnAssetId(assetId, "rlnBurn")
+        val units = amount.toULongOrNull()
+        if (!Regex("^[1-9][0-9]{0,19}$").matches(amount) || units == null)
+            throw invalidArgument("rlnBurn", "amount", "Expected a positive u64 decimal string.")
+        if (feeRate < 1 || feeRate > 9007199254740991L)
+            throw invalidArgument("rlnBurn", "feeRate", "Expected a positive safe integer sat/vB.")
+        if (minConfirmations < 1 || minConfirmations > 255)
+            throw invalidArgument("rlnBurn", "minConfirmations", "Expected 1 through 255 confirmations.")
+        val recipient = burnRecipient?.let { hex ->
+            if (!Regex("^[a-fA-F0-9]{64}$").matches(hex))
+                throw invalidArgument("rlnBurn", "burnRecipient", "Expected 32-byte hex without 0x.")
+            ByteArray(32) { index -> hex.substring(index * 2, index * 2 + 2).toInt(16).toByte() }
+        }
+        val result = nodeStore.get(nodeId).burn(org.utexo.rgblightningnode.BurnRequest(
+            assetId = assetId, amount = units, burnRecipient = recipient,
+            feeRate = feeRate.toULong(), minConfirmations = minConfirmations.toUByte()
+        ))
+        mapOf("txid" to result.txid, "batchTransferIdx" to result.batchTransferIdx.toLong())
+    }
+
+    override fun rlnGetConsignment(nodeId: Long, assetId: String, txid: String): String =
+        runRln("rlnGetConsignment") {
+            requireConsignmentLookup(assetId, txid, "rlnGetConsignment")
+            android.util.Base64.encodeToString(nodeStore.get(nodeId).getConsignment(assetId, txid), android.util.Base64.NO_WRAP)
+        }
+
+    override fun rlnGetConsignmentPath(nodeId: Long, assetId: String, txid: String): String =
+        runRln("rlnGetConsignmentPath") {
+            requireConsignmentLookup(assetId, txid, "rlnGetConsignmentPath")
+            nodeStore.get(nodeId).getConsignmentPath(assetId, txid)
+        }
 
     override fun rlnNodeInfo(nodeId: Long): RlnWireResponse {
         return runRlnWire("rlnNodeInfo") {
@@ -930,7 +869,7 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnAssetBalance(nodeId: Long, assetId: String): RlnWireResponse {
         return runRlnWire("rlnAssetBalance") {
-            assetBalanceMap(nodeStore.get(nodeId).assetBalance(assetId))
+            RlnAssetMapper.assetBalanceMap(nodeStore.get(nodeId).assetBalance(assetId))
         }
     }
 
@@ -1063,7 +1002,7 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnListAssets(nodeId: Long, filterAssetSchemas: List<String>): RlnWireResponse {
         return runRlnWire("rlnListAssets") {
-            listAssetsMap(nodeStore.get(nodeId).listAssets(filterAssetSchemas))
+            RlnAssetMapper.listAssetsMap(nodeStore.get(nodeId).listAssets(filterAssetSchemas))
         }
     }
 
@@ -1343,7 +1282,7 @@ class RgbSdkFlutterPlugin :
                     precision = requireUByte(precision, "precision", "rlnIssueAssetNia")
                 )
             )
-            assetNiaMap(asset)
+            RlnAssetMapper.assetNiaMap(asset)
         }
     }
 
@@ -1358,7 +1297,7 @@ class RgbSdkFlutterPlugin :
                     fileDigest = fileDigest
                 )
             )
-            assetCfaMap(asset)
+            RlnAssetMapper.assetCfaMap(asset)
         }
     }
 
@@ -1374,7 +1313,7 @@ class RgbSdkFlutterPlugin :
                     rejectListUrl = rejectListUrl
                 )
             )
-            assetIfaMap(asset)
+            RlnAssetMapper.assetIfaMap(asset)
         }
     }
 
@@ -1417,7 +1356,7 @@ class RgbSdkFlutterPlugin :
                     attachmentsFileDigests = attachmentsFileDigests
                 )
             )
-            assetUdaMap(asset)
+            RlnAssetMapper.assetUdaMap(asset)
         }
     }
 

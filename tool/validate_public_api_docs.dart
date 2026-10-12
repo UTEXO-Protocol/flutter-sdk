@@ -140,6 +140,7 @@ void _validateStableWalletBoundary(List<String> errors) {
 
   const stableWalletFiles = <String>[
     'lib/src/wallet/utexo_wallet.dart',
+    'lib/src/wallet/utexo_wallet_bfa.dart',
     'lib/src/wallet/utexo_wallet_lifecycle.dart',
     'lib/src/wallet/utexo_wallet_lsp_apay.dart',
     'lib/src/wallet/utexo_wallet_onchain.dart',

@@ -125,6 +125,9 @@ abstract interface class RlnSignerHost {
 abstract class RlnSigner {
   const RlnSigner();
 
+  /// Explicit opt-in for irreversible native burns. Custom signers default off.
+  bool get supportsBurn => false;
+
   Future<void> initNode({
     required RlnSignerHost host,
     required int nodeId,
@@ -146,6 +149,9 @@ abstract class RlnSigner {
 
 /// Password-based signer equivalent to RN `PasswordRLNSigner`.
 class PasswordRlnSigner extends RlnSigner {
+  @override
+  bool get supportsBurn => true;
+
   PasswordRlnSigner({required String password, String? mnemonic})
     : _password = password,
       _mnemonic = mnemonic;
@@ -463,6 +469,7 @@ final class _RlnClientSignerHost implements RlnSignerHost {
       announceAddresses: config.announceAddresses,
       announceAlias: config.announceAlias,
       gossipRgsServerUrl: config.gossipRgsServerUrl,
+      ethRpcUrl: config.ethRpcUrl,
     );
   }
 

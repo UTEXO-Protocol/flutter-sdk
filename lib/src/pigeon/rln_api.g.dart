@@ -387,6 +387,110 @@ class RlnHostApi {
 
   final String pigeonVar_messageChannelSuffix;
 
+  Future<RlnWireResponse> rlnBfaCapabilities() async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBfaCapabilities$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(null);
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as RlnWireResponse;
+  }
+
+  Future<RlnWireResponse> rlnBurn(
+    int nodeId,
+    String assetId,
+    String amount,
+    String? burnRecipient,
+    int feeRate,
+    int minConfirmations,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBurn$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[
+        nodeId,
+        assetId,
+        amount,
+        burnRecipient,
+        feeRate,
+        minConfirmations,
+      ],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as RlnWireResponse;
+  }
+
+  Future<String> rlnGetConsignment(
+    int nodeId,
+    String assetId,
+    String txid,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnGetConsignment$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[nodeId, assetId, txid],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as String;
+  }
+
+  Future<String> rlnGetConsignmentPath(
+    int nodeId,
+    String assetId,
+    String txid,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnGetConsignmentPath$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[nodeId, assetId, txid],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as String;
+  }
+
   Future<RlnNativeArtifactInfo> getNativeArtifactInfo() async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.getNativeArtifactInfo$pigeonVar_messageChannelSuffix';
@@ -658,6 +762,7 @@ class RlnHostApi {
     List<String> announceAddresses,
     String? announceAlias,
     String? gossipRgsServerUrl,
+    String? ethRpcUrl,
   ) async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnUnlockNode$pigeonVar_messageChannelSuffix';
@@ -679,6 +784,7 @@ class RlnHostApi {
           announceAddresses,
           announceAlias,
           gossipRgsServerUrl,
+          ethRpcUrl,
         ]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
@@ -1938,17 +2044,16 @@ class RlnHostApi {
       pigeonChannelCodec,
       binaryMessenger: pigeonVar_binaryMessenger,
     );
-    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
-      <Object?>[
-        nodeId,
-        ticker,
-        name,
-        details,
-        precision,
-        mediaFileDigest,
-        attachmentsFileDigests,
-      ],
-    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel
+        .send(<Object?>[
+          nodeId,
+          ticker,
+          name,
+          details,
+          precision,
+          mediaFileDigest,
+          attachmentsFileDigests,
+        ]);
     final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
 
     final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(

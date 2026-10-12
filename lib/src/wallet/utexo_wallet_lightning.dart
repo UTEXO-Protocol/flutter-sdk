@@ -8,6 +8,7 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
     int? minFinalCltvExpiryDelta,
     String? descriptionHash,
   }) async {
+    _assertLightningEnabled();
     _requireNonNegativeOptional(amountSats, 'amountSats');
     final invoice = await _createRlnLightningInvoice(
       amtMsat: WalletInputPolicy.satsToMsats(amountSats, 'amountSats'),
@@ -47,6 +48,7 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
   }
 
   Future<HodlInvoice> createHodlInvoice(CreateHodlInvoiceParams params) async {
+    _assertLightningEnabled();
     _requireNonEmpty(params.paymentHash, 'paymentHash');
     _requireNonNegativeOptional(params.amtMsat, 'amtMsat');
     _requireUInt32(params.expirySec, 'expirySec');
@@ -80,6 +82,7 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
     String paymentHash,
     String preimage,
   ) async {
+    _assertLightningEnabled();
     _requireNonEmpty(paymentHash, 'paymentHash');
     _requireNonEmpty(preimage, 'preimage');
     _requireUnlockedNode();
@@ -94,6 +97,7 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
   }
 
   Future<HodlInvoiceResult> cancelHodlInvoice(String paymentHash) async {
+    _assertLightningEnabled();
     _requireNonEmpty(paymentHash, 'paymentHash');
     _requireUnlockedNode();
     await _binding.rlnCancelHodlInvoice(paymentHash);
@@ -107,6 +111,7 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
   }
 
   Future<DecodedLightningInvoice> decodeLnInvoice(String invoice) async {
+    _assertLightningEnabled();
     return (await _decodeLnInvoiceRaw(invoice)).toDecodedLightningInvoice();
   }
 
@@ -116,6 +121,7 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
     String? assetId,
     int? assetAmount,
   }) async {
+    _assertLightningEnabled();
     _requireNonEmpty(lnInvoice, 'lnInvoice');
     _requireNonNegativeOptional(amount, 'amount');
     final payment = await _payRlnLightningInvoice(
@@ -152,11 +158,13 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
   }
 
   Future<RlnInvoiceStatusValue> getLightningReceiveStatus(String id) async {
+    _assertLightningEnabled();
     _requireNonEmpty(id, 'id');
     return normalizeInvoiceStatus((await _invoiceStatusRaw(id)).status);
   }
 
   Future<RlnPaymentStatusValue?> getLightningSendStatus(String id) async {
+    _assertLightningEnabled();
     _requireNonEmpty(id, 'id');
     final payment = await _getPaymentRaw(id);
     return tryNormalizePaymentStatus(payment.status);
@@ -169,6 +177,7 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
   }
 
   Future<RlnInvoiceStatusValue> invoiceStatus(String invoice) async {
+    _assertLightningEnabled();
     return normalizeInvoiceStatus((await _invoiceStatusRaw(invoice)).status);
   }
 
@@ -178,12 +187,14 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
   }
 
   Future<List<LightningPayment>> listPayments() async {
+    _assertLightningEnabled();
     return (await _listPaymentsRaw())
         .map((payment) => payment.toLightningPayment())
         .toList(growable: false);
   }
 
   Future<ListLightningPaymentsResponse> listLightningPayments() async {
+    _assertLightningEnabled();
     final payments = await _listPaymentsRaw();
     return ListLightningPaymentsResponse(
       payments: payments
@@ -197,13 +208,15 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
     );
   }
 
-  Future<void> connectPeer(String peerPubkeyAndAddr) {
+  Future<void> connectPeer(String peerPubkeyAndAddr) async {
+    _assertLightningEnabled();
     _requireNonEmpty(peerPubkeyAndAddr, 'peerPubkeyAndAddr');
     _requireUnlockedNode();
     return _binding.rlnConnectPeer(peerPubkeyAndAddr);
   }
 
-  Future<void> disconnectPeer(String peerPubkey) {
+  Future<void> disconnectPeer(String peerPubkey) async {
+    _assertLightningEnabled();
     _requireNonEmpty(peerPubkey, 'peerPubkey');
     _requireUnlockedNode();
     return _binding.rlnDisconnectPeer(peerPubkey);
@@ -215,6 +228,7 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
   }
 
   Future<List<LightningPeer>> listPeers() async {
+    _assertLightningEnabled();
     return (await _listPeersRaw())
         .map((peer) => peer.toLightningPeer())
         .toList(growable: false);
@@ -226,6 +240,7 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
   }
 
   Future<List<LightningChannel>> listChannels() async {
+    _assertLightningEnabled();
     return (await _listChannelsRaw())
         .map((channel) => channel.toLightningChannel())
         .toList(growable: false);
@@ -288,6 +303,7 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
     int? pushAssetAmount,
     String? virtualOpenMode,
   }) async {
+    _assertLightningEnabled();
     return (await _openChannelRaw(
       peerPubkeyAndOptAddr: peerPubkey,
       capacitySat: capacitySat,
@@ -308,14 +324,16 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
     required String channelId,
     required String peerPubkey,
     bool force = false,
-  }) {
+  }) async {
+    _assertLightningEnabled();
     _requireNonEmpty(channelId, 'channelId');
     _requireNonEmpty(peerPubkey, 'peerPubkey');
     _requireUnlockedNode();
     return _binding.rlnCloseChannel(channelId, peerPubkey, force);
   }
 
-  Future<String> getChannelId(String temporaryChannelId) {
+  Future<String> getChannelId(String temporaryChannelId) async {
+    _assertLightningEnabled();
     _requireNonEmpty(temporaryChannelId, 'temporaryChannelId');
     _requireUnlockedNode();
     return _binding.rlnGetChannelId(temporaryChannelId);
@@ -340,6 +358,7 @@ mixin _UtexoWalletLightning on _UtexoWalletInternals {
     String? assetId,
     int? assetAmount,
   }) async {
+    _assertLightningEnabled();
     return (await _keysendRaw(
       destPubkey: destPubkey,
       amtMsat: amtMsat,

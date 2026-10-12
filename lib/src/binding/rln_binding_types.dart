@@ -45,6 +45,7 @@ class IRLNUnlockParams {
     List<String> announceAddresses = const <String>[],
     this.announceAlias,
     this.gossipRgsServerUrl,
+    this.ethRpcUrl,
   }) : announceAddresses = List<String>.unmodifiable(announceAddresses);
 
   final String? bitcoindRpcUsername;
@@ -56,6 +57,9 @@ class IRLNUnlockParams {
   final List<String> announceAddresses;
   final String? announceAlias;
   final String? gossipRgsServerUrl;
+
+  /// Ethereum RPC endpoint used by the native BFA validator.
+  final String? ethRpcUrl;
 }
 
 class IRLNExternalSignerBootstrap {
@@ -153,6 +157,7 @@ class RlnOperationTimeoutPolicy {
     if (lower.contains('destroy')) return null;
     if (lower.contains('unlock')) return unlockTimeout;
     if (lower.contains('send') ||
+        lower.contains('burn') ||
         lower.contains('issue') ||
         lower.contains('inflate') ||
         lower.contains('utxo')) {

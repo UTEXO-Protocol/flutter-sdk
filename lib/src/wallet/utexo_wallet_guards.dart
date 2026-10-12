@@ -2,7 +2,19 @@ part of 'utexo_wallet.dart';
 
 mixin _UtexoWalletGuards on _UtexoWalletInternals {
   @override
+  void _assertLightningEnabled() {
+    LightningPolicy.requireEnabled(_config.network);
+  }
+
+  @override
   UtexoUnlockConfig _resolveUnlockConfig(UtexoUnlockConfig config) {
+    if (_signer is NativeExternalRlnSigner &&
+        _blankToNull(config.ethRpcUrl) != null) {
+      throw const UnsupportedWalletFeatureException(
+        'Native external signer unlock does not support BFA RPC configuration.',
+        feature: 'unlock.ethRpcUrl',
+      );
+    }
     if (_signer is NativeExternalRlnSigner &&
         _blankToNull(config.gossipRgsServerUrl) != null) {
       throw const UnsupportedWalletFeatureException(

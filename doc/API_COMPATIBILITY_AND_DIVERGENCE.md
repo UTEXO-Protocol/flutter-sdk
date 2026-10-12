@@ -6,6 +6,16 @@ changes are staged. It is a release gate, not background guidance.
 
 ## Source Precedence
 
+The October 9 reference is RN beta.36 (`a7e31b3eec8d71f4275c9655339641a113b0f7e6`)
+with RLN intentionally held at 0.15.0-beta.3. OCT-024/025 cover direct LSP
+mainnet guarding and exact transfer history. Dart `BigInt` is exact throughout;
+WebRGB history omits the JS numeric amount above 2^53 - 1, retaining decimal
+base units. Native history with unknown/malformed allocations fails closed,
+rather than RN's unknown-type-to-Any fallback. Flutter retains the host
+payout-chain allowlist that RN beta.36 removed, as an explicit stricter burn
+authorization policy. OCT-026 records missing native onchain-only startup;
+onchain release scope is not a claim of a Lightning-free native runtime.
+
 When RN source, core declarations, and native RLN artifacts disagree, use this
 order:
 
@@ -37,7 +47,28 @@ ship.
 | Durable credential storage | Consuming app owner plus Flutter maintainer | `SEC-009` | App-owned storage boundary; SDK owns only in-memory minimization and diagnostics. | `doc/INTEGRATION_SECURITY_AND_RELEASE.md`; release package validation requires `doc/SECURITY.md`. | SDK product scope expands to include a native secure-storage subsystem. |
 | Native builds/regtest in CI | Release owner | `TEST-017`, `G-12` | Keep native builds and funded regtest smokes local-only, but mandatory for release evidence. | `tool/test_release_candidate.sh` fails every skipped required gate; no debug override can make it release-eligible. | CI is provisioned with reliable simulators/emulators and a funded regtest stack. |
 
-## September Corrective Contract Changes
+## Pre-Release Contract Changes
+
+### October Qualification Follow-Up
+
+`OCT-017` removes sensitive endpoint path information from policy diagnostics
+and redacts identifiers after removing URL credentials/query data. Consumers
+must not use serialized diagnostic URLs as request targets. `LspError.cause`
+now uses a Dart super-parameter; its optional `Object?` type and public calling
+convention are unchanged. The AST snapshot is refreshed for that syntax-only
+constructor change; no constructor migration is needed.
+
+`OCT-023` requires `received`, `sent` and `fee` in raw transaction responses to
+be exact non-negative satoshi amounts. The actual native serializers already
+provide them. Advanced integrations and test doubles must stop omitting these
+fields; invalid native data now fails instead of being presented as zero.
+
+`OCT-019` validates decimal text before precision truncation and normalizes
+either sign before parsing. Valid forms such as `+.5` still truncate toward
+zero. The malformed-input safety divergence is recorded in the amount-helper
+row below.
+
+### September Changes
 
 These are intentional pre-release changes to the unpublished `0.1.0` line,
 not silent compatibility shims. Consumers must compile against the updated
@@ -124,7 +155,7 @@ semantics and the adaptation is tested.
 | Lifecycle credentials | RN methods accept password/mnemonic/native signer params near node lifecycle calls. | `UtexoWallet.init`, `unlock`, `reinit`, and `RlnSigner` strategies. | Flutter may use typed signer strategies, but must not persist credentials implicitly and must fail if required secrets are missing. | `test/utexo_wallet_test.dart::supports RN-style password signer in constructor`; `test/utexo_wallet_test.dart::supports RN-style native external signer lifecycle`; exact local native/platform candidate evidence in the release tracker. |
 | Network/default resolution | Core defaults plus native-only `utexo` mapping. | `UtexoWalletConfig`, `UtexoUnlockConfig`, `NetworkDefaults`, and one package-internal signed-invoice policy. | Flutter validates SDK-facing network names and maps aliases to the native invoice identity at the boundary: `utexo` is `signet`, and numeric aliases resolve exactly. This prevents valid native-decoded invoices from failing APay, relay, or bridge verification. | `test/utexo_wallet_test.dart::exports RN-style network defaults and unlock resolution`; `LSP-025`; canonical network vectors in `test/lsp_beta9_contract_test.dart`. |
 | Public network-name helpers | Core beta.9 still has an internal `toNetworkName` heuristic, while RN beta.32 root-exports exact `normalizeNetwork` plus callers such as `getNetworkVersions`. | `normalizeNetwork`, `getNetworkVersions`, and derivation-path helpers. | Flutter's stable public network-name path uses exact allowed values only. This is a deliberate safety tightening so malformed strings cannot silently select a real network. Core-only `toNetworkName` is not exported from the stable Flutter root because RN beta.32 does not export it. | `API-035`, `test/utexo_wallet_test.dart::matches RN-core seed derivation and utility behavior`. |
-| Amount unit helpers | RN beta.32 root-exports `toUnitsNumber` and `fromUnitsNumber`; the published core beta.9 package also contains non-root BigInt helpers. | Dart root exports the RN beta.32 package surface only. | `toUnitsNumber` fails above JavaScript `Number.MAX_SAFE_INTEGER`, matching RN's safe-number boundary. Core-only BigInt helpers are kept out of the stable root until RN exports them or product approves a Flutter extension surface. | `API-034`, `test/utexo_wallet_test.dart::matches RN-core seed derivation and utility behavior`. |
+| Amount unit helpers | RN root-exports `toUnitsNumber` and `fromUnitsNumber`; the published core beta.9 package also contains non-root BigInt helpers. | Dart preserves the root surface and validates the complete decimal text before truncation. | `toUnitsNumber` fails above JavaScript `Number.MAX_SAFE_INTEGER`. Empty or malformed values, hexadecimal and exponent notation are rejected instead of inheriting core's loose parsing. Valid extra decimal digits still truncate; negative precision raises typed validation. Core-only BigInt helpers remain outside the stable root. | `API-034`, `OCT-019`, `test/crypto_validation_contract_test.dart`, `test/utexo_wallet_test.dart::matches RN-core seed derivation and utility behavior`. |
 | LSP discovery document | RN beta.32/core beta.9 `GET /get_info` returns pubkey, network, optional host/port, supported assets, and u64 policy limits as decimal strings. | `LspGetInfoResponse` and `LspSupportedAsset` use Dart `BigInt` for u64 policy fields and strict required-field decoding. | Flutter maps the beta.9 shape directly. Malformed LSP/APay DTO fields fail closed instead of fabricating empty strings or zeroes. | `API-033`, `MODEL-018`, `MODEL-019`, `test/utexo_wallet_test.dart::createLsp discovers peer host and port from beta.9 get_info`, `test/utexo_wallet_test.dart::LSP get_info parser matches beta.9 shape and preserves u64`, `test/lsp_beta9_contract_test.dart::rejects incomplete relay responses and unknown statuses`. |
 | Detailed transfer refresh | RN beta.32 returns `RefreshTransfersResult`, keyed by signed rgb-lib batch-transfer ID, while `refreshWallet()` remains `void`. | Flutter exposes immutable `RefreshTransfersResult`/`RefreshedTransfer`/`RefreshFailure` and retains `refreshWallet()` as the compatibility wrapper. | Pigeon transports rows as typed records because map keys are not a portable generated-bridge contract; Dart reconstructs the signed-Int32 keyed map, rejects duplicates, and normalizes `WaitingBroadcast` through the shared domain policy. | `API-039`, `MODEL-021`, `MODEL-026`, `MODEL-027`, refresh vectors in `test/rln_client_contract_test.dart` and `test/utexo_wallet_test.dart`. |
 | Linked/canonical receive | Core beta.9 omits `rgb_invoice.asset_id` by default so the LSP can choose the linked canonical on-chain asset, with an explicit payout compatibility mode. | `ReceiveOnchainAsset.convertible` is the default; `payout` sends the Lightning payout asset ID. `ReceiveAssetResult` returns the resolved on-chain asset and conversion flag. | Dart enums replace TypeScript string unions; omission is preserved as omission, never JSON null. | `LSP-011`, `test/lsp_beta9_contract_test.dart::omits asset_id by default and preserves resolved bridge metadata`, and the payout-mode companion vector. |

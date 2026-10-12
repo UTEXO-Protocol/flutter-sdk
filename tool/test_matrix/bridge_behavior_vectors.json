@@ -23,6 +23,23 @@
     "platform-smoke-or-regtest-success"
   ],
   "families": {
+    "rgb_assets": {
+      "vectors": [
+        "dart-delegation",
+        "dart-platform-error-mapping",
+        "dart-malformed-wire",
+        "native-invalid-argument",
+        "native-unknown-node-error"
+      ],
+      "testIds": [
+        "test/rln_client_contract_test.dart::RlnClient bridge contract",
+        "test/bfa_wallet_contract_test.dart::canonical BFA methods enforce lifecycle and exact native contract",
+        "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::bfaBoundaryRejectsInvalidBurnBeforeNativeLookup",
+        "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::bfaFullUnsignedAmountReachesNodeLookupWithoutTruncation",
+        "example/ios/RunnerTests/RunnerTests.swift::testBfaBoundaryRejectsInvalidBurnBeforeNativeLookup",
+        "example/ios/RunnerTests/RunnerTests.swift::testBfaCapabilitiesAndFullUnsignedBoundary"
+      ]
+    },
     "backup": {
       "vectors": [
         "dart-delegation",

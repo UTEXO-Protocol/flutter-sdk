@@ -100,4 +100,6 @@ dependencies {
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.8.1")
 
     testImplementation("org.jetbrains.kotlin:kotlin-test")
+    // Host JVM tests use the real JSON implementation, not Android's throwing stub.
+    testImplementation("org.json:json:20240303")
 }

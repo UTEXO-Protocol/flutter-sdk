@@ -212,6 +212,9 @@ int toUnitsNumber(String value, int precision) {
 }
 
 double fromUnitsNumber(int units, int precision) {
+  if (precision < 0) {
+    throw const ValidationError('precision must be non-negative', 'precision');
+  }
   final base = BigInt.from(10).pow(precision).toDouble();
   return units / base;
 }
@@ -221,22 +224,25 @@ BigInt toUnitsBigInt(String value, int precision) {
     throw const ValidationError('precision must be non-negative', 'precision');
   }
   final normalized = value.trim();
-  final negative = normalized.startsWith('-');
-  final body = negative ? normalized.substring(1) : normalized;
-  final parts = body.split('.');
-  if (parts.length > 2) {
-    throw ValidationError('Invalid decimal amount: $value', 'value');
+  // Validate the whole value before trimming sub-unit digits. Otherwise inputs
+  // such as `1.2x` at precision zero silently become an apparently valid amount.
+  if (!RegExp(
+    r'^[+-]?(?:[0-9]+(?:\.[0-9]*)?|\.[0-9]+)$',
+  ).hasMatch(normalized)) {
+    throw const ValidationError('Invalid decimal amount.', 'value');
   }
-  final integerPart = parts.isEmpty || parts.first.isEmpty ? '0' : parts.first;
+  final negative = normalized.startsWith('-');
+  final body = negative || normalized.startsWith('+')
+      ? normalized.substring(1)
+      : normalized;
+  final parts = body.split('.');
+  final integerPart = parts.first.isEmpty ? '0' : parts.first;
   final fractionalPart = parts.length > 1 ? parts[1] : '';
   final paddedFraction = (fractionalPart + '0' * precision).substring(
     0,
     precision,
   );
-  final units = BigInt.tryParse(integerPart + paddedFraction);
-  if (units == null) {
-    throw ValidationError('Invalid decimal amount: $value', 'value');
-  }
+  final units = BigInt.parse(integerPart + paddedFraction);
   return negative ? -units : units;
 }
 

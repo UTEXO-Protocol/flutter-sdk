@@ -449,6 +449,10 @@ private open class RlnApiPigeonCodec : StandardMessageCodec() {
 
 /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface RlnHostApi {
+  fun rlnBfaCapabilities(): RlnWireResponse
+  fun rlnBurn(nodeId: Long, assetId: String, amount: String, burnRecipient: String?, feeRate: Long, minConfirmations: Long): RlnWireResponse
+  fun rlnGetConsignment(nodeId: Long, assetId: String, txid: String): String
+  fun rlnGetConsignmentPath(nodeId: Long, assetId: String, txid: String): String
   fun getNativeArtifactInfo(): RlnNativeArtifactInfo
   fun rlnCreateNode(storageDirPath: String, daemonListeningPort: Long, ldkPeerListeningPort: Long, network: String, maxMediaUploadSizeMb: Long, enableVirtualChannelsV0: Boolean?, virtualPeerPubkeys: List<String>?, vssUrl: String?, vssAllowHttp: Boolean, vssAllowEmptyRestore: Boolean, lspBaseUrl: String?, lspBearerToken: String?, reuseAddresses: Boolean): Long
   fun rlnInitNode(nodeId: Long, password: String, mnemonic: String?): String
@@ -458,7 +462,7 @@ interface RlnHostApi {
   fun rlnUnlockNodeWithNativeExternalSigner(nodeId: Long, signerId: Long, bitcoindRpcUsername: String?, bitcoindRpcPassword: String?, bitcoindRpcHost: String?, bitcoindRpcPort: Long?, indexerUrl: String?, proxyEndpoint: String?, announceAddresses: List<String>, announceAlias: String?, gossipRgsServerUrl: String?)
   fun rlnDestroyNativeExternalSigner(signerId: Long)
   fun rlnInitNodeWithExternalSigner(nodeId: Long, nodePublicKeyHex: String, accountXpubVanilla: String, accountXpubColored: String, masterFingerprint: String, protocolVersion: String, apiLevel: Long)
-  fun rlnUnlockNode(nodeId: Long, password: String, bitcoindRpcUsername: String?, bitcoindRpcPassword: String?, bitcoindRpcHost: String?, bitcoindRpcPort: Long?, indexerUrl: String?, proxyEndpoint: String?, announceAddresses: List<String>, announceAlias: String?, gossipRgsServerUrl: String?)
+  fun rlnUnlockNode(nodeId: Long, password: String, bitcoindRpcUsername: String?, bitcoindRpcPassword: String?, bitcoindRpcHost: String?, bitcoindRpcPort: Long?, indexerUrl: String?, proxyEndpoint: String?, announceAddresses: List<String>, announceAlias: String?, gossipRgsServerUrl: String?, ethRpcUrl: String?)
   fun rlnDestroyNode(nodeId: Long)
   fun rlnNodeInfo(nodeId: Long): RlnWireResponse
   fun rlnNetworkInfo(nodeId: Long): RlnWireResponse
@@ -523,6 +527,81 @@ interface RlnHostApi {
     fun setUp(binaryMessenger: BinaryMessenger, api: RlnHostApi?, messageChannelSuffix: String = "") {
       val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
       val taskQueue = binaryMessenger.makeBackgroundTaskQueue()
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBfaCapabilities$separatedMessageChannelSuffix", codec, taskQueue)
+        if (api != null) {
+          channel.setMessageHandler { _, reply ->
+            val wrapped: List<Any?> = try {
+              listOf(api.rlnBfaCapabilities())
+            } catch (exception: Throwable) {
+              RlnApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBurn$separatedMessageChannelSuffix", codec, taskQueue)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val nodeIdArg = args[0] as Long
+            val assetIdArg = args[1] as String
+            val amountArg = args[2] as String
+            val burnRecipientArg = args[3] as String?
+            val feeRateArg = args[4] as Long
+            val minConfirmationsArg = args[5] as Long
+            val wrapped: List<Any?> = try {
+              listOf(api.rlnBurn(nodeIdArg, assetIdArg, amountArg, burnRecipientArg, feeRateArg, minConfirmationsArg))
+            } catch (exception: Throwable) {
+              RlnApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnGetConsignment$separatedMessageChannelSuffix", codec, taskQueue)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val nodeIdArg = args[0] as Long
+            val assetIdArg = args[1] as String
+            val txidArg = args[2] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.rlnGetConsignment(nodeIdArg, assetIdArg, txidArg))
+            } catch (exception: Throwable) {
+              RlnApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnGetConsignmentPath$separatedMessageChannelSuffix", codec, taskQueue)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val nodeIdArg = args[0] as Long
+            val assetIdArg = args[1] as String
+            val txidArg = args[2] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.rlnGetConsignmentPath(nodeIdArg, assetIdArg, txidArg))
+            } catch (exception: Throwable) {
+              RlnApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
       run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.getNativeArtifactInfo$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {
@@ -730,8 +809,9 @@ interface RlnHostApi {
             val announceAddressesArg = args[8] as List<String>
             val announceAliasArg = args[9] as String?
             val gossipRgsServerUrlArg = args[10] as String?
+            val ethRpcUrlArg = args[11] as String?
             val wrapped: List<Any?> = try {
-              api.rlnUnlockNode(nodeIdArg, passwordArg, bitcoindRpcUsernameArg, bitcoindRpcPasswordArg, bitcoindRpcHostArg, bitcoindRpcPortArg, indexerUrlArg, proxyEndpointArg, announceAddressesArg, announceAliasArg, gossipRgsServerUrlArg)
+              api.rlnUnlockNode(nodeIdArg, passwordArg, bitcoindRpcUsernameArg, bitcoindRpcPasswordArg, bitcoindRpcHostArg, bitcoindRpcPortArg, indexerUrlArg, proxyEndpointArg, announceAddressesArg, announceAliasArg, gossipRgsServerUrlArg, ethRpcUrlArg)
               listOf(null)
             } catch (exception: Throwable) {
               RlnApiPigeonUtils.wrapError(exception)

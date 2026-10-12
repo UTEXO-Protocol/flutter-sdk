@@ -58,6 +58,39 @@ void main() {
   });
 
   group('primitive value validation', () {
+    test(
+      'amount conversion rejects malformed decimal text before truncation',
+      () {
+        for (final value in [
+          '',
+          ' ',
+          '.',
+          '-',
+          '+',
+          '0x10',
+          '1.2x',
+          '1e3',
+          '1..2',
+        ]) {
+          for (final precision in [0, 2]) {
+            expect(
+              () => toUnitsNumber(value, precision),
+              throwsA(isA<ValidationError>()),
+              reason: '$value at precision $precision',
+            );
+          }
+        }
+        expect(toUnitsNumber(' +1.23 ', 2), 123);
+        expect(toUnitsNumber('+.5', 0), 0);
+        expect(toUnitsNumber('+.5', 2), 50);
+        expect(toUnitsNumber('.5', 2), 50);
+        expect(toUnitsNumber('-.5', 2), -50);
+        expect(toUnitsNumber('1.2399', 2), 123);
+        expect(toUnitsNumber('1.', 2), 100);
+        expect(() => fromUnitsNumber(10, -1), throwsA(isA<ValidationError>()));
+      },
+    );
+
     test('validates mnemonic, base64, PSBT, hex, and required strings', () {
       validateMnemonic(_mnemonic);
       validateBip39Mnemonic(_mnemonic);
@@ -125,6 +158,26 @@ void main() {
   });
 
   group('key helper boundaries', () {
+    test('mixed key derivation awaits RN validation fallback', () async {
+      await expectLater(
+        deriveKeysFromMnemonicOrSeed(
+          'regtest',
+          List.filled(12, 'invalid').join(' '),
+        ),
+        throwsA(
+          isA<ValidationError>().having(
+            (error) => error.field,
+            'field',
+            'seed',
+          ),
+        ),
+      );
+      await expectLater(
+        generateKeys('unsupported'),
+        throwsA(isA<ValidationError>()),
+      );
+    });
+
     test(
       'normalizes mutable seed inputs defensively and rejects malformed seeds',
       () {

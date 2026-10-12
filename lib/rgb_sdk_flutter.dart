@@ -59,10 +59,13 @@ export 'src/lsp/lsp_wallet.dart' show ILspWallet;
 export 'src/lsp/utexo_lsp.dart';
 export 'src/lsp/utexo_lsp_client.dart'
     show IUtexoLspClient, LspError, UtexoLspClient;
+export 'src/models/burn_models.dart'
+    show BfaCapabilities, BurnParams, BurnResult;
 export 'src/models/utexo_core_models.dart'
     show
         Assignment,
         CoreAsset,
+        CoreAssetBfa,
         CoreAssetBalance,
         CoreAssetCfa,
         CoreAssetIfa,
@@ -89,12 +92,14 @@ export 'src/models/utexo_core_models.dart'
         LightningPayment,
         LightningPeer,
         SendPaymentResult,
+        TransferAmount,
         Outpoint,
         WalletNetworkInfo,
         WalletNodeInfo,
         parseCoreAssignment,
         parseCoreOutpoint;
 export 'src/native_artifact_info.dart';
+export 'src/wallet/burn_operations.dart';
 export 'src/wallet/network_defaults.dart'
     show NetworkEndpoints, getNetworkDefaults;
 export 'src/wallet/rln_signers.dart'

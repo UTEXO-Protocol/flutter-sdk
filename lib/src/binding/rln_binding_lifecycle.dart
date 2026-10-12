@@ -79,6 +79,7 @@ mixin _RlnBindingLifecycle on _RlnBindingInternals {
           announceAddresses: resolvedParams.announceAddresses,
           announceAlias: resolvedParams.announceAlias,
           gossipRgsServerUrl: resolvedParams.gossipRgsServerUrl,
+          ethRpcUrl: resolvedParams.ethRpcUrl,
         );
       } catch (error) {
         if (!_isConflictError(error) || !await _probeNodeReady(nodeId)) {
@@ -171,6 +172,12 @@ mixin _RlnBindingLifecycle on _RlnBindingInternals {
   ]) {
     return _withNodeQueue('rlnUnlockNodeWithNativeExternalSigner', () async {
       final resolvedParams = params ?? IRLNUnlockParams();
+      if (resolvedParams.ethRpcUrl != null) {
+        throw const WalletValidationException(
+          'ethRpcUrl is not supported by external-signer unlock.',
+          field: 'ethRpcUrl',
+        );
+      }
       final nodeId = _requireNodeId();
       _assertRegularOpsAllowed();
       _unlockConflictNormalized = false;

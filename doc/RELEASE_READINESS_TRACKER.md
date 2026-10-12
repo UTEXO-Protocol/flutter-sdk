@@ -7,6 +7,302 @@ were removed because they overlapped and had drifted from the implementation.
 
 ## Document Control
 
+### October 9 Onchain Release Scope (Active)
+
+User decision: keep RLN **0.15.0-beta.3** and its exact archives. Do not upgrade
+to 0.16 or describe its onchain-only startup as behavior of the pinned binary.
+RN dev is now `a7e31b3eec8d71f4275c9655339641a113b0f7e6` (beta.36).
+Lightning/LSP/APay success qualification is deferred for this release, not
+passed. Mainnet denial and no-side-effect regressions remain mandatory;
+regtest/signet Lightning APIs stay available for RN API compatibility.
+Existing onchain, BFA/Ethereum, VSS, lifecycle, clean-consumer and platform
+evidence requirements remain. No gate is weakened to manufacture a full-SDK
+release pass. The current 0.15 binary still starts its legacy Lightning runtime
+on mainnet; Dart guards cannot backport 0.16 startup isolation. This remains an
+accepted native-runtime limitation, independently of PKG-006. It does not mean
+that unused Lightning API support is itself a proven onchain funds defect.
+
+| ID | Pri | Status | Finding and evidence | Required outcome |
+| --- | --- | --- | --- | --- |
+| OCT-024 | P1 | Verified | Direct UtexoLsp construction bypassed the canonical wallet's mainnet guard and could perform HTTP requests before rejection. Reproduced with a counting transport. | Shared policy rejects before client allocation and at all 18 orchestration methods. Matrix-bound tests prove zero wallet/HTTP effects on mainnet, network-change races at discovery/polling, and unchanged non-mainnet construction. Five regressions pass in the full 407-test suite. Low-level standalone HTTP transport intentionally has no wallet policy; funded Lightning success is not claimed. |
+| OCT-025 | P1 | Verified | RN beta.36 transfer history distinguishes requested outgoing amount from change/batch allocations, preserves decimal UInt64 and adds InflationRight parsing. Flutter previously summed outgoing change and rejected large WebRGB history values. | All six transfer kinds, unknown versus zero, full UInt64, malformed/overflow values and WebRGB JSON boundaries pass regression tests. Live RN drift, API snapshot and documentation gates pass without changing RLN. Added real transfer assertions distinguishing 100 sent from 900 change to the funded harness; their platform execution remains OCT-007, not claimed here. |
+| OCT-026 | P1 | Accepted constraint | User explicitly retains RLN 0.15.0-beta.3. Its mainnet guards reject Lightning methods but do not remove the background Lightning runtime; 0.16 startup isolation is not in this binary. | Keep native archives unchanged and describe this as an onchain-feature release, not a Lightning-free native runtime. Re-evaluate native isolation only when an artifact upgrade is authorized. PKG-006 and remaining qualification gates still prevent a mainnet-ready claim. |
+| OCT-027 | P1 | Blocked upstream | RLN 0.15 Cargo.lock pins rgb-lib aaf5b52 and rgb-consensus 2faf6118. The latter selects the first event for an OpId before comparing its amount: an earlier wrong-amount lock can hide a later correctly backed mint and invalidate its lane. Upstream WDK reproduced this; rgb-lib PR103 remains open. | Native validation must select any matching reason/amount, with missing-lock/wrong-only rejection and valid-after-wrong settlement tests. Source graph and exact correction were independently inspected; no new Flutter device reproduction is claimed. Fixing this needs an approved native artifact change. Never filter events, credit funds, or replace native validation in Dart. |
+
+Flutter retains its host payout-chain allowlist for irreversible WebRGB burns.
+RN beta.36 removes that requirement in favor of CAIP-2 syntax alone. This is an
+explicit, stricter host authorization policy, not hidden parity or proof of an
+external payout. Scope changes do not erase unresolved historical findings.
+
+#### Latest Working-Tree Verification
+
+These results supersede the earlier October 9 Dart/static/build results below,
+not their remaining execution requirements. Candidate: uncommitted changes over
+`734f5ae6fb175bbf2d8500a9b43f29b5363c1e52`, Flutter 3.47.0 / Dart 3.13.0,
+Xcode 27.0. No exact-commit release pass, commit or push is claimed.
+
+| Gate | Measured result | Evidence boundary |
+| --- | --- | --- |
+| Dart suite and coverage | 407 tests pass; package 87.9%, wallet 85.9%, LSP 88.4%, crypto 91.1%, models 87.5%, WebRGB 97.1%; all floors pass | `/private/tmp/rgb-sdk-onchain-20261009-full-tests.log`, fresh coverage/evidence.json. Fixtures prove contracts, not native service success. |
+| Strict analyzer / Dartdoc | Zero analyzer diagnostics with fatal infos/warnings; three libraries documented with zero warnings/errors | `/private/tmp/rgb-sdk-onchain-20261009-dartdoc.log`. |
+| Android bridge JVM | 30 tests pass | `build/test-reports/native/native-android-20261009T091645Z-734f5ae.json`; dirty-tree host evidence, not installed execution. Later Dart/integration changes require final-candidate rerun. |
+| Generic iOS simulator application and XCTest bundle | `xcodebuild build-for-testing` succeeds; lipo independently confirms arm64 and x86_64 in both Runner and rgb_sdk_flutter.framework | `/private/tmp/rgb-sdk-onchain-20261009-ios-build.log`. Does not execute XCTest or qualify a clean external consumer. |
+| Swift wire codec / generation / API | Host wire-codec regressions, Pigeon identical regeneration, baseline generation, AST API snapshot, RN live source/method/export drift, 232-symbol public docs and package/language/hardening gates pass | RN beta.36 at a7e31b3; no changed native archive, no runtime equivalence inferred. |
+| Artifact gates | Internal-beta artifact/license/OSV/ABI-symbol checks pass with explicit PKG-006 warnings | `/private/tmp/rgb-sdk-onchain-20261009-supply.log`. Missing iOS signature, trusted-key Android verification and reproducible source attestations remain accepted constraints, not a production-mode pass. |
+| Behavior-vector gate | Fails for rgb_assets and vss missing platform-smoke-or-regtest-success evidence | The gate remains enabled. BFA/Ethereum/VSS real success and recovery evidence, installed-platform smokes, clean consumers and full fresh audit remain unfinished. |
+
+Dedicated SDK-device boot and a local Zeus candidate commit were requested;
+neither has been performed without the requested confirmation. No other task's
+devices, stack or data were reused. The full-SDK release verdict remains NO-GO.
+
+#### Pinned BFA Validation Evidence
+
+- RLN tag `v0.15.0-beta.3`, Cargo.lock: rgb-lib
+  `aaf5b52f63ff2ee966707f099aacadd5f2e6037f`; rgb-consensus
+  `2faf6118b2f5fe30dd90dd5244d5a7dc32bcd757`.
+- [Consensus correction](https://github.com/UTEXO-Protocol/rgb-consensus-s-bfa/compare/2faf6118b2f5fe30dd90dd5244d5a7dc32bcd757...c250a9e37b0076c86940853ebeb0b007b6e63e1f)
+  changes `src/vm/ether_extension.rs` from first-reason-match selection to
+  reason-and-amount matching across events, with order/negative regressions.
+- [rgb-lib PR103](https://github.com/UTEXO-Protocol/rgb-lib/pull/103) is open
+  and unmerged on October 9. It adds funded mint/lane acceptance cases.
+- [WDK qualification](https://github.com/UTEXO-Protocol/wdk-rgb-lightning/blob/0d44024e4949f399cbd24fd55c4d5c9b48dfda02/BFA-QUALIFICATION.md)
+  is upstream host evidence, not Flutter mobile evidence. Its fixture uses the
+  same rgb-lib graph but its external unlock requires RLN PR192, absent from
+  our published binary. Do not run that external-signer fixture unchanged or
+  silently substitute WDK's newer native build.
+- A compatible password-signer Flutter BFA/Ethereum fixture and independent
+  burn recovery verifier still need implementation/execution. The SDK-owned
+  Bitcoin/Electrum/proxy stack alone cannot produce this evidence.
+
+### October 9 Storage-Unblocked Qualification (Active)
+
+Resumed with 32 GiB available after the user-requested build-cache cleanup.
+The worktree remains uncommitted over `734f5ae6fb175bbf2d8500a9b43f29b5363c1e52`.
+Rerunning the final Dart coverage suite, Android bridge regressions, iOS
+XCTest/builds and packaging in that order. Results below from October 8 remain
+historical until each new command completes. No service success is inferred
+from newly available disk space. Dedicated SDK devices and a local Zeus
+candidate commit were requested separately; no foreign devices are reused.
+
+| Gate | October 9 result | Evidence boundary |
+| --- | --- | --- |
+| Full Dart suite | 393 tests pass; all coverage floors pass: package 87.8%, wallet 85.9%, LSP 88.1%, crypto 91.1%, models 87.2%, WebRGB 97.3% | Fresh `coverage/evidence.json` binds source inputs and LCOV. Not native behavioral parity. |
+| Android bridge JVM | 30 tests pass, including both-signer unlock rollback classification | `build/test-reports/native/native-android-20261009T060243Z-734f5ae.json`; dirty-tree evidence. Flutter's concurrent generated iOS project migration also changes its candidate inventory; rerun on the final candidate. |
+| Complete generic iOS simulator build | Application and XCTest bundle build successfully for arm64 and x86_64; `lipo -info` verifies both slices in Runner and the plugin framework | `/private/tmp/rgb-sdk-qualification-20261009-ios-build.log`; build-for-testing only, not XCTest execution or a clean-consumer archive. |
+| iOS device release build | `flutter build ios --release --no-codesign` passes; Runner.app is 139.9 MB | Unsigned example build, not physical-device installation, App Store signing, or an independent consumer. Log: `/private/tmp/rgb-sdk-qualification-20261009-ios-release.log`. |
+| Android release build | `flutter build apk --release --target-platform android-arm64` passes; APK is 224.3 MB | Example ARM64 build, not installed execution or an independent consumer. Log: `/private/tmp/rgb-sdk-qualification-20261009-android-release.log`. |
+| Swift host wire codec | Exact UInt64, integer, boolean and nested-null regressions pass with compiler warnings fatal | Host executable only, not XCTest execution. |
+| Strict analyzer and tracker governance | Zero analyzer diagnostics; ledger counts and remaining groups validate | Static validation does not close platform behavior gates. |
+| SDK-owned regtest | Bitcoin RPC/Electrum startup checks pass; RGB proxy server.info returns version 0.3.0, protocol 0.2 | Only rgb-sdk-flutter-regtest was started, retaining its own data at ports 18444/50002/3013. This establishes service health, not funded mobile flows. |
+| Flutter 3.47 packaging integration | Flutter regenerated the example Xcode project/scheme for its Swift Package Manager framework integration and Android Gradle compatibility flags | CocoaPods fallback works, but native SPM support is absent. Flutter also warns about future removal of support for Gradle 8.14, AGP 8.11.1 and Kotlin 2.2.20. No warning-bypass flags or global tool changes were used; follow-up remains with OCT-013 packaging qualification. |
+
+OCT-022 and OCT-023 now have their previously missing regression execution and
+are Verified. The newly available storage does not supply real BFA/Ethereum,
+LSP/APay/VSS services, a clean committed candidate, or simulator execution.
+Docker initially failed to answer status queries, then recovered after a
+start request (which reported already running); no Docker restart/reset was
+performed. SDK container labels and bind mounts were verified before startup.
+No foreign stack or simulator was reused. Approximately 22 GiB remained after
+the native builds. Device execution and exact committed-candidate consumer
+qualification await the requested dedicated-device/local-commit decisions.
+
+### October 8 Qualification Follow-Up (Historical)
+
+Latest follow-up result: **NO-GO; qualification is incomplete**. The isolated
+Flutter 3.47.0 `debug_unpack_ios` target passed for `arm64 x86_64`, and `lipo
+-info` confirmed both slices. This removes the reproduced toolchain defect as
+the immediate blocker, not the obligation to build clean consumers. Its 84 MiB
+disposable output was removed after verification when disk space became critical.
+
+Strict analysis passed with warnings/infos fatal. The first full Dart run on
+3.47.0 passed 387 tests. Subsequent focused regression runs verified OCT-017
+through OCT-021, but the final full coverage rerun failed before its first test
+with `errno = 28` while copying Flutter compiler output. It was interrupted;
+there is no final full-suite pass or fresh usable coverage report. Available
+disk dropped to 188 MiB (235 MiB after interruption). Only this pass's disposable
+framework output and SDK test cache were removed; no foreign cache/data was touched.
+The new OCT-022 Android regression has not run. No iOS XCTest, installed Android
+execution, funded/unfunded smoke or clean consumer archive was run in this follow-up.
+
+The final bounded checks pass: strict analysis, API snapshot, codebase
+hardening, release-package policy and RN source parity against live dev
+`3bb39df43f28`. Pigeon was regenerated and formatted with Dart 3.13, not hand
+edited. Hardening initially failed because its nested analyzer could not create
+the telemetry file (`errno 28`), not because of a source diagnostic or PATH
+problem. The SDK example's disposable simulator output and test cache were also
+removed to permit saving this work; reports and source were retained. This
+cleanup does not provide the space required for full qualification.
+
+Direct Dart probes import the real model/validation implementation: OCT-023
+preserves one valid transaction and rejects 18 malformed amount cases; OCT-019
+preserves seven valid signed-decimal/truncation cases and rejects 18 malformed
+cases. The signed `+.5` precision-zero case failed before its follow-up fix.
+These probes supplement, not replace, the committed Flutter regressions or the
+final full suite. OCT-022 and OCT-023 remain In progress until their remaining
+regressions execute. No current clean-candidate test report is claimed.
+
+### Fresh Source Audit Coverage
+
+[SOURCE_AUDIT_2026_10_08.json](SOURCE_AUDIT_2026_10_08.json) inventories 264
+repository-owned tracked/unignored files with content hashes, excluding the
+receipt itself. It records 98 files read in full in this follow-up, including
+all 75 handwritten Dart/native runtime files. Six generated bridge/baseline
+files are separately classified, not claimed as manually reviewed. The other
+160 files remain `pending-fresh-full-review`, including partially inspected
+tests, integration harnesses, tools, platform/example configuration, docs and
+assets. Reading and hashing a file are not execution evidence. This is not a
+claim that the complete unchanged repository has been independently audited.
+OCT-006 remains unresolved and owns completion of the receipt's pending rows.
+
+### Qualification Prerequisites
+
+| Requested gate | What is proven in this follow-up | What still prevents closure |
+| --- | --- | --- |
+| Funded BFA and recovery | Journal/consent fault regressions from catch-up; source review of dispatch, journal and native adapters | Non-production issued BFA, funded sending/receiving wallets, independent proof/recovery verifier and both-platform real burn/proof/process-death execution. A method-name or mock success does not meet this gate. |
+| Ethereum validation | Password ethRpcUrl forwarding and external-signer rejection are implemented | Approved non-production RPC/chain, bridge contract/reject-list fixture and positive/negative native validation. No credentials or production payout is requested or assumed. |
+| LSP/APay/linked assets | Source review and cryptographic/contract regressions | Real compatible LSP/APay deployment, its declared peer/network and canonical-linked asset policy, funded peers and settle/fail/restart scenarios. Provide configuration file locations, not secrets in chat. |
+| VSS | Configuration/lifecycle surface is present; success vector remains red | Dedicated VSS service/configuration, authenticated success, fence/conflict and recovery scenarios. Existing Bitcoin/Electrum/proxy Compose is not VSS. |
+| Both-platform execution | Earlier Android JVM pass and iOS build-only evidence remain historical for later changes | At least the existing 10 GiB disk minimum, SDK-owned devices, iOS XCTest, updated Android JVM tests and funded/unfunded platform smokes. Other tasks' devices are not reused. |
+| Dual-architecture packaging | Flutter 3.47 debug_unpack_ios succeeds and lipo verifies arm64 plus x86_64 | Complete generic simulator application and consumer build; component success is insufficient. |
+| Clean consumers/exact candidate | Runner now stops on disk-preflight failure; package/API/RN policy gates pass | Committed clean candidate, sufficient disk, fresh path/Git consumers with Android/iOS archives, final suite/coverage and immutable reports. |
+| Complete fresh audit | 98 fully read files, 75 of them handwritten runtime sources | Finish 160 pending receipt rows and review findings; source audit itself is not blocked by missing services and is not marked complete. |
+
+Local evidence: `/private/tmp/rgb-sdk-qualification-347-tests.log` (387-test
+pass before the later fixes), `/private/tmp/rgb-sdk-qualification-final-tests.log`
+(disk-full failure), and `/private/tmp/rgb-sdk-lipo-347-qualification.log`
+(successful target, no console output). All are development evidence on a dirty
+tree, not exact-commit release attestations.
+
+The follow-up retains all previous uncommitted work and all unresolved gates.
+It is not a new clean candidate. Disk preflight found only 2.3 GiB free, below
+the existing 10 GiB release-runner minimum. No foreign simulator, stack, cache,
+wallet directory or credential was reused/deleted. Large consumer/runtime runs
+must wait for sufficient space; source review and bounded checks continue.
+
+Flutter 3.47.0 is already installed, clean, and matches the official tag at
+`4cf24164269a5ebf0c16a028a00727d0e77bbb05`. Its Darwin framework builder includes
+the upstream per-architecture lipo verification fix (flutter/flutter#188625).
+The repository-local qualification pin is updated; global tooling and package
+minimum versions are unchanged. A new complete dual-architecture build remains
+required before OCT-013 can close. The initial official storage manifest lookup
+returned HTTP 404; the Git tag and installed source were verified instead.
+
+Service prerequisites remain explicit: the SDK-owned Compose project provides
+Bitcoin, Electrum and RGB proxy only, not a BFA issuer, Ethereum validation
+fixture, funded RLN/LSP peers, APay registry or VSS service. Test doubles are
+not substitutes. Configuration locations and sufficient disk space have been
+requested from the user; no mainnet mutation will be used as qualification.
+
+## October 8 Upstream Catch-Up Ledger
+
+The original October 8 reference was RN `dev` at
+`3bb39df43f281fe0c4723d588c496ddc01e5176e` (`1.0.0-beta.34`), core
+`1.0.0-beta.9`, and RLN `0.15.0-beta.3`. The clean starting Flutter commit is
+`734f5ae6fb175bbf2d8500a9b43f29b5363c1e52`. September evidence below remains
+historical; it is not qualification of this new reference. Verdict: **NO-GO**
+until the open implementation and evidence requirements below are satisfied.
+
+| ID | Pri | Status | Finding and evidence | Required outcome |
+| --- | --- | --- | --- | --- |
+| OCT-001 | P1 | In progress | Updated RN beta.34/RLN 0.15.0-beta.3 pins, source commit, archive sizes, SHA-256, installed iOS hashes and Android ABIs. Both native bridges compile; 29 Android JVM tests pass. | Artifact and internal-beta supply-chain checks pass. Fresh installed-platform execution and consumer archives remain open under OCT-007; generic dual-architecture simulator packaging is blocked under OCT-013. |
+| OCT-002 | P1 | In progress | Implemented BFA assets, four native/wallet methods, full unsigned amounts, signer restrictions, and password `ethRpcUrl`. Android serialization/boundary tests pass; corresponding XCTest tests compile. | Execute real BFA receive/burn, saved-proof retrieval, Ethereum RPC/reject-list, and restart cases on both platforms. No BFA issuance API is present in RN's public wallet, and none is fabricated here. |
+| OCT-003 | P0 | Verified | Implemented wallet-scoped durable BurnOperations: prepared/pending/complete/cancelled states, shared queue, uncertain-outcome fence, retry-persistence-only, strict legacy normalization and independent-verifier recovery contract. | Dart fault tests cover failures before/after durable writes, revocation at both pre-dispatch writes, result persistence failure, wrapper/restart recovery and corrupted records. This closes the journal contract defect, not funded native recovery qualification (OCT-002/007). No production in-memory store or proof verifier is supplied. |
+| OCT-004 | P1 | In progress | Implemented separate optional WebRGB library and all RN provider methods. Typed wire results, revision-bound consent, chain allowlist, JS-safe amounts, 16 MiB proof limit/Keccak, native-error redaction and revoke/re-enable tests pass. | WebRGB Dart coverage is 97.3%. Complete native-backed provider conformance and funded burn/proof flows on both platforms. Host transport, authenticated origin, durable storage and independent asset/bridge-route approval remain real integration obligations. |
+| OCT-005 | P1 | Verified | All 22 RN canonical mainnet Lightning entrypoints reject with LIGHTNING_DISABLED_ON_MAINNET before native dispatch. Onchain access remains allowed. | Exhaustive entrypoint regression plus unchanged non-mainnet wallet tests pass. This is a policy contract, not permission to use this candidate with mainnet funds. |
+| OCT-006 | P1 | In progress | Static parity covers 66 RlnClient methods, 104 wallet methods, core/LSP contracts, BFA exports and the optional provider. Latest RN drift check, Pigeon regeneration and API snapshot pass. Fresh source receipt covers all 75 handwritten runtime files plus 23 other files. | Source/method checks are not behavioral equivalence. Complete 160 pending repository-file reviews; full new native success vectors and unresolved service/platform evidence remain open. The complete unchanged repository is not yet independently re-audited. |
+| OCT-007 | P1 | Open | Existing current-candidate gaps (including TEST-036/TEST-042, VSS, live LSP/APay, clean consumers, restart and funded/unfunded platform evidence) remain unresolved. | Execute gates on this candidate, retain explicit blockers with concrete evidence. Existing accepted constraints remain in force and cannot justify a mainnet production claim. |
+| OCT-008 | P1 | Verified | iOS compilation exposed the newly added native LightningUnsupportedOnMainnet enum case. It is now explicitly mapped as non-retryable unsupported in Swift/Kotlin/Dart without a masking default branch. | iOS XCTest target build succeeds; Android enum assertions and Dart native-identity/category/retryability tests pass. XCTest execution remains OCT-007. |
+| OCT-009 | P1 | Verified | WebRGB proof hashing initially captured controller/session objects in the isolate closure, making valid proof reads fail. | Top-level immutable-input isolate helper; published Keccak known vector and concurrent distinct proof tests pass. |
+| OCT-010 | P2 | Verified | Fault tests found raw journal type errors, an ignored advanced external-signer eth RPC option, and stale documentation claiming bitcoin is an accepted wallet network. | Typed fail-closed validation, explicit unsupported option rejection, and truthful network documentation are implemented and covered by the passing suite. |
+| OCT-011 | P2 | Verified | WebRGB getAddress initially returned a Dart record, unlike every other JSON-serializable provider result. | Replaced with immutable WebRgbAddressResult.toJson; tests assert exact address/info/assets/balance/transfer/status/invoice wire shapes. |
+| OCT-012 | P2 | Verified | Adding BFA pushed native plugin responsibilities beyond the existing hardening size limit. | Extracted pure asset serialization into RlnAssetMapper on both platforms; preserved existing integer/media/linked-asset mappings, added BFA serializer tests, refreshed CocoaPods and compiled both bridges. No lifecycle ownership moved. |
+| OCT-013 | P1 | In progress | Flutter 3.47.0 includes upstream flutter/flutter#188625. On October 9, Xcode 27.0 (27A266a) successfully builds the complete generic simulator app and XCTest bundle; lipo verifies arm64 and x86_64 in Runner and the SDK framework. No global-tool patch or architecture exclusion is used. | Clean path/Git consumer archives remain required. Flutter-generated SPM framework integration builds with this plugin's CocoaPods fallback; native plugin SPM support is absent and Flutter warns about future fallback removal. Do not equate build-for-testing with runtime execution. |
+| OCT-014 | P2 | Verified | Parity extraction treated a colon inside an inferred-return method body as a return annotation; optional WebRGB peer resolution also lacked a lockfile check. | Restrict annotations to the immediate signature, explicitly recognize inferred return shape, pin reviewed WebRGB source hashes and resolved 0.1.0 archive/integrity. Live-dev drift check and reviewed tarball verification pass. |
+| OCT-015 | P1 | Verified | Independent review reproduced native InvalidRequest mapping to WebRGB INTERNAL_ERROR instead of INVALID_PARAMS. Generic native NotFound cannot safely identify an unknown asset, and named-asset receive lacked preflight validation. | Preserve typed BadRequestError as sanitized INVALID_PARAMS; verify named assets against wallet inventory before blind-receive consent or balance lookup, while allowing no-asset receiving. Regression failed before the fix and passes afterward; do not infer subjects from native error text. |
+| OCT-016 | P1 | Verified | Final snapshot review found the line-based export collector omitted multiline directives, including BurnParams/BurnResult, crypto/signer exports and WebRGB errors. Repeated exports also used last-write visibility instead of union. | Replaced it with an analyzer-AST export/part graph, show/hide propagation, union and cycle convergence. Five regressions include the real package entrypoints and fail-closed conditional/external exports. Regenerated the snapshot with no caller migration: this change repairs gate coverage, not runtime API behavior. |
+| OCT-017 | P1 | Verified | Endpoint sanitization returned early after removing query/credentials, leaking path payment hashes. Transport-policy errors independently retained sensitive callback paths. HTTP diagnostics now redact after URI stripping; policy diagnostics expose only the origin. | Both focused regressions failed before their fixes and pass afterward, covering toString/toJson, credentials, query, fragment and path identity. Final full-suite rerun is separately blocked by disk. |
+| OCT-018 | P2 | Verified | generateKeys and deriveKeysFromMnemonicOrSeed returned futures inside try blocks without awaiting them. Async errors bypassed wrapping and the RN-compatible mnemonic-to-seed fallback. | Await both calls; preserve typed validation and redact generation failures. Focused fallback/error-contract regression passes; strict analysis confirms the missing-await warnings are gone. |
+| OCT-019 | P1 | Verified | Unit conversion truncated before validating text, accepting malformed values such as 1.2x at lower precision and empty input as zero. Negative fromUnitsNumber precision leaked a RangeError. A follow-up probe also found +.5 at precision zero failed instead of truncating to zero. | Validate the whole decimal grammar and normalize both signs before parsing; return typed invalid precision. Focused regressions passed; the signed-decimal probe failed before and passes after the follow-up (7 valid and 18 invalid vectors). Final full-suite evidence remains separate. Stricter malformed-input handling is documented as an RN safety divergence. |
+| OCT-020 | P2 | Verified | Malformed compressed secp256k1 points in an APay proof leaked PointyCastle ArgumentError/StateError instead of the declared quote-verification failure. | Wrap only point-decoding argument/state failures in the typed quote exception. Two invalid-point vectors failed before and pass afterward. This does not constitute real APay service execution. |
+| OCT-021 | P1 | Verified | The release disk preflight recorded failure but continued into consumers/tests because run_step intentionally accumulates failures. It also ran after dependency resolution. | Move the prerequisite before dependency/build work and stop on its recorded nonzero status without disabling nested errexit. Isolated regression failed before the fix; all five runner safety tests pass. The 10 GiB minimum is unchanged. |
+| OCT-022 | P2 | Verified | Android unlock rollback called bridgeError on an existing FlutterError, replacing invalidArgument/field/category with FlutterError/native. Both password and external-signer incomplete-RPC paths are affected; Swift already preserves classified errors. | Preservation and the two-signer rollback regression pass in the October 9 native Android suite: 30 tests, zero failures, including taxonomy and lifecycle tests. This verifies the regression, not installed Android or exact clean-candidate qualification. |
+| OCT-023 | P2 | Verified | The transaction wire decoder fabricated zero received/sent/fee values when required native fields were missing or malformed. Both pinned platform serializers supply these fields. | Require exact non-negative satoshis; updated two old exact-integer fixtures to include sent. The committed malformed-amount regression passes in the October 9 full 393-test Dart coverage run, and all coverage floors pass. |
+
+Implementation sequence: OCT-001/002/005, OCT-003/004, then OCT-006/007 and an
+independent review of the resulting diff. Update individual rows with measured
+verification, not simply source completion. No application changes are part of
+this SDK task.
+
+### Earlier Catch-Up Evidence (October 8 Working Tree)
+
+All evidence below is for uncommitted changes over 734f5ae, not an immutable
+release candidate. Historical verified rows below do not automatically qualify
+the new binaries. Test doubles are confined to test sources; no successful burn,
+payout, balance or consignment is synthesized in production code.
+
+| Gate | Measured result | Limitation |
+| --- | --- | --- |
+| Pinned toolchain | Flutter 3.41.9 / Dart 3.11.5; Xcode 27.0 (27A266a) | New Xcode lipo issue is OCT-013. |
+| Dart suite and attributed coverage | 386 tests pass; package 87.4%, wallet 85.9%, LSP 87.5%, crypto 89.3%, models 87.1%, WebRGB 97.3%; every configured floor passes | Line coverage and fixtures do not establish native behavior. |
+| Strict analyze | Zero diagnostics, warnings/infos fatal | Static only. |
+| Pigeon regeneration | Dart/Swift/Kotlin hashes identical after regeneration and formatter | Schema/codec generation, not native success. |
+| RN dev and peer contract | Live dev remains 3bb39df; all static parity and method matrices pass; WebRGB resolved peer archive checked | Reviewed changed RN contracts, not a new full unchanged-layer audit. |
+| API/docs/packaging static gates | Snapshot, baseline generation, public API docs (231 symbols), README examples, release language and package checks pass | Clean external consumers are still required. |
+| Dartdoc | Three libraries generated; zero warnings and zero errors | Link/syntax health is not a behavioral or completeness proof. |
+| Android JVM | 29 tests, zero failures/errors/skips | Not Android device/regtest execution. |
+| iOS | ARM64 application and XCTest build-for-testing succeed | XCTest has not executed; no simulator from another task was reused. |
+| Swift host wire codec | Exact unsigned integer, boolean and null regressions pass | Runs on the host, not in an iOS application. |
+| Artifact gate | Installed iOS and Android archives, sizes/hashes and ABI checks pass; internal-beta supply-chain gate passes with explicit warnings | PKG-006 production signatures/attestations remain an accepted constraint. |
+| Bridge behavior vectors | FAIL: rgb_assets and vss lack platform-smoke-or-regtest-success | No vector or gate was weakened to report green. |
+| Release candidate/consumer matrix | Not current: worktree uncommitted, less than 10 GiB free, no SDK-owned simulator or running regtest stack at inspection | Existing Aster/Iris/other projects and their data were not reused or reset. |
+
+Remaining real-service work includes BFA issuance/receipt from an independent
+issuer, native burn and saved proof on both platforms, Ethereum-RPC/reject-list
+success/failure, process death with uncertain burn outcome, live LSP/APay/linked
+asset flows, VSS success, clean consumer archives and an exact clean candidate
+run. Pending burns must remain blocked without an independent proof verifier;
+there is no honest generic retry or fake recovery shortcut.
+
+### Review Scope and Reproduction
+
+The changed upstream source/native surface was compared between RN
+`821ae4fd10ca3933445ab926cb0af0230b108913` and `3bb39df43f281fe0c4723d588c496ddc01e5176e`.
+This is a source-delta review plus targeted review of existing dependencies,
+not a claim that every unchanged line has been independently re-audited.
+
+| Area reviewed | Flutter implementation and checks | Remaining qualification |
+| --- | --- | --- |
+| Native and facade contracts | BFA collections, capabilities, burn/proof methods, signer support, ethRpcUrl, full-u64 amounts and all 22 RN mainnet Lightning guards | Installed native success/fault scenarios |
+| Generated and native mappings | Pigeon schema/codecs, Swift/Kotlin asset mapping, new native error enum, release constants and exact artifacts | Both platform runtimes and external consumers |
+| Irreversible operations | Durable journal transitions, queue ownership, failed writes, uncertain outcomes, restart fence and independent-verifier contract | Funded native burn, process death and real proof verification |
+| Optional WebRGB | Every RN provider method, request/result shapes, consent/revocation races, origin policy, error mapping, proof bounds/digest and private data boundaries | Native-backed dApp/provider conformance and independent bridge-route validation |
+| Existing dependencies | Targeted wallet/binding lifecycle, native handle ownership, network/amount policy, LSP HTTP and APay/linked-asset boundaries | Existing open issues and full unchanged-layer independent audit are not erased by this delta review |
+| Quality/evidence | Regression tests, strict analyzer, API/source manifests, code generation, coverage attribution, docs, governance and release gates | Exact committed candidate remains mandatory |
+
+Reproduction uses the SDK's Flutter 3.41.9/Dart 3.11.5 tools. Commands run include
+`dart run tool/test_dart_coverage.dart`, `dart run tool/validate_coverage_policy.dart`,
+`flutter analyze --fatal-infos --fatal-warnings`, the static validators listed
+above, `tool/test_native_android.sh` and `tool/test_swift_wire_codec.sh`.
+The RN parity gate uses `RGB_SDK_RN_PATH` pointing to the isolated reviewed
+checkout and validates the pinned core and WebRGB archives, not just versions.
+The iOS build used `xcodebuild ... -sdk iphonesimulator -destination
+'generic/platform=iOS Simulator' ARCHS=arm64 ONLY_ACTIVE_ARCH=YES
+CODE_SIGNING_ALLOWED=NO build-for-testing` from `example/ios`.
+
+The latest Android child report is
+`build/test-reports/native/native-android-20261008T065607Z-734f5ae.json`.
+Local logs are `/private/tmp/rgb-sdk-coverage-final-oct08.log`,
+`/private/tmp/rgb-sdk-webrgb-final-oct08.log`,
+`/private/tmp/rgb-sdk-dartdoc-final-oct08.log`,
+`/private/tmp/rgb-sdk-parity-final-oct08.log`, and
+`/private/tmp/rgb-sdk-ios-tests-build.log`. These are development evidence;
+temporary logs and dirty-source child reports are not publishable release
+attestations. At final inspection only another task's iOS simulator was booted,
+ADB listed no devices, and disk space remained below the release runner's
+10 GiB minimum. No ownership or disk-space gate was bypassed.
+
+### Historical September Baseline
+
 | Field | Value |
 | --- | --- |
 | Audit date | 2026-09-20 |
@@ -55,7 +351,7 @@ release gates remain open below. The recovered source belongs in the permanent
 SDK checkout, with Zeus attribution and ordinary fast-forward pushes to both
 the Zeus repository and `UTEXO-Protocol/flutter-sdk`.
 
-## Verdict
+## Historical September Verdict
 
 The package is not yet release eligible. The beta.32/core beta.9/RLN 0.13
 contract is implemented, including detailed refresh results,
@@ -266,20 +562,20 @@ is accepted implicitly. No release eligibility is claimed during remediation.
 
 | Measure | Count |
 | --- | ---: |
-| Total tracked findings | 245 |
-| P0 | 9 |
-| P1 | 166 |
-| P2 | 70 |
+| Total tracked findings | 272 |
+| P0 | 10 |
+| P1 | 184 |
+| P2 | 78 |
 | P3 | 0 |
-| Open | 1 |
-| In progress | 14 |
-| Blocked upstream | 1 |
+| Open | 2 |
+| In progress | 19 |
+| Blocked upstream | 2 |
 | Needs decision | 0 |
-| Accepted constraint | 7 |
-| Verified | 222 |
+| Accepted constraint | 8 |
+| Verified | 241 |
 
 This rollup is generated from all finding rows; verified code is not equivalent
-to clean-candidate platform qualification. Seven accepted constraints remain.
+to clean-candidate platform qualification. Eight accepted constraints remain.
 
 ## Remaining Open Work Groups
 
@@ -288,6 +584,8 @@ to clean-candidate platform qualification. Seven accepted constraints remain.
 | 1 | Native lifecycle and upstream recovery | LIFE-009, LIFE-010, LIFE-019, LSP-019 | 4 | 0/4/0/0 | Execute native engine/fault and same-path tests on both platforms; obtain upstream recovery contract for ambiguous mutations. |
 | 2 | Native contract verification | CODE-014, MODEL-014, API-030 | 3 | 0/3/0/0 | Run iOS enum/fee/RGS regression cases and preserve matching Android evidence. |
 | 3 | Qualification, real services and packaging | BASE-010, PKG-016, PKG-019, PKG-020, TEST-040, TEST-041, TEST-042, TEST-036, TEST-044 | 9 | 1/7/1/0 | Complete missing behavior vectors and live LSP/APay/linked/VSS scenarios, clean consumer archives, exact candidate reports and remaining provenance verification. |
+| 4 | October BFA/WebRGB qualification | OCT-001, OCT-002, OCT-004, OCT-006, OCT-007, OCT-013 | 6 | 0/6/0/0 | Execute real new-feature and existing service scenarios, complete consumer packaging, independently review remaining unchanged layers, and qualify an exact committed candidate. |
+| 5 | Pinned BFA native validation | OCT-027 | 1 | 0/1/0/0 | Requires an approved native artifact change and negative/positive funded cases; do not bypass native validation in Dart. Wrapper policy and amount-contract fixes OCT-024/025 are verified separately. |
 
 ## P0 Execution Log
 

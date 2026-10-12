@@ -5,6 +5,8 @@ import 'package:analyzer/dart/analysis/utilities.dart';
 import 'package:analyzer/dart/ast/ast.dart';
 import 'package:crypto/crypto.dart' as crypto;
 
+import 'api_export_graph.dart';
+
 const _snapshotPath = 'tool/api_snapshot.json';
 
 void main(List<String> args) {
@@ -87,12 +89,21 @@ void _compareSection(
 }
 
 Map<String, Object?> _buildSnapshot() {
-  final exportedFiles = _exportedDartDirectives();
+  final exportedFiles = collectDartExportGraph(
+    entrypoints: const [
+      'lib/rgb_sdk_flutter.dart',
+      'lib/rgb_sdk_flutter_advanced.dart',
+      'lib/rgb_sdk_flutter_webrgb.dart',
+    ],
+    readSource: (path) => File(path).readAsStringSync(),
+  );
   final nativeFiles = <String>[
     'android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPlugin.kt',
+    'android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnAssetMapper.kt',
     'android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnNodeStore.kt',
     'android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnStorageDirectoryPolicy.kt',
     'ios/Classes/RgbSdkFlutterPlugin.swift',
+    'ios/Classes/RlnAssetMapper.swift',
     'ios/Classes/RlnBridgeErrorDetails.swift',
     'ios/Classes/RlnWireCodec.swift',
     'ios/Classes/RlnNodeStore.swift',
@@ -114,6 +125,7 @@ Map<String, Object?> _buildSnapshot() {
     ),
     'stableWalletSurface': _dartMemberSurface(<String>[
       'lib/src/wallet/utexo_wallet.dart',
+      'lib/src/wallet/utexo_wallet_bfa.dart',
       'lib/src/wallet/utexo_wallet_lifecycle.dart',
       'lib/src/wallet/utexo_wallet_lsp_apay.dart',
       'lib/src/wallet/utexo_wallet_onchain.dart',
@@ -237,8 +249,8 @@ String _normalizeSignature(String value) {
 
 Map<String, Object?> _surface(
   List<String> files, {
-  Map<String, _ExportDirective> dartExports =
-      const <String, _ExportDirective>{},
+  Map<String, DartExportVisibility> dartExports =
+      const <String, DartExportVisibility>{},
 }) {
   final entries = <String>[];
   for (final path in files) {
@@ -269,51 +281,10 @@ Map<String, Object?> _surface(
   };
 }
 
-Map<String, _ExportDirective> _exportedDartDirectives() {
-  const entrypoints = <String>[
-    'lib/rgb_sdk_flutter.dart',
-    'lib/rgb_sdk_flutter_advanced.dart',
-  ];
-  final files = <String, _ExportDirective>{};
-  final exportPattern = RegExp(r"export '([^']+)'([^;]*);");
-  for (final entrypointPath in entrypoints) {
-    final entrypoint = File(entrypointPath);
-    for (final path in _dartLibraryFiles(entrypointPath)) {
-      files[path] = const _ExportDirective();
-    }
-    for (final line in entrypoint.readAsLinesSync()) {
-      final match = exportPattern.firstMatch(line);
-      if (match == null) continue;
-      final directive = _ExportDirective(
-        show: _symbolsFromCombinator(match.group(2)!, 'show'),
-        hide: _symbolsFromCombinator(match.group(2)!, 'hide'),
-      );
-      for (final path in _dartLibraryFiles('lib/${match.group(1)!}')) {
-        files[path] = directive;
-      }
-    }
-  }
-  return Map<String, _ExportDirective>.fromEntries(
-    files.entries.toList()..sort((a, b) => a.key.compareTo(b.key)),
-  );
-}
-
-List<String> _dartLibraryFiles(String path) {
-  final file = File(path);
-  if (!file.existsSync()) return <String>[path];
-  final directory = file.parent.path == '.' ? '' : '${file.parent.path}/';
-  final partPattern = RegExp(r"part '([^']+)';");
-  final parts = partPattern
-      .allMatches(file.readAsStringSync())
-      .map((match) => '$directory${match.group(1)!}')
-      .toList(growable: false);
-  return <String>[path, ...parts];
-}
-
 List<String> _normalizedDartSurface(
   String path,
   String source, {
-  _ExportDirective? dartExport,
+  DartExportVisibility? dartExport,
 }) {
   final result = parseString(content: source, path: path);
   if (result.errors.isNotEmpty) {
@@ -412,7 +383,7 @@ void _addTypeSurface(
   AstNode declaration,
   String name,
   ClassBody body,
-  _ExportDirective? dartExport,
+  DartExportVisibility? dartExport,
 ) {
   if (!_isSymbolExported(name, dartExport)) return;
   output.add(
@@ -485,13 +456,8 @@ String _variableSignature(
   );
 }
 
-bool _isSymbolExported(String symbol, _ExportDirective? directive) {
-  if (symbol.startsWith('_')) return false;
-  if (directive == null) return true;
-  final show = directive.show;
-  final hide = directive.hide ?? const <String>{};
-  return (show == null || show.contains(symbol)) && !hide.contains(symbol);
-}
+bool _isSymbolExported(String symbol, DartExportVisibility? directive) =>
+    (directive ?? const DartExportVisibility.all()).allows(symbol);
 
 List<String> _normalizedNativePublicLines(String path, List<String> lines) {
   final output = <String>[];
@@ -545,24 +511,4 @@ bool _isSwiftPublicSurfaceLine(String line) {
       line.startsWith('static func ') ||
       line.startsWith('let ') ||
       line.startsWith('var ');
-}
-
-Set<String>? _symbolsFromCombinator(String source, String keyword) {
-  final match = RegExp('(?:^|\\s)$keyword\\s+([^;]+)').firstMatch(source);
-  if (match == null) return null;
-  final raw = match.group(1)!;
-  final stop = RegExp(r'\s(?:show|hide)\s').firstMatch(raw);
-  final values = stop == null ? raw : raw.substring(0, stop.start);
-  return values
-      .split(',')
-      .map((value) => value.trim())
-      .where((value) => value.isNotEmpty)
-      .toSet();
-}
-
-class _ExportDirective {
-  const _ExportDirective({this.show, this.hide});
-
-  final Set<String>? show;
-  final Set<String>? hide;
 }

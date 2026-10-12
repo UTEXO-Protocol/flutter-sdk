@@ -16,6 +16,68 @@ internal class RgbSdkFlutterPluginTest {
     private val plugin = RgbSdkFlutterPlugin()
 
     @Test
+    fun bfaAssetSerializationPreservesUnsignedSupplyAndRejectList() {
+        val maximum = ULong.MAX_VALUE
+        val asset = org.utexo.rgblightningnode.AssetBfa(
+            assetId = "rgb:asset", ticker = "USDT", name = "Bridged asset",
+            details = null, precision = 6.toUByte(), initialSupply = maximum,
+            timestamp = 1, addedAt = 2,
+            balance = org.utexo.rgblightningnode.AssetBalanceInfo(
+                settled = maximum, future = 1uL, spendable = 1uL,
+                offchainOutbound = 0uL, offchainInbound = 0uL
+            ), media = null, rejectListUrl = "https://example/reject"
+        )
+        val map = RlnAssetMapper.assetBfaMap(asset)
+        assertEquals("18446744073709551615", map["initialSupply"])
+        assertEquals(maximum, (map["balance"] as Map<*, *>)["settled"])
+        assertEquals("https://example/reject", map["rejectListUrl"])
+    }
+
+    @Test
+    fun bfaBoundaryRejectsInvalidBurnBeforeNativeLookup() {
+        for (amount in listOf("0", "01", "-1", "1.1", "18446744073709551616")) {
+            val error = assertFailsWith<FlutterError> {
+                plugin.rlnBurn(9999, "rgb:asset", amount, null, 2, 3)
+            }
+            assertInvalidArgument(error, "rlnBurn", "amount")
+        }
+        for (fee in listOf(0L, 9007199254740992L)) {
+            assertInvalidArgument(assertFailsWith<FlutterError> {
+                plugin.rlnBurn(9999, "rgb:asset", "1", null, fee, 3)
+            }, "rlnBurn", "feeRate")
+        }
+        for (confirmations in listOf(0L, 256L)) {
+            assertInvalidArgument(assertFailsWith<FlutterError> {
+                plugin.rlnBurn(9999, "rgb:asset", "1", null, 2, confirmations)
+            }, "rlnBurn", "minConfirmations")
+        }
+        assertInvalidArgument(assertFailsWith<FlutterError> {
+            plugin.rlnBurn(9999, "rgb:asset", "1", "ab", 2, 3)
+        }, "rlnBurn", "burnRecipient")
+        assertInvalidArgument(assertFailsWith<FlutterError> {
+            plugin.rlnGetConsignment(9999, "rgb:asset", "../private")
+        }, "rlnGetConsignment", "txid")
+        assertInvalidArgument(assertFailsWith<FlutterError> {
+            plugin.rlnGetConsignmentPath(9999, "../private", "ab".repeat(32))
+        }, "rlnGetConsignmentPath", "assetId")
+    }
+
+    @Test
+    fun bfaFullUnsignedAmountReachesNodeLookupWithoutTruncation() {
+        for (call in listOf<() -> Unit>(
+            { plugin.rlnBurn(9999, "rgb:asset", "18446744073709551615", "ab".repeat(32), 2, 3) },
+            { plugin.rlnGetConsignment(9999, "rgb:asset", "ab".repeat(32)) },
+            { plugin.rlnGetConsignmentPath(9999, "rgb:asset", "ab".repeat(32)) }
+        )) {
+            assertEquals("NodeNotFound", assertFailsWith<FlutterError> { call() }.code)
+        }
+        val capabilities = plugin.rlnBfaCapabilities().json
+        assertTrue(capabilities.contains("\"burn\":true"))
+        assertTrue(capabilities.contains("\"consignment\":true"))
+        assertTrue(capabilities.contains("\"bfa\":true"))
+    }
+
+    @Test
     fun nativeArtifactInfoMatchesPinnedAndroidArtifact() {
         val info = plugin.getNativeArtifactInfo()
 
@@ -591,6 +653,39 @@ internal class RgbSdkFlutterPluginTest {
     }
 
     @Test
+    fun unlockRollbackPreservesBridgeValidationErrors() {
+        for (external in listOf(false, true)) {
+            val node = CloseTrackingSdkNode()
+            val id = plugin.nodeStore.create(node, uniquePath("invalid-unlock"))
+            val signerId = plugin.nodeStore.createSigner(CloseTrackingNativeSigner())
+            plugin.nodeStore.markInitialized(id)
+            try {
+                val error = assertFailsWith<FlutterError> {
+                    if (external) {
+                        plugin.rlnUnlockNodeWithNativeExternalSigner(
+                            id, signerId, "test-only", null, null, null,
+                            null, null, emptyList(), null, null
+                        )
+                    } else {
+                        plugin.rlnUnlockNode(
+                            id, "test-only", "test-only", null, null, null,
+                            null, null, emptyList(), null, null, null
+                        )
+                    }
+                }
+                val operation = if (external) "rlnUnlockNodeWithNativeExternalSigner" else "rlnUnlockNode"
+                assertInvalidArgument(error, operation, "bitcoindRpc")
+                assertEquals("invalidRequest", (error.details as Map<*, *>)["category"])
+                assertEquals(false, (error.details as Map<*, *>)["retryable"])
+                assertEquals(RlnNodeStore.NodeLifecycleState.INITIALIZED, plugin.nodeStore.getState(id))
+            } finally {
+                plugin.nodeStore.remove(id)
+                plugin.nodeStore.removeSigner(signerId)
+            }
+        }
+    }
+
+    @Test
     fun shutdownFailureStillReleasesAllHandles() {
         var closed = false
         val failing = object : SdkNode(NoPointer) {
@@ -689,7 +784,7 @@ internal class RgbSdkFlutterPluginTest {
         val id = plugin.nodeStore.create(node, uniquePath("unlock-drain"))
         val operation = java.util.concurrent.CompletableFuture.runAsync {
             plugin.rlnUnlockNode(id, "test-only", null, null, null, null,
-                "electrum://127.0.0.1:50001", null, emptyList(), null, null)
+                "electrum://127.0.0.1:50001", null, emptyList(), null, null, null)
         }
         try {
             assertTrue(entered.await(5, java.util.concurrent.TimeUnit.SECONDS))

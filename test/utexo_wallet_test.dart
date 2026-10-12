@@ -416,6 +416,7 @@ class FakeRlnHostApi extends RlnHostApi {
     List<String> announceAddresses,
     String? announceAlias,
     String? gossipRgsServerUrl,
+    String? ethRpcUrl,
   ) async {
     lifecycleCalls.add('unlockNode');
     await _delayLifecycle();
@@ -2764,6 +2765,7 @@ void main() {
       'transactionType': 'rgbSend',
       'txid': 'txid',
       'received': '9223372036854775807',
+      'sent': '0',
       'fee': '0',
     });
     expect(transaction.received, rlnPigeonMaxSignedInt64);
@@ -2799,6 +2801,7 @@ void main() {
         'transactionType': 'rgbSend',
         'txid': 'txid',
         'received': '9223372036854775808',
+        'sent': '0',
         'fee': '0',
       }),
       throwsA(isA<NativeProtocolException>()),

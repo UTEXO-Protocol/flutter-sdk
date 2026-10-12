@@ -17,10 +17,10 @@ Current package version: `0.1.0`.
 The current baseline is:
 
 - `UTEXO-Protocol/rgb-sdk-rn` `dev` at
-  `821ae4fd10ca3933445ab926cb0af0230b108913`
-- `@utexo/rgb-sdk-rn` `1.0.0-beta.32`
+  `a7e31b3eec8d71f4275c9655339641a113b0f7e6`
+- `@utexo/rgb-sdk-rn` `1.0.0-beta.36`
 - `@utexo/rgb-sdk-core` `1.0.0-beta.9`
-- RGB Lightning Node `0.13.0-beta.3`
+- RGB Lightning Node `0.15.0-beta.3`
 
 Static parity and implementation work target that exact baseline. Current
 release eligibility still depends on the clean-candidate native, consumer, and
@@ -34,7 +34,23 @@ and reproducible-build/source attestations for every native artifact. The
 authoritative ledger is
 [doc/RELEASE_READINESS_TRACKER.md](doc/RELEASE_READINESS_TRACKER.md).
 
+The current release scope is **Bitcoin/RGB onchain**. Lightning, LSP and APay
+success flows are deferred, not release-qualified. Their APIs remain available
+on non-mainnet networks for RN compatibility; mainnet wallet/LSP orchestration
+rejects before side effects. RLN stays at 0.15.0-beta.3 by explicit decision:
+this version does **not** include 0.16's onchain-only native startup. Method
+guards do not disable its background Lightning runtime. BFA/Ethereum and VSS
+qualification remain independent onchain obligations.
+
 ## Features
+
+- BFA asset models, native burn capabilities, exact-u64 burns and saved
+  consignment reads. Burns are irreversible and must not be automatically retried.
+- Optional `rgb_sdk_flutter_webrgb.dart` provider for host-approved dApp
+  sessions, with durable burn journaling and explicit proof-export consent.
+  See [WebRGB and burns](doc/WEBRGB_AND_BURNS.md) for host responsibilities.
+- RN-compatible mainnet Lightning restrictions. This is not authorization to
+  use mainnet onchain funds; the release constraint above still applies.
 
 - On-device RGB Lightning Node integration for iOS and Android.
 - Stable `UtexoWallet` facade for Bitcoin, RGB, Lightning, peer, channel,
@@ -114,14 +130,14 @@ end
 For deterministic local release runs, prefer a pre-resolved archive or cache:
 
 ```sh
-RLN_ARCHIVE_PATH=/path/to/rgb-lightning-node-swift-0.13.0-beta.3.zip pod install
+RLN_ARCHIVE_PATH=/path/to/rgb-lightning-node-swift-0.15.0-beta.3.zip pod install
 RLN_CACHE_DIR=/path/to/rln-cache pod install
 RLN_OFFLINE=1 pod install
 ```
 
 ### Android
 
-Android resolves `com.utexo:rgb-lightning-node-android:0.13.0-beta.3` through
+Android resolves `com.utexo:rgb-lightning-node-android:0.15.0-beta.3` through
 Gradle/Maven. The release gate verifies the resolved AAR checksum, size, and
 ABI set against `tool/release_baseline.json`.
 

@@ -406,8 +406,14 @@ abstract final class LspAddressQuoteVerifier {
     if (bytes.first != 2 && bytes.first != 3) {
       _fail('$field is not a compressed secp256k1 public key');
     }
-    final point = _secp256k1.curve.decodePoint(bytes);
-    if (point == null || point.isInfinity) {
+    try {
+      final point = _secp256k1.curve.decodePoint(bytes);
+      if (point == null || point.isInfinity) {
+        _fail('$field is not a valid secp256k1 point');
+      }
+    } on ArgumentError {
+      _fail('$field is not a valid secp256k1 point');
+    } on StateError {
       _fail('$field is not a valid secp256k1 point');
     }
     return bytes;

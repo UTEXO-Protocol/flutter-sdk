@@ -3,6 +3,8 @@ import '../wallet/utexo_wallet_types.dart';
 import 'rln_models.dart';
 import 'utexo_domain_policy.dart';
 
+part 'transfer_amounts.dart';
+
 /// RGB assignment shape used by the RN package's core model layer.
 class Assignment {
   const Assignment({required this.type, this.amount});
@@ -12,6 +14,9 @@ class Assignment {
 
   /// RGB asset amount in the asset's smallest unit.
   final BigInt? amount;
+
+  /// Exact decimal base units for JSON transports, without a floating cast.
+  String? get amountBaseUnits => amount?.toString();
 }
 
 class Outpoint {
@@ -204,7 +209,7 @@ class CoreTransaction {
   final CoreBlockTime? confirmationTime;
 }
 
-class CoreTransfer {
+class CoreTransfer implements TransferAmount {
   CoreTransfer({
     required this.idx,
     this.batchTransferIdx,
@@ -220,7 +225,8 @@ class CoreTransfer {
     this.changeUtxo,
     this.expiration,
     required List<CoreTransferTransportEndpoint> transportEndpoints,
-  }) : assignments = List<Assignment>.unmodifiable(assignments),
+  }) : amount = _transferAmount(kind, requestedAssignment, assignments),
+       assignments = List<Assignment>.unmodifiable(assignments),
        transportEndpoints = List<CoreTransferTransportEndpoint>.unmodifiable(
          transportEndpoints,
        );
@@ -236,8 +242,17 @@ class CoreTransfer {
   final String status;
   final List<Assignment> assignments;
 
-  /// Original receive assignment, which can differ from settled assignments.
+  /// Requested recipient allocation, not change or the whole outgoing batch.
+  /// For incoming history, actual [assignments] determine the received amount.
   final Assignment? requestedAssignment;
+
+  /// Exact smallest units, absent when native history cannot establish them.
+  /// Unlike RN's optional JS number, this preserves the full UInt64 range.
+  @override
+  final BigInt? amount;
+
+  @override
+  String? get amountBaseUnits => amount?.toString();
   final String kind;
   final String? txid;
   final String? recipientId;
@@ -332,6 +347,26 @@ class CoreAssetNia extends CoreAsset {
   final BigInt issuedSupply;
 }
 
+/// Stable bridged fungible asset, including exact base-unit initial supply.
+class CoreAssetBfa extends CoreAsset {
+  const CoreAssetBfa({
+    required super.assetId,
+    required super.ticker,
+    required super.name,
+    super.details,
+    required super.precision,
+    required super.timestamp,
+    required super.addedAt,
+    required super.balance,
+    super.media,
+    required this.initialSupply,
+    this.rejectListUrl,
+  });
+
+  final BigInt initialSupply;
+  final String? rejectListUrl;
+}
+
 class CoreAssetCfa extends CoreAsset {
   const CoreAssetCfa({
     required super.assetId,
@@ -389,21 +424,25 @@ class CoreAssetUda extends CoreAsset {
 
 class CoreListAssets {
   CoreListAssets({
+    List<CoreAssetBfa> bfa = const [],
     required List<CoreAssetNia> nia,
     required List<CoreAssetCfa> cfa,
     required List<CoreAssetIfa> ifa,
     required List<CoreAssetUda> uda,
-  }) : nia = List<CoreAssetNia>.unmodifiable(nia),
+  }) : bfa = List<CoreAssetBfa>.unmodifiable(bfa),
+       nia = List<CoreAssetNia>.unmodifiable(nia),
        cfa = List<CoreAssetCfa>.unmodifiable(cfa),
        ifa = List<CoreAssetIfa>.unmodifiable(ifa),
        uda = List<CoreAssetUda>.unmodifiable(uda);
 
   final List<CoreAssetNia> nia;
+  final List<CoreAssetBfa> bfa;
   final List<CoreAssetCfa> cfa;
   final List<CoreAssetIfa> ifa;
   final List<CoreAssetUda> uda;
 
   Iterable<String> get assetIds sync* {
+    yield* bfa.map((asset) => asset.assetId);
     yield* nia.map((asset) => asset.assetId);
     yield* cfa.map((asset) => asset.assetId);
     yield* ifa.map((asset) => asset.assetId);
@@ -758,11 +797,13 @@ extension RlnLightningPaymentMapper on RlnPayment {
 }
 
 Assignment parseCoreAssignment(String assignment) {
-  final fungible = RegExp(r'^Fungible\((\d+)\)$').firstMatch(assignment);
+  final fungible = RegExp(
+    r'^(Fungible|InflationRight)\((\d+)\)$',
+  ).firstMatch(assignment);
   if (fungible != null) {
     return Assignment(
-      type: 'Fungible',
-      amount: _assignmentAmount(fungible.group(1)!),
+      type: fungible.group(1)!,
+      amount: _assignmentAmount(fungible.group(2)!),
     );
   }
   for (final type in <String>[
@@ -783,6 +824,12 @@ Assignment parseCoreAssignment(String assignment) {
 }
 
 BigInt _assignmentAmount(String value) {
+  if (!RegExp(r'^(0|[1-9][0-9]{0,19})$').hasMatch(value)) {
+    throw const NativeProtocolException(
+      'RGB assignment must contain canonical UInt64 base units.',
+      field: 'assignment',
+    );
+  }
   final amount = BigInt.parse(value);
   if (amount > BigInt.parse(rlnMaxUnsigned64Decimal)) {
     throw const NativeProtocolException(
@@ -966,10 +1013,12 @@ extension RlnCoreTransferMapper on RlnTransfer {
       createdAt: createdAt,
       updatedAt: updatedAt,
       status: UtexoDomainPolicy.requireTransferStatus(status),
-      assignments: assignments.map(parseCoreAssignment).toList(growable: false),
+      assignments: assignments
+          .map(_parseTransferAssignment)
+          .toList(growable: false),
       requestedAssignment: requestedAssignment == null
           ? null
-          : parseCoreAssignment(requestedAssignment!),
+          : _parseTransferAssignment(requestedAssignment!),
       kind: kind,
       txid: txid,
       recipientId: recipientId,
@@ -1012,6 +1061,23 @@ extension RlnCoreDecodedRgbInvoiceMapper on RlnDecodedRgbInvoice {
 extension RlnCoreAssetsMapper on RlnAssets {
   CoreListAssets toCore() {
     return CoreListAssets(
+      bfa: bfa
+          .map(
+            (source) => CoreAssetBfa(
+              assetId: source.assetId,
+              ticker: source.ticker,
+              name: source.name,
+              details: source.details,
+              precision: source.precision,
+              timestamp: source.timestamp,
+              addedAt: source.addedAt,
+              balance: source.balance.toCore(),
+              media: source.media?.toCore(),
+              initialSupply: source.initialSupply,
+              rejectListUrl: source.rejectListUrl,
+            ),
+          )
+          .toList(growable: false),
       nia: nia.map((source) => source.toCore()).toList(growable: false),
       cfa: cfa
           .map(

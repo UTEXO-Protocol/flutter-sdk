@@ -10,9 +10,12 @@ import '../lsp/lsp_types.dart';
 import '../lsp/lsp_wallet.dart';
 import '../lsp/utexo_lsp.dart';
 import '../lsp/utexo_lsp_client.dart';
+import '../models/burn_models.dart';
 import '../models/rln_models.dart';
 import '../models/utexo_core_models.dart';
 import '../models/utexo_domain_policy.dart';
+import 'burn_operations.dart';
+import 'lightning_policy.dart';
 import 'network_defaults.dart';
 import 'rln_signers.dart';
 import 'utexo_wallet_types.dart';
@@ -24,6 +27,7 @@ part 'utexo_wallet_onchain.dart';
 part 'utexo_wallet_lightning.dart';
 part 'utexo_wallet_raw.dart';
 part 'utexo_wallet_guards.dart';
+part 'utexo_wallet_bfa.dart';
 part 'utexo_unlock_config_resolver.dart';
 
 String _requiredNativeString(RlnMap response, String field, String typeName) {
@@ -104,6 +108,7 @@ abstract class _UtexoWalletInternals {
   int _requireUnlockedNode();
   void _ensureInitialized();
   void _ensureActive();
+  void _assertLightningEnabled();
   void _ensureNotDisposed();
   Future<T> _withLifecycle<T>(Future<T> Function() operation);
   void _requireNonEmpty(String value, String field);
@@ -132,9 +137,10 @@ class UtexoWallet extends _UtexoWalletInternals
         _UtexoWalletLifecycle,
         _UtexoWalletLspApay,
         _UtexoWalletOnchain,
+        _UtexoWalletBfa,
         _UtexoWalletLightning,
         _UtexoWalletGuards
-    implements ILspWallet {
+    implements ILspWallet, BurnWallet {
   static const _defaultOperationTimeouts = RlnOperationTimeoutPolicy();
 
   UtexoWallet({

@@ -10,7 +10,7 @@ The current development baseline is:
 - Flutter `>=3.41.0`
 - Dart `>=3.11.0 <4.0.0`
 - iOS `18.5` or newer. This is not a product preference: the pinned RLN
-  `0.13.0-beta.3` iOS static objects are built with `LC_BUILD_VERSION`
+  artifact baseline retains the `LC_BUILD_VERSION`
   `minos 18.5`, so lower deployment targets are not supported by this artifact
   set.
 - Swift version from `tool/release_baseline.json`
@@ -25,12 +25,19 @@ Kotlin, Android SDK, simulator/device, and regtest stack used for a candidate.
 | Area | Current support | Release note |
 | --- | --- | --- |
 | Package distribution | Public Git/path only | `publish_to: none`; pub.dev publishing policy is deferred |
-| Flutter | `3.41.x` family | CI and local gates read `.fvmrc` |
-| Dart | `>=3.11.0 <4.0.0` | Tested with Dart `3.11.5` from Flutter `3.41.9` |
+| Flutter | Minimum `3.41.0`; qualification pin `3.47.0` | CI and local gates read `.fvmrc`; Xcode 27 requires the newer Darwin packaging fix |
+| Dart | `>=3.11.0 <4.0.0` | Qualification uses Dart `3.13.0`; previous `3.11.5` results remain regression evidence |
 | iOS | `18.5+` | Required by the pinned RLN iOS archive object metadata |
 | CocoaPods | Local Flutter consumer integration | Plain `pod lib lint` resolves the stale public Flutter pod and is not authoritative |
+| Swift Package Manager | No native plugin package yet; Flutter 3.47 uses CocoaPods fallback | The generated Flutter framework SPM integration is not native plugin SPM support. Flutter warns that fallback will be removed in a future version. |
 | Android | min SDK `24`, compile SDK `36` | Native AAR must verify checksum, size, and ABI set |
 | Native/regtest CI | Not supported | Native builds and regtest smokes are mandatory local release gates |
+
+Flutter 3.47 currently builds the example with Gradle 8.14, AGP 8.11.1 and
+Kotlin 2.2.20, but warns that support for these versions will be removed in a
+future Flutter release. Do not suppress dependency-validation warnings or
+interpret these example builds as proof for an upgraded Android toolchain.
+Clean path/Git consumers and the complete candidate matrix remain mandatory.
 
 ## Native Artifacts
 
@@ -61,7 +68,7 @@ Android artifacts resolve through Gradle/Maven and must be checked against the
 pinned hash before candidate evidence is accepted.
 
 The current provenance manifest records the live upstream status for the pinned
-RLN `0.13.0-beta.3` artifact set:
+RLN `0.15.0-beta.3` artifact set:
 
 | Artifact | Signature status | Attestation status | Production effect |
 | --- | --- | --- | --- |
@@ -123,7 +130,7 @@ and `tool/test_clean_consumer_matrix.sh` for real Flutter/CocoaPods consumer
 integration. Do not use a plain `pod lib lint` result as release evidence for
 this package: CocoaPods resolves the public `Flutter` pod at `3.13.0`, while
 the generated Pigeon Swift bridge requires the `FlutterBinaryMessenger`
-task-queue API available in the pinned Flutter `3.41.9` toolchain.
+task-queue API available in the pinned Flutter `3.47.0` toolchain.
 
 Set the consumer application and Podfile platform to at least iOS `18.5`.
 Current Xcode also rejects obsolete deployment targets from Flutter's placeholder

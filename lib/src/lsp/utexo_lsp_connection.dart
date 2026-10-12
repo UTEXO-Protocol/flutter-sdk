@@ -3,6 +3,7 @@ part of 'utexo_lsp.dart';
 mixin _UtexoLspConnection on _UtexoLspInternals {
   /// Connects the wallet to the configured LSP peer.
   Future<void> connect() async {
+    _assertLightningEnabled();
     try {
       await wallet.connectPeer(peerUri(peer));
     } catch (error) {
@@ -15,6 +16,7 @@ mixin _UtexoLspConnection on _UtexoLspInternals {
     String assetId, {
     WaitOptions options = const WaitOptions(),
   }) async {
+    _assertLightningEnabled();
     if (assetId.trim().isEmpty) {
       throw const ValidationError('assetId is required.', 'assetId');
     }
@@ -24,10 +26,13 @@ mixin _UtexoLspConnection on _UtexoLspInternals {
     final deadline = _PollDeadline(timer, timeoutMs, options);
 
     while (timer.elapsedMilliseconds < timeoutMs) {
+      _assertLightningEnabled();
       try {
         _checkCancelled(options);
         await deadline.run(() async => options.onEachPoll?.call());
+        _assertLightningEnabled();
         await deadline.run(wallet.syncWallet);
+        _assertLightningEnabled();
         final channels = await deadline.run(wallet.listChannels);
         final match = channels
             .where(
@@ -70,6 +75,7 @@ mixin _UtexoLspConnection on _UtexoLspInternals {
     String lnInvoice, {
     WaitOptions options = const WaitOptions(),
   }) async {
+    _assertLightningEnabled();
     if (lnInvoice.trim().isEmpty) {
       throw const ValidationError('lnInvoice is required.', 'lnInvoice');
     }
@@ -79,10 +85,13 @@ mixin _UtexoLspConnection on _UtexoLspInternals {
     final deadline = _PollDeadline(timer, timeoutMs, options);
 
     while (timer.elapsedMilliseconds < timeoutMs) {
+      _assertLightningEnabled();
       try {
         _checkCancelled(options);
         await deadline.run(() async => options.onEachPoll?.call());
+        _assertLightningEnabled();
         await deadline.run(wallet.syncWallet);
+        _assertLightningEnabled();
         final status = await deadline.run(
           () => wallet.getLightningReceiveStatus(lnInvoice),
         );
@@ -112,6 +121,7 @@ mixin _UtexoLspConnection on _UtexoLspInternals {
     int minMsat, {
     WaitOptions options = const WaitOptions(),
   }) async {
+    _assertLightningEnabled();
     if (minMsat < 0) {
       throw const ValidationError('minMsat must be non-negative.', 'minMsat');
     }
@@ -122,10 +132,13 @@ mixin _UtexoLspConnection on _UtexoLspInternals {
     var lastOutboundMsat = 0;
 
     while (timer.elapsedMilliseconds < timeoutMs) {
+      _assertLightningEnabled();
       try {
         _checkCancelled(options);
         await deadline.run(() async => options.onEachPoll?.call());
+        _assertLightningEnabled();
         await deadline.run(wallet.syncWallet);
+        _assertLightningEnabled();
         final channels = await deadline.run(wallet.listChannels);
         final balances = channels
             .where(

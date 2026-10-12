@@ -5,6 +5,48 @@ This document is the release-line public API contract for the current
 The release verdict remains controlled by
 `doc/RELEASE_READINESS_TRACKER.md`.
 
+## BFA and Irreversible Burns
+
+`CoreAssetBfa` is a bridged fungible asset in `CoreListAssets.bfa`.
+`initialSupply` and RGB balances use exact `BigInt` base units, not doubles.
+`BfaCapabilities` reports `burn`, `consignment`, and `bfa`. The wallet
+intersects native burn support with `RlnSigner.supportsBurn`; the current
+password signer supports it, while the native external signer does not.
+
+`getBfaCapabilities()` queries that capability contract. `burn` takes `BurnParams` and
+returns `BurnResult` with txid and batch-transfer index. `BurnParams.amount`
+is a positive decimal u64 string; fee rate is integer sat/vB and confirmations
+are 1..255. `getConsignment(assetId, txid)` reads saved standard Base64 bytes.
+`getConsignmentPath(assetId, txid)` is a wallet-local path, never a dApp value.
+These methods require an unlocked wallet except the capability query.
+`UtexoUnlockConfig.ethRpcUrl` is password-signer-only; external-signer unlock
+rejects it instead of ignoring it.
+
+`BurnOperations` serializes burns against one `BurnWallet` and one durable
+`BurnOperationStore`. `BurnOperationRecord`, `BurnOperationMetadata`,
+`BurnPayout`, and `BurnOperationState` describe its private v2 journal.
+`normalizeBurnRecord` validates v2 and legacy RN records without losing
+unresolved operations. A pending result blocks new burns until independently
+verified; no timer or timeout authorizes another burn. See
+[WebRGB and burns](WEBRGB_AND_BURNS.md) for persistence and recovery contracts.
+
+Canonical Lightning entrypoints reject mainnet with
+`WalletError.code == 'LIGHTNING_DISABLED_ON_MAINNET'`. Native rejections in
+advanced calls preserve `LightningUnsupportedOnMainnet` as unsupported.
+Direct `UtexoLsp` construction rejects mainnet before allocating a transport;
+all orchestration methods recheck the network before starting operations.
+Its `http` property and standalone `UtexoLspClient` are low-level transports
+without a wallet/network context, not guarded wallet APIs.
+
+`CoreTransfer` implements `TransferAmount`: `amount` is exact `BigInt` smallest
+units and `amountBaseUnits` is its decimal string, both absent when history
+cannot establish the quantity. `Assignment.amountBaseUnits` is the corresponding
+RN `TransferAssignment` extension. Outgoing Send/Burn/Inflation use
+`requestedAssignment`; ReceiveBlind/ReceiveWitness/Issuance sum actual fungible
+assignments, excluding inflation rights. UInt64 overflow or malformed native
+allocations fail closed. WebRGB includes the decimal for the full UInt64 range
+and includes its legacy numeric `amount` only through 2^53 - 1.
+
 ## Stability Tiers
 
 | Tier | Symbols | Contract |

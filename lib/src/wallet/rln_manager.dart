@@ -1,7 +1,16 @@
 import '../binding/rln_binding.dart';
+import '../models/burn_models.dart';
 import '../models/rln_models.dart';
 
 class RLNManager {
+  Future<BfaCapabilities> rlnBfaCapabilities() =>
+      rlnBinding.rlnBfaCapabilities();
+  Future<BurnResult> rlnBurn(BurnParams params) => rlnBinding.rlnBurn(params);
+  Future<String> rlnGetConsignment(String assetId, String txid) =>
+      rlnBinding.rlnGetConsignment(assetId, txid);
+  Future<String> rlnGetConsignmentPath(String assetId, String txid) =>
+      rlnBinding.rlnGetConsignmentPath(assetId, txid);
+
   RLNManager({RLNBinding? binding}) : rlnBinding = binding ?? RLNBinding();
 
   final RLNBinding rlnBinding;

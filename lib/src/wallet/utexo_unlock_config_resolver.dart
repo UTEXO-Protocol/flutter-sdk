@@ -20,6 +20,7 @@ UtexoUnlockConfig resolveUnlockConfig(
     announceAddresses: config.announceAddresses,
     announceAlias: config.announceAlias,
     gossipRgsServerUrl: _blankToNull(config.gossipRgsServerUrl),
+    ethRpcUrl: _blankToNull(config.ethRpcUrl),
   );
 
   final hasIndexer = resolved.indexerUrl != null;

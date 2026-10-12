@@ -5,6 +5,64 @@ import XCTest
 final class RunnerTests: XCTestCase {
   private let plugin = RgbSdkFlutterPlugin()
 
+  func testBfaAssetSerializationPreservesUnsignedSupplyAndRejectList() throws {
+    let asset = AssetBfa(assetId: "rgb:asset", ticker: "USDT", name: "Bridged asset",
+      details: nil, precision: 6, initialSupply: UInt64.max, timestamp: 1, addedAt: 2,
+      balance: AssetBalanceInfo(settled: UInt64.max, future: 1, spendable: 1,
+        offchainOutbound: 0, offchainInbound: 0), media: nil,
+      rejectListUrl: "https://example/reject")
+    let map = RlnAssetMapper.assetBfaMap(asset)
+    XCTAssertEqual(map["initialSupply"] as? String, "18446744073709551615")
+    let balance = try XCTUnwrap(map["balance"] as? [String: Any])
+    XCTAssertEqual(balance["settled"] as? String, "18446744073709551615")
+    XCTAssertEqual(map["rejectListUrl"] as? String, "https://example/reject")
+  }
+
+  func testBfaBoundaryRejectsInvalidBurnBeforeNativeLookup() {
+    for amount in ["0", "01", "-1", "1.1", "18446744073709551616"] {
+      XCTAssertThrowsError(try plugin.rlnBurn(nodeId: 9999, assetId: "rgb:asset",
+        amount: amount, burnRecipient: nil, feeRate: 2, minConfirmations: 3)) {
+        assertInvalidArgument($0, operation: "rlnBurn", field: "amount")
+      }
+    }
+    for fee in [Int64(0), Int64(9007199254740992)] {
+      XCTAssertThrowsError(try plugin.rlnBurn(nodeId: 9999, assetId: "rgb:asset",
+        amount: "1", burnRecipient: nil, feeRate: fee, minConfirmations: 3)) {
+        assertInvalidArgument($0, operation: "rlnBurn", field: "feeRate")
+      }
+    }
+    for confirmations in [Int64(0), Int64(256)] {
+      XCTAssertThrowsError(try plugin.rlnBurn(nodeId: 9999, assetId: "rgb:asset",
+        amount: "1", burnRecipient: nil, feeRate: 2, minConfirmations: confirmations)) {
+        assertInvalidArgument($0, operation: "rlnBurn", field: "minConfirmations")
+      }
+    }
+    XCTAssertThrowsError(try plugin.rlnBurn(nodeId: 9999, assetId: "rgb:asset",
+      amount: "1", burnRecipient: "ab", feeRate: 2, minConfirmations: 3)) {
+      assertInvalidArgument($0, operation: "rlnBurn", field: "burnRecipient")
+    }
+    XCTAssertThrowsError(try plugin.rlnGetConsignment(nodeId: 9999,
+      assetId: "rgb:asset", txid: "../private")) {
+      assertInvalidArgument($0, operation: "rlnGetConsignment", field: "txid")
+    }
+    XCTAssertThrowsError(try plugin.rlnGetConsignmentPath(nodeId: 9999,
+      assetId: "../private", txid: String(repeating: "ab", count: 32))) {
+      assertInvalidArgument($0, operation: "rlnGetConsignmentPath", field: "assetId")
+    }
+  }
+
+  func testBfaCapabilitiesAndFullUnsignedBoundary() throws {
+    let encoded = try plugin.rlnBfaCapabilities()
+    let caps = try XCTUnwrap(JSONSerialization.jsonObject(
+      with: Data(encoded.json.utf8)) as? [String: Bool])
+    XCTAssertEqual(caps, ["burn": true, "consignment": true, "bfa": true])
+    XCTAssertThrowsError(try plugin.rlnBurn(nodeId: 9999, assetId: "rgb:asset",
+      amount: "18446744073709551615", burnRecipient: String(repeating: "ab", count: 32),
+      feeRate: 2, minConfirmations: 3)) {
+      XCTAssertEqual(expectPigeonError($0).code, "NodeNotFound")
+    }
+  }
+
   func testWireCodecPreservesUnsignedAmountsAndNestedNulls() throws {
     let response = try RlnWireCodec.encode([
       "maximum": UInt64.max, "zero": Int64(0), "one": Int64(1),
@@ -603,7 +661,7 @@ final class RunnerTests: XCTestCase {
           nodeId: id, password: "test-only", bitcoindRpcUsername: nil,
           bitcoindRpcPassword: nil, bitcoindRpcHost: nil, bitcoindRpcPort: nil,
           indexerUrl: "electrum://127.0.0.1:50001", proxyEndpoint: nil,
-          announceAddresses: [], announceAlias: nil, gossipRgsServerUrl: nil
+          announceAddresses: [], announceAlias: nil, gossipRgsServerUrl: nil, ethRpcUrl: nil
         )
       } catch {
         XCTFail("Unexpected unlock failure: \(error)")
@@ -627,6 +685,7 @@ final class RunnerTests: XCTestCase {
     XCTAssertEqual(rlnErrorCode(.NotFound(message: "private")), "NotFound")
     XCTAssertEqual(nativeErrorCategory(rlnErrorCode(.FailedPeerConnection(message: "private"))), "network")
     XCTAssertEqual(nativeErrorCategory(rlnErrorCode(.UnsupportedInExternalSignerMode(message: "private"))), "unsupported")
+    XCTAssertEqual(nativeErrorCategory(rlnErrorCode(.LightningUnsupportedOnMainnet(message: "private"))), "unsupported")
   }
 
   private func assertChainSyncError(

@@ -85,6 +85,7 @@ class _BindingHostApi extends RlnHostApi {
     List<String> announceAddresses,
     String? announceAlias,
     String? gossipRgsServerUrl,
+    String? ethRpcUrl,
   ) async {
     _record('rlnUnlockNode', <Object?>[
       nodeId,
@@ -98,6 +99,7 @@ class _BindingHostApi extends RlnHostApi {
       announceAddresses,
       announceAlias,
       gossipRgsServerUrl,
+      ethRpcUrl,
     ]);
     if (throwConflictOnUnlock) {
       throw const ConflictError('node unlock already active');

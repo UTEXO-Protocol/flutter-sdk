@@ -23,6 +23,7 @@ const _nativeErrorCodes = <String>{
   'UnsupportedInExternalSignerMode',
   'FailedVssInit',
   'Internal',
+  'LightningUnsupportedOnMainnet',
 };
 
 /// Structured cause attached to SDK exceptions created from native bridge
@@ -164,6 +165,7 @@ NativeBridgeFailureCategory _categoryFromExactNativeCode(String code) {
     case 'Unsupported':
     case 'UnsupportedOperation':
     case 'UnsupportedInExternalSignerMode':
+    case 'LightningUnsupportedOnMainnet':
       return NativeBridgeFailureCategory.unsupported;
     default:
       return NativeBridgeFailureCategory.native;

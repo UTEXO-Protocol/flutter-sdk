@@ -67,6 +67,52 @@ class _RecordingRlnHostApi extends RlnHostApi {
   }
 
   @override
+  Future<RlnWireResponse> rlnBfaCapabilities() async {
+    _record('rlnBfaCapabilities', []);
+    return _wire('rlnBfaCapabilities');
+  }
+
+  @override
+  Future<RlnWireResponse> rlnBurn(
+    int nodeId,
+    String assetId,
+    String amount,
+    String? burnRecipient,
+    int feeRate,
+    int minConfirmations,
+  ) async {
+    _record('rlnBurn', [
+      nodeId,
+      assetId,
+      amount,
+      burnRecipient,
+      feeRate,
+      minConfirmations,
+    ]);
+    return _wire('rlnBurn');
+  }
+
+  @override
+  Future<String> rlnGetConsignment(
+    int nodeId,
+    String assetId,
+    String txid,
+  ) async {
+    _record('rlnGetConsignment', [nodeId, assetId, txid]);
+    return 'cHJvb2Y=';
+  }
+
+  @override
+  Future<String> rlnGetConsignmentPath(
+    int nodeId,
+    String assetId,
+    String txid,
+  ) async {
+    _record('rlnGetConsignmentPath', [nodeId, assetId, txid]);
+    return '/wallet/proof';
+  }
+
+  @override
   Future<RlnNativeArtifactInfo> getNativeArtifactInfo() async {
     _record('getNativeArtifactInfo', <Object?>[]);
     return RlnNativeArtifactInfo(
@@ -219,6 +265,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
     List<String> announceAddresses,
     String? announceAlias,
     String? gossipRgsServerUrl,
+    String? ethRpcUrl,
   ) async {
     _record('rlnUnlockNode', <Object?>[
       nodeId,
@@ -232,6 +279,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
       announceAddresses,
       announceAlias,
       gossipRgsServerUrl,
+      ethRpcUrl,
     ]);
   }
 
@@ -888,6 +936,38 @@ void main() {
 
   final cases = <_ContractCase>[
     _ContractCase(
+      name: 'bfaCapabilities',
+      invoke: (client) => client.bfaCapabilities(),
+      method: 'rlnBfaCapabilities',
+      args: const [],
+    ),
+    _ContractCase(
+      name: 'burn',
+      invoke: (client) => client.burn(
+        nodeId: nodeId,
+        assetId: 'rgb:asset',
+        amount: '18446744073709551615',
+        burnRecipient: 'ab' * 32,
+        feeRate: 2,
+        minConfirmations: 3,
+      ),
+      method: 'rlnBurn',
+      args: [nodeId, 'rgb:asset', '18446744073709551615', 'ab' * 32, 2, 3],
+    ),
+    _ContractCase(
+      name: 'getConsignment',
+      invoke: (client) => client.getConsignment(nodeId, 'rgb:asset', 'ab' * 32),
+      method: 'rlnGetConsignment',
+      args: [nodeId, 'rgb:asset', 'ab' * 32],
+    ),
+    _ContractCase(
+      name: 'getConsignmentPath',
+      invoke: (client) =>
+          client.getConsignmentPath(nodeId, 'rgb:asset', 'ab' * 32),
+      method: 'rlnGetConsignmentPath',
+      args: [nodeId, 'rgb:asset', 'ab' * 32],
+    ),
+    _ContractCase(
       name: 'createNode',
       invoke: (client) => client.createNode(
         storageDirPath: '/tmp/rln',
@@ -1039,6 +1119,7 @@ void main() {
         await client.unlockNode(
           nodeId: nodeId,
           password: 'password',
+          ethRpcUrl: 'https://ethereum.example/rpc',
           bitcoindRpcUsername: 'user',
           bitcoindRpcPassword: 'pass',
           bitcoindRpcHost: '127.0.0.1',
@@ -1064,6 +1145,7 @@ void main() {
         announceAddresses,
         'node-alias',
         'rgs://server',
+        'https://ethereum.example/rpc',
       ],
     ),
     _ContractCase(
@@ -1647,7 +1729,24 @@ void main() {
 
   group('RlnClient bridge contract', () {
     test('matrix covers every low-level bridge method', () {
-      expect(cases.map((testCase) => testCase.name).toSet(), hasLength(62));
+      final host =
+          parseString(
+            content: File('pigeons/rln_api.dart').readAsStringSync(),
+          ).unit.declarations.whereType<ClassDeclaration>().singleWhere(
+            (type) => type.namePart.typeName.lexeme == 'RlnHostApi',
+          );
+      final methods =
+          (host.body as BlockClassBody).members
+              .whereType<MethodDeclaration>()
+              .map((method) => method.name.lexeme)
+              .toSet()
+            // Artifact identity has its own dedicated native-artifact tests.
+            ..remove('getNativeArtifactInfo');
+      expect(cases.map((testCase) => testCase.method).toSet(), methods);
+      expect(
+        cases.map((testCase) => testCase.name).toSet(),
+        hasLength(cases.length),
+      );
     });
 
     test('sendRgb rejects skipSync true before native call', () {
@@ -1740,6 +1839,16 @@ void main() {
     });
 
     test('maps structured native taxonomy without message heuristics', () {
+      final mainnet = mapNativeBridgeException(
+        PlatformException(code: 'LightningUnsupportedOnMainnet'),
+        operation: 'rlnLnInvoice',
+      );
+      expect(mainnet, isA<UnsupportedWalletFeatureException>());
+      final nativeCause = mainnet.cause! as NativeBridgeFailure;
+      expect(nativeCause.nativeCode, 'LightningUnsupportedOnMainnet');
+      expect(nativeCause.retryable, false);
+      expect(nativeCause.category, NativeBridgeFailureCategory.unsupported);
+
       final unsupported = mapNativeBridgeException(
         PlatformException(
           code: 'RlnError',

@@ -275,125 +275,6 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     ]
   }
 
-  private func assetBalanceMap(_ balance: AssetBalanceInfo) -> [String: Any] {
-    [
-      "settled": pigeonInteger(balance.settled),
-      "future": pigeonInteger(balance.future),
-      "spendable": pigeonInteger(balance.spendable),
-      "offchainOutbound": pigeonInteger(balance.offchainOutbound),
-      "offchainInbound": pigeonInteger(balance.offchainInbound),
-    ]
-  }
-
-  private func mediaMap(_ media: Media?) -> [String: Any]? {
-    guard let media else {
-      return nil
-    }
-    return [
-      "filePath": media.filePath,
-      "digest": media.digest,
-      "mime": media.mime,
-    ]
-  }
-
-  private func mediaAttachmentMap(_ attachment: MediaAttachment) -> [String: Any?] {
-    [
-      "key": Int64(attachment.key),
-      "media": mediaMap(attachment.media),
-    ]
-  }
-
-  private func tokenLightMap(_ token: TokenLight?) -> [String: Any?]? {
-    guard let token else {
-      return nil
-    }
-    return [
-      "index": Int64(token.index),
-      "ticker": token.ticker,
-      "name": token.name,
-      "details": token.details,
-      "embeddedMedia": token.embeddedMedia,
-      "media": mediaMap(token.media),
-      "attachments": token.attachments.map(mediaAttachmentMap),
-      "reserves": token.reserves,
-    ]
-  }
-
-  private func assetNiaMap(_ asset: AssetNia) -> [String: Any?] {
-    [
-      "assetId": asset.assetId,
-      "ticker": asset.ticker,
-      "name": asset.name,
-      "details": asset.details,
-      "precision": Int64(asset.precision),
-      "issuedSupply": String(asset.issuedSupply),
-      "timestamp": asset.timestamp,
-      "addedAt": asset.addedAt,
-      "balance": assetBalanceMap(asset.balance),
-      "media": mediaMap(asset.media),
-    ]
-  }
-
-  private func assetCfaMap(_ asset: AssetCfa) -> [String: Any?] {
-    [
-      "assetId": asset.assetId,
-      "name": asset.name,
-      "details": asset.details,
-      "precision": Int64(asset.precision),
-      "issuedSupply": String(asset.issuedSupply),
-      "timestamp": asset.timestamp,
-      "addedAt": asset.addedAt,
-      "balance": assetBalanceMap(asset.balance),
-      "media": mediaMap(asset.media),
-    ]
-  }
-
-  private func assetIfaMap(_ asset: AssetIfa) -> [String: Any?] {
-    [
-      "assetId": asset.assetId,
-      "ticker": asset.ticker,
-      "name": asset.name,
-      "details": asset.details,
-      "precision": Int64(asset.precision),
-      "initialSupply": String(asset.initialSupply),
-      "maxSupply": String(asset.maxSupply),
-      "knownCirculatingSupply": String(asset.knownCirculatingSupply),
-      "timestamp": asset.timestamp,
-      "addedAt": asset.addedAt,
-      "balance": assetBalanceMap(asset.balance),
-      "media": mediaMap(asset.media),
-      "rejectListUrl": asset.rejectListUrl,
-      "issuanceLinkRightOutpoint": asset.issuanceLinkRightOutpoint.map {
-        ["txid": $0.txid, "vout": Int64($0.vout)]
-      },
-      "linkedFromAssetId": asset.linkedFromAssetId,
-      "linkedToAssetId": asset.linkedToAssetId,
-    ]
-  }
-
-  private func assetUdaMap(_ asset: AssetUda) -> [String: Any?] {
-    [
-      "assetId": asset.assetId,
-      "ticker": asset.ticker,
-      "name": asset.name,
-      "details": asset.details,
-      "precision": Int64(asset.precision),
-      "timestamp": asset.timestamp,
-      "addedAt": asset.addedAt,
-      "balance": assetBalanceMap(asset.balance),
-      "token": tokenLightMap(asset.token),
-    ]
-  }
-
-  private func listAssetsMap(_ assets: ListAssetsResponse) -> [String: Any] {
-    [
-      "nia": (assets.nia ?? []).map(assetNiaMap),
-      "uda": (assets.uda ?? []).map(assetUdaMap),
-      "cfa": (assets.cfa ?? []).map(assetCfaMap),
-      "ifa": (assets.ifa ?? []).map(assetIfaMap),
-    ]
-  }
-
   private func channelMap(_ channel: Channel) -> [String: Any?] {
     [
       "channelId": channel.channelId,
@@ -755,7 +636,8 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     proxyEndpoint: String?,
     announceAddresses: [String],
     announceAlias: String?,
-    gossipRgsServerUrl: String?
+    gossipRgsServerUrl: String?,
+    ethRpcUrl: String?
   ) throws {
     try runRln("rlnUnlockNode") {
       do {
@@ -786,7 +668,8 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
           proxyEndpoint: proxyEndpoint,
           announceAddresses: announceAddresses,
           announceAlias: announceAlias,
-          gossipRgsServerUrl: gossipRgsServerUrl
+          gossipRgsServerUrl: gossipRgsServerUrl,
+          ethRpcUrl: ethRpcUrl
         ))
         nodeStore.markUnlocked(id: nodeId)
       } catch {
@@ -799,6 +682,79 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
   func rlnDestroyNode(nodeId: Int64) throws {
     try runRln("rlnDestroyNode") {
       nodeStore.remove(id: nodeId)
+    }
+  }
+
+  func rlnBfaCapabilities() throws -> RlnWireResponse {
+    try runRlnWire("rlnBfaCapabilities") {
+      ["burn": true, "consignment": true, "bfa": true]
+    }
+  }
+
+  private func requireConsignmentLookup(_ assetId: String, _ txid: String, operation: String) throws {
+    try requireBurnAssetId(assetId, operation: operation)
+    guard txid.utf8.count == 64, txid.utf8.allSatisfy({
+      (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0)
+    }) else {
+      throw invalidArgument(operation, field: "txid", message: "Expected a 32-byte hex transaction ID.")
+    }
+  }
+
+  private func requireBurnAssetId(_ assetId: String, operation: String) throws {
+    guard assetId.hasPrefix("rgb:"), assetId.utf8.count <= 256 else {
+      throw invalidArgument(operation, field: "assetId", message: "Invalid asset ID.")
+    }
+  }
+
+  func rlnBurn(nodeId: Int64, assetId: String, amount: String, burnRecipient: String?,
+               feeRate: Int64, minConfirmations: Int64) throws -> RlnWireResponse {
+    try runRlnWire("rlnBurn") {
+      try requireBurnAssetId(assetId, operation: "rlnBurn")
+      guard amount.utf8.count <= 20, amount.first != "0",
+            !amount.isEmpty, amount.utf8.allSatisfy({ (48...57).contains($0) }),
+            let units = UInt64(amount), units > 0 else {
+        throw invalidArgument("rlnBurn", field: "amount", message: "Expected a positive u64 decimal string.")
+      }
+      guard feeRate > 0, feeRate <= 9007199254740991 else {
+        throw invalidArgument("rlnBurn", field: "feeRate", message: "Expected a positive safe integer sat/vB.")
+      }
+      guard minConfirmations > 0, minConfirmations <= 255 else {
+        throw invalidArgument("rlnBurn", field: "minConfirmations", message: "Expected 1 through 255 confirmations.")
+      }
+      var recipient: Data?
+      if let hex = burnRecipient {
+        guard hex.utf8.count == 64, hex.utf8.allSatisfy({
+          (48...57).contains($0) || (65...70).contains($0) || (97...102).contains($0)
+        }) else {
+          throw invalidArgument("rlnBurn", field: "burnRecipient", message: "Expected 32-byte hex without 0x.")
+        }
+        let chars = Array(hex.utf8)
+        recipient = Data(try stride(from: 0, to: 64, by: 2).map { offset in
+          guard let byte = UInt8(String(decoding: chars[offset..<offset + 2], as: UTF8.self), radix: 16) else {
+            throw invalidArgument("rlnBurn", field: "burnRecipient", message: "Invalid hex byte.")
+          }
+          return byte
+        })
+      }
+      let result = try nodeStore.get(id: nodeId).burn(request: BurnRequest(
+        assetId: assetId, amount: units, burnRecipient: recipient,
+        feeRate: UInt64(feeRate), minConfirmations: UInt8(minConfirmations)
+      ))
+      return ["txid": result.txid, "batchTransferIdx": Int64(result.batchTransferIdx)]
+    }
+  }
+
+  func rlnGetConsignment(nodeId: Int64, assetId: String, txid: String) throws -> String {
+    try runRln("rlnGetConsignment") {
+      try requireConsignmentLookup(assetId, txid, operation: "rlnGetConsignment")
+      return try nodeStore.get(id: nodeId).getConsignment(assetId: assetId, txid: txid).base64EncodedString()
+    }
+  }
+
+  func rlnGetConsignmentPath(nodeId: Int64, assetId: String, txid: String) throws -> String {
+    try runRln("rlnGetConsignmentPath") {
+      try requireConsignmentLookup(assetId, txid, operation: "rlnGetConsignmentPath")
+      return try nodeStore.get(id: nodeId).getConsignmentPath(assetId: assetId, txid: txid)
     }
   }
 
@@ -936,7 +892,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnAssetBalance(nodeId: Int64, assetId: String) throws -> RlnWireResponse {
     try runRlnWire("rlnAssetBalance") {
-      assetBalanceMap(try nodeStore.get(id: nodeId).assetBalance(assetId: assetId))
+      RlnAssetMapper.assetBalanceMap(try nodeStore.get(id: nodeId).assetBalance(assetId: assetId))
     }
   }
 
@@ -1062,7 +1018,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnListAssets(nodeId: Int64, filterAssetSchemas: [String]) throws -> RlnWireResponse {
     try runRlnWire("rlnListAssets") {
-      listAssetsMap(try nodeStore.get(id: nodeId).listAssets(filterAssetSchemas: filterAssetSchemas))
+      RlnAssetMapper.listAssetsMap(try nodeStore.get(id: nodeId).listAssets(filterAssetSchemas: filterAssetSchemas))
     }
   }
 
@@ -1367,7 +1323,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
         name: name,
         precision: try requireUInt8(precision, field: "precision", operation: "rlnIssueAssetNia")
       ))
-      return assetNiaMap(asset)
+      return RlnAssetMapper.assetNiaMap(asset)
     }
   }
 
@@ -1380,7 +1336,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
         precision: try requireUInt8(precision, field: "precision", operation: "rlnIssueAssetCfa"),
         fileDigest: fileDigest
       ))
-      return assetCfaMap(asset)
+      return RlnAssetMapper.assetCfaMap(asset)
     }
   }
 
@@ -1394,7 +1350,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
         precision: try requireUInt8(precision, field: "precision", operation: "rlnIssueAssetIfa"),
         rejectListUrl: rejectListUrl
       ))
-      return assetIfaMap(asset)
+      return RlnAssetMapper.assetIfaMap(asset)
     }
   }
 
@@ -1435,7 +1391,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
         mediaFileDigest: mediaFileDigest,
         attachmentsFileDigests: attachmentsFileDigests
       ))
-      return assetUdaMap(asset)
+      return RlnAssetMapper.assetUdaMap(asset)
     }
   }
 

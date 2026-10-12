@@ -9,6 +9,12 @@ analyzer:
     - build/**
     - example/build/**
     - lib/src/pigeon/**
+    - android/**
+    - ios/**
+    - web/**
+    - windows/**
+    - macos/**
+    - linux/**
 
 linter:
   rules:

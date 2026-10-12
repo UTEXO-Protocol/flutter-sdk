@@ -5,6 +5,7 @@ mixin _UtexoLspRelay on _UtexoLspInternals {
   Future<ExternalPaymentQuote> quoteExternalPayment(
     PayExternalInvoiceOptions options,
   ) async {
+    _assertLightningEnabled();
     final invoice = options.invoice.trim();
     if (invoice.isEmpty) {
       throw const ValidationError('invoice is required.', 'invoice');
@@ -25,10 +26,13 @@ mixin _UtexoLspRelay on _UtexoLspInternals {
         'invoice',
       );
     }
+    _assertLightningEnabled();
     final payWithAssetId = await _resolvePayWithAsset(target, options.payWith);
+    _assertLightningEnabled();
     final quoted = await http.lightningSend(
       LspLightningSendRequest(invoice: invoice, payWithAssetId: payWithAssetId),
     );
+    _assertLightningEnabled();
     final hodl = await wallet.decodeLnInvoice(quoted.lnInvoice);
     return LspRelayQuoteVerifier.verify(
       target: target,
@@ -46,7 +50,9 @@ mixin _UtexoLspRelay on _UtexoLspInternals {
   Future<ExternalPaymentResult> payExternalInvoice(
     PayExternalInvoiceOptions options,
   ) async {
+    _assertLightningEnabled();
     final quote = await quoteExternalPayment(options);
+    _assertLightningEnabled();
     final sendResult = await wallet.payLightningInvoice(
       lnInvoice: quote.invoice,
     );
@@ -57,6 +63,7 @@ mixin _UtexoLspRelay on _UtexoLspInternals {
   Future<LspLightningSendStatusResponse> externalPaymentStatus(
     String paymentHash,
   ) async {
+    _assertLightningEnabled();
     if (paymentHash.trim().isEmpty) {
       throw const ValidationError('paymentHash is required.', 'paymentHash');
     }

@@ -422,6 +422,10 @@ class RlnApiPigeonCodec: FlutterStandardMessageCodec, @unchecked Sendable {
 
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol RlnHostApi {
+  func rlnBfaCapabilities() throws -> RlnWireResponse
+  func rlnBurn(nodeId: Int64, assetId: String, amount: String, burnRecipient: String?, feeRate: Int64, minConfirmations: Int64) throws -> RlnWireResponse
+  func rlnGetConsignment(nodeId: Int64, assetId: String, txid: String) throws -> String
+  func rlnGetConsignmentPath(nodeId: Int64, assetId: String, txid: String) throws -> String
   func getNativeArtifactInfo() throws -> RlnNativeArtifactInfo
   func rlnCreateNode(storageDirPath: String, daemonListeningPort: Int64, ldkPeerListeningPort: Int64, network: String, maxMediaUploadSizeMb: Int64, enableVirtualChannelsV0: Bool?, virtualPeerPubkeys: [String]?, vssUrl: String?, vssAllowHttp: Bool, vssAllowEmptyRestore: Bool, lspBaseUrl: String?, lspBearerToken: String?, reuseAddresses: Bool) throws -> Int64
   func rlnInitNode(nodeId: Int64, password: String, mnemonic: String?) throws -> String
@@ -431,7 +435,7 @@ protocol RlnHostApi {
   func rlnUnlockNodeWithNativeExternalSigner(nodeId: Int64, signerId: Int64, bitcoindRpcUsername: String?, bitcoindRpcPassword: String?, bitcoindRpcHost: String?, bitcoindRpcPort: Int64?, indexerUrl: String?, proxyEndpoint: String?, announceAddresses: [String], announceAlias: String?, gossipRgsServerUrl: String?) throws
   func rlnDestroyNativeExternalSigner(signerId: Int64) throws
   func rlnInitNodeWithExternalSigner(nodeId: Int64, nodePublicKeyHex: String, accountXpubVanilla: String, accountXpubColored: String, masterFingerprint: String, protocolVersion: String, apiLevel: Int64) throws
-  func rlnUnlockNode(nodeId: Int64, password: String, bitcoindRpcUsername: String?, bitcoindRpcPassword: String?, bitcoindRpcHost: String?, bitcoindRpcPort: Int64?, indexerUrl: String?, proxyEndpoint: String?, announceAddresses: [String], announceAlias: String?, gossipRgsServerUrl: String?) throws
+  func rlnUnlockNode(nodeId: Int64, password: String, bitcoindRpcUsername: String?, bitcoindRpcPassword: String?, bitcoindRpcHost: String?, bitcoindRpcPort: Int64?, indexerUrl: String?, proxyEndpoint: String?, announceAddresses: [String], announceAlias: String?, gossipRgsServerUrl: String?, ethRpcUrl: String?) throws
   func rlnDestroyNode(nodeId: Int64) throws
   func rlnNodeInfo(nodeId: Int64) throws -> RlnWireResponse
   func rlnNetworkInfo(nodeId: Int64) throws -> RlnWireResponse
@@ -498,6 +502,81 @@ class RlnHostApiSetup {
     #else
       let taskQueue: FlutterTaskQueue? = nil
     #endif
+    let rlnBfaCapabilitiesChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBfaCapabilities\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBfaCapabilities\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
+    if let api = api {
+      rlnBfaCapabilitiesChannel.setMessageHandler { _, reply in
+        do {
+          let result = try api.rlnBfaCapabilities()
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      rlnBfaCapabilitiesChannel.setMessageHandler(nil)
+    }
+    let rlnBurnChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBurn\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBurn\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
+    if let api = api {
+      rlnBurnChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let nodeIdArg = args[0] as! Int64
+        let assetIdArg = args[1] as! String
+        let amountArg = args[2] as! String
+        let burnRecipientArg: String? = nilOrValue(args[3])
+        let feeRateArg = args[4] as! Int64
+        let minConfirmationsArg = args[5] as! Int64
+        do {
+          let result = try api.rlnBurn(nodeId: nodeIdArg, assetId: assetIdArg, amount: amountArg, burnRecipient: burnRecipientArg, feeRate: feeRateArg, minConfirmations: minConfirmationsArg)
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      rlnBurnChannel.setMessageHandler(nil)
+    }
+    let rlnGetConsignmentChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnGetConsignment\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnGetConsignment\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
+    if let api = api {
+      rlnGetConsignmentChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let nodeIdArg = args[0] as! Int64
+        let assetIdArg = args[1] as! String
+        let txidArg = args[2] as! String
+        do {
+          let result = try api.rlnGetConsignment(nodeId: nodeIdArg, assetId: assetIdArg, txid: txidArg)
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      rlnGetConsignmentChannel.setMessageHandler(nil)
+    }
+    let rlnGetConsignmentPathChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnGetConsignmentPath\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnGetConsignmentPath\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
+    if let api = api {
+      rlnGetConsignmentPathChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let nodeIdArg = args[0] as! Int64
+        let assetIdArg = args[1] as! String
+        let txidArg = args[2] as! String
+        do {
+          let result = try api.rlnGetConsignmentPath(nodeId: nodeIdArg, assetId: assetIdArg, txid: txidArg)
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      rlnGetConsignmentPathChannel.setMessageHandler(nil)
+    }
     let getNativeArtifactInfoChannel = taskQueue == nil
       ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.getNativeArtifactInfo\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
       : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.getNativeArtifactInfo\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
@@ -701,8 +780,9 @@ class RlnHostApiSetup {
         let announceAddressesArg = args[8] as! [String]
         let announceAliasArg: String? = nilOrValue(args[9])
         let gossipRgsServerUrlArg: String? = nilOrValue(args[10])
+        let ethRpcUrlArg: String? = nilOrValue(args[11])
         do {
-          try api.rlnUnlockNode(nodeId: nodeIdArg, password: passwordArg, bitcoindRpcUsername: bitcoindRpcUsernameArg, bitcoindRpcPassword: bitcoindRpcPasswordArg, bitcoindRpcHost: bitcoindRpcHostArg, bitcoindRpcPort: bitcoindRpcPortArg, indexerUrl: indexerUrlArg, proxyEndpoint: proxyEndpointArg, announceAddresses: announceAddressesArg, announceAlias: announceAliasArg, gossipRgsServerUrl: gossipRgsServerUrlArg)
+          try api.rlnUnlockNode(nodeId: nodeIdArg, password: passwordArg, bitcoindRpcUsername: bitcoindRpcUsernameArg, bitcoindRpcPassword: bitcoindRpcPasswordArg, bitcoindRpcHost: bitcoindRpcHostArg, bitcoindRpcPort: bitcoindRpcPortArg, indexerUrl: indexerUrlArg, proxyEndpoint: proxyEndpointArg, announceAddresses: announceAddressesArg, announceAlias: announceAliasArg, gossipRgsServerUrl: gossipRgsServerUrlArg, ethRpcUrl: ethRpcUrlArg)
           reply(wrapResult(nil))
         } catch {
           reply(wrapError(error))

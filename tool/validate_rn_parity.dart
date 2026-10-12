@@ -43,6 +43,7 @@ void main() {
   _validateCoreLspTypeExports(root, rnRoot, lspManifest, errors);
   _validateCoreLspDartSignatures(root, lspManifest, errors);
   _validateRlnSurfaceExcludedByRn(root, rnRoot, lspManifest, errors);
+  _validateWebRgb(root, rnRoot, errors);
 
   _finish(errors);
 
@@ -51,6 +52,80 @@ void main() {
     'NativeRgb methods, UTEXOWallet methods, and runtime package exports. '
     'Upstream dev ${_shortCommit(upstreamCommit)} was checked for drift.',
   );
+}
+
+void _validateWebRgb(Directory root, Directory rnRoot, List<String> errors) {
+  final manifest = _readJsonObject(
+    File('${root.path}/tool/webrgb_parity_manifest.json'),
+    errors,
+  );
+  final sources = manifest['reviewedSources'];
+  if (sources is! Map<String, Object?> || sources.isEmpty) {
+    errors.add('WebRGB reviewed-source inventory is missing.');
+    return;
+  }
+  for (final source in sources.entries) {
+    final file = File('${rnRoot.path}/${source.key}');
+    if (!file.existsSync() ||
+        sha256.convert(file.readAsBytesSync()).toString() != source.value) {
+      errors.add(
+        'WebRGB contract changed: ${source.key}. Review behavior and tests before repinning.',
+      );
+    }
+  }
+  final providerFile = File(
+    '${root.path}/lib/src/integrations/webrgb/provider.dart',
+  );
+  final unit = parseString(content: providerFile.readAsStringSync()).unit;
+  final type = unit.declarations.whereType<ClassDeclaration>().singleWhere(
+    (type) => type.namePart.typeName.lexeme == 'WebRgbProvider',
+  );
+  final actual = (type.body as BlockClassBody).members
+      .whereType<MethodDeclaration>()
+      .where(
+        (method) => !method.isGetter && !method.name.lexeme.startsWith('_'),
+      )
+      .map((method) => method.name.lexeme)
+      .toSet();
+  final expected = (manifest['methods'] as List<Object?>)
+      .cast<String>()
+      .toSet();
+  if (actual.difference(expected).isNotEmpty ||
+      expected.difference(actual).isNotEmpty) {
+    errors.add(
+      'WebRGB provider method coverage differs: expected $expected, found $actual.',
+    );
+  }
+  final rnPackage = _readJsonObject(
+    File('${rnRoot.path}/package.json'),
+    errors,
+  );
+  final peers = rnPackage['peerDependencies'] as Map<String, Object?>?;
+  if (peers?['@utexo/webrgb'] != manifest['peerRange']) {
+    errors.add(
+      'WebRGB peer specification version changed; review wire shapes.',
+    );
+  }
+  final lock = File('${rnRoot.path}/yarn.lock');
+  final entry =
+      '"@utexo/webrgb@${manifest['peerRange']}":\n'
+      '  version "${manifest['peerVersion']}"\n'
+      '  resolved "${manifest['peerArchiveUrl']}"\n'
+      '  integrity ${manifest['peerIntegrity']}';
+  if (!lock.existsSync() || !lock.readAsStringSync().contains(entry)) {
+    errors.add(
+      'WebRGB resolved peer archive changed; review the wire contract.',
+    );
+  }
+  final tarball = Platform.environment['RGB_SDK_WEBRGB_TARBALL'];
+  if (tarball != null) {
+    final file = File(tarball);
+    if (!file.existsSync() ||
+        sha256.convert(file.readAsBytesSync()).toString() !=
+            manifest['peerArchiveSha256']) {
+      errors.add('WebRGB peer tarball does not match the reviewed archive.');
+    }
+  }
 }
 
 void _validateCoreLspDartSignatures(
@@ -1069,6 +1144,7 @@ final class _TypeShape {
       'boolean' => 'bool',
       'void' => 'void',
       'object' => 'map',
+      '{ burn: boolean; consignment: boolean; bfa: boolean; }' => 'map',
       'object[]' => 'list-map',
       'string[]' => 'list-string',
       'number[]' => 'list-number',
@@ -1240,12 +1316,19 @@ void _validateCanonicalWalletReturnShapes(
   ).readAsStringSync();
   final dartSource = <String>[
     'lib/src/wallet/utexo_wallet.dart',
+    'lib/src/wallet/utexo_wallet_bfa.dart',
     'lib/src/wallet/utexo_wallet_lifecycle.dart',
     'lib/src/wallet/utexo_wallet_lsp_apay.dart',
     'lib/src/wallet/utexo_wallet_onchain.dart',
     'lib/src/wallet/utexo_wallet_lightning.dart',
   ].map((path) => File('${root.path}/$path').readAsStringSync()).join('\n');
   const expected = <String, (String, String)>{
+    'burn': ('BurnResult', 'Future<BurnResult>'),
+    // RN infers this return; the BfaCapabilities decoder and contract tests
+    // verify all three boolean fields instead of pretending it is annotated.
+    'getBfaCapabilities': ('<inferred>', 'Future<BfaCapabilities>'),
+    'getConsignment': ('string', 'Future<String>'),
+    'getConsignmentPath': ('string', 'Future<String>'),
     'init': ('void', 'Future<void>'),
     'unlock': ('void', 'Future<void>'),
     'reinit': ('void', 'Future<void>'),
@@ -1461,8 +1544,12 @@ String? _rnWalletReturnType(String source, String method) {
     41,
   );
   if (closingParenthesis < 0) return null;
-  final colon = source.indexOf(':', closingParenthesis);
-  if (colon < 0) return null;
+  final suffix = source.substring(closingParenthesis + 1);
+  final annotation = RegExp(r'^\s*:').firstMatch(suffix);
+  if (annotation == null) {
+    return suffix.trimLeft().startsWith('{') ? '<inferred>' : null;
+  }
+  final colon = closingParenthesis + 1 + annotation.end - 1;
   final returnStart = colon + 1;
   final promise = source.indexOf('Promise<', returnStart);
   if (promise < 0 || promise - returnStart > 16) {

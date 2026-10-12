@@ -14,6 +14,7 @@ const _thresholds = <String, double>{
   'lib/src/lsp/': 65.0,
   'lib/src/crypto/': 70.0,
   'lib/src/models/': 70.0,
+  'lib/src/integrations/webrgb/': 85.0,
 };
 
 void main() {

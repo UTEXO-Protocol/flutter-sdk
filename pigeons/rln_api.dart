@@ -61,6 +61,25 @@ class RlnRefreshTransfersData {
 @HostApi()
 abstract class RlnHostApi {
   @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnBfaCapabilities();
+
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnBurn(
+    int nodeId,
+    String assetId,
+    String amount,
+    String? burnRecipient,
+    int feeRate,
+    int minConfirmations,
+  );
+
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  String rlnGetConsignment(int nodeId, String assetId, String txid);
+
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  String rlnGetConsignmentPath(int nodeId, String assetId, String txid);
+
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   RlnNativeArtifactInfo getNativeArtifactInfo();
 
   @TaskQueue(type: TaskQueueType.serialBackgroundThread)
@@ -139,6 +158,7 @@ abstract class RlnHostApi {
     List<String> announceAddresses,
     String? announceAlias,
     String? gossipRgsServerUrl,
+    String? ethRpcUrl,
   );
 
   @TaskQueue(type: TaskQueueType.serialBackgroundThread)

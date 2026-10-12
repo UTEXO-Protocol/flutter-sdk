@@ -192,10 +192,10 @@ Future<GeneratedKeys> generateKeys([
 ]) async {
   try {
     final mnemonic = bip39.generateMnemonic(strength: 128);
-    return deriveKeysFromMnemonic(bitcoinNetwork, mnemonic);
+    return await deriveKeysFromMnemonic(bitcoinNetwork, mnemonic);
   } catch (error) {
     if (error is RgbSdkException) rethrow;
-    throw CryptoError('Failed to generate mnemonic: $error', cause: error);
+    throw CryptoError('Failed to generate mnemonic', cause: error);
   }
 }
 
@@ -245,7 +245,7 @@ Future<GeneratedKeys> deriveKeysFromMnemonicOrSeed(
         trimmed.contains(' ') && words.length >= 12 && words.length <= 24;
     if (isLikelyMnemonic) {
       try {
-        return deriveKeysFromMnemonic(bitcoinNetwork, trimmed);
+        return await deriveKeysFromMnemonic(bitcoinNetwork, trimmed);
       } on ValidationError {
         return deriveKeysFromSeed(bitcoinNetwork, trimmed);
       }

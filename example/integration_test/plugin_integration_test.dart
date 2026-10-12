@@ -115,6 +115,12 @@ void main() {
       );
 
       final assets = await client.listAssets(nodeId: nodeId);
+      expect(assets['bfa'], isA<List<Object?>>());
+      expect(await client.bfaCapabilities(), {
+        'burn': true,
+        'consignment': true,
+        'bfa': true,
+      });
       expect(assets['nia'], isA<List<Object?>>());
       expect(assets['uda'], isA<List<Object?>>());
       expect(assets['cfa'], isA<List<Object?>>());
@@ -198,6 +204,10 @@ void main() {
       expect(balance.colored.settled, greaterThanOrEqualTo(0));
 
       final assets = await wallet.listAssets();
+      expect(assets.bfa, isEmpty);
+      final bfa = await wallet.getBfaCapabilities();
+      expect(bfa.bfa, true);
+      expect(bfa.consignment, true);
       expect(assets.nia, isEmpty);
       expect(assets.uda, isEmpty);
       expect(assets.cfa, isEmpty);
@@ -341,6 +351,21 @@ void main() {
         900,
         label: 'wallet A',
       );
+
+      // Native outgoing allocations can describe the 900-unit change. The
+      // normalized history must describe this recipient's 100-unit payment.
+      final outgoing = (await walletA.listTransfers(assetId: issued.assetId))
+          .singleWhere(
+            (transfer) => transfer.txid == send.txid && transfer.kind == 'Send',
+          );
+      final incoming = walletBTransfers.singleWhere(
+        (transfer) =>
+            transfer.txid == send.txid && transfer.kind == 'ReceiveBlind',
+      );
+      expect(outgoing.amountBaseUnits, '100');
+      expect(outgoing.amount, BigInt.from(100));
+      expect(incoming.amountBaseUnits, '100');
+      expect(incoming.amount, BigInt.from(100));
 
       _step('read wallet A asset balance');
       final walletABalance = await walletA.getAssetBalance(issued.assetId);

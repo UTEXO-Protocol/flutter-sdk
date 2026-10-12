@@ -278,6 +278,13 @@ main() {
     return 1
   fi
 
+  # Unlike diagnostic gates, a resource prerequisite must stop further work.
+  # Inspect its recorded status without disabling errexit inside run_step.
+  run_step "release disk-space preflight" ensure_release_disk_space "${REPO_DIR}"
+  if [[ "${STEP_CODES[${#STEP_CODES[@]}-1]}" -ne 0 ]]; then
+    return 1
+  fi
+
   run_step "package dependency resolution" "${FLUTTER_BIN}" pub get
   run_step "example dependency resolution" bash -lc "cd '${REPO_DIR}/example' && '${FLUTTER_BIN}' pub get"
   run_step "format check" "${DART_BIN}" format --set-exit-if-changed lib test example/integration_test tool pigeons
@@ -293,7 +300,6 @@ main() {
   run_step "release package validation" "${DART_BIN}" run tool/validate_release_package.dart
   run_step "native artifact checksum verification" ./tool/verify_native_artifacts.sh --require-android
   run_step "supply-chain provenance, SBOM, license, and ABI gate" "${DART_BIN}" run tool/validate_supply_chain.dart
-  run_step "release disk-space preflight" ensure_release_disk_space "${REPO_DIR}"
   if [[ "${RUN_CONSUMER_MATRIX:-1}" == "1" ]]; then
     run_step "clean consumer install and archive matrix" bash -lc "REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_clean_consumer_matrix.sh'"
   else

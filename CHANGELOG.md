@@ -10,16 +10,23 @@ Initial internal-beta Flutter package release.
 - Added the advanced `rgb_sdk_flutter_advanced.dart` entrypoint for explicit
   RN/native parity access to `RlnClient`, `RLNBinding`, `RLNManager`, raw
   `Rln*` models, bridge diagnostics, and migration tooling.
-- Targeted `@utexo/rgb-sdk-rn` `1.0.0-beta.36`,
+- Targeted `@utexo/rgb-sdk-rn` `1.0.0-beta.37`,
   `@utexo/rgb-sdk-core` `1.0.0-beta.9`, and RGB Lightning Node
-  `0.15.0-beta.3`.
+  `0.16.0-beta.3`, including onchain-only mainnet native startup.
 - Added bridged fungible assets (BFA), signer-aware burn capabilities, exact-u64
-  burn requests, saved consignment bytes/path, and password-unlock `ethRpcUrl`.
+  burn requests, saved consignment bytes/path, and password/external-signer
+  unlock `ethRpcUrl` through RLN's request-based native API.
 - Added durable `BurnOperations` with pending-outcome blocking and explicit
   independent-proof reconciliation; a storage failure never retries a burn.
+- Added pre-broadcast funding-failure cancellation and an optional sanitized
+  journal error field; unknown outcomes remain pending, never auto-retried.
 - Added optional WebRGB receiving/read/burn integration with immutable typed
   requests, per-session revocation, sanitized errors, chain policy, and bounded
   Keccak-256 proof export. Hosts own transport, durable storage and user approval.
+- Added WebRGB 0.1.2 witness receiving and exact approved Unicode message
+  signing through the native wallet, plus an optional bounded WalletConnect
+  session RPC router. Full WalletKit pairing and live relay qualification are
+  not implemented or claimed by this router.
 - Blocked canonical Lightning methods on mainnet with the upstream error code.
   Native `LightningUnsupportedOnMainnet` remains a typed unsupported failure.
 - Implemented iOS and Android Pigeon bridges backed by the pinned native RGB

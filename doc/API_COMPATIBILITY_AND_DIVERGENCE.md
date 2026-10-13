@@ -6,15 +6,18 @@ changes are staged. It is a release gate, not background guidance.
 
 ## Source Precedence
 
-The October 9 reference is RN beta.36 (`a7e31b3eec8d71f4275c9655339641a113b0f7e6`)
-with RLN intentionally held at 0.15.0-beta.3. OCT-024/025 cover direct LSP
+The October 13 reference is RN beta.37 (`e38329eba11cce16e3bea75b8a4e7becd52c0036`)
+with RLN 0.16.0-beta.3 and WebRGB 0.1.2. OCT-024/025 cover direct LSP
 mainnet guarding and exact transfer history. Dart `BigInt` is exact throughout;
 WebRGB history omits the JS numeric amount above 2^53 - 1, retaining decimal
 base units. Native history with unknown/malformed allocations fails closed,
 rather than RN's unknown-type-to-Any fallback. Flutter retains the host
 payout-chain allowlist that RN beta.36 removed, as an explicit stricter burn
-authorization policy. OCT-026 records missing native onchain-only startup;
-onchain release scope is not a claim of a Lightning-free native runtime.
+authorization policy. RLN now implements onchain-only mainnet startup, replacing
+the OCT-026 native-version freeze. External unlock uses the request API to
+forward ethRpcUrl instead of silently dropping it as RN's flat bridge does.
+The WebRGB session router is not full WalletKit transport parity: pairing,
+proposal/event handling and live relay qualification remain OCT-031.
 
 When RN source, core declarations, and native RLN artifacts disagree, use this
 order:

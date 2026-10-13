@@ -387,6 +387,7 @@ class FakeRlnHostApi extends RlnHostApi {
     List<String> announceAddresses,
     String? announceAlias,
     String? gossipRgsServerUrl,
+    String? ethRpcUrl,
   ) async {
     unlockedNativeSignerId = signerId;
     unlockedHost = bitcoindRpcHost;

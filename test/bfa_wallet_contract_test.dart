@@ -20,6 +20,38 @@ class _Host extends FakeRlnHostApi {
   String? amount;
   String? ethRpc;
   @override
+  Future<void> rlnUnlockNodeWithNativeExternalSigner(
+    int nodeId,
+    int signerId,
+    String? user,
+    String? pass,
+    String? host,
+    int? port,
+    String? indexer,
+    String? proxy,
+    List<String> addresses,
+    String? alias,
+    String? rgs,
+    String? eth,
+  ) async {
+    ethRpc = eth;
+    await super.rlnUnlockNodeWithNativeExternalSigner(
+      nodeId,
+      signerId,
+      user,
+      pass,
+      host,
+      port,
+      indexer,
+      proxy,
+      addresses,
+      alias,
+      rgs,
+      eth,
+    );
+  }
+
+  @override
   Future<RlnWireResponse> rlnBfaCapabilities() async =>
       RlnWireResponse(json: '{"burn":true,"consignment":true,"bfa":true}');
   @override
@@ -159,7 +191,7 @@ void main() {
   );
 
   test(
-    'external signer capability cannot claim burn and rejects eth RPC',
+    'external signer forwards eth RPC but retains RN burn capability policy',
     () async {
       final host = _Host();
       final wallet = createAdvancedUtexoWallet(
@@ -175,14 +207,11 @@ void main() {
       expect(caps.burn, false);
       expect(caps.consignment, true);
       await wallet.init();
-      await expectLater(
-        wallet.unlock(
-          config: UtexoUnlockConfig(ethRpcUrl: 'https://eth.example'),
-        ),
-        throwsA(isA<UnsupportedWalletFeatureException>()),
+      await wallet.unlock(
+        config: UtexoUnlockConfig(ethRpcUrl: 'https://eth.example'),
       );
+      expect(host.ethRpc, 'https://eth.example');
       expect(host.unlockNodeCount, 0);
-      await wallet.unlock(config: UtexoUnlockConfig());
       await expectLater(
         wallet.burn(_params),
         throwsA(isA<UnsupportedWalletFeatureException>()),

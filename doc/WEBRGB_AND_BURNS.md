@@ -1,7 +1,7 @@
 # WebRGB and BFA Burns
 
-Target: RN beta.36 at `a7e31b3eec8d71f4275c9655339641a113b0f7e6`,
-`@utexo/webrgb` 0.1.0, RLN 0.15.0-beta.3. This document defines integration
+Target: RN beta.37 at `e38329eba11cce16e3bea75b8a4e7becd52c0036`,
+`@utexo/webrgb` 0.1.2, RLN 0.16.0-beta.3. This document defines integration
 contracts, not production qualification. Check RELEASE_READINESS_TRACKER.md.
 
 ## Optional Provider
@@ -9,7 +9,8 @@ contracts, not production qualification. Check RELEASE_READINESS_TRACKER.md.
 Import `package:rgb_sdk_flutter/rgb_sdk_flutter_webrgb.dart`. The ordinary
 wallet entrypoint does not install or expose a browser provider automatically.
 `WebRgbProvider` implements the same RN subset: enable, getInfo, getAddress,
-blindReceive, listAssets, getAssetBalance, listTransfers, getTransferStatus,
+blindReceive, witnessReceive, signMessage, listAssets, getAssetBalance,
+listTransfers, getTransferStatus,
 decodeRgbInvoice, and optional burnAsset/getConsignment. It does not pretend to
 implement the rest of WebRGB (issuance, generic sends, discovery, transports).
 
@@ -67,7 +68,9 @@ Test fixtures are not an implementation recommendation.
 
 State transitions are prepared -> pending -> complete. Pending is durably
 written before native invocation. Failure/revocation before invocation cancels
-the record; an uncertain outcome after invocation remains pending and blocks
+the record. Typed native InsufficientFunds/NoAvailableUtxos from the burn call,
+before a result is returned, also cancel because native guarantees no broadcast.
+An uncertain outcome after invocation remains pending and blocks
 every new burn, including from another provider. A known native result whose
 final write failed remains in memory and can be flushed with retryPersistence
 without another native call. After process death, durable pending stays pending.
@@ -84,6 +87,34 @@ treated as private wallet data. It must not be exposed to the dApp. Legacy RN
 records normalize to v2 while preserving their old private IDs; unsupported
 versions, missing results, conflicting recipients and malformed records fail
 closed. WebRGB responses use txid as transferId, never a private journal ID.
+
+The optional error field round-trips legacy RN records (which may contain
+private native messages). New Flutter failures persist only sanitized codes.
+A journal persistence failure after a known successful burn never becomes a
+cancelled burn, even if that storage failure happens to use a funding error code.
+
+## WalletConnect Router
+
+`WebRgbWalletConnectSession` implements wallet-side positional RPC dispatch for
+the experimental `webrgb:1` profile, `rgb:<network>` chain and qualified account.
+It is not a complete WalletKit transport. The host must initialize WalletKit,
+pair, negotiate proposals, verify peer origin, obtain consent, persist sessions,
+subscribe/unsubscribe events, deliver replies and close expired approval UI.
+Invalid/scam verification must be rejected; unknown verification needs explicit
+user warning and approval. Never build a grant from request-provided identity.
+
+Each router binds one wallet and session, checks current grant permissions at
+async boundaries, serializes requests, and deduplicates IDs without replaying
+mutations. Disposal is terminal. It bounds unexpired request IDs to 256 and
+input JSON to 64 KiB. Proof export uses 48 KiB chunks, a 16 MiB decoded bound
+and Keccak-256 verification off the UI isolate. Cached results are copied for
+delivery so host edits cannot corrupt later duplicate replies. Live relay,
+session restoration, proposal negotiation and app consent UI remain OCT-031,
+not claimed by the router's unit tests.
+
+Message signing always prompts with the exact origin/message and uses native
+wallet identity. Unpaired UTF-16 surrogates fail before approval; valid Unicode
+is unchanged. This is not the experimental standalone Dart Schnorr signer.
 
 ## Proof Export
 
@@ -110,8 +141,9 @@ provider boundary. Diagnostic causes remain on the wallet side.
   the transport host handles any wire-level object form.
 - One store object is required across BurnOperations wrappers around a wallet.
   Different store instances cannot silently share in-memory recovery state.
-- Password unlock forwards ethRpcUrl. Native external-signer unlock rejects it
-  and advertises burn=false. The endpoint may contain credentials: do not log it.
+- Password and native external-signer unlock forward ethRpcUrl. The latter
+  uses RLN 0.16's request API, a deliberate bridge improvement over RN's flat
+  entrypoint. External-signer burn remains unsupported. Never log RPC credentials.
 - New RLN importRgbContract/importRgbTransferConsignment methods are not
   exported by RN; Flutter does not add unsupported stable wallet surface.
 

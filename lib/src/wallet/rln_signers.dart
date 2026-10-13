@@ -528,6 +528,7 @@ final class _RlnClientSignerHost implements RlnSignerHost {
       announceAddresses: config.announceAddresses,
       announceAlias: config.announceAlias,
       gossipRgsServerUrl: config.gossipRgsServerUrl,
+      ethRpcUrl: config.ethRpcUrl,
     );
   }
 

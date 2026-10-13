@@ -68,7 +68,7 @@ Android artifacts resolve through Gradle/Maven and must be checked against the
 pinned hash before candidate evidence is accepted.
 
 The current provenance manifest records the live upstream status for the pinned
-RLN `0.15.0-beta.3` artifact set:
+RLN `0.16.0-beta.3` artifact set:
 
 | Artifact | Signature status | Attestation status | Production effect |
 | --- | --- | --- | --- |

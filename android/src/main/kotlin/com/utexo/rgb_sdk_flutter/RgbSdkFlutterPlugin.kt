@@ -10,6 +10,7 @@ import org.utexo.rgblightningnode.ClaimHodlInvoiceRequest
 import org.utexo.rgblightningnode.LnInvoiceRequest
 import org.utexo.rgblightningnode.NativeExternalSigner
 import org.utexo.rgblightningnode.SdkExternalSignerBootstrap
+import org.utexo.rgblightningnode.SdkExternalUnlockRequest
 import org.utexo.rgblightningnode.SdkInitRequest
 import org.utexo.rgblightningnode.SdkLdkChainSync
 import org.utexo.rgblightningnode.SdkNode
@@ -564,7 +565,8 @@ class RgbSdkFlutterPlugin :
         proxyEndpoint: String?,
         announceAddresses: List<String>,
         announceAlias: String?,
-        gossipRgsServerUrl: String?
+        gossipRgsServerUrl: String?,
+        ethRpcUrl: String?
     ) {
         runRln("rlnUnlockNodeWithNativeExternalSigner") {
             if (gossipRgsServerUrl != null) {
@@ -586,20 +588,23 @@ class RgbSdkFlutterPlugin :
                     RlnNodeStore.NodeLifecycleState.UNLOCKING -> Unit
                     else -> throw RlnStateConflict("Unexpected RLN node state before unlock")
                 }
-                node.unlockWithNativeExternalSigner(
+                node.unlockWithNativeExternalSignerRequest(
                     signer = signer,
-                    ldkChainSync = requireLdkChainSync(
-                        bitcoindRpcUsername = bitcoindRpcUsername,
-                        bitcoindRpcPassword = bitcoindRpcPassword,
-                        bitcoindRpcHost = bitcoindRpcHost,
-                        bitcoindRpcPort = bitcoindRpcPort,
+                    request = SdkExternalUnlockRequest(
+                        ldkChainSync = requireLdkChainSync(
+                            bitcoindRpcUsername = bitcoindRpcUsername,
+                            bitcoindRpcPassword = bitcoindRpcPassword,
+                            bitcoindRpcHost = bitcoindRpcHost,
+                            bitcoindRpcPort = bitcoindRpcPort,
+                            indexerUrl = indexerUrl,
+                            operation = "rlnUnlockNodeWithNativeExternalSigner"
+                        ),
                         indexerUrl = indexerUrl,
-                        operation = "rlnUnlockNodeWithNativeExternalSigner"
-                    ),
-                    indexerUrl = indexerUrl,
-                    proxyEndpoint = proxyEndpoint,
-                    announceAddresses = announceAddresses,
-                    announceAlias = announceAlias
+                        proxyEndpoint = proxyEndpoint,
+                        announceAddresses = announceAddresses,
+                        announceAlias = announceAlias,
+                        ethRpcUrl = ethRpcUrl
+                    )
                 )
                 nodeStore.markUnlocked(nodeId)
             } catch (e: Exception) {

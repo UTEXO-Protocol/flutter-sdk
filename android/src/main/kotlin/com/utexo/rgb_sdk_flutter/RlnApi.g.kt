@@ -459,7 +459,7 @@ interface RlnHostApi {
   fun rlnCreateNativeExternalSigner(seedHex: String, network: String, permissivePolicy: Boolean, storageDirPath: String?): Long
   fun rlnInitNodeWithNativeExternalSigner(nodeId: Long, signerId: Long)
   fun rlnAttachNativeExternalSigner(nodeId: Long, signerId: Long)
-  fun rlnUnlockNodeWithNativeExternalSigner(nodeId: Long, signerId: Long, bitcoindRpcUsername: String?, bitcoindRpcPassword: String?, bitcoindRpcHost: String?, bitcoindRpcPort: Long?, indexerUrl: String?, proxyEndpoint: String?, announceAddresses: List<String>, announceAlias: String?, gossipRgsServerUrl: String?)
+  fun rlnUnlockNodeWithNativeExternalSigner(nodeId: Long, signerId: Long, bitcoindRpcUsername: String?, bitcoindRpcPassword: String?, bitcoindRpcHost: String?, bitcoindRpcPort: Long?, indexerUrl: String?, proxyEndpoint: String?, announceAddresses: List<String>, announceAlias: String?, gossipRgsServerUrl: String?, ethRpcUrl: String?)
   fun rlnDestroyNativeExternalSigner(signerId: Long)
   fun rlnInitNodeWithExternalSigner(nodeId: Long, nodePublicKeyHex: String, accountXpubVanilla: String, accountXpubColored: String, masterFingerprint: String, protocolVersion: String, apiLevel: Long)
   fun rlnUnlockNode(nodeId: Long, password: String, bitcoindRpcUsername: String?, bitcoindRpcPassword: String?, bitcoindRpcHost: String?, bitcoindRpcPort: Long?, indexerUrl: String?, proxyEndpoint: String?, announceAddresses: List<String>, announceAlias: String?, gossipRgsServerUrl: String?, ethRpcUrl: String?)
@@ -739,8 +739,9 @@ interface RlnHostApi {
             val announceAddressesArg = args[8] as List<String>
             val announceAliasArg = args[9] as String?
             val gossipRgsServerUrlArg = args[10] as String?
+            val ethRpcUrlArg = args[11] as String?
             val wrapped: List<Any?> = try {
-              api.rlnUnlockNodeWithNativeExternalSigner(nodeIdArg, signerIdArg, bitcoindRpcUsernameArg, bitcoindRpcPasswordArg, bitcoindRpcHostArg, bitcoindRpcPortArg, indexerUrlArg, proxyEndpointArg, announceAddressesArg, announceAliasArg, gossipRgsServerUrlArg)
+              api.rlnUnlockNodeWithNativeExternalSigner(nodeIdArg, signerIdArg, bitcoindRpcUsernameArg, bitcoindRpcPasswordArg, bitcoindRpcHostArg, bitcoindRpcPortArg, indexerUrlArg, proxyEndpointArg, announceAddressesArg, announceAliasArg, gossipRgsServerUrlArg, ethRpcUrlArg)
               listOf(null)
             } catch (exception: Throwable) {
               RlnApiPigeonUtils.wrapError(exception)

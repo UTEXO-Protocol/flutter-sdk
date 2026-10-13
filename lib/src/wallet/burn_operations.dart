@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import '../errors/native_bridge_error_mapper.dart';
 import '../errors/rgb_sdk_exception.dart';
 import '../models/burn_models.dart';
 import '../models/utexo_core_models.dart';
@@ -41,6 +42,7 @@ class BurnOperationRecord {
     required this.metadata,
     required this.state,
     this.result,
+    this.error,
   });
   final String id;
   final BurnParams params;
@@ -48,15 +50,21 @@ class BurnOperationRecord {
   final BurnOperationState state;
   final BurnResult? result;
 
+  /// Sanitized failure code for newly written records; never a native payload.
+  /// Legacy RN records may contain messages. Do not log or expose this to dApps.
+  final String? error;
+
   BurnOperationRecord withState(
     BurnOperationState state, {
     BurnResult? result,
+    String? error,
   }) => BurnOperationRecord(
     id: id,
     params: params,
     metadata: metadata,
     state: state,
     result: result ?? this.result,
+    error: error ?? this.error,
   );
 
   /// Storage shape compatible with the RN v2 journal. Never send it to a dApp.
@@ -79,6 +87,7 @@ class BurnOperationRecord {
       },
     },
     'state': state.name,
+    if (error != null) 'error': error,
     if (result != null)
       'result': {
         'txid': result!.txid,
@@ -128,6 +137,12 @@ int _integer(Object? value) {
 /// must not silently vanish and permit a second burn.
 BurnOperationRecord normalizeBurnRecord(Object? value) {
   final raw = _object(value);
+  if (raw['error'] != null && raw['error'] is! String) {
+    throw const WalletValidationException(
+      'Invalid burn journal error.',
+      field: 'error',
+    );
+  }
   final version = raw['version'];
   if (version != null && version != 1 && version != 2) {
     throw const WalletValidationException(
@@ -196,6 +211,7 @@ BurnOperationRecord normalizeBurnRecord(Object? value) {
     ),
     state: states.single,
     result: result,
+    error: raw['error'] as String?,
   );
 }
 
@@ -307,6 +323,7 @@ class BurnOperations {
       ).toJson(),
     );
     var invoked = false;
+    var nativeReturned = false;
     try {
       await _save(record);
       assertAuthorized();
@@ -315,18 +332,44 @@ class BurnOperations {
       assertAuthorized();
       invoked = true;
       final result = await _wallet.burn(params);
+      nativeReturned = true;
       result.validate();
       record = record.withState(BurnOperationState.complete, result: result);
       await _save(record);
       return record;
     } catch (error, stack) {
-      if (!invoked) {
+      // Only these native errors prove that PSBT funding failed before broadcast.
+      // An invalid returned result or timeout is still an uncertain mutation.
+      final cause = error is RgbSdkException ? error.cause : null;
+      final nativeCode = cause is NativeBridgeFailure
+          ? cause.operation == 'rlnBurn'
+                ? cause.nativeCode
+                : null
+          : error is RgbSdkException
+          ? error.code
+          : null;
+      final unfunded =
+          !nativeReturned &&
+          const {'InsufficientFunds', 'NoAvailableUtxos'}.contains(nativeCode);
+      if (record.state != BurnOperationState.complete) {
+        final cancelled = !invoked || unfunded;
         try {
-          await _save(record.withState(BurnOperationState.cancelled));
+          await _save(
+            record.withState(
+              cancelled
+                  ? BurnOperationState.cancelled
+                  : BurnOperationState.pending,
+              error: invoked
+                  ? unfunded
+                        ? nativeCode
+                        : 'BURN_OUTCOME_UNRESOLVED'
+                  : null,
+            ),
+          );
         } catch (persistenceError) {
           Error.throwWithStackTrace(
             WalletException(
-              'Burn was not dispatched; journal cancellation still needs persistence.',
+              'Burn journal recovery still needs persistence.',
               cause: [error, persistenceError],
             ),
             stack,

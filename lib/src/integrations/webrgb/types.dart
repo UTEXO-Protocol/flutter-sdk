@@ -103,6 +103,19 @@ class WebRgbBlindReceiveResult {
   };
 }
 
+/// Witness receiving uses the same units, expiry and confirmation policy.
+typedef WebRgbWitnessReceiveArgs = WebRgbBlindReceiveArgs;
+
+/// Witness invoice response, matching the WebRGB 0.1.2 wire shape.
+typedef WebRgbWitnessReceiveResult = WebRgbBlindReceiveResult;
+
+/// Native wallet signature over the exact, user-approved Unicode message.
+class WebRgbSignMessageResult {
+  const WebRgbSignMessageResult({required this.signature});
+  final String signature;
+  Map<String, Object?> toJson() => {'signature': signature};
+}
+
 class WebRgbAsset {
   const WebRgbAsset({
     required this.id,

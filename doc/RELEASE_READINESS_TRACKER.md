@@ -7,7 +7,57 @@ were removed because they overlapped and had drifted from the implementation.
 
 ## Document Control
 
-### October 9 Onchain Release Scope (Active)
+### October 13 Native and WebRGB Upgrade (Active)
+
+The user now authorizes upgrading to the latest published RLN, superseding
+the October 9 native-version freeze. Starting SDK commit: `063bd7f203c644f6ed2870e1838ef4ba617c681d`.
+Verified upstream RN dev: `e38329eba11cce16e3bea75b8a4e7becd52c0036`
+(`1.0.0-beta.37`); latest published RLN: `v0.16.0-beta.3`, commit
+`8777d71d7781b408fcce89c9c965ae29e8ad2300`. Core remains beta.9.
+WebRGB and its separate WalletConnect transport are both version 0.1.2.
+Neither a dependency bump nor a passing unit suite is a production qualification.
+Lightning remains outside release scope. PKG-006 remains accepted for internal beta.
+
+| ID | Pri | Status | Finding and evidence | Required outcome |
+| --- | --- | --- | --- | --- |
+| OCT-028 | P1 | In progress | SDK still pins RLN 0.15; RN beta.37 uses 0.16 with onchain-only mainnet startup and new external unlock requests. | Independently verify archive bytes, sources, ABI/API changes, regenerate baselines and run both native build/test paths. |
+| OCT-029 | P1 | Verified | Added WebRGB witnessReceive and per-request approved native signMessage from peer 0.1.2. | The full 429-test suite passes, including method advertisement, confirmation floor, exact Unicode/unpaired surrogate rejection and revocation races. Native-funded provider qualification remains OCT-004. |
+| OCT-030 | P1 | Verified | Journal cancels only pre-dispatch or native-proven pre-broadcast funding failures and supports the optional error field. | Tests cover both funding codes including mapped native causes, successful native result followed by failed persistence, legacy error round trips and uncertain-outcome fencing. New persisted errors are sanitized codes. Funded recovery remains OCT-002. |
+| OCT-031 | P1 | In progress | Flutter has no WebRGB WalletConnect transport adapter. RN uses a separate experimental rgb/webrgb:1 transport, not a generic injected provider. | Audit source and implement bounded typed routing, permissions, expiry/revocation, duplicate request protection and proof chunking. Live relay evidence requires an app-owned project ID and approval UI. |
+| OCT-032 | P1 | Verified | External-signer ethRpcUrl now reaches RLN 0.16 request-based unlock through generated Pigeon and both native bridges. | Dart forwarding/guard tests, 30 Android bridge tests and iOS compile pass. External-signer burn remains unsupported; real Ethereum acceptance/rejection remains OCT-002. |
+| OCT-033 | P1 | In progress | No qualification evidence exists for the upgraded exact SDK/app candidate. | Strict analyzer, full tests, native bridge tests, iOS/Android builds, app integration regression and clean immutable dependency resolution; record unavailable services rather than passing mocks as native proof. |
+
+OCT-027 remains blocked: the 0.16 Cargo.lock still pins consensus `2faf6118`,
+despite moving rgb-lib to `74a096a5` (beta.47-bfa). Its event-selection fix is
+not implied by this upgrade. October 9 results below are historical, not current
+candidate evidence. App integration is tracked separately in Aster's tracker.
+
+#### October 13 Verification and Remaining Scope
+
+- RN dev drift/API/source gate passes at e38329eba11c. Core stays beta.9;
+  WebRGB peer/source manifest and exact native archive/install hashes are updated.
+- 429 Dart tests pass. Coverage gates pass: package 88.0%, wallet 86.0%,
+  LSP 88.4%, crypto 91.1%, models 87.5%, WebRGB 95.0%. Analyzer has no findings;
+  dartdoc has zero warnings/errors. These are working-tree results, not an exact
+  clean release-candidate report.
+- Android JVM bridge suite: 30 passing tests. iOS simulator app and XCTest
+  bundle compile; lipo independently reports arm64 and x86_64 in both Runner
+  and the plugin framework. XCTest has not executed: all simulators are shut
+  down and authorization to boot the dedicated Aster simulator is pending.
+- New WalletConnect router tests cover expiration during approval, queued
+  requests, wallet changes, method revocation, duplicate IDs, immutable input
+  snapshots, independent reply copies and proof chunking. Review found and
+  fixed mutable cached replies and UI-isolate hashing. No live relay evidence.
+- OCT-031 is **not complete**: router dispatch is implemented, but WalletKit
+  pairing, verified proposals, persistent sessions, event subscription and app
+  consent UI are still needed. An app-owned Reown project ID is required for
+  live verification, not an excuse to claim unimplemented transport as done.
+- No funded BFA/Ethereum/VSS, installed Android or process-restart evidence is
+  claimed. Existing onchain and provenance blockers are not waived. Source
+  inspection confirms native onchain-only mainnet startup; runtime proof remains
+  part of OCT-028/033. No mainnet funds were used.
+
+### October 9 Onchain Release Scope (Historical)
 
 User decision: keep RLN **0.15.0-beta.3** and its exact archives. Do not upgrade
 to 0.16 or describe its onchain-only startup as behavior of the pinned binary.
@@ -26,7 +76,7 @@ that unused Lightning API support is itself a proven onchain funds defect.
 | --- | --- | --- | --- | --- |
 | OCT-024 | P1 | Verified | Direct UtexoLsp construction bypassed the canonical wallet's mainnet guard and could perform HTTP requests before rejection. Reproduced with a counting transport. | Shared policy rejects before client allocation and at all 18 orchestration methods. Matrix-bound tests prove zero wallet/HTTP effects on mainnet, network-change races at discovery/polling, and unchanged non-mainnet construction. Five regressions pass in the full 407-test suite. Low-level standalone HTTP transport intentionally has no wallet policy; funded Lightning success is not claimed. |
 | OCT-025 | P1 | Verified | RN beta.36 transfer history distinguishes requested outgoing amount from change/batch allocations, preserves decimal UInt64 and adds InflationRight parsing. Flutter previously summed outgoing change and rejected large WebRGB history values. | All six transfer kinds, unknown versus zero, full UInt64, malformed/overflow values and WebRGB JSON boundaries pass regression tests. Live RN drift, API snapshot and documentation gates pass without changing RLN. Added real transfer assertions distinguishing 100 sent from 900 change to the funded harness; their platform execution remains OCT-007, not claimed here. |
-| OCT-026 | P1 | Accepted constraint | User explicitly retains RLN 0.15.0-beta.3. Its mainnet guards reject Lightning methods but do not remove the background Lightning runtime; 0.16 startup isolation is not in this binary. | Keep native archives unchanged and describe this as an onchain-feature release, not a Lightning-free native runtime. Re-evaluate native isolation only when an artifact upgrade is authorized. PKG-006 and remaining qualification gates still prevent a mainnet-ready claim. |
+| OCT-026 | P1 | Verified | The October 9 version freeze is superseded by the October 13 authorized upgrade to exact RLN 0.16.0-beta.3 artifacts. Native source now selects onchain-only mainnet startup. | Freeze removed, not a runtime qualification claim. Both-platform mainnet startup verification remains OCT-028/033 and PKG-006 still prevents a mainnet-ready claim. |
 | OCT-027 | P1 | Blocked upstream | RLN 0.15 Cargo.lock pins rgb-lib aaf5b52 and rgb-consensus 2faf6118. The latter selects the first event for an OpId before comparing its amount: an earlier wrong-amount lock can hide a later correctly backed mint and invalidate its lane. Upstream WDK reproduced this; rgb-lib PR103 remains open. | Native validation must select any matching reason/amount, with missing-lock/wrong-only rejection and valid-after-wrong settlement tests. Source graph and exact correction were independently inspected; no new Flutter device reproduction is claimed. Fixing this needs an approved native artifact change. Never filter events, credit funds, or replace native validation in Dart. |
 
 Flutter retains its host payout-chain allowlist for irreversible WebRGB burns.
@@ -562,20 +612,20 @@ is accepted implicitly. No release eligibility is claimed during remediation.
 
 | Measure | Count |
 | --- | ---: |
-| Total tracked findings | 272 |
+| Total tracked findings | 278 |
 | P0 | 10 |
-| P1 | 184 |
+| P1 | 190 |
 | P2 | 78 |
 | P3 | 0 |
 | Open | 2 |
-| In progress | 19 |
+| In progress | 22 |
 | Blocked upstream | 2 |
 | Needs decision | 0 |
-| Accepted constraint | 8 |
-| Verified | 241 |
+| Accepted constraint | 7 |
+| Verified | 245 |
 
 This rollup is generated from all finding rows; verified code is not equivalent
-to clean-candidate platform qualification. Eight accepted constraints remain.
+to clean-candidate platform qualification. Seven accepted constraints remain.
 
 ## Remaining Open Work Groups
 
@@ -586,6 +636,7 @@ to clean-candidate platform qualification. Eight accepted constraints remain.
 | 3 | Qualification, real services and packaging | BASE-010, PKG-016, PKG-019, PKG-020, TEST-040, TEST-041, TEST-042, TEST-036, TEST-044 | 9 | 1/7/1/0 | Complete missing behavior vectors and live LSP/APay/linked/VSS scenarios, clean consumer archives, exact candidate reports and remaining provenance verification. |
 | 4 | October BFA/WebRGB qualification | OCT-001, OCT-002, OCT-004, OCT-006, OCT-007, OCT-013 | 6 | 0/6/0/0 | Execute real new-feature and existing service scenarios, complete consumer packaging, independently review remaining unchanged layers, and qualify an exact committed candidate. |
 | 5 | Pinned BFA native validation | OCT-027 | 1 | 0/1/0/0 | Requires an approved native artifact change and negative/positive funded cases; do not bypass native validation in Dart. Wrapper policy and amount-contract fixes OCT-024/025 are verified separately. |
+| 6 | RLN 0.16 and WalletConnect qualification | OCT-028, OCT-031, OCT-033 | 3 | 0/3/0/0 | Complete live session transport and exact clean consumer/platform qualification. Provider and journal contracts verified separately do not close these rows. |
 
 ## P0 Execution Log
 

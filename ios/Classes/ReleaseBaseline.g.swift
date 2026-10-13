@@ -1,9 +1,9 @@
 // Generated from tool/release_baseline.json. Do not edit.
 
 enum ReleaseBaseline {
-  static let reactNativeCommit = "a7e31b3eec8d71f4275c9655339641a113b0f7e6"
-  static let reactNativeVersion = "1.0.0-beta.36"
+  static let reactNativeCommit = "e38329eba11cce16e3bea75b8a4e7becd52c0036"
+  static let reactNativeVersion = "1.0.0-beta.37"
   static let coreVersion = "1.0.0-beta.9"
-  static let rlnVersion = "0.15.0-beta.3"
-  static let iosArchiveUrl = "https://github.com/UTEXO-Protocol/rgb-lightning-node/releases/download/v0.15.0-beta.3/rgb-lightning-node-swift-0.15.0-beta.3.zip"
+  static let rlnVersion = "0.16.0-beta.3"
+  static let iosArchiveUrl = "https://github.com/UTEXO-Protocol/rgb-lightning-node/releases/download/v0.16.0-beta.3/rgb-lightning-node-swift-0.16.0-beta.3.zip"
 }

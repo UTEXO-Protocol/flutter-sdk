@@ -202,7 +202,7 @@ final class RunnerTests: XCTestCase {
       nodeId: 9999, signerId: 9999, bitcoindRpcUsername: nil,
       bitcoindRpcPassword: nil, bitcoindRpcHost: nil, bitcoindRpcPort: nil,
       indexerUrl: nil, proxyEndpoint: nil, announceAddresses: [],
-      announceAlias: nil, gossipRgsServerUrl: "https://rgs.example")) { error in
+      announceAlias: nil, gossipRgsServerUrl: "https://rgs.example", ethRpcUrl: nil)) { error in
       let pigeon = expectPigeonError(error)
       XCTAssertEqual(pigeon.code, "UnsupportedOperationException")
       XCTAssertEqual(expectDetails(pigeon)["category"] as? String, "unsupported")

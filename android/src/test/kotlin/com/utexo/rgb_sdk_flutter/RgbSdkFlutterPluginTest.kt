@@ -191,7 +191,7 @@ internal class RgbSdkFlutterPluginTest {
         val error = assertFailsWith<FlutterError> {
             plugin.rlnUnlockNodeWithNativeExternalSigner(9999, 9999,
                 null, null, null, null, null, null, emptyList(), null,
-                "https://rgs.example")
+                "https://rgs.example", null)
         }
         assertEquals("UnsupportedOperationException", error.code)
         assertEquals("unsupported", (error.details as Map<*, *>)["category"])
@@ -664,7 +664,7 @@ internal class RgbSdkFlutterPluginTest {
                     if (external) {
                         plugin.rlnUnlockNodeWithNativeExternalSigner(
                             id, signerId, "test-only", null, null, null,
-                            null, null, emptyList(), null, null
+                            null, null, emptyList(), null, null, null
                         )
                     } else {
                         plugin.rlnUnlockNode(

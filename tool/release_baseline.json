@@ -3,9 +3,9 @@
   "releaseTier": "internal-beta",
   "reactNative": {
     "repository": "https://github.com/UTEXO-Protocol/rgb-sdk-rn.git",
-    "commit": "a7e31b3eec8d71f4275c9655339641a113b0f7e6",
+    "commit": "e38329eba11cce16e3bea75b8a4e7becd52c0036",
     "package": "@utexo/rgb-sdk-rn",
-    "version": "1.0.0-beta.36"
+    "version": "1.0.0-beta.37"
   },
   "core": {
     "repository": "https://github.com/UTEXO-Protocol/rgb-sdk-core.git",
@@ -23,13 +23,13 @@
   },
   "rln": {
     "repository": "https://github.com/UTEXO-Protocol/rgb-lightning-node.git",
-    "tag": "v0.15.0-beta.3",
-    "commit": "e2b39d5ae8da74525eafb58bc39b9a614c756a73",
-    "version": "0.15.0-beta.3",
+    "tag": "v0.16.0-beta.3",
+    "commit": "8777d71d7781b408fcce89c9c965ae29e8ad2300",
+    "version": "0.16.0-beta.3",
     "ios": {
-      "archiveUrl": "https://github.com/UTEXO-Protocol/rgb-lightning-node/releases/download/v0.15.0-beta.3/rgb-lightning-node-swift-0.15.0-beta.3.zip",
-      "archiveSizeBytes": 217936706,
-      "archiveSha256": "a84575a5d0f2fa6b7a9efd83c1aeb199b842fa4abe597ee59e40591119789b4b",
+      "archiveUrl": "https://github.com/UTEXO-Protocol/rgb-lightning-node/releases/download/v0.16.0-beta.3/rgb-lightning-node-swift-0.16.0-beta.3.zip",
+      "archiveSizeBytes": 219551778,
+      "archiveSha256": "af2df068aa8c6e2ef53fb08564c4e5fc1c5218fa682b51d5c4c282e5191fa585",
       "deviceArchitectures": [
         "arm64"
       ],
@@ -38,23 +38,23 @@
         "x86_64"
       ],
       "installedFiles": {
-        "ios/RGBLightningNode.swift": "d4772b9f74e8344ad67c46af257440657c45f88516d0af1a9c84a53c16cbc3b8",
-        "ios/RGBLightningNodeFFI.h": "ee6921da6d10c273a8e4b126b37b4ee0ec3869c626bfff9acc55140e80227f71",
+        "ios/RGBLightningNode.swift": "18d06592db6c63375dfe27b9ff6191831e14d3a4e70529c21462429e89677ca2",
+        "ios/RGBLightningNodeFFI.h": "3da41d276b8fe4d0c7fa61f4583c0867cfaa5604108bc41409791f0a0f0bb3a8",
         "ios/RGBLightningNodeFFI.modulemap": "31f5ce3d01d0d95d8341c5dbfbe9102bb9ea7c57c72e73871b599361251bb765",
-        "ios/RGBLightningNode.xcframework/Info.plist": "383f1e90e176b9b192aff897be3842f1c42ee0e14f19dd09f8252537a0899c05",
-        "ios/RGBLightningNode.xcframework/ios-arm64/Headers/RGBLightningNodeFFI.h": "ee6921da6d10c273a8e4b126b37b4ee0ec3869c626bfff9acc55140e80227f71",
+        "ios/RGBLightningNode.xcframework/Info.plist": "5febeaa62128cf46e141210236badf108de38cd5f712a2bccb4a11350a340d2c",
+        "ios/RGBLightningNode.xcframework/ios-arm64/Headers/RGBLightningNodeFFI.h": "3da41d276b8fe4d0c7fa61f4583c0867cfaa5604108bc41409791f0a0f0bb3a8",
         "ios/RGBLightningNode.xcframework/ios-arm64/Headers/module.modulemap": "31f5ce3d01d0d95d8341c5dbfbe9102bb9ea7c57c72e73871b599361251bb765",
-        "ios/RGBLightningNode.xcframework/ios-arm64/librgb_lightning_node.a": "f13833953378e9c0fafbbabff70ca3e8fa6724cf4b9eb1277e21199edaca65fc",
-        "ios/RGBLightningNode.xcframework/ios-arm64_x86_64-simulator/Headers/RGBLightningNodeFFI.h": "ee6921da6d10c273a8e4b126b37b4ee0ec3869c626bfff9acc55140e80227f71",
+        "ios/RGBLightningNode.xcframework/ios-arm64/librgb_lightning_node.a": "82ed63eb2cb19e356146ea5cd0c63b562eaee479e762a86644e0cd8eaa64acd7",
+        "ios/RGBLightningNode.xcframework/ios-arm64_x86_64-simulator/Headers/RGBLightningNodeFFI.h": "3da41d276b8fe4d0c7fa61f4583c0867cfaa5604108bc41409791f0a0f0bb3a8",
         "ios/RGBLightningNode.xcframework/ios-arm64_x86_64-simulator/Headers/module.modulemap": "31f5ce3d01d0d95d8341c5dbfbe9102bb9ea7c57c72e73871b599361251bb765",
-        "ios/RGBLightningNode.xcframework/ios-arm64_x86_64-simulator/librgb_lightning_node.a": "385f099836c0d2a4c014cf979f99ccf5c1623265908edd05f0533f0ca37c3c51"
+        "ios/RGBLightningNode.xcframework/ios-arm64_x86_64-simulator/librgb_lightning_node.a": "441610c2e11ea3ef12b0c7c1026eb5a8d31ad77ade26d7062a332050737d3574"
       }
     },
     "android": {
-      "mavenCoordinate": "com.utexo:rgb-lightning-node-android:0.15.0-beta.3",
-      "archiveUrl": "https://repo1.maven.org/maven2/com/utexo/rgb-lightning-node-android/0.15.0-beta.3/rgb-lightning-node-android-0.15.0-beta.3.aar",
-      "archiveSizeBytes": 91421352,
-      "archiveSha256": "69ebbf33572a66e1d13b6ae369b1d4d38eb20b62a5cc8d983475d7abd6c8d08a",
+      "mavenCoordinate": "com.utexo:rgb-lightning-node-android:0.16.0-beta.3",
+      "archiveUrl": "https://repo1.maven.org/maven2/com/utexo/rgb-lightning-node-android/0.16.0-beta.3/rgb-lightning-node-android-0.16.0-beta.3.aar",
+      "archiveSizeBytes": 92113193,
+      "archiveSha256": "c9d68c72d0791acdd53b52fe37aeba21b57776a8e32df5b9e4e7e17a3ee3a72c",
       "abis": [
         "arm64-v8a",
         "armeabi-v7a",

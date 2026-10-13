@@ -432,7 +432,7 @@ protocol RlnHostApi {
   func rlnCreateNativeExternalSigner(seedHex: String, network: String, permissivePolicy: Bool, storageDirPath: String?) throws -> Int64
   func rlnInitNodeWithNativeExternalSigner(nodeId: Int64, signerId: Int64) throws
   func rlnAttachNativeExternalSigner(nodeId: Int64, signerId: Int64) throws
-  func rlnUnlockNodeWithNativeExternalSigner(nodeId: Int64, signerId: Int64, bitcoindRpcUsername: String?, bitcoindRpcPassword: String?, bitcoindRpcHost: String?, bitcoindRpcPort: Int64?, indexerUrl: String?, proxyEndpoint: String?, announceAddresses: [String], announceAlias: String?, gossipRgsServerUrl: String?) throws
+  func rlnUnlockNodeWithNativeExternalSigner(nodeId: Int64, signerId: Int64, bitcoindRpcUsername: String?, bitcoindRpcPassword: String?, bitcoindRpcHost: String?, bitcoindRpcPort: Int64?, indexerUrl: String?, proxyEndpoint: String?, announceAddresses: [String], announceAlias: String?, gossipRgsServerUrl: String?, ethRpcUrl: String?) throws
   func rlnDestroyNativeExternalSigner(signerId: Int64) throws
   func rlnInitNodeWithExternalSigner(nodeId: Int64, nodePublicKeyHex: String, accountXpubVanilla: String, accountXpubColored: String, masterFingerprint: String, protocolVersion: String, apiLevel: Int64) throws
   func rlnUnlockNode(nodeId: Int64, password: String, bitcoindRpcUsername: String?, bitcoindRpcPassword: String?, bitcoindRpcHost: String?, bitcoindRpcPort: Int64?, indexerUrl: String?, proxyEndpoint: String?, announceAddresses: [String], announceAlias: String?, gossipRgsServerUrl: String?, ethRpcUrl: String?) throws
@@ -713,8 +713,9 @@ class RlnHostApiSetup {
         let announceAddressesArg = args[8] as! [String]
         let announceAliasArg: String? = nilOrValue(args[9])
         let gossipRgsServerUrlArg: String? = nilOrValue(args[10])
+        let ethRpcUrlArg: String? = nilOrValue(args[11])
         do {
-          try api.rlnUnlockNodeWithNativeExternalSigner(nodeId: nodeIdArg, signerId: signerIdArg, bitcoindRpcUsername: bitcoindRpcUsernameArg, bitcoindRpcPassword: bitcoindRpcPasswordArg, bitcoindRpcHost: bitcoindRpcHostArg, bitcoindRpcPort: bitcoindRpcPortArg, indexerUrl: indexerUrlArg, proxyEndpoint: proxyEndpointArg, announceAddresses: announceAddressesArg, announceAlias: announceAliasArg, gossipRgsServerUrl: gossipRgsServerUrlArg)
+          try api.rlnUnlockNodeWithNativeExternalSigner(nodeId: nodeIdArg, signerId: signerIdArg, bitcoindRpcUsername: bitcoindRpcUsernameArg, bitcoindRpcPassword: bitcoindRpcPasswordArg, bitcoindRpcHost: bitcoindRpcHostArg, bitcoindRpcPort: bitcoindRpcPortArg, indexerUrl: indexerUrlArg, proxyEndpoint: proxyEndpointArg, announceAddresses: announceAddressesArg, announceAlias: announceAliasArg, gossipRgsServerUrl: gossipRgsServerUrlArg, ethRpcUrl: ethRpcUrlArg)
           reply(wrapResult(nil))
         } catch {
           reply(wrapError(error))

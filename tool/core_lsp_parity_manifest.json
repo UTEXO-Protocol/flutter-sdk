@@ -185,7 +185,9 @@
     "sendonionmessage",
     "taker",
     "attachExternalSigner",
-    "unlockWithAttachedExternalSigner"
+    "unlockWithAttachedExternalSigner",
+    "unlockWithAttachedExternalSignerRequest",
+    "unlockWithNativeExternalSignerRequest"
   ],
   "rlnFieldsScopedOutByRn": {
     "SdkIssueAssetIfaRequest.issuanceType": "RN beta.32 constructs the request without this optional RLN 0.13 field."

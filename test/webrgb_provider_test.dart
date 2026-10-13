@@ -45,6 +45,9 @@ class _Wallet implements UtexoWallet {
   Future<String> Function(String)? readingProof;
   Object? decodeFailure;
   RgbInvoiceRequest? received;
+  String? receivedMethod;
+  final List<String> signedMessages = [];
+  Future<String> Function(String)? signing;
   @override
   bool isDisposed() => disposed;
   @override
@@ -131,12 +134,28 @@ class _Wallet implements UtexoWallet {
   @override
   Future<CoreInvoiceReceiveData> blindReceive(RgbInvoiceRequest request) async {
     received = request;
+    receivedMethod = 'blindReceive';
     return const CoreInvoiceReceiveData(
       invoice: 'rgb:invoice',
       recipientId: 'recipient',
       expirationTimestamp: 123,
       batchTransferIdx: 4,
     );
+  }
+
+  @override
+  Future<CoreInvoiceReceiveData> witnessReceive(
+    RgbInvoiceRequest request,
+  ) async {
+    final result = await blindReceive(request);
+    receivedMethod = 'witnessReceive';
+    return result;
+  }
+
+  @override
+  Future<String> signMessage(String message) async {
+    signedMessages.add(message);
+    return signing == null ? 'native-signature' : await signing!(message);
   }
 
   @override
@@ -201,27 +220,129 @@ void main() {
   test(
     'optional entrypoint advertises only supported, configured methods',
     () async {
-      expect(
-        (await provider(burn: false).getInfo()).methods,
-        webRgbReadMethods,
-      );
+      expect((await provider(burn: false).getInfo()).methods, [
+        ...webRgbReadMethods,
+        'signMessage',
+      ]);
       expect((await provider().getInfo()).methods, [
         ...webRgbReadMethods,
+        'signMessage',
         'burnAsset',
         'getConsignment',
       ]);
       wallet.supportsBurn = false;
       expect((await provider().getInfo()).methods, [
         ...webRgbReadMethods,
+        'signMessage',
         'getConsignment',
       ]);
       wallet.supportsProof = false;
-      expect((await provider().getInfo()).methods, webRgbReadMethods);
+      expect((await provider().getInfo()).methods, [
+        ...webRgbReadMethods,
+        'signMessage',
+      ]);
       await expectLater(
         provider().burnAsset(_args),
         _error('METHOD_NOT_SUPPORTED'),
       );
       expect(wallet.burns, 0);
+    },
+  );
+
+  test(
+    'witness receive has distinct consent and the same confirmation floor',
+    () async {
+      final result = await provider().witnessReceive(
+        const WebRgbWitnessReceiveArgs(amount: 5, minConfirmations: 1),
+      );
+      expect(wallet.receivedMethod, 'witnessReceive');
+      expect(wallet.received!.minConfirmations, 3);
+      expect(result.toJson(), {
+        'invoice': 'rgb:invoice',
+        'recipientId': 'recipient',
+        'expirationTimestamp': 123,
+        'minConfirmations': 3,
+      });
+      expect(prompts.single.method, 'witnessReceive');
+      expect(prompts.single.params['amount'], 5);
+      approve = false;
+      wallet.received = null;
+      await expectLater(provider().witnessReceive(), _error('USER_REJECTED'));
+      expect(wallet.received, isNull);
+    },
+  );
+
+  test(
+    'message signing approves the exact Unicode string and native identity',
+    () async {
+      const message = 'Sign in\n\u{1f512} e\u0301';
+      final result = await provider().signMessage(message);
+      expect(result.toJson(), {'signature': 'native-signature'});
+      expect(wallet.signedMessages, [message]);
+      expect(prompts.single.origin, 'https://mint.example');
+      expect(prompts.single.params, {'message': message});
+      expect(prompts.single.method, 'signMessage');
+      await provider().signMessage('');
+      expect(wallet.signedMessages.last, '');
+    },
+  );
+
+  test('malformed Unicode fails before prompting or signing', () async {
+    for (final units in [
+      [0xd800],
+      [0xdc00],
+      [0xd800, 65],
+      [0xdc00, 0xd800],
+    ]) {
+      await expectLater(
+        provider().signMessage(String.fromCharCodes(units)),
+        _error('INVALID_PARAMS'),
+      );
+    }
+    expect(prompts, isEmpty);
+    expect(wallet.signedMessages, isEmpty);
+  });
+
+  test('signing decline and revoke/re-enable races cannot dispatch', () async {
+    approve = false;
+    await expectLater(
+      provider().signMessage('message'),
+      _error('USER_REJECTED'),
+    );
+    final gate = Completer<bool>();
+    final session = provider(confirm: (_) => gate.future);
+    final pending = session.signMessage('message');
+    final assertion = expectLater(pending, _error('NOT_ENABLED'));
+    session.revoke();
+    gate.complete(true);
+    await assertion;
+    expect(wallet.signedMessages, isEmpty);
+  });
+
+  test(
+    'revoked signing results and raw native failures never escape',
+    () async {
+      final gate = Completer<String>();
+      wallet.signing = (_) => gate.future;
+      final session = provider();
+      final pending = session.signMessage('message');
+      final assertion = expectLater(pending, _error('NOT_ENABLED'));
+      await Future<void>.delayed(Duration.zero);
+      expect(wallet.signedMessages, ['message']);
+      session.revoke();
+      gate.complete('secret-result');
+      await assertion;
+      wallet.signing = (_) async => throw StateError('/private/secret-wallet');
+      await expectLater(
+        provider().signMessage('message'),
+        throwsA(
+          isA<WebRgbError>().having(
+            (e) => e.message,
+            'sanitized',
+            isNot(contains('secret-wallet')),
+          ),
+        ),
+      );
     },
   );
 
@@ -249,6 +370,277 @@ void main() {
       expect(session.enabled, false);
     },
   );
+
+  group('WalletConnect 0.1.2 wallet-side routing', () {
+    var now = DateTime.utc(2026, 10, 13);
+    late WebRgbWalletConnectGrant? current;
+    late WebRgbWalletConnectSession router;
+    WebRgbWalletConnectGrant grant({
+      Iterable<String>? methods,
+      String account = 'rgb:regtest:wallet-a',
+    }) => WebRgbWalletConnectGrant(
+      topic: 'session-topic',
+      origin: 'https://mint.example',
+      network: 'regtest',
+      account: account,
+      expiry: DateTime.utc(2026, 10, 14).millisecondsSinceEpoch ~/ 1000,
+      methods:
+          methods ??
+          [
+            ...webRgbReadMethods,
+            'signMessage',
+            'getConsignment',
+            'burnAsset',
+          ].map((m) => 'rgb_$m'),
+    );
+    Future<Map<String, Object?>> call(
+      int id,
+      String method, [
+      List<Object?> params = const [],
+      int? expiry,
+    ]) => router.handle(
+      id: id,
+      topic: 'session-topic',
+      chainId: 'rgb:regtest',
+      method: 'rgb_$method',
+      params: params,
+      expiry: expiry,
+    );
+    String? code(Map<String, Object?> reply) =>
+        (reply['error'] as Map<String, Object?>?)?['data'] as String?;
+    setUp(() {
+      now = DateTime.utc(2026, 10, 13);
+      current = grant();
+      router = WebRgbWalletConnectSession(
+        wallet: wallet,
+        grant: current!,
+        currentGrant: () => current,
+        clock: () => now,
+        confirm: (p) async {
+          prompts.add(p);
+          return approve;
+        },
+        burn: WebRgbBurnOptions(
+          operations: operations,
+          allowedPayoutChainIds: ['eip155:42161'],
+        ),
+      );
+    });
+    tearDown(() => router.dispose());
+
+    test(
+      'enable, narrowed capabilities, witness and approved signing shapes',
+      () async {
+        expect(code(await call(1, 'getAddress')), 'NOT_ENABLED');
+        expect((await call(2, 'enable'))['result'], isNull);
+        expect((await call(3, 'signMessage', ['exact message']))['result'], {
+          'signature': 'native-signature',
+        });
+        expect(wallet.signedMessages, ['exact message']);
+        final witness = await call(4, 'witnessReceive', [
+          {'amount': 5},
+        ]);
+        expect((witness['result'] as Map)['invoice'], 'rgb:invoice');
+        expect(wallet.receivedMethod, 'witnessReceive');
+        current = grant(methods: ['rgb_enable', 'rgb_getInfo']);
+        final info = (await call(5, 'getInfo'))['result'] as Map;
+        expect(info['methods'], ['enable', 'getInfo']);
+        expect(
+          code(await call(6, 'signMessage', ['blocked'])),
+          'METHOD_NOT_SUPPORTED',
+        );
+        expect(wallet.signedMessages, ['exact message']);
+      },
+    );
+
+    test(
+      'duplicates reuse one approval and reject changed arguments',
+      () async {
+        await call(1, 'enable');
+        final first = call(2, 'signMessage', ['message']);
+        final second = call(2, 'signMessage', ['message']);
+        expect(await second, await first);
+        expect(wallet.signedMessages, ['message']);
+        expect(prompts.where((p) => p.method == 'signMessage'), hasLength(1));
+        expect(code(await call(2, 'signMessage', ['other'])), 'INVALID_PARAMS');
+        current = grant(methods: ['rgb_enable', 'rgb_getInfo']);
+        expect(
+          code(await call(2, 'signMessage', ['message'])),
+          'METHOD_NOT_SUPPORTED',
+        );
+      },
+    );
+
+    test('host edits cannot corrupt a deduplicated signing reply', () async {
+      await call(1, 'enable');
+      final first = await call(2, 'signMessage', ['message']);
+      (first['result'] as Map)['signature'] = 'replaced';
+      final second = await call(2, 'signMessage', ['message']);
+      expect((second['result'] as Map)['signature'], 'native-signature');
+      expect(wallet.signedMessages, ['message']);
+    });
+
+    test(
+      'expired active request does not reject the next queued request',
+      () async {
+        router.dispose();
+        final gate = Completer<bool>();
+        router = WebRgbWalletConnectSession(
+          wallet: wallet,
+          grant: current!,
+          currentGrant: () => current,
+          clock: () => now,
+          confirm: (_) => gate.future,
+        );
+        await call(1, 'enable');
+        final first = call(2, 'signMessage', [
+          'expired',
+        ], now.millisecondsSinceEpoch ~/ 1000 + 5);
+        await Future<void>.delayed(Duration.zero);
+        now = now.add(const Duration(seconds: 6));
+        final next = call(3, 'getAddress');
+        gate.complete(true);
+        expect(code(await first), 'NOT_ENABLED');
+        expect(code(await next), isNull);
+        expect(wallet.signedMessages, isEmpty);
+      },
+    );
+
+    test(
+      'wrong network, method, arity and noninteger amounts never dispatch',
+      () async {
+        await call(1, 'enable');
+        expect(
+          code(
+            await router.handle(
+              id: 2,
+              topic: 'session-topic',
+              chainId: 'rgb:mainnet',
+              method: 'rgb_signMessage',
+              params: ['message'],
+            ),
+          ),
+          'NOT_ENABLED',
+        );
+        expect(code(await call(3, 'sendAsset', [{}])), 'METHOD_NOT_SUPPORTED');
+        expect(code(await call(4, 'signMessage', [])), 'INVALID_PARAMS');
+        expect(
+          code(
+            await call(5, 'witnessReceive', [
+              {'amount': 1.25},
+            ]),
+          ),
+          'INVALID_PARAMS',
+        );
+        expect(wallet.signedMessages, isEmpty);
+        expect(wallet.received, isNull);
+      },
+    );
+
+    test(
+      'input snapshots and in-flight disposal prevent later mutation',
+      () async {
+        await call(1, 'enable');
+        final args = <Object?>['original'];
+        final result = call(2, 'signMessage', args);
+        args[0] = 'changed';
+        expect(code(await result), isNull);
+        expect(wallet.signedMessages, ['original']);
+        router.dispose();
+        expect(code(await call(3, 'signMessage', ['blocked'])), 'NOT_ENABLED');
+        expect(wallet.signedMessages, ['original']);
+      },
+    );
+
+    test('expiry while approval waits prevents signing', () async {
+      router.dispose();
+      final gate = Completer<bool>();
+      router = WebRgbWalletConnectSession(
+        wallet: wallet,
+        grant: current!,
+        currentGrant: () => current,
+        clock: () => now,
+        confirm: (_) => gate.future,
+      );
+      await call(1, 'enable');
+      final result = call(2, 'signMessage', [
+        'message',
+      ], now.millisecondsSinceEpoch ~/ 1000 + 5);
+      await Future<void>.delayed(Duration.zero);
+      now = now.add(const Duration(seconds: 6));
+      gate.complete(true);
+      expect(code(await result), 'NOT_ENABLED');
+      expect(wallet.signedMessages, isEmpty);
+    });
+
+    test('wallet switch and session disappearance revoke access', () async {
+      await call(1, 'enable');
+      current = grant(account: 'rgb:regtest:wallet-b');
+      expect(code(await call(2, 'getAddress')), 'NOT_ENABLED');
+      current = null;
+      expect(code(await call(3, 'getInfo')), 'NOT_ENABLED');
+    });
+
+    test(
+      'bounded IDs fail closed instead of evicting mutation results',
+      () async {
+        await call(0, 'enable');
+        for (var id = 1; id < 256; id++) {
+          expect(code(await call(id, 'getAddress')), isNull);
+        }
+        expect(
+          code(await call(256, 'signMessage', ['must not sign'])),
+          'INTERNAL_ERROR',
+        );
+        expect(wallet.signedMessages, isEmpty);
+        expect(code(await call(1, 'getAddress')), isNull);
+      },
+    );
+
+    test(
+      'proof chunks are bounded, exact and require fresh session approval',
+      () async {
+        wallet.proof = base64Encode(List<int>.generate(50000, (i) => i % 256));
+        await call(1, 'enable');
+        final first =
+            (await call(2, 'getConsignment', [
+                  {'assetId': _assetId, 'txid': _txid},
+                ]))['result']
+                as Map;
+        expect(base64Decode(first['data'] as String), hasLength(49152));
+        expect(first['nextOffset'], 49152);
+        final second =
+            (await call(3, 'getConsignment', [
+                  {'assetId': _assetId, 'txid': _txid, 'offset': 49152},
+                ]))['result']
+                as Map;
+        expect(base64Decode(second['data'] as String), hasLength(848));
+        expect(second['nextOffset'], isNull);
+        expect(first['digest'], second['digest']);
+        expect(
+          prompts.where((p) => p.method == 'getConsignment'),
+          hasLength(1),
+        );
+        expect(
+          code(
+            await call(4, 'getConsignment', [
+              {'assetId': _assetId, 'txid': _txid, 'offset': 50000},
+            ]),
+          ),
+          'INVALID_PARAMS',
+        );
+        router.dispose();
+        expect(
+          code(
+            await call(5, 'getConsignment', [
+              {'assetId': _assetId, 'txid': _txid, 'offset': 49152},
+            ]),
+          ),
+          'NOT_ENABLED',
+        );
+      },
+    );
+  });
 
   test(
     'revoke then re-enable cannot authorize an old in-flight response',
@@ -332,7 +724,7 @@ void main() {
         'ready': true,
         'network': 'regtest',
         'protocol': 'RGB_LN',
-        'methods': webRgbReadMethods,
+        'methods': [...webRgbReadMethods, 'signMessage'],
       });
       expect((await session.listAssets()).single.toJson(), {
         'id': _assetId,

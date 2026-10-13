@@ -9,13 +9,6 @@ mixin _UtexoWalletGuards on _UtexoWalletInternals {
   @override
   UtexoUnlockConfig _resolveUnlockConfig(UtexoUnlockConfig config) {
     if (_signer is NativeExternalRlnSigner &&
-        _blankToNull(config.ethRpcUrl) != null) {
-      throw const UnsupportedWalletFeatureException(
-        'Native external signer unlock does not support BFA RPC configuration.',
-        feature: 'unlock.ethRpcUrl',
-      );
-    }
-    if (_signer is NativeExternalRlnSigner &&
         _blankToNull(config.gossipRgsServerUrl) != null) {
       throw const UnsupportedWalletFeatureException(
         'Native external signer unlock does not support rapid gossip sync.',

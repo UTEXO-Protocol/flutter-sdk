@@ -158,6 +158,7 @@ class RlnClient {
     List<String> announceAddresses = const <String>[],
     String? announceAlias,
     String? gossipRgsServerUrl,
+    String? ethRpcUrl,
   }) {
     return _native(
       'rlnUnlockNodeWithNativeExternalSigner',
@@ -173,6 +174,7 @@ class RlnClient {
         announceAddresses,
         announceAlias,
         gossipRgsServerUrl,
+        ethRpcUrl,
       ),
     );
   }

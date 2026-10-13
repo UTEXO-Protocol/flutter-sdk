@@ -129,6 +129,7 @@ abstract class RlnHostApi {
     List<String> announceAddresses,
     String? announceAlias,
     String? gossipRgsServerUrl,
+    String? ethRpcUrl,
   );
 
   @TaskQueue(type: TaskQueueType.serialBackgroundThread)

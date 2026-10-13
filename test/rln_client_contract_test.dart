@@ -210,6 +210,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
     List<String> announceAddresses,
     String? announceAlias,
     String? gossipRgsServerUrl,
+    String? ethRpcUrl,
   ) async {
     _record('rlnUnlockNodeWithNativeExternalSigner', <Object?>[
       nodeId,
@@ -223,6 +224,7 @@ class _RecordingRlnHostApi extends RlnHostApi {
       announceAddresses,
       announceAlias,
       gossipRgsServerUrl,
+      ethRpcUrl,
     ]);
   }
 
@@ -1061,6 +1063,7 @@ void main() {
           announceAddresses: announceAddresses,
           announceAlias: 'node-alias',
           gossipRgsServerUrl: 'rgs://server',
+          ethRpcUrl: 'https://eth.example',
         );
         return null;
       },
@@ -1077,6 +1080,7 @@ void main() {
         announceAddresses,
         'node-alias',
         'rgs://server',
+        'https://eth.example',
       ],
     ),
     _ContractCase(

@@ -12,6 +12,7 @@ const webRgbReadMethods = <String>[
   'getInfo',
   'getAddress',
   'blindReceive',
+  'witnessReceive',
   'listAssets',
   'getAssetBalance',
   'listTransfers',
@@ -60,7 +61,11 @@ class WebRgbProvider {
       revision,
       () async => WebRgbInfo(
         network: _wallet.getNetwork(),
-        methods: [...webRgbReadMethods, ...?await _burn?.methods(revision)],
+        methods: [
+          ...webRgbReadMethods,
+          'signMessage',
+          ...?await _burn?.methods(revision),
+        ],
       ),
     );
   }
@@ -73,7 +78,48 @@ class WebRgbProvider {
 
   Future<WebRgbBlindReceiveResult> blindReceive([
     WebRgbBlindReceiveArgs args = const WebRgbBlindReceiveArgs(),
-  ]) async {
+  ]) => _receive('blindReceive', args, _wallet.blindReceive);
+
+  /// Requests explicit approval before allocating a witness receiving output.
+  Future<WebRgbWitnessReceiveResult> witnessReceive([
+    WebRgbWitnessReceiveArgs args = const WebRgbWitnessReceiveArgs(),
+  ]) => _receive('witnessReceive', args, _wallet.witnessReceive);
+
+  /// Signs only the exact approved message using the native wallet identity.
+  ///
+  /// The host must display origin and full message. Unpaired UTF-16 surrogates
+  /// are rejected rather than silently replaced during native UTF-8 encoding.
+  Future<WebRgbSignMessageResult> signMessage(String message) async {
+    _session.check();
+    for (var index = 0; index < message.length; index++) {
+      final unit = message.codeUnitAt(index);
+      if (unit < 0xd800 || unit > 0xdfff) continue;
+      if (unit <= 0xdbff && index + 1 < message.length) {
+        final low = message.codeUnitAt(index + 1);
+        if (low >= 0xdc00 && low <= 0xdfff) {
+          index++;
+          continue;
+        }
+      }
+      throw const WebRgbError(
+        'INVALID_PARAMS',
+        'Expected a well-formed Unicode message string.',
+      );
+    }
+    final revision = _session.revision;
+    await _session.confirm(revision, 'signMessage', {'message': message});
+    final signature = await _session.call(
+      revision,
+      () => _wallet.signMessage(message),
+    );
+    return WebRgbSignMessageResult(signature: signature);
+  }
+
+  Future<WebRgbBlindReceiveResult> _receive(
+    String method,
+    WebRgbBlindReceiveArgs args,
+    Future<CoreInvoiceReceiveData> Function(RgbInvoiceRequest) receive,
+  ) async {
     _session.check();
     final revision = _session.revision;
     webRgbAsset(args.assetId);
@@ -95,16 +141,13 @@ class WebRgbProvider {
     if (args.assetId case final assetId?) {
       await _requireKnownAsset(revision, assetId);
     }
-    await _session.confirm(revision, 'blindReceive', {
+    await _session.confirm(revision, method, {
       if (args.assetId != null) 'assetId': args.assetId,
       if (args.amount != null) 'amount': args.amount,
       'durationSeconds': args.durationSeconds,
       'minConfirmations': confirmations,
     });
-    final result = await _session.call(
-      revision,
-      () => _wallet.blindReceive(request),
-    );
+    final result = await _session.call(revision, () => receive(request));
     return WebRgbBlindReceiveResult(
       invoice: result.invoice,
       recipientId: result.recipientId,

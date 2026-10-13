@@ -123,10 +123,10 @@ class UtexoUnlockConfig {
   /// unlock API does not accept RGS configuration.
   final String? gossipRgsServerUrl;
 
-  /// Ethereum RPC for BFA validation in password-backed native wallets.
+  /// Ethereum RPC for native BFA validation with either built-in signer.
   ///
   /// May contain credentials; never log or expose it to a dApp.
-  /// External signer unlock does not support this option.
+  /// RLN 0.16 external unlock uses its request-based API to preserve this value.
   final String? ethRpcUrl;
 }
 

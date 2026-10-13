@@ -1,8 +1,10 @@
 import 'dart:async';
 import 'dart:convert';
 
+import 'package:flutter/services.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:rgb_sdk_flutter/rgb_sdk_flutter.dart';
+import 'package:rgb_sdk_flutter/src/errors/native_bridge_error_mapper.dart';
 
 const params = BurnParams(
   assetId: 'rgb:asset',
@@ -141,6 +143,72 @@ void main() {
     );
     expect(wallet.calls, 1);
     expect(restarted.calls, 0);
+  });
+
+  for (final code in ['InsufficientFunds', 'NoAvailableUtxos']) {
+    test('$code survives actual native exception mapping', () async {
+      wallet.onBurn = () async => throw mapNativeBridgeException(
+        PlatformException(code: code, message: '/secret/native/path'),
+        operation: 'rlnBurn',
+      );
+      await expectLater(
+        operations.execute(params, metadata, () {}),
+        throwsA(isA<RgbSdkException>()),
+      );
+      final saved = (await operations.records()).single;
+      expect(saved.state, BurnOperationState.cancelled);
+      expect(saved.error, code);
+    });
+    test('$code cancels only a proven pre-broadcast failure', () async {
+      wallet.onBurn = () async =>
+          throw WalletException('/secret/path', code: code);
+      await expectLater(
+        operations.execute(params, metadata, () {}),
+        throwsA(isA<WalletException>()),
+      );
+      final record = (await operations.records()).single;
+      expect(record.state, BurnOperationState.cancelled);
+      expect(record.error, code);
+      expect(jsonEncode(record.toJson()), isNot(contains('/secret/path')));
+      final restarted = BurnTestWallet();
+      await BurnOperations(restarted, store).execute(params, metadata, () {});
+      expect(restarted.calls, 1);
+    });
+
+    test(
+      '$code from persistence after native result must never cancel',
+      () async {
+        store.beforeWrite = (record) async {
+          if (record.state == BurnOperationState.complete) {
+            throw WalletException('storage failure', code: code);
+          }
+        };
+        await expectLater(
+          operations.execute(params, metadata, () {}),
+          throwsA(isA<WalletException>()),
+        );
+        expect(
+          (await operations.records()).single.state,
+          BurnOperationState.pending,
+        );
+        store.beforeWrite = null;
+        await operations.retryPersistence();
+        expect((await operations.records()).single.result!.txid, result.txid);
+        expect(wallet.calls, 1);
+      },
+    );
+  }
+
+  test('journal error roundtrips but malformed error fails closed', () async {
+    final saved = await operations.execute(params, metadata, () {});
+    expect(
+      normalizeBurnRecord({...saved.toJson(), 'error': 'legacy'}).error,
+      'legacy',
+    );
+    expect(
+      () => normalizeBurnRecord({...saved.toJson(), 'error': 123}),
+      throwsA(isA<WalletValidationException>()),
+    );
   });
 
   for (final phase in [

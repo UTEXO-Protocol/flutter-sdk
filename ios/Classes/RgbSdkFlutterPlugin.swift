@@ -552,7 +552,8 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     proxyEndpoint: String?,
     announceAddresses: [String],
     announceAlias: String?,
-    gossipRgsServerUrl: String?
+    gossipRgsServerUrl: String?,
+    ethRpcUrl: String?
   ) throws {
     try runRln("rlnUnlockNodeWithNativeExternalSigner") {
       if gossipRgsServerUrl != nil {
@@ -577,20 +578,23 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
           throw RlnStoreError.invalidState("Unexpected RLN node state before unlock")
         }
 
-        try node.unlockWithNativeExternalSigner(
+        try node.unlockWithNativeExternalSignerRequest(
           signer: signer,
-          ldkChainSync: try requireLdkChainSync(
-            bitcoindRpcUsername: bitcoindRpcUsername,
-            bitcoindRpcPassword: bitcoindRpcPassword,
-            bitcoindRpcHost: bitcoindRpcHost,
-            bitcoindRpcPort: bitcoindRpcPort,
+          request: SdkExternalUnlockRequest(
+            ldkChainSync: try requireLdkChainSync(
+              bitcoindRpcUsername: bitcoindRpcUsername,
+              bitcoindRpcPassword: bitcoindRpcPassword,
+              bitcoindRpcHost: bitcoindRpcHost,
+              bitcoindRpcPort: bitcoindRpcPort,
+              indexerUrl: indexerUrl,
+              operation: "rlnUnlockNodeWithNativeExternalSigner"
+            ),
             indexerUrl: indexerUrl,
-            operation: "rlnUnlockNodeWithNativeExternalSigner"
-          ),
-          indexerUrl: indexerUrl,
-          proxyEndpoint: proxyEndpoint,
-          announceAddresses: announceAddresses,
-          announceAlias: announceAlias
+            proxyEndpoint: proxyEndpoint,
+            announceAddresses: announceAddresses,
+            announceAlias: announceAlias,
+            ethRpcUrl: ethRpcUrl
+          )
         )
         nodeStore.markUnlocked(id: nodeId)
       } catch {

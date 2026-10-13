@@ -9,4 +9,5 @@ export 'src/integrations/webrgb/errors.dart'
     show WebRgbError, encodeEvmBurnRecipient;
 export 'src/integrations/webrgb/provider.dart';
 export 'src/integrations/webrgb/types.dart' hide payoutJson;
+export 'src/integrations/webrgb/walletconnect.dart';
 export 'src/wallet/burn_operations.dart';

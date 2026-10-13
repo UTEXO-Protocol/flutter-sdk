@@ -1,25 +1,36 @@
 {
   "schemaVersion": 1,
-  "peerVersion": "0.1.0",
-  "peerRange": "^0.1.0",
-  "peerArchiveUrl": "https://registry.yarnpkg.com/@utexo/webrgb/-/webrgb-0.1.0.tgz#2cefe9075b45eacd75cfd5b8b8526dbba5baaf76",
-  "peerIntegrity": "sha512-uM+HQ2gFEe/VOoQLA/+CJTSoumnKqNNgatOJvh3NwVNigvD6fXhHCEJBEZv802wNZkRJUhCp9mdtVMekwXD9+g==",
-  "peerArchiveSha256": "f36defaf2a25693172dafd1f1e023b8cc3f6cbf3ed091584ec145daaac861d40",
+  "peerVersion": "0.1.2",
+  "peerRange": "^0.1.2",
+  "peerArchiveUrl": "https://registry.npmjs.org/@utexo/webrgb/-/webrgb-0.1.2.tgz",
+  "peerIntegrity": "sha512-nL3NuPn9/Z7OS/r1D4bU0+iWlfgTM/UsFVt5/FIm2bScoWUgCOfmWiojln7YdoPhVVCRKod0r/wQ2lyDAvT8qg==",
+  "peerArchiveSha256": "c76f899124c51af3f5cfb3ce570783855e426399827cd0260892a61b9681a3df",
   "reviewedSources": {
     "src/integrations/webrgb/burn.ts": "70c64bceb8c07742b4c958ed58db6e8c02c6b2d1dfe2197375e919114ddc00fc",
     "src/integrations/webrgb/errors.ts": "15e78b59a4944300da9e9b8d1d821e810e7ba86afa03932e0e2a5ea444a441d6",
     "src/integrations/webrgb/index.ts": "607e8de14e669bdc1c53d1221770720ec89e484e47ea32a8c4e5e0a85e2c4c72",
-    "src/integrations/webrgb/provider.ts": "3b7bcebfdc4dc9168f2d98b9269ce68d7a415be715005298d45b79c57ee456b6",
+    "src/integrations/webrgb/provider.ts": "de561f2df8daadbd58346c5791372e7ab3d9591bf038d345b2e7fb9863adba0d",
     "src/wallet/transfer-amounts.ts": "9e8aebc9c9f2691d62a8d4c022089a816118a73b23f876d61fd0863915614786",
     "src/wallet/types.ts": "821c26ece2c01eca8fbb5bf7be2a804fd4327ec73636397d79003b63b6b831ff",
     "src/integrations/webrgb/recipient.ts": "7c79fc071cd3aa710cb08f502484f7de51db26df145944fd52a56b414c9ad7b0",
-    "src/wallet/operations/burn.ts": "c6f8d9bf1b7ac2591c97ec8e8a5398702311bbf932a85ba2e37d569f00066433",
+    "src/wallet/operations/burn.ts": "a63200f21a1c2930b9073f67a382858e632fc8a73e5b758608dea59401d91106",
     "src/wallet/operations/validation.ts": "018f161bb9138bc974e2f7bb7bbe2fd18841168885d76baf35b683248d4aee84"
   },
   "methods": [
-    "enable", "revoke", "getInfo", "getAddress", "blindReceive", "listAssets",
-    "getAssetBalance", "listTransfers", "getTransferStatus", "decodeRgbInvoice",
-    "burnAsset", "getConsignment"
+    "enable",
+    "revoke",
+    "getInfo",
+    "getAddress",
+    "blindReceive",
+    "witnessReceive",
+    "signMessage",
+    "listAssets",
+    "getAssetBalance",
+    "listTransfers",
+    "getTransferStatus",
+    "decodeRgbInvoice",
+    "burnAsset",
+    "getConsignment"
   ],
   "adaptations": {
     "arguments": "Dart uses immutable typed request/result classes; the host validates and decodes untrusted transport JSON.",
@@ -29,6 +40,8 @@
     "unknownTransferAssignments": "Unknown native transfer shapes fail closed instead of RN's Any fallback; general core assignment parsing retains its documented legacy forms outside transfer history.",
     "proofConsent": "A new or revoked session requires fresh proof-export approval even for a previous same-origin burn. Journal ownership is not permanent consent.",
     "storeOwnership": "All BurnOperations instances for one wallet must share the same durable store instance and isolate owner.",
-    "errors": "Untrusted dApps receive sanitized errors, never raw native messages, wallet paths, or diagnostic causes. Typed BadRequestError maps to INVALID_PARAMS; named-asset receive/balance requests verify inventory before native dispatch so generic NotFound is not guessed to mean ASSET_NOT_FOUND."
+    "errors": "Untrusted dApps receive sanitized errors, never raw native messages, wallet paths, or diagnostic causes. Typed BadRequestError maps to INVALID_PARAMS; named-asset receive/balance requests verify inventory before native dispatch so generic NotFound is not guessed to mean ASSET_NOT_FOUND.",
+    "externalUnlock": "RLN 0.16 request-based external unlock forwards ethRpcUrl. RN beta.37 still uses its flat legacy entrypoint; RGS remains unsupported and native external burns remain disabled by signer capability as in RN.",
+    "journalErrors": "Version 2 optional error strings roundtrip. New records store fixed sanitized codes, not RN raw native exception messages; proven pre-broadcast funding failures cancel, unknown outcomes remain pending."
   }
 }

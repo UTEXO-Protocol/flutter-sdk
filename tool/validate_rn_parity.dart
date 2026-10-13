@@ -107,12 +107,17 @@ void _validateWebRgb(Directory root, Directory rnRoot, List<String> errors) {
     );
   }
   final lock = File('${rnRoot.path}/yarn.lock');
+  // Yarn merges the exact devDependency and peer range into one selector.
+  // Check the resolved block without assuming a single-selector header.
   final entry =
-      '"@utexo/webrgb@${manifest['peerRange']}":\n'
       '  version "${manifest['peerVersion']}"\n'
       '  resolved "${manifest['peerArchiveUrl']}"\n'
       '  integrity ${manifest['peerIntegrity']}';
-  if (!lock.existsSync() || !lock.readAsStringSync().contains(entry)) {
+  if (!lock.existsSync() ||
+      !lock.readAsStringSync().contains(
+        '"@utexo/webrgb@${manifest['peerRange']}"',
+      ) ||
+      !lock.readAsStringSync().contains(entry)) {
     errors.add(
       'WebRGB resolved peer archive changed; review the wire contract.',
     );
@@ -934,7 +939,14 @@ void _validateLowLevelNativeMethods(
         'Pigeon ${pigeon.returnType.label}.',
       );
     }
-    if (rn.parameters.length != pigeon.parameters.length) {
+    // RLN 0.16's request-based external unlock supports Ethereum validation.
+    // RN's flat bridge omits it; this reviewed nullable tail is the only delta.
+    final externalEthRpc =
+        method == 'rlnUnlockNodeWithNativeExternalSigner' &&
+        pigeon.parameters.length == rn.parameters.length + 1 &&
+        pigeon.parameters.last.name == 'ethRpcUrl' &&
+        pigeon.parameters.last.type == _TypeShape.fromDart('String?');
+    if (rn.parameters.length != pigeon.parameters.length && !externalEthRpc) {
       errors.add(
         'NativeRgb.$method parameter count mismatch. RN '
         '${rn.parameters.length}, Pigeon ${pigeon.parameters.length}.',

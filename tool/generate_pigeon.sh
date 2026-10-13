@@ -6,3 +6,4 @@ ROOT_DIR="$(cd "${SCRIPT_DIR}/.." && pwd)"
 
 cd "${ROOT_DIR}"
 dart run pigeon --input pigeons/rln_api.dart
+dart format lib/src/pigeon/rln_api.g.dart

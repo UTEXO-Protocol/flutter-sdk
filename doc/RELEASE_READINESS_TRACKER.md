@@ -26,6 +26,7 @@ Lightning remains outside release scope. PKG-006 remains accepted for internal b
 | OCT-031 | P1 | In progress | Flutter has no WebRGB WalletConnect transport adapter. RN uses a separate experimental rgb/webrgb:1 transport, not a generic injected provider. | Audit source and implement bounded typed routing, permissions, expiry/revocation, duplicate request protection and proof chunking. Live relay evidence requires an app-owned project ID and approval UI. |
 | OCT-032 | P1 | Verified | External-signer ethRpcUrl now reaches RLN 0.16 request-based unlock through generated Pigeon and both native bridges. | Dart forwarding/guard tests, 30 Android bridge tests and iOS compile pass. External-signer burn remains unsupported; real Ethereum acceptance/rejection remains OCT-002. |
 | OCT-033 | P1 | In progress | No qualification evidence exists for the upgraded exact SDK/app candidate. | Strict analyzer, full tests, native bridge tests, iOS/Android builds, app integration regression and clean immutable dependency resolution; record unavailable services rather than passing mocks as native proof. |
+| OCT-034 | P2 | Verified | Pigeon regeneration overwrote formatted Dart with the generator's raw layout; a last regeneration could invalidate the formatting gate. | The generation wrapper now formats its Dart output. Regeneration is byte-stable across all three languages and the formatter check passes; no generated source is manually edited. |
 
 OCT-027 remains blocked: the 0.16 Cargo.lock still pins consensus `2faf6118`,
 despite moving rgb-lib to `74a096a5` (beta.47-bfa). Its event-selection fix is
@@ -612,17 +613,17 @@ is accepted implicitly. No release eligibility is claimed during remediation.
 
 | Measure | Count |
 | --- | ---: |
-| Total tracked findings | 278 |
+| Total tracked findings | 279 |
 | P0 | 10 |
 | P1 | 190 |
-| P2 | 78 |
+| P2 | 79 |
 | P3 | 0 |
 | Open | 2 |
 | In progress | 22 |
 | Blocked upstream | 2 |
 | Needs decision | 0 |
 | Accepted constraint | 7 |
-| Verified | 245 |
+| Verified | 246 |
 
 This rollup is generated from all finding rows; verified code is not equivalent
 to clean-candidate platform qualification. Seven accepted constraints remain.

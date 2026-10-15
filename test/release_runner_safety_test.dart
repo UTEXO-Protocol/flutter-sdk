@@ -5,6 +5,63 @@ import 'package:crypto/crypto.dart';
 import 'package:flutter_test/flutter_test.dart';
 
 void main() {
+  test(
+    'production privacy blocks builds and supplied evidence in aggregate',
+    () async {
+      final temp = Directory.systemTemp.createTempSync(
+        'rgb-privacy-aggregate-',
+      );
+      addTearDown(() => temp.deleteSync(recursive: true));
+      final result = await Process.run(
+        'bash',
+        [
+          '-c',
+          r'''
+source "$1"
+WORKTREE_DIRTY=false
+ensure_release_disk_space() { return 0; }
+eval "$(declare -f run_step | sed '1s/run_step/original_run_step/')"
+run_step() {
+  case "$1" in
+    'release disk-space preflight'|'production iOS required-reason API disposition') original_run_step "$@" ;;
+    *) printf 'UNEXPECTED_BUILD_OR_SUPPLIED_EVIDENCE'; return 73 ;;
+  esac
+}
+if main; then result=0; else result=$?; fi
+write_report
+printf 'REPORT:%s\n' "$REPORT_FILE"
+exit "$result"
+''',
+          'privacy-aggregate',
+          File('tool/test_release_candidate.sh').absolute.path,
+        ],
+        environment: {
+          'REPORT_DIR': temp.path,
+          'RELEASE_PROFILE': 'mainnet-onchain',
+          'ALLOW_IOS_PRIVACY_SKIP': '1',
+          'NATIVE_IOS_PRIVACY_APPROVED': '1',
+        },
+      );
+      expect(result.exitCode, 1, reason: '${result.stdout}\n${result.stderr}');
+      expect(
+        result.stdout,
+        isNot(contains('UNEXPECTED_BUILD_OR_SUPPLIED_EVIDENCE')),
+      );
+      final reports = temp.listSync().whereType<File>().where(
+        (file) => file.path.endsWith('.json'),
+      );
+      expect(reports, hasLength(1));
+      final report = jsonDecode(reports.single.readAsStringSync()) as Map;
+      expect(report['status'], 'failed');
+      expect(report['releaseEligible'], false);
+      expect((report['steps'] as List).last, containsPair('exitCode', 1));
+      expect(
+        (report['steps'] as List).last,
+        containsPair('name', 'production iOS required-reason API disposition'),
+      );
+    },
+  );
+
   test('release preflight stops before work on insufficient disk', () async {
     final temp = Directory.systemTemp.createTempSync('rgb-disk-test-');
     addTearDown(() => temp.deleteSync(recursive: true));

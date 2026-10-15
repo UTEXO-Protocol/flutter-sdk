@@ -7,6 +7,30 @@ were removed because they overlapped and had drifted from the implementation.
 
 ## Document Control
 
+### October 16 Production Privacy Disposition
+
+The current `0.2.0-beta.3` candidate retains the exact native inputs below.
+The SDK's FileTimestamp `C617.1` declaration and package checks pass, while the
+native DiskSpace required-reason audit remains unresolved. This is now an
+explicit code-backed production blocker tied to native source
+`ecc69f20308231400561f6f060fea88acfa40cc4` and iOS archive SHA-256
+`dd5c483753e58c0c1c49f94098a2cc6eef18e16d3eebd167d31131fbd888890a`.
+Unknown source/archive pairs also block; editable metadata, signatures and
+environment flags cannot grant approval. The mainnet aggregate fails before
+builds or supplied child evidence, and the production supply-chain audit now
+has twelve expected findings, including this independent privacy finding.
+Its report marks `nativeIosPrivacyReview.productionReady=false` and
+`status=blocked-known-unresolved`. The native publisher still needs to remove
+unused APIs or justify their actual linked use; final signed-archive required-API
+and aggregate privacy reports remain external closure evidence. No DiskSpace
+reason has been invented. See `doc/IOS_PRIVACY_API_AUDIT.md`.
+
+Working-tree verification: known/unknown input, forged JSON approval and
+environment-bypass subprocess regressions pass, as does an actual aggregate
+preflight regression asserting failed/ineligible status before any build or
+supplied-evidence step. These checks enforce the blocker; they do not close the
+underlying native privacy audit or qualify a clean immutable release.
+
 ### October 15 Existing-Stack Wallet Qualification (Active)
 
 The user now authorizes connecting the app and SDK to the existing shared

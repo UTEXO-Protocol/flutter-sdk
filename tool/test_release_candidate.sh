@@ -291,6 +291,13 @@ main() {
     return 1
   fi
 
+  if [[ "${RELEASE_PROFILE}" == mainnet-onchain ]]; then
+    run_step "production iOS required-reason API disposition" "${DART_BIN}" tool/native_ios_privacy_policy.dart --production
+    if [[ "${STEP_CODES[${#STEP_CODES[@]}-1]}" -ne 0 ]]; then
+      return 1
+    fi
+  fi
+
   run_step "package dependency resolution" "${FLUTTER_BIN}" pub get
   run_step "example dependency resolution" bash -lc "cd '${REPO_DIR}/example' && '${FLUTTER_BIN}' pub get"
   run_step "format check" "${DART_BIN}" format --set-exit-if-changed lib test example/integration_test tool pigeons

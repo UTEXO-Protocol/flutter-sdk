@@ -286,6 +286,14 @@ qualification stack; it never starts, resets or creates containers. Read
 Missing evidence fails the aggregate gate, including upstream-blocked reorg,
 accounting, BFA and fresh-device recovery cases.
 
+The iOS native required-reason API disposition is an early production preflight.
+It blocks the current exact source/archive pair for its unresolved DiskSpace
+API audit and blocks unknown pairs pending review; FileTimestamp C617.1 alone
+does not approve native privacy. Production supply-chain reports also record
+this independent hard failure. Metadata approvals, signatures and environment
+flags cannot waive it. See `doc/IOS_PRIVACY_API_AUDIT.md` for the native publisher
+work and final signed-archive API/aggregate privacy reports required for closure.
+
 The explicit `internal-beta` profile retains historical funded/unfunded and
 external-signer restart successes for non-mainnet research. Its legacy runners
 can manage the historical SDK-owned stack and must not run when preserving

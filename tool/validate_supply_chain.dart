@@ -5,6 +5,7 @@ import 'package:crypto/crypto.dart';
 
 import 'android_source_build_record.dart';
 import 'native_artifact_paths.dart';
+import 'native_ios_privacy_policy.dart';
 import 'native_provenance_verifier.dart';
 import 'native_security_policy.dart';
 import 'verify_android_elf.dart' show inspectAndroidArchive;
@@ -78,6 +79,19 @@ Future<void> main(List<String> args) async {
     'isCompleteNativeSbomAudit': false,
   };
   for (final blocker in nativeBlockers) {
+    _addProvenanceBlocker(
+      production: production,
+      failures: failures,
+      warnings: warnings,
+      message: blocker,
+    );
+  }
+  final nativePrivacy = nativeIosPrivacyDisposition(
+    sourceCommit: rln['commit'],
+    archiveSha256: ios['archiveSha256'],
+  );
+  report['nativeIosPrivacyReview'] = nativePrivacy;
+  for (final blocker in nativePrivacy['blockers']! as List<String>) {
     _addProvenanceBlocker(
       production: production,
       failures: failures,

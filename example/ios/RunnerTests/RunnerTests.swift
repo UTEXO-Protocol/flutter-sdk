@@ -573,7 +573,7 @@ final class RunnerTests: XCTestCase {
     }
     XCTAssertEqual(duplicateNode.shutdownCount, 0)
 
-    plugin.nodeStore.markShutdown(id: firstId)
+    try plugin.rlnShutdown(nodeId: firstId)
     let reusedId = try plugin.nodeStore.create(node: replacementNode, storageDirPath: path)
     XCTAssertNotEqual(reusedId, firstId)
     nodeId = reusedId

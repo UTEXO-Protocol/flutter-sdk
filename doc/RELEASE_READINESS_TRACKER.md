@@ -23,7 +23,33 @@ Dart `3.13.5`. Historical evidence below is not relabeled as current evidence.
 | --- | --- | --- | --- | --- |
 | OCT-035 | P1 | Verified | RN beta.39 adds Tron Base58Check burn recipients, WebRGB burn-recipient namespaces and rejection of payout records without their native recipient commitment. | Implement shared EVM/Tron validation, retain the host allowlist, test malformed/checksum/version/zero/casing/missing-commit cases and refresh exact source/API manifests. Native integer money boundaries remain signed-64; JS-safe limits remain at WebRGB JSON boundaries. |
 | OCT-036 | P1 | In progress | Independently verified official RLN 0.17 Android AAR SHA-256 `148e8e50c1014237c737b26120469ceefc8a79bb6c77cd74ddda89ea316c6dac`. Its arm64-v8a and x86_64 ELF LOAD segments are still 4 KiB aligned and have offsets incongruent at 16 KiB. | Build exact source with 16 KiB linker layout, retain ABI/checksum provenance, verify every packaged native library plus APK ZIP alignment, and execute on a confirmed 16 KiB guest. Never patch ELF header alignment or replace published Maven bytes in place. |
-| OCT-037 | P1 | Blocked upstream | WDK PR45 at `2960d055fd2e43d09de3b4eabf5974b83912191e` still blocks production on P01/P02/P03/P04/P06. Its unpublished Node/Bare adapter adds signer revocation and owned-session shutdown capabilities absent from stock UniFFI RLN 0.17. | Obtain qualified native lifecycle/recovery fixes and real current-platform/funded evidence. WDK host results are source-scoped warnings, not Flutter reproductions. Do not simulate native revocation by dropping wrapper handles or claim a version bump closes these defects. |
+| OCT-037 | P1 | Blocked upstream | WDK PR45 at `81182153193c9910e89a9d91b1d457e0725787aa` and Node PR24 at `2caa14962e6a7e10549c888880d46c85aee0b81d` propose a P01 signer/session teardown repair. Their unpublished 26-file overlay changes core runtime, UniFFI and C-FFI behavior used by the Node/Bare peers; it is not included in released RLN 0.17. P01 mobile closure and P02/P03/P04/P06 remain open. | Obtain qualified native lifecycle/recovery fixes and real current-platform/funded evidence. Reported WDK/Node host results have their own source and runtime scope; they are not Flutter reproductions. Do not simulate native revocation by dropping wrapper handles or claim a version bump closes these defects. |
+
+The October 15 upstream refresh reviewed WDK PR45 at
+`81182153193c9910e89a9d91b1d457e0725787aa` and Node PR24 at
+`2caa14962e6a7e10549c888880d46c85aee0b81d`, both open and unmerged.
+The shared 26-file overlay SHA-256 is
+`7f89dc518f8fe69dc6baf62c4ee96e9d5a25d6b6ae70ab529c7b4bcc65979c90`.
+It adds terminal signer revocation, owned worker/listener teardown and cleanup
+error propagation through core, UniFFI and C-FFI to the Node/Bare adapters.
+Its latest change closes terminal metadata pools on their owning runtime while
+retaining the database for a nonterminal REST lock. This is a runtime repair,
+not merely a binding update.
+
+Upstream reports 31 native lifecycle/signer/startup/VSS tests plus 14 C-FFI tests
+and 123 lifecycle cycles on each optimized Darwin arm64 Node and Bare host.
+These are proposed P01 source/host fixes. P01 mobile closure, replacement
+seven-target Bare and five-target Node artifact matrices, rebuilt mobile
+packaging and funded iOS 27 BTC/BFA acceptance remain pending. P02 interrupted
+BTC reservations, P03 RGB reorg rollback, P04 pending witness accounting and
+P06 BFA event-order acceptance remain open. Earlier failures retain their
+original artifact identities; the new host results do not qualify Flutter.
+
+The latest published UniFFI release remains RLN `v0.17.0-beta.3` at
+`ecc69f20308231400561f6f060fea88acfa40cc4`. This Flutter candidate uses that
+released source without the WDK/Node overlay. Adopting the proposed repair
+would require separately reviewed native artifacts, regenerated bindings and
+qualification against their exact source and bytes.
 
 The executed derived Android recipe produces
 `com.utexo.flutter:rgb-lightning-node-android:0.17.0-beta.3-16k.1`,

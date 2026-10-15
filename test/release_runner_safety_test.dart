@@ -126,4 +126,74 @@ exit 42
     expect(report['releaseEligible'], false);
     expect(report['status'], 'failed');
   });
+
+  const requiredNativeEntries = [
+    'lib/arm64-v8a/libapp.so',
+    'lib/arm64-v8a/libflutter.so',
+    'lib/arm64-v8a/libjnidispatch.so',
+    'lib/arm64-v8a/librgb_lightning_node.so',
+  ];
+  for (final (label, entries, compatible, diagnostic) in [
+    ('complete arm64 runtime', requiredNativeEntries, true, null),
+    (
+      'extra ABI without Flutter runtime',
+      [...requiredNativeEntries, 'lib/x86_64/librgb_lightning_node.so'],
+      false,
+      'unexpected native path or ABI',
+    ),
+    (
+      'missing Flutter engine',
+      requiredNativeEntries.where((entry) => !entry.endsWith('/libflutter.so')),
+      false,
+      'Missing required Flutter/RLN/JNA libraries',
+    ),
+    (
+      'duplicate native entry',
+      [...requiredNativeEntries, requiredNativeEntries.first],
+      false,
+      'Duplicate native APK entries',
+    ),
+  ]) {
+    test('consumer inventory checks $label', () async {
+      final temp = Directory.systemTemp.createTempSync('rgb-consumer-apk-');
+      addTearDown(() => temp.deleteSync(recursive: true));
+      final apk = File('${temp.path}/consumer.apk');
+      final reportFile = File('${temp.path}/inventory.json');
+      final fixture = await Process.run('python3', [
+        '-c',
+        '''
+import json, sys, zipfile
+with zipfile.ZipFile(sys.argv[1], 'w') as archive:
+    for entry in json.loads(sys.argv[2]):
+        archive.writestr(entry, b'inventory fixture, not an ELF binary')
+''',
+        apk.path,
+        jsonEncode(entries.toList()),
+      ]);
+      expect(fixture.exitCode, 0, reason: '${fixture.stderr}');
+      final result = await Process.run(
+        'bash',
+        [
+          '-c',
+          'source "\$1"; verify_consumer_apk_inventory "\$2" "\$3"',
+          'consumer-inventory-test',
+          File('tool/test_clean_consumer_matrix.sh').absolute.path,
+          apk.path,
+          reportFile.path,
+        ],
+        environment: {'REPORT_DIR': temp.path},
+      );
+      expect(
+        result.exitCode,
+        compatible ? 0 : 1,
+        reason: '${result.stdout}\n${result.stderr}',
+      );
+      final report = jsonDecode(reportFile.readAsStringSync()) as Map;
+      expect(report['compatible'], compatible);
+      expect(report['expectedAbis'], ['arm64-v8a']);
+      if (diagnostic != null) {
+        expect(report['failures'].toString(), contains(diagnostic));
+      }
+    });
+  }
 }

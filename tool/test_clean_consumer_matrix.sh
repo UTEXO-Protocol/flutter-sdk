@@ -16,6 +16,7 @@ LOG_FILE="${REPORT_DIR}/clean-consumer-matrix-${RUN_ID}.log"
 WORK_DIR="${CONSUMER_WORK_DIR:-${REPO_DIR}/build/clean-consumer-matrix/${RUN_ID}}"
 PACKAGE_DIR="${WORK_DIR}/package"
 RUN_ARCHIVES="${RUN_CONSUMER_ARCHIVES:-1}"
+ZIPALIGN_BIN="${ZIPALIGN_BIN:-${ANDROID_SDK_ROOT:-${ANDROID_HOME:-${HOME}/Library/Android/sdk}}/build-tools/36.0.0/zipalign}"
 
 mkdir -p "${REPORT_DIR}"
 
@@ -131,6 +132,21 @@ PY
   mkdir -p "${consumer_dir}"
   cd "${consumer_dir}"
   "${FLUTTER_BIN}" create --platforms android,ios --org com.utexo.consumer --project-name rgb_sdk_consumer .
+  python3 - "${consumer_dir}/android/app/build.gradle.kts" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+text = path.read_text()
+marker = "    defaultConfig {\n"
+if text.count(marker) != 1 or "abiFilters" in text:
+    raise SystemExit("Cannot safely locate one unfiltered consumer Android defaultConfig block")
+# Flutter's target-platform selects its engine binaries, but does not filter
+# the plugin AAR's other ABIs. Keep this arm64 fixture complete for every ABI
+# the resulting APK advertises.
+text = text.replace(marker, marker + '        ndk.abiFilters.add("arm64-v8a")\n', 1)
+path.write_text(text)
+PY
   python3 - "${consumer_dir}/ios/Podfile" "${ios_minimum}" <<'PY'
 import re
 import sys
@@ -256,6 +272,62 @@ class MyApp extends StatelessWidget {
 DART
 }
 
+verify_consumer_apk_inventory() {
+  python3 - "$1" "$2" <<'PY'
+import hashlib
+import json
+import re
+import sys
+import zipfile
+from pathlib import Path
+
+apk = Path(sys.argv[1])
+report_path = Path(sys.argv[2])
+required = {
+    "lib/arm64-v8a/libapp.so",
+    "lib/arm64-v8a/libflutter.so",
+    "lib/arm64-v8a/libjnidispatch.so",
+    "lib/arm64-v8a/librgb_lightning_node.so",
+}
+failures = []
+native_entries = []
+digest = hashlib.sha256()
+try:
+    with apk.open("rb") as stream:
+        for chunk in iter(lambda: stream.read(1024 * 1024), b""):
+            digest.update(chunk)
+    with zipfile.ZipFile(apk) as archive:
+        native_entries = [entry.filename for entry in archive.infolist() if entry.filename.endswith(".so")]
+    if len(native_entries) != len(set(native_entries)):
+        failures.append("Duplicate native APK entries")
+    if any(not re.fullmatch(r"lib/arm64-v8a/[A-Za-z0-9_.+-]+\.so", name) for name in native_entries):
+        failures.append("Arm64 consumer APK contains an unexpected native path or ABI")
+    missing = sorted(required - set(native_entries))
+    if missing:
+        failures.append("Missing required Flutter/RLN/JNA libraries: " + ", ".join(missing))
+except (OSError, zipfile.BadZipFile) as error:
+    failures.append("Cannot inspect consumer APK: " + str(error))
+
+report = {
+    "schemaVersion": 1,
+    "scope": "consumer-android-arm64-runtime-inventory",
+    "apk": str(apk),
+    "apkSha256": digest.hexdigest(),
+    "expectedAbis": ["arm64-v8a"],
+    "requiredLibraries": sorted(required),
+    "nativeEntries": sorted(native_entries),
+    "compatible": not failures,
+    "failures": failures,
+}
+report_path.parent.mkdir(parents=True, exist_ok=True)
+report_path.write_text(json.dumps(report, indent=2) + "\n")
+for failure in failures:
+    print(failure, file=sys.stderr)
+if failures:
+    raise SystemExit(1)
+PY
+}
+
 build_consumer() {
   local consumer_dir="$1"
   cd "${consumer_dir}"
@@ -263,6 +335,12 @@ build_consumer() {
   "${FLUTTER_BIN}" analyze --fatal-infos
   if [[ "${RUN_ARCHIVES}" == "1" ]]; then
     "${FLUTTER_BIN}" build apk --release --target-platform android-arm64
+    local apk="${consumer_dir}/build/app/outputs/flutter-apk/app-release.apk"
+    local report_prefix="${REPORT_DIR}/android-${consumer_dir##*/}-${RUN_ID}"
+    verify_consumer_apk_inventory "${apk}" "${report_prefix}-inventory.json"
+    "${DART_BIN}" "${SCRIPT_DIR}/verify_android_elf.dart" \
+      --archive "${apk}" --kind apk --expected-abis arm64-v8a \
+      --zipalign "${ZIPALIGN_BIN}" --report "${report_prefix}-elf-zip.json"
     if [[ "$(uname -s)" == "Darwin" ]]; then
       "${FLUTTER_BIN}" build ios --release --no-codesign
       test -d "ios/.symlinks/plugins/rgb_sdk_flutter/ios/RGBLightningNode.xcframework" ||
@@ -289,6 +367,11 @@ main() {
     echo "Both Android and iOS consumer archives are mandatory." >&2
     FAILED=1
     return 125
+  fi
+  if [[ ! -x "${ZIPALIGN_BIN}" ]]; then
+    echo "Set ZIPALIGN_BIN to the reviewed Android build-tools 36.0.0 zipalign executable: ${ZIPALIGN_BIN}" >&2
+    FAILED=1
+    return 1
   fi
 
   run_step "snapshot package from candidate files" copy_candidate_snapshot

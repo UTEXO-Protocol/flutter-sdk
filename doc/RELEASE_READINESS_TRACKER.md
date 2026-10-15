@@ -7,7 +7,56 @@ were removed because they overlapped and had drifted from the implementation.
 
 ## Document Control
 
-### October 13 Native and WebRGB Upgrade (Active)
+### October 15 RLN 0.17 and Android Page Size Upgrade (Active)
+
+User authorization: upgrade the SDK to the latest RLN, inspect the React Native
+SDK and WDK RLN 17 PR, then move Aster to the new SDK. The existing local stack
+must stay disconnected. No container or stack is started by this work.
+
+Current source baseline: RLN `v0.17.0-beta.3` at
+`ecc69f20308231400561f6f060fea88acfa40cc4`; RN `1.0.0-beta.39` at
+`41ff170f794edff2a1822a672ddab37e29505f14`; core remains `1.0.0-beta.9`.
+The candidate package is `0.2.0-beta.1`, qualified with Flutter `3.47.7` /
+Dart `3.13.5`. Historical evidence below is not relabeled as current evidence.
+
+| ID | Pri | Status | Finding and evidence | Required outcome |
+| --- | --- | --- | --- | --- |
+| OCT-035 | P1 | Verified | RN beta.39 adds Tron Base58Check burn recipients, WebRGB burn-recipient namespaces and rejection of payout records without their native recipient commitment. | Implement shared EVM/Tron validation, retain the host allowlist, test malformed/checksum/version/zero/casing/missing-commit cases and refresh exact source/API manifests. Native integer money boundaries remain signed-64; JS-safe limits remain at WebRGB JSON boundaries. |
+| OCT-036 | P1 | In progress | Independently verified official RLN 0.17 Android AAR SHA-256 `148e8e50c1014237c737b26120469ceefc8a79bb6c77cd74ddda89ea316c6dac`. Its arm64-v8a and x86_64 ELF LOAD segments are still 4 KiB aligned and have offsets incongruent at 16 KiB. | Build exact source with 16 KiB linker layout, retain ABI/checksum provenance, verify every packaged native library plus APK ZIP alignment, and execute on a confirmed 16 KiB guest. Never patch ELF header alignment or replace published Maven bytes in place. |
+| OCT-037 | P1 | Blocked upstream | WDK PR45 at `2960d055fd2e43d09de3b4eabf5974b83912191e` still blocks production on P01/P02/P03/P04/P06. Its unpublished Node/Bare adapter adds signer revocation and owned-session shutdown capabilities absent from stock UniFFI RLN 0.17. | Obtain qualified native lifecycle/recovery fixes and real current-platform/funded evidence. WDK host results are source-scoped warnings, not Flutter reproductions. Do not simulate native revocation by dropping wrapper handles or claim a version bump closes these defects. |
+
+The executed derived Android recipe produces
+`com.utexo.flutter:rgb-lightning-node-android:0.17.0-beta.3-16k.1`,
+91,930,898 bytes, SHA-256
+`ca1aa12d44c1e83c0a0f51a38c7bf1486e0ea3ac796dcc02d479acbdf4d832c5`.
+All three ABIs preserve canonical Kotlin before/after stripping, 242 FFI/metadata
+exports and only system libc/libdl/libm dependencies. Non-JNI AAR entries match
+stock byte for byte. The exact final arm64 bytes pass dlopen, UniFFI contract
+26/checksum 28125, healthcheck and buffer release on a fresh Android 17.2 / API
+37 / 16 KiB guest with fatal compatibility enforcement. Artifact and API
+integrity are established; publication and full candidate/platform gates are
+recorded separately. Build inputs: `tool/rln_android_16k_build.json`;
+local evidence: `build/rln17-upgrade/qualified2/` and
+`build/rln17-upgrade/native-load-probe/final-android17/`.
+
+OCT-035 tests cover supported Tron chains, checksum/version/zero/casing,
+permission-filtered namespace advertising, missing v2 native commitments and
+control-character chain IDs. Live RN drift/API/doc gates pass against the exact
+beta.39 commit. No external payout or funded native burn is claimed.
+
+The official iOS archive SHA-256 is
+`dd5c483753e58c0c1c49f94098a2cc6eef18e16d3eebd167d31131fbd888890a`.
+Generated Swift/FFI bindings are unchanged from 0.16; independently inspected
+native objects retain the iOS `18.5` floor. The published release is a prerelease.
+
+References: [RLN release](https://github.com/UTEXO-Protocol/rgb-lightning-node/releases/tag/v0.17.0-beta.3),
+[RN source](https://github.com/UTEXO-Protocol/rgb-sdk-rn/commit/41ff170f794edff2a1822a672ddab37e29505f14),
+[WDK PR45](https://github.com/UTEXO-Protocol/wdk-rgb-lightning/pull/45),
+[Node adapter PR24](https://github.com/UTEXO-Protocol/rgb-lightning-node-nodejs/pull/24),
+[Android page-size requirements](https://developer.android.com/guide/practices/page-sizes).
+PKG-006, OCT-002/007/027/033 and other unresolved gates remain in force.
+
+### October 13 Native and WebRGB Upgrade (Historical)
 
 The user now authorizes upgrading to the latest published RLN, superseding
 the October 9 native-version freeze. Starting SDK commit: `063bd7f203c644f6ed2870e1838ef4ba617c681d`.
@@ -613,17 +662,17 @@ is accepted implicitly. No release eligibility is claimed during remediation.
 
 | Measure | Count |
 | --- | ---: |
-| Total tracked findings | 279 |
+| Total tracked findings | 282 |
 | P0 | 10 |
-| P1 | 190 |
+| P1 | 193 |
 | P2 | 79 |
 | P3 | 0 |
 | Open | 2 |
-| In progress | 22 |
-| Blocked upstream | 2 |
+| In progress | 23 |
+| Blocked upstream | 3 |
 | Needs decision | 0 |
 | Accepted constraint | 7 |
-| Verified | 246 |
+| Verified | 247 |
 
 This rollup is generated from all finding rows; verified code is not equivalent
 to clean-candidate platform qualification. Seven accepted constraints remain.
@@ -637,7 +686,9 @@ to clean-candidate platform qualification. Seven accepted constraints remain.
 | 3 | Qualification, real services and packaging | BASE-010, PKG-016, PKG-019, PKG-020, TEST-040, TEST-041, TEST-042, TEST-036, TEST-044 | 9 | 1/7/1/0 | Complete missing behavior vectors and live LSP/APay/linked/VSS scenarios, clean consumer archives, exact candidate reports and remaining provenance verification. |
 | 4 | October BFA/WebRGB qualification | OCT-001, OCT-002, OCT-004, OCT-006, OCT-007, OCT-013 | 6 | 0/6/0/0 | Execute real new-feature and existing service scenarios, complete consumer packaging, independently review remaining unchanged layers, and qualify an exact committed candidate. |
 | 5 | Pinned BFA native validation | OCT-027 | 1 | 0/1/0/0 | Requires an approved native artifact change and negative/positive funded cases; do not bypass native validation in Dart. Wrapper policy and amount-contract fixes OCT-024/025 are verified separately. |
-| 6 | RLN 0.16 and WalletConnect qualification | OCT-028, OCT-031, OCT-033 | 3 | 0/3/0/0 | Complete live session transport and exact clean consumer/platform qualification. Provider and journal contracts verified separately do not close these rows. |
+| 6 | Native and WalletConnect qualification | OCT-028, OCT-031, OCT-033 | 3 | 0/3/0/0 | Complete live session transport and exact clean consumer/platform qualification. Provider and journal contracts verified separately do not close these rows. |
+
+| 7 | RLN 0.17 page size and upstream recovery | OCT-036, OCT-037 | 2 | 0/2/0/0 | Qualify exact native artifacts, independent current-platform execution and upstream recovery; do not inherit WDK host passes. |
 
 ## P0 Execution Log
 

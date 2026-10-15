@@ -6,7 +6,7 @@
 library;
 
 export 'src/integrations/webrgb/errors.dart'
-    show WebRgbError, encodeEvmBurnRecipient;
+    show WebRgbError, encodeEvmBurnRecipient, encodeTronBurnRecipient;
 export 'src/integrations/webrgb/provider.dart';
 export 'src/integrations/webrgb/types.dart' hide payoutJson;
 export 'src/integrations/webrgb/walletconnect.dart';

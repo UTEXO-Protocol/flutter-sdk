@@ -1,6 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'native_artifact_paths.dart';
+
 final class _Baseline {
   const _Baseline({
     required this.rnCommit,
@@ -102,6 +104,25 @@ _Baseline _readBaseline(File file) {
     }
   }
   final rlnVersion = _string(rln, 'version');
+  final androidCoordinate = _string(android, 'mavenCoordinate');
+  final coordinate = MavenArtifactCoordinate.parse(androidCoordinate);
+  if (android.containsKey('repositoryUrl')) {
+    final repository = _string(android, 'repositoryUrl');
+    final uri = Uri.tryParse(repository);
+    if (uri == null ||
+        uri.scheme != 'https' ||
+        uri.host.isEmpty ||
+        uri.userInfo.isNotEmpty ||
+        uri.hasQuery ||
+        uri.hasFragment ||
+        !repository.endsWith('/') ||
+        _string(android, 'archiveUrl') != '$repository${coordinate.fileName}') {
+      throw const FormatException(
+        'The Android artifact repository must be credential-free HTTPS and '
+        'match the exact coordinate archive URL.',
+      );
+    }
+  }
   if (_string(rln, 'tag') != 'v$rlnVersion') {
     throw const FormatException('rln.tag must equal v<rln.version>.');
   }
@@ -176,7 +197,7 @@ _Baseline _readBaseline(File file) {
     rnVersion: _string(rn, 'version'),
     coreVersion: _string(core, 'version'),
     rlnVersion: rlnVersion,
-    androidCoordinate: _string(android, 'mavenCoordinate'),
+    androidCoordinate: androidCoordinate,
     iosArchiveUrl: _string(ios, 'archiveUrl'),
   );
 }

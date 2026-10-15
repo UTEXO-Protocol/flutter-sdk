@@ -106,18 +106,29 @@ void _validateWebRgb(Directory root, Directory rnRoot, List<String> errors) {
       'WebRGB peer specification version changed; review wire shapes.',
     );
   }
+  final devDependencies = rnPackage['devDependencies'] as Map<String, Object?>?;
+  if (devDependencies?['@utexo/webrgb'] != manifest['peerVersion']) {
+    errors.add('WebRGB development peer version changed; review wire shapes.');
+  }
   final lock = File('${rnRoot.path}/yarn.lock');
-  // Yarn merges the exact devDependency and peer range into one selector.
-  // Check the resolved block without assuming a single-selector header.
+  // Yarn may resolve the exact devDependency alone, or merge it with the peer
+  // range. Bind every matching selector to its own reviewed archive block.
   final entry =
       '  version "${manifest['peerVersion']}"\n'
       '  resolved "${manifest['peerArchiveUrl']}"\n'
       '  integrity ${manifest['peerIntegrity']}';
-  if (!lock.existsSync() ||
-      !lock.readAsStringSync().contains(
-        '"@utexo/webrgb@${manifest['peerRange']}"',
-      ) ||
-      !lock.readAsStringSync().contains(entry)) {
+  final lockedBlocks = lock.existsSync()
+      ? lock.readAsStringSync().split(RegExp(r'\r?\n\r?\n')).where((block) {
+          final header = block.split('\n').first.trim();
+          return header.endsWith(':') &&
+              (header.contains('"@utexo/webrgb@${manifest['peerRange']}"') ||
+                  header.contains(
+                    '"@utexo/webrgb@${manifest['peerVersion']}"',
+                  ));
+        }).toList()
+      : const <String>[];
+  if (lockedBlocks.isEmpty ||
+      lockedBlocks.any((block) => !block.contains(entry))) {
     errors.add(
       'WebRGB resolved peer archive changed; review the wire contract.',
     );

@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.2.0-beta.1 - Unreleased
+
+- Upgrade the immutable native baseline to RLN `0.17.0-beta.3` and the React
+  Native reference to `1.0.0-beta.39`; core remains `1.0.0-beta.9`. Verify the
+  exact official iOS ZIP, installed slices and Android Maven AAR independently.
+- Qualify development with Flutter `3.47.7` / Dart `3.13.5` for iOS 27 and
+  Android 17 consumer builds. Native iOS minimum remains `18.5`.
+- Add Tron Base58Check burn recipients, preserve address casing, advertise
+  only host-authorized recipient namespaces and reject journal records without
+  their approved recipient commitment. WebRGB peer baseline is `0.1.3`.
+- Verify Android native archive bytes at every pre-build and use strict native
+  dependency constraints. Add ELF/archive checks and an isolated 16 KiB native
+  loader/UniFFI health probe.
+- This remains an internal beta. An upstream version bump does not close
+  native page-size, lifecycle, funded-flow or artifact-provenance gates.
+
 ## 0.1.0 - Unreleased
 
 Initial internal-beta Flutter package release.

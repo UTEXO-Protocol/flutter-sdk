@@ -1,5 +1,6 @@
 import '../../errors/native_bridge_error_mapper.dart';
 import '../../errors/rgb_sdk_exception.dart';
+import '../../wallet/burn_recipient.dart' as recipient;
 
 /// Sanitized WebRGB transport failure; never contains the native cause.
 class WebRgbError implements Exception {
@@ -80,12 +81,24 @@ void webRgbAsset(String? assetId) {
 
 /// Encodes a nonzero EVM address as 12 zero bytes and 20 address bytes.
 String encodeEvmBurnRecipient(String address) {
-  if (!RegExp(r'^0x[0-9a-fA-F]{40}$').hasMatch(address) ||
-      RegExp(r'^0x0{40}$', caseSensitive: false).hasMatch(address)) {
+  try {
+    return recipient.encodeEvmBurnRecipient(address);
+  } on WalletValidationException {
     throw const WebRgbError(
       'INVALID_PARAMS',
       'A nonzero 20-byte EVM address is required.',
     );
   }
-  return address.substring(2).toLowerCase().padLeft(64, '0');
+}
+
+/// Validates Tron Base58Check and encodes its nonzero account into 32 bytes.
+String encodeTronBurnRecipient(String address) {
+  try {
+    return recipient.encodeTronBurnRecipient(address);
+  } on WalletValidationException {
+    throw const WebRgbError(
+      'INVALID_PARAMS',
+      'A nonzero Tron Base58Check address is required.',
+    );
+  }
 }

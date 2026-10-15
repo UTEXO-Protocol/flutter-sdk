@@ -286,11 +286,15 @@ class WebRgbWalletConnectSession {
       case 'getInfo':
         final info = await _provider.getInfo();
         _check();
+        final methods = info.methods
+            .where((m) => _currentGrant()!.methods.contains('rgb_$m'))
+            .toList();
         return WebRgbInfo(
           network: info.network,
-          methods: info.methods.where(
-            (m) => _currentGrant()!.methods.contains('rgb_$m'),
-          ),
+          methods: methods,
+          burnRecipientNamespaces: methods.contains('burnAsset')
+              ? info.burnRecipientNamespaces
+              : null,
         ).toJson();
       case 'getAddress':
         return (await _provider.getAddress()).toJson();

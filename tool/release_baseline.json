@@ -3,9 +3,9 @@
   "releaseTier": "internal-beta",
   "reactNative": {
     "repository": "https://github.com/UTEXO-Protocol/rgb-sdk-rn.git",
-    "commit": "e38329eba11cce16e3bea75b8a4e7becd52c0036",
+    "commit": "41ff170f794edff2a1822a672ddab37e29505f14",
     "package": "@utexo/rgb-sdk-rn",
-    "version": "1.0.0-beta.37"
+    "version": "1.0.0-beta.39"
   },
   "core": {
     "repository": "https://github.com/UTEXO-Protocol/rgb-sdk-core.git",
@@ -23,13 +23,13 @@
   },
   "rln": {
     "repository": "https://github.com/UTEXO-Protocol/rgb-lightning-node.git",
-    "tag": "v0.16.0-beta.3",
-    "commit": "8777d71d7781b408fcce89c9c965ae29e8ad2300",
-    "version": "0.16.0-beta.3",
+    "tag": "v0.17.0-beta.3",
+    "commit": "ecc69f20308231400561f6f060fea88acfa40cc4",
+    "version": "0.17.0-beta.3",
     "ios": {
-      "archiveUrl": "https://github.com/UTEXO-Protocol/rgb-lightning-node/releases/download/v0.16.0-beta.3/rgb-lightning-node-swift-0.16.0-beta.3.zip",
-      "archiveSizeBytes": 219551778,
-      "archiveSha256": "af2df068aa8c6e2ef53fb08564c4e5fc1c5218fa682b51d5c4c282e5191fa585",
+      "archiveUrl": "https://github.com/UTEXO-Protocol/rgb-lightning-node/releases/download/v0.17.0-beta.3/rgb-lightning-node-swift-0.17.0-beta.3.zip",
+      "archiveSizeBytes": 219608986,
+      "archiveSha256": "dd5c483753e58c0c1c49f94098a2cc6eef18e16d3eebd167d31131fbd888890a",
       "deviceArchitectures": [
         "arm64"
       ],
@@ -41,25 +41,28 @@
         "ios/RGBLightningNode.swift": "18d06592db6c63375dfe27b9ff6191831e14d3a4e70529c21462429e89677ca2",
         "ios/RGBLightningNodeFFI.h": "3da41d276b8fe4d0c7fa61f4583c0867cfaa5604108bc41409791f0a0f0bb3a8",
         "ios/RGBLightningNodeFFI.modulemap": "31f5ce3d01d0d95d8341c5dbfbe9102bb9ea7c57c72e73871b599361251bb765",
-        "ios/RGBLightningNode.xcframework/Info.plist": "5febeaa62128cf46e141210236badf108de38cd5f712a2bccb4a11350a340d2c",
+        "ios/RGBLightningNode.xcframework/Info.plist": "383f1e90e176b9b192aff897be3842f1c42ee0e14f19dd09f8252537a0899c05",
         "ios/RGBLightningNode.xcframework/ios-arm64/Headers/RGBLightningNodeFFI.h": "3da41d276b8fe4d0c7fa61f4583c0867cfaa5604108bc41409791f0a0f0bb3a8",
         "ios/RGBLightningNode.xcframework/ios-arm64/Headers/module.modulemap": "31f5ce3d01d0d95d8341c5dbfbe9102bb9ea7c57c72e73871b599361251bb765",
-        "ios/RGBLightningNode.xcframework/ios-arm64/librgb_lightning_node.a": "82ed63eb2cb19e356146ea5cd0c63b562eaee479e762a86644e0cd8eaa64acd7",
+        "ios/RGBLightningNode.xcframework/ios-arm64/librgb_lightning_node.a": "0da92680948abaae8ba8205e58856987db7fd87850c16c7dfc4b0f3e82e78c13",
         "ios/RGBLightningNode.xcframework/ios-arm64_x86_64-simulator/Headers/RGBLightningNodeFFI.h": "3da41d276b8fe4d0c7fa61f4583c0867cfaa5604108bc41409791f0a0f0bb3a8",
         "ios/RGBLightningNode.xcframework/ios-arm64_x86_64-simulator/Headers/module.modulemap": "31f5ce3d01d0d95d8341c5dbfbe9102bb9ea7c57c72e73871b599361251bb765",
-        "ios/RGBLightningNode.xcframework/ios-arm64_x86_64-simulator/librgb_lightning_node.a": "441610c2e11ea3ef12b0c7c1026eb5a8d31ad77ade26d7062a332050737d3574"
+        "ios/RGBLightningNode.xcframework/ios-arm64_x86_64-simulator/librgb_lightning_node.a": "abeb3eebc17aa2beb70f8ec85e7d4e9ff820fd98f3bde123782bf384d09fa656"
       }
     },
     "android": {
-      "mavenCoordinate": "com.utexo:rgb-lightning-node-android:0.16.0-beta.3",
-      "archiveUrl": "https://repo1.maven.org/maven2/com/utexo/rgb-lightning-node-android/0.16.0-beta.3/rgb-lightning-node-android-0.16.0-beta.3.aar",
-      "archiveSizeBytes": 92113193,
-      "archiveSha256": "c9d68c72d0791acdd53b52fe37aeba21b57776a8e32df5b9e4e7e17a3ee3a72c",
+      "mavenCoordinate": "com.utexo.flutter:rgb-lightning-node-android:0.17.0-beta.3-16k.1",
+      "archiveUrl": "https://github.com/UTEXO-Protocol/flutter-sdk/releases/download/v0.2.0-beta.1/rgb-lightning-node-android-0.17.0-beta.3-16k.1.aar",
+      "archiveSizeBytes": 91930898,
+      "archiveSha256": "ca1aa12d44c1e83c0a0f51a38c7bf1486e0ea3ac796dcc02d479acbdf4d832c5",
       "abis": [
         "arm64-v8a",
         "armeabi-v7a",
         "x86_64"
-      ]
+      ],
+      "repositoryUrl": "https://github.com/UTEXO-Protocol/flutter-sdk/releases/download/v0.2.0-beta.1/",
+      "sourceBuildManifest": "tool/rln_android_16k_build.json",
+      "sourceBuildManifestSha256": "3e00342199c9abeef3866fd430b56408709ba8ad0326795584bf0c41f0822e7b"
     }
   },
   "buildRequirements": {

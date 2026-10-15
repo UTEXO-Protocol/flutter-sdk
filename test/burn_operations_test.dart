@@ -9,6 +9,8 @@ import 'package:rgb_sdk_flutter/src/errors/native_bridge_error_mapper.dart';
 const params = BurnParams(
   assetId: 'rgb:asset',
   amount: '18446744073709551615',
+  burnRecipient:
+      '0000000000000000000000001212121212121212121212121212121212121212',
   feeRate: 2,
   minConfirmations: 3,
 );
@@ -405,6 +407,47 @@ void main() {
         },
       ]) {
         expect(() => normalizeBurnRecord(bad), throwsA(isA<RgbSdkException>()));
+      }
+    },
+  );
+
+  test(
+    'missing payout commitment fails before journal writes or burning',
+    () async {
+      const missing = BurnParams(
+        assetId: 'rgb:asset',
+        amount: '1',
+        feeRate: 2,
+        minConfirmations: 3,
+      );
+      await expectLater(
+        operations.execute(missing, metadata, () {}),
+        throwsA(isA<WalletValidationException>()),
+      );
+      expect(wallet.calls, 0);
+      expect(store.writes, isEmpty);
+
+      final record = const BurnOperationRecord(
+        id: 'uncertain',
+        params: params,
+        metadata: metadata,
+        state: BurnOperationState.pending,
+      ).toJson();
+      for (final commitment in [null, '34' * 32]) {
+        store.data['uncertain'] = {
+          ...record,
+          'params': {
+            ...record['params']! as Map<String, Object?>,
+            'burnRecipient': commitment,
+          },
+        };
+        await expectLater(
+          operations.execute(params, metadata, () {}),
+          throwsA(isA<WalletValidationException>()),
+        );
+        expect(wallet.calls, 0);
+        expect(store.data, hasLength(1));
+        expect(store.writes, isEmpty);
       }
     },
   );

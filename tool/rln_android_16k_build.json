@@ -1,0 +1,97 @@
+{
+  "schemaVersion": 1,
+  "scope": "derived-android-native-build",
+  "upstreamRelease": "0.17.0-beta.3",
+  "derivedArtifactVersion": "0.17.0-beta.3-16k.1",
+  "sourceRepository": "https://github.com/UTEXO-Protocol/rgb-lightning-node.git",
+  "sourceTag": "v0.17.0-beta.3",
+  "sourceCommit": "ecc69f20308231400561f6f060fea88acfa40cc4",
+  "ldkCommit": "79b9eb5166546c62692d3a672986f385c7fe047d",
+  "cargoLockSha256": "f61d03fa8f45dada6654c89fd3a87b794601ff79ec30ffc06acc536bc0f64139",
+  "uniffiBindgenCargoLockSha256": "4c87f57e9a4d251f0eea7c076ffa4ecfa68db2cacc5253ea7791f95224435c80",
+  "udlSha256": "485b453052cd34606bc97dfe68f06759d0f857583d1cdfd41e65142805d4d14e",
+  "cargoMetadataSha256": "1289f1361959705ca81cb948c7c263cf7cc633a5600327888e6f109439372e46",
+  "buildRecipeSha256": "160f363666e4bab1f7370796ec1823024fb0f1638f11ecea1db4cf3dcc6b2fe5",
+  "sourceOverlay": null,
+  "rust": "rustc 1.94.0 (4a4ef493e 2026-03-02)\nbinary: rustc\ncommit-hash: 4a4ef493e3a1488c6e321570238084b38948f6db\ncommit-date: 2026-03-02\nhost: aarch64-apple-darwin\nrelease: 1.94.0\nLLVM version: 21.1.8",
+  "cargoNdk": "cargo-ndk 4.1.2",
+  "bindgenCli": "bindgen 0.72.1",
+  "cmake": "cmake version 4.4.4\n\nCMake suite maintained and supported by Kitware (kitware.com/cmake).",
+  "ninja": "1.13.2",
+  "buildHost": "Darwin 27.0.0 arm64",
+  "packagingPython": "3.9.6 (default, Aug 25 2026, 21:26:21) \n[Clang 21.0.0 (clang-2100.3.34.2)]",
+  "packagingZlib": "1.2.12",
+  "ndkRevision": "28.2.13676358",
+  "clang": "Android (13624864, +pgo, -bolt, +lto, -mlgo, based on r530567e) clang version 19.0.1 (https://android.googlesource.com/toolchain/llvm-project 97a699bf4812a18fb657c2779f5296a4ab2694d2)\nTarget: x86_64-apple-darwin27.0.0\nThread model: posix\nInstalledDir: <ndk>/toolchains/llvm/prebuilt/darwin-x86_64/bin",
+  "hostSdkPath": "<host-sdk>",
+  "features": [
+    "uniffi",
+    "vls",
+    "vss"
+  ],
+  "cargoLocked": true,
+  "apiLevel": 24,
+  "pageLinkerFlags": [
+    "-Wl,-z,max-page-size=16384",
+    "-Wl,-z,common-page-size=16384"
+  ],
+  "buildDependencyStrip": "none",
+  "targetStripCommand": "NDK 28.2.13676358 llvm-strip --strip-unneeded --wildcard --keep-symbol=UNIFFI_META*",
+  "officialBaseAarSha256": "148e8e50c1014237c737b26120469ceefc8a79bb6c77cd74ddda89ea316c6dac",
+  "officialSourcesJarSha256": "1cac3055200f1049c2bbee8a9bc08eac49a642281669999e440793d7ef186c7d",
+  "kotlinBindingSha256": "b06a6381d72c347e46b3aa1eba7efaf00969519d518ba8a86407c84a09a88d7c",
+  "bindingFormatting": "disabled",
+  "generatedKotlinByteParity": true,
+  "generatedKotlinByteParityAfterStrip": true,
+  "stockFfiExportParity": true,
+  "stockDtNeededParity": true,
+  "unchangedNonJniAarEntries": true,
+  "independentReproducibility": "not-verified",
+  "officialSignatureAppliesToDerivedArtifact": false,
+  "libraries": {
+    "arm64-v8a": {
+      "unstrippedSha256": "87d674bd31f7b8a41060733df6e9d6208ce8ad5cb92928e0308cf8f658913779",
+      "unstrippedSizeBytes": 103910080,
+      "sha256": "65be25bc1fced0506c0cc8810e5e7375f721a1b30fad7a5fcd20b942dd636919",
+      "sizeBytes": 73466440,
+      "dtNeeded": [
+        "libc.so",
+        "libdl.so",
+        "libm.so"
+      ],
+      "ffiExportCount": 242,
+      "ffiExportNamesSha256": "0c89d16239398f00628f7765d878cde013eec9fc821ee8597c0826e594744039"
+    },
+    "armeabi-v7a": {
+      "unstrippedSha256": "7f651a71bb03e03fdd11945e0e2fba23b452ec4542369be996ca03a7f1f14e7b",
+      "unstrippedSizeBytes": 75469488,
+      "sha256": "7c9faa924d488fa0ec0332b6c0db835ea5638e30cb580b0db067443c6a5595e3",
+      "sizeBytes": 50999540,
+      "dtNeeded": [
+        "libc.so",
+        "libdl.so",
+        "libm.so"
+      ],
+      "ffiExportCount": 242,
+      "ffiExportNamesSha256": "0c89d16239398f00628f7765d878cde013eec9fc821ee8597c0826e594744039"
+    },
+    "x86_64": {
+      "unstrippedSha256": "6d90d1b21eb392c7bb957ed6d20e872a9d4ee2cf3ae576c967d4722fa2833835",
+      "unstrippedSizeBytes": 108459144,
+      "sha256": "af7bf2e7ac45de5e7a3b8b292c3f5dcd3def8bd8c63721bb28539e3e97cbf1f2",
+      "sizeBytes": 84951248,
+      "dtNeeded": [
+        "libc.so",
+        "libdl.so",
+        "libm.so"
+      ],
+      "ffiExportCount": 242,
+      "ffiExportNamesSha256": "0c89d16239398f00628f7765d878cde013eec9fc821ee8597c0826e594744039"
+    }
+  },
+  "aar": {
+    "file": "rgb-lightning-node-android-0.17.0-beta.3-16k.1.aar",
+    "sha256": "ca1aa12d44c1e83c0a0f51a38c7bf1486e0ea3ac796dcc02d479acbdf4d832c5",
+    "sizeBytes": 91930898
+  }
+}

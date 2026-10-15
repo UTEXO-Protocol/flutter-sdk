@@ -6,6 +6,7 @@ import 'package:pointycastle/digests/keccak.dart';
 
 import '../../models/burn_models.dart';
 import '../../wallet/burn_operations.dart';
+import '../../wallet/burn_recipient.dart' as recipient;
 import '../../wallet/utexo_wallet.dart';
 import 'errors.dart';
 import 'session.dart';
@@ -23,7 +24,7 @@ class WebRgbBurnController {
       );
     }
     if (_options.allowedPayoutChainIds.any(
-      (id) => !RegExp(r'^eip155:[1-9][0-9]*$').hasMatch(id),
+      (id) => !recipient.isSupportedBurnPayoutChain(id),
     )) {
       throw const WebRgbError('INVALID_PARAMS', 'Invalid payout chain policy.');
     }
@@ -33,6 +34,15 @@ class WebRgbBurnController {
   final WebRgbBurnOptions _options;
   final Set<String> _exports = {};
   WebRgbGetConsignmentResult? _proof;
+
+  /// Address namespaces enabled by the host's explicit payout-chain policy.
+  List<String> get recipientNamespaces => [
+    for (final namespace in ['eip155', 'tron'])
+      if (_options.allowedPayoutChainIds.any(
+        (chainId) => chainId.startsWith('$namespace:'),
+      ))
+        namespace,
+  ];
 
   void revoke() {
     _exports.clear();
@@ -66,14 +76,22 @@ class WebRgbBurnController {
       );
     }
     webRgbInteger(args.minConfirmations, 'minConfirmations', max: 255);
-    final payout = BurnPayout(
-      chainId: args.burnRecipient.chainId,
-      address: args.burnRecipient.address.toLowerCase(),
+    final payout = await webRgbWalletCall(
+      () async => BurnPayout(
+        chainId: args.burnRecipient.chainId,
+        address: recipient.normalizeBurnRecipientAddress(
+          args.burnRecipient.chainId,
+          args.burnRecipient.address,
+        ),
+      ),
     );
     final request = BurnParams(
       assetId: args.assetId,
       amount: args.amount,
-      burnRecipient: encodeEvmBurnRecipient(payout.address),
+      burnRecipient: recipient.encodeBurnRecipient(
+        payout.chainId,
+        payout.address,
+      ),
       feeRate: args.feeRate,
       minConfirmations: max(3, args.minConfirmations),
     );

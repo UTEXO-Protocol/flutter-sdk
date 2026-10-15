@@ -1,7 +1,7 @@
 # WebRGB and BFA Burns
 
-Target: RN beta.37 at `e38329eba11cce16e3bea75b8a4e7becd52c0036`,
-`@utexo/webrgb` 0.1.2, RLN 0.16.0-beta.3. This document defines integration
+Target: RN beta.39 at `41ff170f794edff2a1822a672ddab37e29505f14`,
+`@utexo/webrgb` 0.1.3, RLN 0.17.0-beta.3. This document defines integration
 contracts, not production qualification. Check RELEASE_READINESS_TRACKER.md.
 
 ## Optional Provider
@@ -52,6 +52,21 @@ not imply bridge-route verification. This is documented divergence, not exact
 policy parity. Native-transfer unknown shapes likewise fail closed instead of
 RN's `Any` fallback; known shapes and monetary semantics match the reference.
 
+RN beta.39 adds Tron payout addresses. Supported chain IDs are
+`tron:728126428` (mainnet), `tron:2494104990` (Shasta), and `tron:3448148188`
+(Nile), alongside positive EIP-155 IDs. The host must explicitly allow each
+chain. `getInfo().burnRecipientNamespaces` is absent unless native burning and
+consignment export are both available, and contains only namespaces enabled by
+that host allowlist. RN advertises both namespaces without a host allowlist.
+Supporting an address format does not establish a working redemption route.
+
+`encodeEvmBurnRecipient` validates a nonzero 20-byte EVM address and normalizes
+hex casing. `encodeTronBurnRecipient` validates bounded Base58Check syntax,
+the double-SHA256 checksum, the `0x41` version and a nonzero 20-byte account.
+The native commitment is 12 zero bytes followed by the account bytes; the Tron
+version and checksum are excluded. Tron address casing is preserved in consent,
+results, durable metadata and history. Hex-form Tron addresses are rejected.
+
 ## Durable Burn Ownership
 
 Burns destroy RGB units. A burn result is not confirmation or proof that an
@@ -87,6 +102,10 @@ treated as private wallet data. It must not be exposed to the dApp. Legacy RN
 records normalize to v2 while preserving their old private IDs; unsupported
 versions, missing results, conflicting recipients and malformed records fail
 closed. WebRGB responses use txid as transferId, never a private journal ID.
+Every v2 payout record must contain a native `params.burnRecipient` matching
+the exact account encoded from its supported chain/address pair. Old malformed
+records with missing commitments remain errors and must be recovered by the
+host; they are not silently removed or treated as permission to burn again.
 
 The optional error field round-trips legacy RN records (which may contain
 private native messages). New Flutter failures persist only sanitized codes.
@@ -142,7 +161,7 @@ provider boundary. Diagnostic causes remain on the wallet side.
 - One store object is required across BurnOperations wrappers around a wallet.
   Different store instances cannot silently share in-memory recovery state.
 - Password and native external-signer unlock forward ethRpcUrl. The latter
-  uses RLN 0.16's request API, a deliberate bridge improvement over RN's flat
+  uses RLN 0.17's request API, a deliberate bridge improvement over RN's flat
   entrypoint. External-signer burn remains unsupported. Never log RPC credentials.
 - New RLN importRgbContract/importRgbTransferConsignment methods are not
   exported by RN; Flutter does not add unsupported stable wallet surface.

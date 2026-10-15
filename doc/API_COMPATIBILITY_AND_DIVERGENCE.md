@@ -6,8 +6,8 @@ changes are staged. It is a release gate, not background guidance.
 
 ## Source Precedence
 
-The October 13 reference is RN beta.37 (`e38329eba11cce16e3bea75b8a4e7becd52c0036`)
-with RLN 0.16.0-beta.3 and WebRGB 0.1.2. OCT-024/025 cover direct LSP
+The October 15 reference is RN beta.39 (`41ff170f794edff2a1822a672ddab37e29505f14`)
+with RLN 0.17.0-beta.3 and WebRGB 0.1.3. OCT-024/025 cover direct LSP
 mainnet guarding and exact transfer history. Dart `BigInt` is exact throughout;
 WebRGB history omits the JS numeric amount above 2^53 - 1, retaining decimal
 base units. Native history with unknown/malformed allocations fails closed,
@@ -18,6 +18,16 @@ the OCT-026 native-version freeze. External unlock uses the request API to
 forward ethRpcUrl instead of silently dropping it as RN's flat bridge does.
 The WebRGB session router is not full WalletKit transport parity: pairing,
 proposal/event handling and live relay qualification remain OCT-031.
+
+RN beta.39's Tron burn recipients are supported for mainnet, Shasta and Nile
+with checksum/version/nonzero-account validation and case-preserving consent
+and journals. Both EVM and Tron v2 payout records require matching native
+recipient commitments. Flutter keeps its host-owned chain allowlist and limits
+advertised `burnRecipientNamespaces` to that policy; RN advertises both supported
+namespaces. Neither address support nor an allowlist validates a redemption
+route. Native integer requests continue to use exact signed-64 Pigeon transport
+and overflow guards. RN's new JS-safe-number guards prevent JavaScript bridge
+rounding; they do not lower Flutter's exact native transport range.
 
 When RN source, core declarations, and native RLN artifacts disagree, use this
 order:
@@ -53,6 +63,14 @@ ship.
 ## Pre-Release Contract Changes
 
 ### October Qualification Follow-Up
+
+`OCT-035`: the RN beta.39 update adds optional `WebRgbInfo.burnRecipientNamespaces` and
+`encodeTronBurnRecipient` in the opt-in WebRGB entrypoint. Existing provider
+callers need no constructor change; hosts enabling Tron must add exact supported
+chain IDs to their payout policy and independently verify redemption routing.
+`normalizeBurnRecord` now rejects missing v2 payout commitments before any new
+mutation. Hosts must retain/recover malformed pending records rather than drop
+them or replay their burns. The API snapshot records these reviewed changes.
 
 `OCT-017` removes sensitive endpoint path information from policy diagnostics
 and redacts identifiers after removing URL credentials/query data. Consumers
@@ -217,10 +235,14 @@ matrix.
 
 ### Artifact Ownership
 
-This package does not build upstream RLN artifacts. It consumes pinned
-internal-beta artifacts, verifies checksums/ABIs/slices, and fails production
-supply-chain mode until upstream signatures or reproducible-build attestations
-exist.
+The iOS bridge consumes the pinned official RLN release. For OCT-036, the SDK
+owns a separately versioned Android build of the exact same source with 16 KiB
+linker settings. Canonical Kotlin, FFI exports and non-JNI AAR contents remain
+unchanged; the build recipe and per-ABI hashes are recorded. This is a distinct
+artifact from RN's official 4 KiB Maven AAR, and its signature does not transfer
+to the derived bytes. Checksums/ABIs/slices are verified; production supply-chain
+mode remains blocked pending trusted signatures, independent reproduction and
+source/builder attestations.
 
 ### Stable Layering
 

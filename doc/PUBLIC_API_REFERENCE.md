@@ -30,6 +30,18 @@ unresolved operations. A pending result blocks new burns until independently
 verified; no timer or timeout authorizes another burn. See
 [WebRGB and burns](WEBRGB_AND_BURNS.md) for persistence and recovery contracts.
 
+The opt-in `rgb_sdk_flutter_webrgb.dart` entrypoint exports
+`encodeEvmBurnRecipient` and `encodeTronBurnRecipient`. They validate nonzero
+account addresses and encode the exact 32-byte native burn commitment. Tron
+requires Base58Check, version `0x41`, and preserves address casing; the prefix
+and checksum are excluded from the commitment. Supported payout chains are
+positive EIP-155 IDs and Tron mainnet/Shasta/Nile IDs documented in the
+integration guide. `WebRgbInfo.burnRecipientNamespaces` is an optional immutable
+list, present only when native burn/proof support is available and limited to
+the host payout allowlist. Address support does not prove a redemption route.
+`normalizeBurnRecord` rejects a v2 payout record with a missing or mismatched
+native commitment; callers must retain malformed pending records for recovery.
+
 Canonical Lightning entrypoints reject mainnet with
 `WalletError.code == 'LIGHTNING_DISABLED_ON_MAINNET'`. Native rejections in
 advanced calls preserve `LightningUnsupportedOnMainnet` as unsupported.

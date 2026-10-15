@@ -12,21 +12,22 @@ for RN/native parity diagnostics.
 
 **Not production ready. Do not use this revision with mainnet funds.**
 
-Current package version: `0.1.0`.
+Current package version: `0.2.0-beta.1`.
 
 The current baseline is:
 
 - `UTEXO-Protocol/rgb-sdk-rn` `dev` at
-  `e38329eba11cce16e3bea75b8a4e7becd52c0036`
-- `@utexo/rgb-sdk-rn` `1.0.0-beta.37`
+  `41ff170f794edff2a1822a672ddab37e29505f14`
+- `@utexo/rgb-sdk-rn` `1.0.0-beta.39`
 - `@utexo/rgb-sdk-core` `1.0.0-beta.9`
-- RGB Lightning Node `0.16.0-beta.3`
+- RGB Lightning Node `0.17.0-beta.3`
 
 Static parity and implementation work target that exact baseline. Current
 release eligibility still depends on the clean-candidate native, consumer, and
 funded/unfunded evidence recorded in the tracker. The accepted production
-constraint is `PKG-006`: upstream native artifacts are pinned and checksum
-verified, but full production provenance is not available yet.
+constraints include `PKG-006` artifact provenance and the upstream lifecycle /
+recovery findings recorded by OCT-037. Native artifacts are pinned and checksum
+verified; a dependency upgrade does not close those qualification requirements.
 
 That means internal-beta development may proceed, while public/funds-bearing
 production use still requires upstream signatures, trusted-key verification,
@@ -37,7 +38,7 @@ authoritative ledger is
 The current release scope is **Bitcoin/RGB onchain**. Lightning, LSP and APay
 success flows are deferred, not release-qualified. Their APIs remain available
 on non-mainnet networks for RN compatibility; mainnet wallet/LSP orchestration
-rejects before side effects. RLN 0.16 uses onchain-only native startup on
+rejects before side effects. RLN 0.17 uses onchain-only native startup on
 mainnet; Lightning endpoints reject with 403. Non-mainnet runtime behavior is
 unchanged. BFA/Ethereum and VSS qualification remain independent onchain
 obligations; the pinned consensus event-selection defect remains tracked.
@@ -107,9 +108,12 @@ flutter pub get
 
 ### iOS
 
-The pod `prepare_command` downloads the pinned
-`RGBLightningNode.xcframework`, verifies it, and installs it into the plugin's
-iOS directory.
+The podspec automatically prepares and verifies the pinned
+`RGBLightningNode.xcframework` and generated bindings before CocoaPods collects
+source files. This works for Flutter's `:path` integration, including fresh Git
+SDK dependencies, without an artifact-download hook in the app's Podfile.
+Verified installed files are reused; missing artifacts use the explicit archive,
+cache, or pinned download below. Preparation errors stop pod installation.
 
 ```sh
 cd ios
@@ -133,16 +137,25 @@ end
 For deterministic local release runs, prefer a pre-resolved archive or cache:
 
 ```sh
-RLN_ARCHIVE_PATH=/path/to/rgb-lightning-node-swift-0.16.0-beta.3.zip pod install
+RLN_ARCHIVE_PATH=/path/to/rgb-lightning-node-swift-0.17.0-beta.3.zip pod install
 RLN_CACHE_DIR=/path/to/rln-cache pod install
 RLN_OFFLINE=1 pod install
 ```
 
 ### Android
 
-Android resolves `com.utexo:rgb-lightning-node-android:0.16.0-beta.3` through
-Gradle/Maven. The release gate verifies the resolved AAR checksum, size, and
-ABI set against `tool/release_baseline.json`.
+Android resolves the SDK-owned
+`com.utexo.flutter:rgb-lightning-node-android:0.17.0-beta.3-16k.1` artifact through
+its exclusive HTTPS repository. The official RLN 0.17 AAR still has 4 KiB ELF
+alignment. This derived build uses the exact upstream source and unchanged
+Kotlin bindings with NDK 28 / 16 KiB linker settings. Gradle verifies the
+pinned AAR size and SHA-256 before compilation; strict native checks cover the
+ABI set and every packaged ELF library. See the recorded inputs in
+[tool/rln_android_16k_build.json](tool/rln_android_16k_build.json) and the
+[build procedure](doc/INTEGRATION_SECURITY_AND_RELEASE.md#android-16-kib-build).
+The exact derived binary requires publication before a fresh remote consumer
+can resolve it. Local review can use the checksum-enforced artifact directory
+specified in that procedure.
 
 ## Quick Start
 

@@ -4,6 +4,7 @@ import '../errors/native_bridge_error_mapper.dart';
 import '../errors/rgb_sdk_exception.dart';
 import '../models/burn_models.dart';
 import '../models/utexo_core_models.dart';
+import 'burn_recipient.dart';
 
 /// Narrow wallet boundary for irreversible burn execution and proof recovery.
 abstract interface class BurnWallet {
@@ -154,30 +155,20 @@ BurnOperationRecord normalizeBurnRecord(Object? value) {
   final params = _object(raw[legacy ? 'request' : 'params']);
   final metadata = legacy ? raw : _object(raw['metadata']);
   final payout = _object(legacy ? params['burnRecipient'] : metadata['payout']);
+  final chainId = _string(payout['chainId']);
   final address = _string(payout['address']);
-  if (!RegExp(r'^0x[0-9a-fA-F]{40}$').hasMatch(address)) {
-    throw const WalletValidationException(
-      'Invalid burn payout address.',
-      field: 'payout',
-    );
-  }
-  final encoded = address.substring(2).toLowerCase().padLeft(64, '0');
+  final encoded = encodeBurnRecipient(chainId, address);
   final request = BurnParams(
     assetId: _string(params['assetId']),
     amount: _string(params['amount']),
-    burnRecipient: legacy
-        ? encoded
-        : params['burnRecipient'] == null
-        ? null
-        : _string(params['burnRecipient']),
+    burnRecipient: legacy ? encoded : _string(params['burnRecipient']),
     feeRate: _integer(params['feeRate'] ?? (legacy ? 2 : null)),
     minConfirmations: _integer(
       params['minConfirmations'] ?? (legacy ? 3 : null),
     ),
   );
   request.validate();
-  if (request.burnRecipient != null &&
-      request.burnRecipient!.toLowerCase() != encoded) {
+  if (request.burnRecipient!.toLowerCase() != encoded) {
     throw const WalletValidationException(
       'Burn recipient and payout differ.',
       field: 'payout',
@@ -207,7 +198,7 @@ BurnOperationRecord normalizeBurnRecord(Object? value) {
     metadata: BurnOperationMetadata(
       origin: _string(metadata['origin']),
       network: _string(legacy ? params['network'] : metadata['network']),
-      payout: BurnPayout(chainId: _string(payout['chainId']), address: address),
+      payout: BurnPayout(chainId: chainId, address: address),
     ),
     state: states.single,
     result: result,

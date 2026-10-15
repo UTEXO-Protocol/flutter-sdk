@@ -12,19 +12,26 @@ Pod::Spec.new do |s|
   rln_version = baseline.fetch('rln').fetch('version')
   ios_requirements = baseline.fetch('buildRequirements').fetch('ios')
 
+  # Flutter installs plugins with :path, which skips CocoaPods prepare_command.
+  # Prepare before CocoaPods collects source globs; keep pod ipc spec stdout JSON.
+  artifact_script = File.expand_path('../tool/download_rln_ios.sh', __dir__)
+  unless system('bash', artifact_script, :out => $stderr, :err => $stderr)
+    raise 'Failed to prepare verified iOS RLN artifacts. See the artifact diagnostics above.'
+  end
+
   s.name             = 'rgb_sdk_flutter'
-  s.version          = '0.1.0'
+  s.version          = '0.2.0-beta.1'
   s.summary          = 'Flutter SDK bridge for Bitcoin RGB Protocol and RGB Lightning Node.'
   s.description      = <<-DESC
 Flutter SDK bridge for Bitcoin RGB Protocol and RGB Lightning Node. This
-package consumes the same RLN native artifacts as @utexo/rgb-sdk-rn.
+package pins the same RLN source release as @utexo/rgb-sdk-rn and verifies
+the official iOS release artifacts against the SDK release baseline.
 Pinned RLN artifact: #{rln_version}.
                        DESC
   s.homepage         = 'https://github.com/UTEXO-Protocol/flutter-sdk'
   s.license          = { :type => 'MIT', :file => '../LICENSE' }
   s.author           = { 'UTEXO Protocol' => 'https://github.com/UTEXO-Protocol' }
   s.source           = { :path => '.' }
-  s.prepare_command = 'bash ../tool/download_rln_ios.sh'
   s.source_files = [
     'Classes/**/*',
     'RGBLightningNode.swift',

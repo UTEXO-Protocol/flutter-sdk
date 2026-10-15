@@ -25,8 +25,8 @@ Kotlin, Android SDK, simulator/device, and regtest stack used for a candidate.
 | Area | Current support | Release note |
 | --- | --- | --- |
 | Package distribution | Public Git/path only | `publish_to: none`; pub.dev publishing policy is deferred |
-| Flutter | Minimum `3.41.0`; qualification pin `3.47.0` | CI and local gates read `.fvmrc`; Xcode 27 requires the newer Darwin packaging fix |
-| Dart | `>=3.11.0 <4.0.0` | Qualification uses Dart `3.13.0`; previous `3.11.5` results remain regression evidence |
+| Flutter | Minimum `3.41.0`; qualification pin `3.47.7` | CI and local gates read `.fvmrc`; Xcode 27 requires the newer Darwin packaging fix |
+| Dart | `>=3.11.0 <4.0.0` | Qualification uses Dart `3.13.5`; previous `3.11.5` results remain regression evidence |
 | iOS | `18.5+` | Required by the pinned RLN iOS archive object metadata |
 | CocoaPods | Local Flutter consumer integration | Plain `pod lib lint` resolves the stale public Flutter pod and is not authoritative |
 | Swift Package Manager | No native plugin package yet; Flutter 3.47 uses CocoaPods fallback | The generated Flutter framework SPM integration is not native plugin SPM support. Flutter warns that fallback will be removed in a future version. |
@@ -55,8 +55,13 @@ The current `releaseTier` is `internal-beta`. That means:
   every native artifact has a verified upstream signature and a
   reproducible-build/source attestation.
 
-iOS artifacts are downloaded by the pod `prepare_command` and verified before
-reuse. The downloader supports three deterministic acquisition modes:
+iOS podspec evaluation runs the verified artifact preparer before CocoaPods
+collects source-file paths. Flutter installs plugins with `:path`, which skips
+`prepare_command`; this automatic step also covers fresh path/Git SDK consumers
+without an app-owned Podfile hook. Installed files are checksum-verified before
+reuse, preparation failures stop installation, and diagnostics go to stderr so
+`pod ipc spec` still emits valid JSON. The downloader supports three
+deterministic acquisition modes:
 
 - `RLN_ARCHIVE_PATH=/path/to/rgb-lightning-node-swift.zip` for an explicit
   pre-resolved archive;
@@ -67,13 +72,55 @@ reuse. The downloader supports three deterministic acquisition modes:
 Android artifacts resolve through Gradle/Maven and must be checked against the
 pinned hash before candidate evidence is accepted.
 
+### Android 16 KiB Build
+
+The official RLN `0.17.0-beta.3` Maven AAR still contains 4 KiB-aligned
+arm64/x86_64 ELF libraries. Updating the app's target SDK or APK ZIP alignment
+does not change those ELF segments. The SDK's derived Android build uses the
+same exact RLN source and generated Kotlin bindings, NDK `28.2.13676358`, API
+`24`, and explicit `max-page-size=16384` / `common-page-size=16384` linker flags.
+No WDK or other source overlay is applied.
+
+`tool/build_rln_android_16k.sh` records the build inputs, verifies all three
+ABIs, compares generated Kotlin and FFI exports before and after stripping, and
+replaces only the official AAR's three RLN JNI entries. Its build record is
+`tool/rln_android_16k_build.json`. A recorded recipe and one builder do not
+establish independently reproduced bytes or trusted signatures. The official
+Maven signature does not apply to the derived AAR.
+
+The derived coordinate and HTTPS artifact URL are pinned separately from the
+upstream RLN version in `tool/release_baseline.json`. The Gradle plugin registers
+an exclusive, single-module artifact repository for consumer projects, applies
+a strict version constraint and verifies the AAR size/SHA-256 at every
+`preBuild`. Do not overwrite an existing artifact/version with different bytes.
+
+For offline review before publication, `RGB_SDK_ANDROID_ARTIFACT_DIR` may name
+a directory containing the exact pinned AAR filename. The same checksum gate
+still applies. This is local candidate evidence; remote availability must be
+verified separately after publication. `RGB_SDK_ANDROID_AAR_PATH` selects an
+explicit archive for the supply-chain and native-artifact CLI validators.
+
+Required page-size checks are:
+
+```sh
+tool/verify_native_artifacts.sh --require-android-16k
+dart run tool/verify_android_elf.dart --archive /path/to/app.apk --kind apk \
+  --expected-abis arm64-v8a,armeabi-v7a,x86_64 --zipalign /path/to/zipalign
+```
+
+Static checks cover every packaged native library. Installed APK tests and the
+native load probe must use a confirmed 16 KiB guest with compatibility fallback
+disabled. The standalone offline Flutter integration test also exercises the
+actual Pigeon/JNA or Swift signer create/release/reopen path without a node,
+wallet or backend. It does not qualify post-unlock shutdown or funded recovery.
+
 The current provenance manifest records the live upstream status for the pinned
-RLN `0.16.0-beta.3` artifact set:
+RLN `0.17.0-beta.3` artifact set:
 
 | Artifact | Signature status | Attestation status | Production effect |
 | --- | --- | --- | --- |
 | iOS Swift archive | No detached signature asset is published with the GitHub release | No SLSA/provenance/SBOM attestation is published with the release asset | Blocks production |
-| Android Maven AAR | Maven Central publishes `.asc` for the AAR, but this SDK has no pinned trusted signing key verification result | No reproducible-build attestation tying the AAR to source, builder identity, and build inputs is published | Blocks production |
+| SDK-derived Android AAR | No signature for the derived bytes; the upstream Maven `.asc` applies only to the original input | Pinned local build record and executed recipe are present; independent reproduction and signed builder/source attestation remain absent | Blocks production |
 
 Production supply-chain mode is intentionally fail-closed today. Checksums,
 source pins, dependency SBOM, license classification, OSV checks, ABI markers,
@@ -99,7 +146,7 @@ When RN/core/RLN changes, update artifacts in this order:
 3. Run `dart run tool/generate_release_baseline.dart`, then `dart format` on
    generated Dart files.
 4. Run `tool/download_rln_ios.sh` and `tool/verify_native_artifacts.sh
-   --require-android` from a clean or explicitly prepared cache.
+   --require-android-16k` from a clean or explicitly prepared cache.
 5. Run `pod ipc spec ios/rgb_sdk_flutter.podspec` and confirm the platform,
    license, privacy bundle, source files, and deployment-target xconfigs match
    the baseline.
@@ -128,9 +175,9 @@ replace funded native smokes or upstream provenance evidence.
 Use `pod ipc spec ios/rgb_sdk_flutter.podspec` for podspec metadata validation
 and `tool/test_clean_consumer_matrix.sh` for real Flutter/CocoaPods consumer
 integration. Do not use a plain `pod lib lint` result as release evidence for
-this package: CocoaPods resolves the public `Flutter` pod at `3.13.0`, while
+this package: CocoaPods resolves the public `Flutter` pod at `3.13.5`, while
 the generated Pigeon Swift bridge requires the `FlutterBinaryMessenger`
-task-queue API available in the pinned Flutter `3.47.0` toolchain.
+task-queue API available in the pinned Flutter `3.47.7` toolchain.
 
 Set the consumer application and Podfile platform to at least iOS `18.5`.
 Current Xcode also rejects obsolete deployment targets from Flutter's placeholder

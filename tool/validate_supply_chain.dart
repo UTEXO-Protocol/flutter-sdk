@@ -1,6 +1,12 @@
 import 'dart:convert';
 import 'dart:io';
 
+import 'package:crypto/crypto.dart';
+
+import 'android_source_build_record.dart';
+import 'native_artifact_paths.dart';
+import 'verify_android_elf.dart' show inspectAndroidArchive;
+
 const _osvQueryBatchUrl = 'https://api.osv.dev/v1/querybatch';
 const _osvTimeout = Duration(seconds: 20);
 const _allowNetworkSkipEnv = 'ALLOW_SUPPLY_CHAIN_NETWORK_SKIP';
@@ -70,6 +76,19 @@ Future<void> main(List<String> args) async {
     'rlnVersion': rln['version'],
     'releaseTier': baseline['releaseTier'],
   };
+  final sourceBuildRecord = validateAndroidSourceBuildRecord(
+    rln: rln,
+    android: android,
+    failures: failures,
+  );
+  report['androidSourceBuildRecord'] =
+      sourceBuildRecord?.report ??
+      <String, Object?>{
+        'scope': 'source-build-record-consistency',
+        'status': 'failed',
+        'trustedProvenance': false,
+        'independentlyReproduced': false,
+      };
 
   final dependencies = _dependencyInventory(failures, warnings);
   report['dartDependencies'] = dependencies;
@@ -82,10 +101,12 @@ Future<void> main(List<String> args) async {
 
   final nativeReport = <String, Object?>{};
   nativeReport['ios'] = _validateIosSymbols(ios, failures, warnings);
-  nativeReport['android'] = _validateAndroidArtifact(
+  nativeReport['android'] = await _validateAndroidArtifact(
     android,
     failures,
     warnings,
+    production: production,
+    sourceBuildRecord: sourceBuildRecord,
   );
   report['nativeArtifacts'] = nativeReport;
 
@@ -97,6 +118,7 @@ Future<void> main(List<String> args) async {
     production: production,
     failures: failures,
     warnings: warnings,
+    sourceBuildRecord: sourceBuildRecord,
   );
 
   report['warnings'] = warnings;
@@ -129,6 +151,7 @@ Map<String, Object?> _validateProvenanceManifest({
   required bool production,
   required List<String> failures,
   required List<String> warnings,
+  required AndroidSourceBuildRecord? sourceBuildRecord,
 }) {
   final file = File(_provenanceManifestPath);
   if (!file.existsSync()) {
@@ -246,6 +269,18 @@ Map<String, Object?> _validateProvenanceManifest({
       'provenance ${entry.key}.artifactSizeBytes',
       failures,
     );
+    if (entry.key == 'rln-android-aar') {
+      _expectEqual(
+        artifact['source'],
+        'sdk-source-build',
+        'provenance Android source classification',
+        failures,
+      );
+      sourceBuildRecord?.checkProvenanceDeclaration(
+        artifact['sourceBuild'],
+        failures,
+      );
+    }
 
     final signature = _requiredObject(
       artifact,
@@ -891,18 +926,20 @@ Map<String, Object?> _validateIosSymbols(
   return <String, Object?>{'status': 'checked', 'libraries': slices};
 }
 
-Map<String, Object?> _validateAndroidArtifact(
+Future<Map<String, Object?>> _validateAndroidArtifact(
   Map<String, Object?> android,
   List<String> failures,
-  List<String> warnings,
-) {
-  final version = android['archiveUrl']
-      .toString()
-      .split('/')
-      .reversed
-      .skip(1)
-      .first;
-  final aarPaths = _findAndroidAars(version);
+  List<String> warnings, {
+  required bool production,
+  required AndroidSourceBuildRecord? sourceBuildRecord,
+}) async {
+  final coordinate = MavenArtifactCoordinate.parse(
+    android['mavenCoordinate'].toString(),
+  );
+  final explicitPath = Platform.environment['RGB_SDK_ANDROID_AAR_PATH'];
+  final aarPaths = explicitPath != null && explicitPath.isNotEmpty
+      ? <File>[File(explicitPath)]
+      : _findAndroidAars(coordinate);
   if (aarPaths.isEmpty) {
     failures.add('Android AAR is not resolved in the local Gradle cache.');
     return <String, Object?>{'status': 'missing'};
@@ -912,6 +949,19 @@ Map<String, Object?> _validateAndroidArtifact(
       .toSet();
   final archives = <Map<String, Object?>>[];
   for (final aar in aarPaths) {
+    if (!aar.existsSync() || aar.lengthSync() != android['archiveSizeBytes']) {
+      failures.add(
+        'Android AAR is missing or has an untrusted size: ${aar.path}',
+      );
+      continue;
+    }
+    final digest = (await sha256.bind(aar.openRead()).first).toString();
+    if (digest != android['archiveSha256']) {
+      failures.add(
+        'Android AAR checksum does not match the pinned baseline: ${aar.path}',
+      );
+      continue;
+    }
     final entries = _run('unzip', <String>['-Z1', aar.path]).stdoutLines;
     final abis = entries
         .map(
@@ -930,14 +980,43 @@ Map<String, Object?> _validateAndroidArtifact(
     }
     final abiReports = <Map<String, Object?>>[];
     for (final abi in abis.toList()..sort()) {
-      final markerReport = _androidSymbolMarkers(aar, abi, failures, warnings);
+      final markerReport = _androidSymbolMarkers(
+        aar,
+        abi,
+        failures,
+        warnings,
+        sourceBuildRecord: sourceBuildRecord,
+      );
       abiReports.add(markerReport);
+    }
+    Map<String, Object?> pageCompatibility;
+    try {
+      pageCompatibility = await inspectAndroidArchive(aar, 'aar', expectedAbis);
+      if (pageCompatibility['compatible'] != true) {
+        final message =
+            'Android AAR ${aar.path} fails static ELF page compatibility: '
+            '${pageCompatibility['failures']}';
+        if (production) {
+          failures.add(message);
+        } else {
+          warnings.add(
+            '$message Internal-beta integrity is not 16 KiB qualification.',
+          );
+        }
+      }
+    } on Object catch (error) {
+      failures.add('Cannot validate Android ELF page compatibility: $error');
+      pageCompatibility = <String, Object?>{
+        'compatible': false,
+        'error': error.toString(),
+      };
     }
     archives.add(<String, Object?>{
       'path': aar.path,
       'sizeBytes': aar.lengthSync(),
       'abis': abis.toList()..sort(),
       'symbols': abiReports,
+      'pageCompatibility': pageCompatibility,
     });
   }
   return <String, Object?>{'status': 'checked', 'archives': archives};
@@ -947,51 +1026,73 @@ Map<String, Object?> _androidSymbolMarkers(
   File aar,
   String abi,
   List<String> failures,
-  List<String> warnings,
-) {
+  List<String> warnings, {
+  required AndroidSourceBuildRecord? sourceBuildRecord,
+}) {
   final temp = Directory.systemTemp.createTempSync('rgb-sdk-abi-');
   final entry = 'jni/$abi/librgb_lightning_node.so';
-  final unzip = _run('unzip', <String>['-q', aar.path, entry, '-d', temp.path]);
-  if (unzip.exitCode != 0) {
-    failures.add('failed to extract $entry from ${aar.path}: ${unzip.stderr}');
-    return <String, Object?>{'abi': abi, 'status': 'extract-failed'};
-  }
-  final library = File('${temp.path}/$entry');
-  final symbols = _runSymbols('nm', <String>['-gD', library.path]);
-  final missing = _missingMarkers(symbols, _requiredSymbolMarkers);
   try {
-    temp.deleteSync(recursive: true);
-  } catch (_) {
-    warnings.add('temporary ABI directory could not be removed: ${temp.path}');
-  }
-  if (missing.isNotEmpty) {
-    failures.add(
-      'Android $abi native library is missing ABI markers: ${missing.join(', ')}',
+    final unzip = _run('unzip', <String>[
+      '-q',
+      aar.path,
+      entry,
+      '-d',
+      temp.path,
+    ]);
+    if (unzip.exitCode != 0) {
+      failures.add(
+        'failed to extract $entry from ${aar.path}: ${unzip.stderr}',
+      );
+      return <String, Object?>{'abi': abi, 'status': 'extract-failed'};
+    }
+    final library = File('${temp.path}/$entry');
+    final size = library.lengthSync();
+    if (size > 256 * 1024 * 1024) {
+      failures.add('Android JNI library exceeds 256 MiB: $entry');
+      return <String, Object?>{'abi': abi, 'status': 'oversized'};
+    }
+    final digest = sha256.convert(library.readAsBytesSync()).toString();
+    final recordMatches = sourceBuildRecord?.checkLibrary(
+      abi: abi,
+      sizeBytes: size,
+      digest: digest,
+      failures: failures,
     );
+    final symbols = _runSymbols('nm', <String>['-gD', library.path]);
+    final missing = _missingMarkers(symbols, _requiredSymbolMarkers);
+    if (missing.isNotEmpty) {
+      failures.add(
+        'Android $abi native library is missing ABI markers: ${missing.join(', ')}',
+      );
+    }
+    return <String, Object?>{
+      'abi': abi,
+      'sizeBytes': size,
+      'sha256': digest,
+      'sourceBuildRecordConsistent': recordMatches,
+      'markersChecked': _requiredSymbolMarkers.length,
+      'missingMarkers': missing,
+    };
+  } finally {
+    try {
+      temp.deleteSync(recursive: true);
+    } on FileSystemException {
+      warnings.add(
+        'temporary ABI directory could not be removed: ${temp.path}',
+      );
+    }
   }
-  return <String, Object?>{
-    'abi': abi,
-    'markersChecked': _requiredSymbolMarkers.length,
-    'missingMarkers': missing,
-  };
 }
 
-List<File> _findAndroidAars(String version) {
+List<File> _findAndroidAars(MavenArtifactCoordinate coordinate) {
   final home = Platform.environment['HOME'];
   if (home == null) return const <File>[];
-  final base = Directory(
-    '$home/.gradle/caches/modules-2/files-2.1/com.utexo/'
-    'rgb-lightning-node-android/$version',
-  );
+  final base = Directory(coordinate.cacheDirectory(home));
   if (!base.existsSync()) return const <File>[];
   return base
       .listSync(recursive: true, followLinks: false)
       .whereType<File>()
-      .where(
-        (file) =>
-            file.uri.pathSegments.last ==
-            'rgb-lightning-node-android-$version.aar',
-      )
+      .where((file) => file.uri.pathSegments.last == coordinate.fileName)
       .toList(growable: false);
 }
 

@@ -1,20 +1,21 @@
 {
   "schemaVersion": 1,
-  "peerVersion": "0.1.2",
-  "peerRange": "^0.1.2",
-  "peerArchiveUrl": "https://registry.npmjs.org/@utexo/webrgb/-/webrgb-0.1.2.tgz",
-  "peerIntegrity": "sha512-nL3NuPn9/Z7OS/r1D4bU0+iWlfgTM/UsFVt5/FIm2bScoWUgCOfmWiojln7YdoPhVVCRKod0r/wQ2lyDAvT8qg==",
-  "peerArchiveSha256": "c76f899124c51af3f5cfb3ce570783855e426399827cd0260892a61b9681a3df",
+  "peerVersion": "0.1.3",
+  "peerRange": "^0.1.3",
+  "peerArchiveUrl": "https://registry.yarnpkg.com/@utexo/webrgb/-/webrgb-0.1.3.tgz#0140358d09e5deb0185039893d5e68cb5b91c7aa",
+  "peerIntegrity": "sha512-8eL38yVP9HLMkJuJ+RYCnDdGuc2lmQLYNNAuXnIkxfg0VXAC92Llw1NNhPcvxUQedFhYQulm41oqbSgAk5Xqyg==",
+  "peerArchiveSha256": "1b31b3d131986c13807a12747644eedc198fbec654651e6f8e7648e00c6bfc69",
   "reviewedSources": {
-    "src/integrations/webrgb/burn.ts": "70c64bceb8c07742b4c958ed58db6e8c02c6b2d1dfe2197375e919114ddc00fc",
+    "src/integrations/webrgb/burn.ts": "1709356b90f47f184cb6ea82f82042b3bfd8ee7045835eefe47df4f3c4f93f2e",
     "src/integrations/webrgb/errors.ts": "15e78b59a4944300da9e9b8d1d821e810e7ba86afa03932e0e2a5ea444a441d6",
-    "src/integrations/webrgb/index.ts": "607e8de14e669bdc1c53d1221770720ec89e484e47ea32a8c4e5e0a85e2c4c72",
-    "src/integrations/webrgb/provider.ts": "de561f2df8daadbd58346c5791372e7ab3d9591bf038d345b2e7fb9863adba0d",
+    "src/integrations/webrgb/index.ts": "192d15fedbf0e9ed50d2598f48bdc5def65560141077a02efcca226669e8198a",
+    "src/integrations/webrgb/provider.ts": "fa7e2f7778afb71faf22afa9f2bdabf05c14c32b9657b0acc00270c543e44f17",
     "src/wallet/transfer-amounts.ts": "9e8aebc9c9f2691d62a8d4c022089a816118a73b23f876d61fd0863915614786",
     "src/wallet/types.ts": "821c26ece2c01eca8fbb5bf7be2a804fd4327ec73636397d79003b63b6b831ff",
-    "src/integrations/webrgb/recipient.ts": "7c79fc071cd3aa710cb08f502484f7de51db26df145944fd52a56b414c9ad7b0",
-    "src/wallet/operations/burn.ts": "a63200f21a1c2930b9073f67a382858e632fc8a73e5b758608dea59401d91106",
-    "src/wallet/operations/validation.ts": "018f161bb9138bc974e2f7bb7bbe2fd18841168885d76baf35b683248d4aee84"
+    "src/integrations/webrgb/recipient.ts": "af1361de49797a7a2002784777eb282cad4550b211730e5cc7b4bd6dbd56664f",
+    "src/wallet/operations/burn.ts": "7c62545ba5ac23fa18764a68160edc8b2ff26972b34900fefef1a4ab4006ecab",
+    "src/wallet/operations/validation.ts": "41294f827607e268eced24863b9a4b996d5511d8a69e67811b62c910f757a858",
+    "src/wallet/operations/recipient.ts": "75439ad7eaa0e3698aeae9463f921f370e61f9ba9d8e8f5f3226cf74d1483d1c"
   },
   "methods": [
     "enable",
@@ -36,12 +37,13 @@
     "arguments": "Dart uses immutable typed request/result classes; the host validates and decodes untrusted transport JSON.",
     "decodeRgbInvoice": "Dart takes the invoice string rather than a TypeScript string-or-object union.",
     "amounts": "Native/core values retain u64 precision with BigInt. History uses requested outgoing versus actual incoming allocations, preserves decimal amountBaseUnits and omits JS-unsafe numeric amount. Other WebRGB numeric fields still reject unsafe integers.",
-    "payoutChains": "Flutter retains a host-owned payout chain allowlist in addition to positive EIP-155 chain syntax; RN beta.36 removed its allowlist. This is a stricter authorization policy, not proof of asset redemption or external payout.",
+    "payoutChains": "Flutter retains a host-owned payout chain allowlist in addition to positive EIP-155 syntax and the three supported Tron chain IDs; RN beta.36 removed its allowlist. Advertised burnRecipientNamespaces are intersected with this policy. This stricter authorization does not verify asset redemption or external payout.",
     "unknownTransferAssignments": "Unknown native transfer shapes fail closed instead of RN's Any fallback; general core assignment parsing retains its documented legacy forms outside transfer history.",
     "proofConsent": "A new or revoked session requires fresh proof-export approval even for a previous same-origin burn. Journal ownership is not permanent consent.",
     "storeOwnership": "All BurnOperations instances for one wallet must share the same durable store instance and isolate owner.",
     "errors": "Untrusted dApps receive sanitized errors, never raw native messages, wallet paths, or diagnostic causes. Typed BadRequestError maps to INVALID_PARAMS; named-asset receive/balance requests verify inventory before native dispatch so generic NotFound is not guessed to mean ASSET_NOT_FOUND.",
-    "externalUnlock": "RLN 0.16 request-based external unlock forwards ethRpcUrl. RN beta.37 still uses its flat legacy entrypoint; RGS remains unsupported and native external burns remain disabled by signer capability as in RN.",
-    "journalErrors": "Version 2 optional error strings roundtrip. New records store fixed sanitized codes, not RN raw native exception messages; proven pre-broadcast funding failures cancel, unknown outcomes remain pending."
+    "externalUnlock": "RLN 0.17 request-based external unlock forwards ethRpcUrl. RN beta.39 still uses its flat legacy entrypoint; RGS remains unsupported and native external burns remain disabled by signer capability as in RN.",
+    "journalErrors": "Version 2 optional error strings roundtrip. New records store fixed sanitized codes, not RN raw native exception messages; proven pre-broadcast funding failures cancel, unknown outcomes remain pending.",
+    "burnRecipient": "EVM addresses normalize to lowercase; Tron addresses retain Base58Check casing after checksum/version/nonzero validation. Native commitments omit the Tron version and checksum and pad the 20 account bytes to 32. Missing or conflicting v2 journal commitments fail closed, including during recovery."
   }
 }

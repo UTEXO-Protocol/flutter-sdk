@@ -1,8 +1,8 @@
 import 'dart:convert';
 import 'dart:io';
 
-const _expectedVersion = '0.1.0';
-const _expectedFlutterVersion = '3.47.0';
+const _expectedVersion = '0.2.0-beta.1';
+const _expectedFlutterVersion = '3.47.7';
 const _expectedRegtestProxyPort = 3013;
 const _publicTestMnemonic =
     'abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon abandon about';

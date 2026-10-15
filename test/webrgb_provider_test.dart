@@ -15,6 +15,10 @@ const _payout = BurnPayout(
   chainId: 'eip155:42161',
   address: '0x1212121212121212121212121212121212121212',
 );
+const _tronAddress = 'TR7NHqjeKQxGTCi8q8ZY4pL8otSzgjLj6t';
+const _tronRecipient =
+    '000000000000000000000000a614f803b6fd780986a42c78ec9c7f77e6ded13c';
+const _tronChains = ['tron:728126428', 'tron:2494104990', 'tron:3448148188'];
 const _args = WebRgbBurnAssetArgs(
   network: 'regtest',
   assetId: _assetId,
@@ -47,6 +51,7 @@ class _Wallet implements UtexoWallet {
   RgbInvoiceRequest? received;
   String? receivedMethod;
   final List<String> signedMessages = [];
+  String expectedBurnRecipient = '${'0' * 24}${'12' * 20}';
   Future<String> Function(String)? signing;
   @override
   bool isDisposed() => disposed;
@@ -88,7 +93,7 @@ class _Wallet implements UtexoWallet {
   Future<BurnResult> burn(BurnParams params) async {
     burns++;
     expect(params.amount, _args.amount);
-    expect(params.burnRecipient, '${'0' * 24}${'12' * 20}');
+    expect(params.burnRecipient, expectedBurnRecipient);
     return burning == null
         ? BurnResult(txid: _txid, batchTransferIdx: 42)
         : await burning!();
@@ -190,6 +195,7 @@ void main() {
     bool burn = true,
     Future<bool> Function(WebRgbApproval)? confirm,
     String origin = 'https://mint.example',
+    Iterable<String> allowedPayoutChainIds = const ['eip155:42161'],
   }) => WebRgbProvider(
     wallet,
     WebRgbOptions(
@@ -204,7 +210,7 @@ void main() {
       burn: burn
           ? WebRgbBurnOptions(
               operations: operations,
-              allowedPayoutChainIds: ['eip155:42161'],
+              allowedPayoutChainIds: allowedPayoutChainIds,
             )
           : null,
     ),
@@ -245,6 +251,123 @@ void main() {
         provider().burnAsset(_args),
         _error('METHOD_NOT_SUPPORTED'),
       );
+      expect(wallet.burns, 0);
+    },
+  );
+
+  test(
+    'burn namespaces follow native capabilities and host chain policy',
+    () async {
+      expect((await provider().getInfo()).toJson()['burnRecipientNamespaces'], [
+        'eip155',
+      ]);
+      final both = await provider(
+        allowedPayoutChainIds: ['tron:728126428', 'eip155:42161'],
+      ).getInfo();
+      expect(both.burnRecipientNamespaces, ['eip155', 'tron']);
+      expect(
+        () => both.burnRecipientNamespaces!.add('unapproved'),
+        throwsUnsupportedError,
+      );
+      expect(
+        (await provider(burn: false).getInfo()).toJson(),
+        isNot(contains('burnRecipientNamespaces')),
+      );
+      wallet.supportsBurn = false;
+      expect(
+        (await provider().getInfo()).toJson(),
+        isNot(contains('burnRecipientNamespaces')),
+      );
+      wallet.supportsBurn = true;
+      wallet.supportsProof = false;
+      expect(
+        (await provider().getInfo()).toJson(),
+        isNot(contains('burnRecipientNamespaces')),
+      );
+    },
+  );
+
+  for (final chain in _tronChains) {
+    test(
+      'Tron $chain preserves approved address and exact commitment',
+      () async {
+        wallet.expectedBurnRecipient = _tronRecipient;
+        final session = provider(allowedPayoutChainIds: [chain]);
+        final burned = await session.burnAsset(
+          WebRgbBurnAssetArgs(
+            network: 'regtest',
+            assetId: _assetId,
+            amount: _args.amount,
+            burnRecipient: BurnPayout(chainId: chain, address: _tronAddress),
+          ),
+        );
+        expect(burned.burnRecipient.chainId, chain);
+        expect(burned.burnRecipient.address, _tronAddress);
+        expect(prompts.single.params['burnRecipient'], {
+          'chainId': chain,
+          'address': _tronAddress,
+        });
+        final record = (await operations.records()).single;
+        expect(record.params.burnRecipient, _tronRecipient);
+        expect(record.metadata.payout.address, _tronAddress);
+        expect(record.metadata.payout.chainId, chain);
+        final restarted = BurnOperations(wallet, store);
+        expect(
+          (await restarted.records()).single.metadata.payout.address,
+          _tronAddress,
+        );
+        final status = await session.getTransferStatus(_txid);
+        expect(status.transfer!.burnRecipient!.address, _tronAddress);
+        expect(wallet.burns, 1);
+      },
+    );
+  }
+
+  test(
+    'invalid or unapproved Tron recipients never prompt, persist or burn',
+    () async {
+      final session = provider(allowedPayoutChainIds: [_tronChains.first]);
+      for (final payout in [
+        BurnPayout(
+          chainId: _tronChains.first,
+          address: _tronAddress.toLowerCase(),
+        ),
+        BurnPayout(
+          chainId: _tronChains.first,
+          address: '${_tronAddress.substring(0, 33)}a',
+        ),
+        BurnPayout(
+          chainId: _tronChains.first,
+          address: 'T9yD14Nj9j7xAB4dbGeiX9h8unkKHxuWwb',
+        ),
+        BurnPayout(
+          chainId: _tronChains.first,
+          address: 'TZQ7s7Wkv2SyN5pgpJ7AMdTsXyvYLbktsg',
+        ),
+        BurnPayout(
+          chainId: _tronChains.first,
+          address: '0x${_tronRecipient.substring(24)}',
+        ),
+        BurnPayout(chainId: _tronChains[1], address: _tronAddress),
+        const BurnPayout(chainId: 'tron:1', address: _tronAddress),
+        const BurnPayout(chainId: 'tron:0728126428', address: _tronAddress),
+        const BurnPayout(chainId: 'tron:0x2b6653dc', address: _tronAddress),
+        const BurnPayout(chainId: 'eip155:42161', address: _tronAddress),
+      ]) {
+        await expectLater(
+          session.burnAsset(
+            WebRgbBurnAssetArgs(
+              network: 'regtest',
+              assetId: _assetId,
+              amount: _args.amount,
+              burnRecipient: payout,
+            ),
+          ),
+          _error('INVALID_PARAMS'),
+        );
+      }
+      expect(prompts, isEmpty);
+      expect(store.data, isEmpty);
       expect(wallet.burns, 0);
     },
   );
@@ -371,7 +494,7 @@ void main() {
     },
   );
 
-  group('WalletConnect 0.1.2 wallet-side routing', () {
+  group('WalletConnect 0.1.3 wallet-side routing', () {
     var now = DateTime.utc(2026, 10, 13);
     late WebRgbWalletConnectGrant? current;
     late WebRgbWalletConnectSession router;
@@ -445,11 +568,54 @@ void main() {
         current = grant(methods: ['rgb_enable', 'rgb_getInfo']);
         final info = (await call(5, 'getInfo'))['result'] as Map;
         expect(info['methods'], ['enable', 'getInfo']);
+        expect(info, isNot(contains('burnRecipientNamespaces')));
         expect(
           code(await call(6, 'signMessage', ['blocked'])),
           'METHOD_NOT_SUPPORTED',
         );
         expect(wallet.signedMessages, ['exact message']);
+      },
+    );
+
+    test(
+      'Tron namespaces and unchanged address survive RPC dispatch',
+      () async {
+        router.dispose();
+        wallet.expectedBurnRecipient = _tronRecipient;
+        router = WebRgbWalletConnectSession(
+          wallet: wallet,
+          grant: current!,
+          currentGrant: () => current,
+          clock: () => now,
+          confirm: (prompt) async {
+            prompts.add(prompt);
+            return true;
+          },
+          burn: WebRgbBurnOptions(
+            operations: operations,
+            allowedPayoutChainIds: _tronChains,
+          ),
+        );
+        await call(1, 'enable');
+        final info = (await call(2, 'getInfo'))['result'] as Map;
+        expect(info['burnRecipientNamespaces'], ['tron']);
+        final burned = await call(3, 'burnAsset', [
+          {
+            'network': 'regtest',
+            'assetId': _assetId,
+            'amount': _args.amount,
+            'burnRecipient': {
+              'chainId': _tronChains.first,
+              'address': _tronAddress,
+            },
+          },
+        ]);
+        expect(code(burned), isNull);
+        expect((burned['result'] as Map)['burnRecipient'], {
+          'chainId': _tronChains.first,
+          'address': _tronAddress,
+        });
+        expect(wallet.burns, 1);
       },
     );
 
@@ -853,20 +1019,21 @@ void main() {
     ]) {
       expect(() => provider(origin: origin), throwsA(isA<WebRgbError>()));
     }
-    expect(
-      () => WebRgbProvider(
-        wallet,
-        WebRgbOptions(
-          origin: 'https://mint.example',
-          confirm: (_) async => true,
-          burn: WebRgbBurnOptions(
-            operations: operations,
-            allowedPayoutChainIds: ['eip155:0'],
-          ),
-        ),
-      ),
-      throwsA(isA<WebRgbError>()),
-    );
+    for (final chain in [
+      'eip155:0',
+      'eip155:1\n',
+      'eip155:1\r',
+      'eip155:1\r\n',
+      'eip155:1\u2028',
+      'eip155:1\u2029',
+      'eip155:1\u0000',
+      'eip155:1\t',
+    ]) {
+      expect(
+        () => provider(allowedPayoutChainIds: [chain]),
+        throwsA(isA<WebRgbError>()),
+      );
+    }
   });
 
   test(

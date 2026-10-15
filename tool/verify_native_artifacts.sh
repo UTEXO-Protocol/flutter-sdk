@@ -8,8 +8,9 @@ source "${SCRIPT_DIR}/release_baseline.sh"
 
 IOS_ONLY=false
 REQUIRE_ANDROID=false
+REQUIRE_ANDROID_16K=false
 IOS_ARCHIVE_PATH=""
-ANDROID_AAR_PATH=""
+ANDROID_AAR_PATH="${RGB_SDK_ANDROID_AAR_PATH:-}"
 
 while [[ "$#" -gt 0 ]]; do
   case "$1" in
@@ -19,6 +20,11 @@ while [[ "$#" -gt 0 ]]; do
       ;;
     --require-android)
       REQUIRE_ANDROID=true
+      shift
+      ;;
+    --require-android-16k)
+      REQUIRE_ANDROID=true
+      REQUIRE_ANDROID_16K=true
       shift
       ;;
     --ios-archive)
@@ -43,6 +49,11 @@ while [[ "$#" -gt 0 ]]; do
       ;;
   esac
 done
+
+if [[ "${IOS_ONLY}" == true && "${REQUIRE_ANDROID}" == true ]]; then
+  echo "[supply-chain] --ios-only cannot be combined with Android requirements." >&2
+  exit 2
+fi
 
 require_tool() {
   command -v "$1" >/dev/null 2>&1 || {
@@ -140,20 +151,28 @@ if [[ "${IOS_ONLY}" == true ]]; then
   exit 0
 fi
 
-RLN_VERSION="$(release_baseline_value rln.version)"
 ANDROID_SHA256="$(release_baseline_value rln.android.archiveSha256)"
 ANDROID_SIZE="$(release_baseline_value rln.android.archiveSizeBytes)"
+ANDROID_COORDINATE="$(release_baseline_value rln.android.mavenCoordinate)"
+if [[ ! "${ANDROID_COORDINATE}" =~ ^([A-Za-z0-9_]+(\.[A-Za-z0-9_]+)*):([A-Za-z0-9_][A-Za-z0-9_.-]*):([A-Za-z0-9_][A-Za-z0-9_.+-]*)$ ]]; then
+  echo "[supply-chain] Invalid Android Maven coordinate." >&2
+  exit 1
+fi
+ANDROID_GROUP="${BASH_REMATCH[1]}"
+ANDROID_MODULE="${BASH_REMATCH[3]}"
+ANDROID_VERSION="${BASH_REMATCH[4]}"
+ANDROID_FILENAME="${ANDROID_MODULE}-${ANDROID_VERSION}.aar"
 
 if [[ -n "${ANDROID_AAR_PATH}" ]]; then
   AAR_PATHS=("${ANDROID_AAR_PATH}")
 else
-  AAR_BASE="${HOME}/.gradle/caches/modules-2/files-2.1/com.utexo/rgb-lightning-node-android/${RLN_VERSION}"
+  AAR_BASE="${HOME}/.gradle/caches/modules-2/files-2.1/${ANDROID_GROUP}/${ANDROID_MODULE}/${ANDROID_VERSION}"
   AAR_PATHS=()
   if [[ -d "${AAR_BASE}" ]]; then
     while IFS= read -r path; do
       AAR_PATHS+=("${path}")
     done < <(
-      find "${AAR_BASE}" -type f -name "rgb-lightning-node-android-${RLN_VERSION}.aar" | sort
+      find "${AAR_BASE}" -type f -name "${ANDROID_FILENAME}" | sort
     )
   fi
 fi
@@ -181,7 +200,18 @@ else
       echo "[supply-chain] Android ABI mismatch for ${aar_path}." >&2
       exit 1
     }
+    if [[ "${REQUIRE_ANDROID_16K}" == true ]]; then
+      DART_BIN="${DART_BIN:-dart}"
+      require_tool "${DART_BIN}"
+      EXPECTED_ABIS_CSV="$(release_baseline_array rln.android.abis | paste -sd, -)"
+      "${DART_BIN}" run "${SCRIPT_DIR}/verify_android_elf.dart" \
+        --archive "${aar_path}" --kind aar --expected-abis "${EXPECTED_ABIS_CSV}"
+    fi
   done
 fi
 
-echo "[supply-chain] Native artifact checks passed."
+if [[ "${REQUIRE_ANDROID_16K}" == true ]]; then
+  echo "[supply-chain] Native integrity and Android ELF page compatibility checks passed."
+else
+  echo "[supply-chain] Native integrity checks passed; Android ELF page compatibility was not checked."
+fi

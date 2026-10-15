@@ -9,13 +9,20 @@ Run widget tests from this directory:
 flutter test test
 ```
 
-The integration tests in `integration_test/` require the repository's local
-regtest stack and explicit `--dart-define` configuration. Existing integration
-coverage includes the current low-level beta.25 contract but does not yet prove
-external-signer process restart, recovery, or the complete failure matrix.
+The standalone offline native test creates, releases, and reopens a persistent
+native signer in one fresh private directory through the real Flutter bridge.
+It uses a public test-vector seed and requires no stack, endpoints, node, wallet,
+or network access:
 
-Android release networking also requires the host application's `INTERNET`
-permission until the packaging issue is resolved.
+```sh
+flutter test integration_test/offline_native_load_test.dart -d <owned-device-id>
+```
+
+This tests native loading and signer-handle release/reopen. It does not prove
+public identity continuity, unlocked-node shutdown, signer revocation, funded
+operations, process restart, or the WDK lifecycle overlay's acceptance criteria.
+The other integration files contain separately gated regtest/funded scenarios
+that require their explicit configuration and service dependencies.
 
 See the
 [Release Readiness Tracker](../doc/RELEASE_READINESS_TRACKER.md) for the

@@ -1,22 +1,22 @@
 {
   "schemaVersion": 1,
-  "reviewedAt": "2026-10-13T06:27:25.567Z",
+  "reviewedAt": "2026-10-15T08:08:57.283792+00:00",
   "reviewedAgainst": {
     "releaseBaselineSchemaVersion": 1,
-    "rlnVersion": "0.16.0-beta.3",
-    "rlnCommit": "8777d71d7781b408fcce89c9c965ae29e8ad2300"
+    "rlnVersion": "0.17.0-beta.3",
+    "rlnCommit": "ecc69f20308231400561f6f060fea88acfa40cc4"
   },
   "artifacts": [
     {
       "id": "rln-ios-swift",
       "platform": "ios",
       "source": "github-release",
-      "artifactUrl": "https://github.com/UTEXO-Protocol/rgb-lightning-node/releases/download/v0.16.0-beta.3/rgb-lightning-node-swift-0.16.0-beta.3.zip",
-      "artifactSizeBytes": 219551778,
-      "artifactSha256": "af2df068aa8c6e2ef53fb08564c4e5fc1c5218fa682b51d5c4c282e5191fa585",
+      "artifactUrl": "https://github.com/UTEXO-Protocol/rgb-lightning-node/releases/download/v0.17.0-beta.3/rgb-lightning-node-swift-0.17.0-beta.3.zip",
+      "artifactSizeBytes": 219608986,
+      "artifactSha256": "dd5c483753e58c0c1c49f94098a2cc6eef18e16d3eebd167d31131fbd888890a",
       "signature": {
         "status": "absent",
-        "checkedSource": "GitHub release asset list for v0.16.0-beta.3",
+        "checkedSource": "GitHub release asset list for v0.17.0-beta.3",
         "checkedPatterns": [
           ".asc",
           ".sig",
@@ -25,7 +25,7 @@
       },
       "attestation": {
         "status": "absent",
-        "checkedSource": "GitHub release asset list for v0.16.0-beta.3",
+        "checkedSource": "GitHub release asset list for v0.17.0-beta.3",
         "checkedPatterns": [
           ".intoto.jsonl",
           ".attestation",
@@ -41,23 +41,39 @@
     {
       "id": "rln-android-aar",
       "platform": "android",
-      "source": "maven-central",
-      "artifactUrl": "https://repo1.maven.org/maven2/com/utexo/rgb-lightning-node-android/0.16.0-beta.3/rgb-lightning-node-android-0.16.0-beta.3.aar",
-      "artifactSizeBytes": 92113193,
-      "artifactSha256": "c9d68c72d0791acdd53b52fe37aeba21b57776a8e32df5b9e4e7e17a3ee3a72c",
+      "source": "sdk-source-build",
+      "artifactUrl": "https://github.com/UTEXO-Protocol/flutter-sdk/releases/download/v0.2.0-beta.1/rgb-lightning-node-android-0.17.0-beta.3-16k.1.aar",
+      "artifactSizeBytes": 91930898,
+      "artifactSha256": "ca1aa12d44c1e83c0a0f51a38c7bf1486e0ea3ac796dcc02d479acbdf4d832c5",
       "signature": {
-        "status": "present-unverified",
-        "signatureUrl": "https://repo1.maven.org/maven2/com/utexo/rgb-lightning-node-android/0.16.0-beta.3/rgb-lightning-node-android-0.16.0-beta.3.aar.asc",
-        "signatureSha256": "5d1dc5517593a5c0cfc60de35a2d3b4c83e44726cf3980ddbf6bf0b3c133bcf3",
-        "checkedSource": "Maven Central directory listing for com/utexo/rgb-lightning-node-android/0.16.0-beta.3"
+        "status": "absent",
+        "checkedSource": "SDK-derived Android source build; the official Maven PGP signature applies only to the unmodified input AAR."
       },
       "attestation": {
         "status": "absent",
-        "checkedSource": "Maven Central directory listing for com/utexo/rgb-lightning-node-android/0.16.0-beta.3"
+        "checkedSource": "Local build inputs and hash manifest are recorded, without a signed builder/source attestation."
       },
       "reproducibleBuild": {
         "status": "absent",
-        "evidence": "Maven metadata publishes checksums and a detached PGP signature, but no reproducible-build attestation tying the AAR bytes to source, builder identity, and build inputs."
+        "evidence": "The checked-in pinned recipe was executed and all ABI/API/strip checks passed. No independent clean builder has reproduced the exact output bytes; this is not a reproducible-build attestation."
+      },
+      "sourceBuild": {
+        "manifest": "tool/rln_android_16k_build.json",
+        "manifestSha256": "3e00342199c9abeef3866fd430b56408709ba8ad0326795584bf0c41f0822e7b",
+        "sourceCommit": "ecc69f20308231400561f6f060fea88acfa40cc4",
+        "recipeSha256": "160f363666e4bab1f7370796ec1823024fb0f1638f11ecea1db4cf3dcc6b2fe5",
+        "officialBaseAar": {
+          "mavenCoordinate": "com.utexo:rgb-lightning-node-android:0.17.0-beta.3",
+          "archiveUrl": "https://repo1.maven.org/maven2/com/utexo/rgb-lightning-node-android/0.17.0-beta.3/rgb-lightning-node-android-0.17.0-beta.3.aar",
+          "archiveSizeBytes": 92033256,
+          "archiveSha256": "148e8e50c1014237c737b26120469ceefc8a79bb6c77cd74ddda89ea316c6dac",
+          "abis": [
+            "arm64-v8a",
+            "armeabi-v7a",
+            "x86_64"
+          ]
+        },
+        "independentReproducibility": "not-verified"
       }
     }
   ]

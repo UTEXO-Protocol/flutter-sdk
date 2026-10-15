@@ -298,7 +298,7 @@ main() {
   run_step "API and bridge snapshot validation" "${DART_BIN}" run tool/validate_api_snapshot.dart
   run_step "RN dev source parity validation" "${DART_BIN}" run tool/validate_rn_parity.dart
   run_step "release package validation" "${DART_BIN}" run tool/validate_release_package.dart
-  run_step "native artifact checksum verification" ./tool/verify_native_artifacts.sh --require-android
+  run_step "native artifact integrity and Android 16 KiB verification" ./tool/verify_native_artifacts.sh --require-android-16k
   run_step "supply-chain provenance, SBOM, license, and ABI gate" "${DART_BIN}" run tool/validate_supply_chain.dart
   if [[ "${RUN_CONSUMER_MATRIX:-1}" == "1" ]]; then
     run_step "clean consumer install and archive matrix" bash -lc "REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_clean_consumer_matrix.sh'"

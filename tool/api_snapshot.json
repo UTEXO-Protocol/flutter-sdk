@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "description": "AST-normalized public API and bridge snapshot. Update only with a tracker row and migration note.",
   "dartExportedSurface": {
-    "count": 2071,
-    "hash": "657c51f173c76c697aeb59eb7c0721502e0acfe58eb2d0ed837042fe99a89b21",
+    "count": 2073,
+    "hash": "fe102bede1229086bb620f59e89788b72632c0be79590d7235e1753091e8015f",
     "files": [
       "lib/rgb_sdk_flutter.dart",
       "lib/rgb_sdk_flutter_advanced.dart",

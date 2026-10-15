@@ -106,8 +106,9 @@ copy_candidate_snapshot() {
 prepare_package_git_ref() {
   cd "${PACKAGE_DIR}"
   git init -q
-  git config user.name "Clean Consumer Matrix"
-  git config user.email "release-matrix@example.invalid"
+  # Keep the candidate checkout's scoped identity in the temporary fixture.
+  git config user.name "$(git -C "${REPO_DIR}" config user.name)"
+  git config user.email "$(git -C "${REPO_DIR}" config user.email)"
   git add .
   git commit -q -m "candidate snapshot"
   git branch -M consumer-candidate
@@ -220,6 +221,18 @@ marker = "dependencies:\n"
 replacement = f"dependencies:\n  rgb_sdk_flutter:\n{dependency}\n"
 if marker not in text:
     raise SystemExit("dependencies section not found")
+path.write_text(text.replace(marker, replacement, 1))
+PY
+  python3 - "${consumer_dir}/pubspec.yaml" <<'PY'
+import sys
+from pathlib import Path
+
+path = Path(sys.argv[1])
+text = path.read_text()
+marker = "\nflutter:\n"
+replacement = "\nflutter:\n  config:\n    enable-swift-package-manager: false\n"
+if marker not in text:
+    raise SystemExit("Flutter configuration section not found")
 path.write_text(text.replace(marker, replacement, 1))
 PY
 cat >lib/main.dart <<'DART'

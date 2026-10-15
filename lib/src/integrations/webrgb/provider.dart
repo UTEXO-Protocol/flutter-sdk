@@ -57,17 +57,16 @@ class WebRgbProvider {
 
   Future<WebRgbInfo> getInfo() async {
     final revision = _session.revision;
-    return _session.call(
-      revision,
-      () async => WebRgbInfo(
+    return _session.call(revision, () async {
+      final burnMethods = await _burn?.methods(revision) ?? const <String>[];
+      return WebRgbInfo(
         network: _wallet.getNetwork(),
-        methods: [
-          ...webRgbReadMethods,
-          'signMessage',
-          ...?await _burn?.methods(revision),
-        ],
-      ),
-    );
+        methods: [...webRgbReadMethods, 'signMessage', ...burnMethods],
+        burnRecipientNamespaces: burnMethods.contains('burnAsset')
+            ? _burn!.recipientNamespaces
+            : null,
+      );
+    });
   }
 
   Future<WebRgbAddressResult> getAddress() async {

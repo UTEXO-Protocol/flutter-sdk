@@ -47,10 +47,19 @@ class WebRgbOptions {
 }
 
 class WebRgbInfo {
-  WebRgbInfo({required this.network, required Iterable<String> methods})
-    : methods = List.unmodifiable(methods);
+  WebRgbInfo({
+    required this.network,
+    required Iterable<String> methods,
+    Iterable<String>? burnRecipientNamespaces,
+  }) : methods = List.unmodifiable(methods),
+       burnRecipientNamespaces = burnRecipientNamespaces == null
+           ? null
+           : List.unmodifiable(burnRecipientNamespaces);
   final String network;
   final List<String> methods;
+
+  /// Host-authorized address namespaces; absent when burning is unavailable.
+  final List<String>? burnRecipientNamespaces;
   bool get ready => true;
   String get protocol => 'RGB_LN';
   Map<String, Object?> toJson() => {
@@ -58,6 +67,8 @@ class WebRgbInfo {
     'network': network,
     'protocol': protocol,
     'methods': methods,
+    if (burnRecipientNamespaces != null)
+      'burnRecipientNamespaces': burnRecipientNamespaces,
   };
 }
 

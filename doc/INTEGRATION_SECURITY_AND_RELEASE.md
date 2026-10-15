@@ -31,7 +31,8 @@ Kotlin, Android SDK, simulator/device, and regtest stack used for a candidate.
 | CocoaPods | Local Flutter consumer integration | Plain `pod lib lint` resolves the stale public Flutter pod and is not authoritative |
 | Swift Package Manager | No native plugin package yet; Flutter 3.47 uses CocoaPods fallback | The generated Flutter framework SPM integration is not native plugin SPM support. Flutter warns that fallback will be removed in a future version. |
 | Android | min SDK `24`, compile SDK `36` | Native AAR must verify checksum, size, and ABI set |
-| Native/regtest CI | Not supported | Native builds and regtest smokes are mandatory local release gates |
+| Native bridge CI | Supported | Linux JVM and macOS XCTest jobs require exact-candidate, release-eligible evidence; a passing raw test exit alone is insufficient |
+| Funded regtest qualification | Separately operated existing isolated stack | Financial/recovery cases require per-platform evidence; native bridge CI does not prove funded wallet flows |
 
 Flutter 3.47 currently builds the example with Gradle 8.14, AGP 8.11.1 and
 Kotlin 2.2.20, but warns that support for these versions will be removed in a
@@ -265,14 +266,32 @@ reports, screenshots, or long-lived app state.
 Native local backup/recovery remains blocked until upstream supplies a real,
 tested implementation.
 
-## Required Local Release Gates
+## Required Release Gates
 
-CI intentionally runs only source/static/package checks. Native builds,
-XCTest/JVM bridge tests, funded/unfunded regtest smokes, and external-signer
-restart proofs are local release gates. `tool/test_release_candidate.sh` must
-fail when required local gates are skipped. The script also runs supply-chain
-and clean-consumer gates by default; use `RUN_CONSUMER_MATRIX=0` only for local
-debugging, never for release evidence.
+CI runs source/package checks plus native JVM and XCTest bridge tests. Native
+jobs require clean exact-candidate reports, complete toolchain/device identity,
+and completed log checksums. Android provisions the pinned NDK before evidence
+starts, with at most three dependency-install attempts and an installed revision
+and executable compiler check. Native tests themselves are not retried by this
+provisioning step. A green bridge job does not prove funded financial flows.
+
+`tool/test_release_candidate.sh` defaults to `mainnet-onchain`: the initial
+release scope is mainnet, onchain-only, with the built-in password signer.
+Production supply-chain and clean-consumer gates remain mandatory. This profile
+requires mainnet Lightning and external-signer **rejection**, not successful
+Lightning/channel/external-signer operations. It consumes exact-candidate iOS
+and Android financial/recovery reports from the already running isolated
+qualification stack; it never starts, resets or creates containers. Read
+`doc/RELEASE_EVIDENCE_SCHEMA.md` for the required cases and stack identities.
+Missing evidence fails the aggregate gate, including upstream-blocked reorg,
+accounting, BFA and fresh-device recovery cases.
+
+The explicit `internal-beta` profile retains historical funded/unfunded and
+external-signer restart successes for non-mainnet research. Its legacy runners
+can manage the historical SDK-owned stack and must not run when preserving
+existing infrastructure. They cannot replace the mainnet-onchain profile's
+proofs. `RUN_CONSUMER_MATRIX=0` is for diagnostic work only and cannot produce a
+passing release candidate.
 
 ## API and Evidence Governance
 

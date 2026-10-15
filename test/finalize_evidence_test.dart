@@ -174,6 +174,30 @@ void main() {
       expect(fixture.report()['deviceIdentity'], isNull);
     },
   );
+  test(
+    'simulator discovery never waives Apple build-tool attribution',
+    () async {
+      final fixture = await _Fixture.create(device: _destination);
+      addTearDown(fixture.dispose);
+      await fixture.start();
+      final snapshot = File('${fixture.root.path}/build/snapshot.json');
+      final value =
+          jsonDecode(snapshot.readAsStringSync()) as Map<String, Object?>;
+      final toolchain = value['toolchain']! as Map<String, Object?>;
+      toolchain['xcode'] = null;
+      toolchain['cocoapods'] = null;
+      snapshot.writeAsStringSync(jsonEncode(value));
+      final result = await fixture.finish(strict: true);
+      expect(result.exitCode, 1, reason: '${result.stdout}\n${result.stderr}');
+      final report = fixture.report();
+      expect(report['deviceIdentity'], isNotNull);
+      expect(report['releaseEligible'], false);
+      expect(
+        report['evidenceErrors'],
+        contains('Missing Apple build-tool identity.'),
+      );
+    },
+  );
 }
 
 final class _Fixture {
@@ -298,6 +322,19 @@ esac
   Future<void> start() async {
     final result = await _run(['start', 'build/snapshot.json']);
     expect(result.exitCode, 0, reason: '${result.stdout}\n${result.stderr}');
+    if (device != null) {
+      // This is a synthetic Apple report fixture, independent of the test host.
+      // The production collector correctly skips Apple probes on Linux. Supply
+      // only this fixture's mocked Apple builder metadata; never relax the
+      // production validator to accept missing toolchain identity.
+      final snapshot = File('${root.path}/build/snapshot.json');
+      final value =
+          jsonDecode(snapshot.readAsStringSync()) as Map<String, Object?>;
+      final toolchain = value['toolchain']! as Map<String, Object?>;
+      toolchain['xcode'] = 'Fixture Xcode 27';
+      toolchain['cocoapods'] = 'Fixture CocoaPods 1.16.2';
+      snapshot.writeAsStringSync(jsonEncode(value));
+    }
   }
 
   Future<ProcessResult> finish({required bool strict}) => _run([

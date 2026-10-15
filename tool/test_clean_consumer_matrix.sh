@@ -334,7 +334,10 @@ build_consumer() {
   "${FLUTTER_BIN}" pub get
   "${FLUTTER_BIN}" analyze --fatal-infos
   if [[ "${RUN_ARCHIVES}" == "1" ]]; then
-    "${FLUTTER_BIN}" build apk --release --target-platform android-arm64
+    # Flutter 3.47's default filtering overwrites defaultConfig ABI filters.
+    # Preserve this fixture's explicit arm64 filter; verify the final ZIP below.
+    "${FLUTTER_BIN}" build apk --release --target-platform android-arm64 \
+      --android-project-arg=disable-abi-filtering=true
     local apk="${consumer_dir}/build/app/outputs/flutter-apk/app-release.apk"
     local report_prefix="${REPORT_DIR}/android-${consumer_dir##*/}-${RUN_ID}"
     verify_consumer_apk_inventory "${apk}" "${report_prefix}-inventory.json"

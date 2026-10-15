@@ -246,6 +246,17 @@ class RlnClient {
     return _native('rlnDestroyNode', () => _hostApi.rlnDestroyNode(nodeId));
   }
 
+  /// Imports public contract metadata while native verifies the expected ID.
+  Future<Map<Object?, Object?>> importRgbContract({
+    required int nodeId,
+    required String contractBase64,
+    required String expectedAssetId,
+  }) => _nativeMap(
+    'rlnImportRgbContract',
+    () =>
+        _hostApi.rlnImportRgbContract(nodeId, contractBase64, expectedAssetId),
+  );
+
   /// Native-build capabilities; signer support is applied by UtexoWallet.
   Future<Map<Object?, Object?>> bfaCapabilities() =>
       _nativeMap('rlnBfaCapabilities', _hostApi.rlnBfaCapabilities);

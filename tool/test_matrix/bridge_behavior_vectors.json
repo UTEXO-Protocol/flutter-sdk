@@ -29,7 +29,8 @@
         "dart-platform-error-mapping",
         "dart-malformed-wire",
         "native-invalid-argument",
-        "native-unknown-node-error"
+        "native-unknown-node-error",
+        "platform-smoke-or-regtest-success"
       ],
       "testIds": [
         "test/rln_client_contract_test.dart::RlnClient bridge contract",
@@ -37,8 +38,10 @@
         "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::bfaBoundaryRejectsInvalidBurnBeforeNativeLookup",
         "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::bfaFullUnsignedAmountReachesNodeLookupWithoutTruncation",
         "example/ios/RunnerTests/RunnerTests.swift::testBfaBoundaryRejectsInvalidBurnBeforeNativeLookup",
-        "example/ios/RunnerTests/RunnerTests.swift::testBfaCapabilitiesAndFullUnsignedBoundary"
-      ]
+        "example/ios/RunnerTests/RunnerTests.swift::testBfaCapabilitiesAndFullUnsignedBoundary",
+        "example/integration_test/shared_stack_wallet_test.dart::existing shared stack: lifecycle, BTC, canonical BFA and payout"
+      ],
+      "scope": "Canonical BFA public import, mint, blind/witness transfer and burn stages on iOS 27 and Android 17; composite recovery reports do not imply full-family, VSS or adverse-chain qualification."
     },
     "backup": {
       "vectors": [
@@ -353,6 +356,21 @@
         "test/rln_client_contract_test.dart::RlnClient bridge contract",
         "test/rln_client_contract_test.dart::every JSON-returning method rejects malformed or non-object data",
         "test/utexo_wallet_test.dart::exposes current RLN address, inflation, lookup, signing, and VSS APIs"
+      ]
+    },
+    "importRgbContract": {
+      "tracker": "OCT-038",
+      "requiredVectors": [
+        "expected-asset-identity",
+        "bounded-canonical-base64",
+        "exact-u64-metadata",
+        "idempotent-public-import"
+      ],
+      "testIds": [
+        "test/imported_rgb_contract_test.dart::import metadata preserves exact u64 supply and requires expected ID",
+        "test/imported_rgb_contract_test.dart::malformed identity, metadata and supply fail closed",
+        "test/imported_rgb_contract_test.dart::import requires unlock and canonical bytes before native dispatch",
+        "example/integration_test/shared_stack_wallet_test.dart::existing shared stack: lifecycle, BTC, canonical BFA and payout"
       ]
     }
   }

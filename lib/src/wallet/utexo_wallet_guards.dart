@@ -64,6 +64,11 @@ mixin _UtexoWalletGuards on _UtexoWalletInternals {
 
   @override
   void _ensureNotDisposed() {
+    if (_cleanupRequired) {
+      throw const WalletException(
+        'Wallet cleanup is incomplete. Retry destroy() before further use.',
+      );
+    }
     if (_lifecycleState == _WalletLifecycleState.disposed) {
       throw const WalletException('Wallet is disposed.');
     }

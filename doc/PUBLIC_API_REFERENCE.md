@@ -343,7 +343,33 @@ to `SchnorrSigningMode.experimentalDart`. The default mode fails closed with
 proven constant-time. Production wallet message signing should use the native
 RLN-backed wallet node-key methods.
 
+`ImportedRgbContract` is the result of `UtexoWallet.importRgbContract`, which
+imports a canonical Base64 public RGB contract only into an unlocked wallet.
+The caller supplies the expected contract ID and verifies network-specific
+public artifact hashes before importing. Native identity verification and strict
+typed metadata checks reject mismatches; import alone never credits supply.
+Supply fields use exact `BigInt` base units, including full native UInt64 values.
+
+`NativeOperationCause` is the narrow diagnostic interface behind
+`RgbSdkException.operation`. Applications can retain a validated SDK operation
+token while keeping native messages, credentials, payloads and paths private.
+The operation is nullable for exceptions without a structured native cause.
+`NativeErrorCodeCause` supplies the allowlisted `RgbSdkException.nativeCode`.
+Applications can offer explicit allocation-UTXO setup for `NoAvailableUtxos`
+or `InsufficientAllocationSlots` without inspecting private native text. Unknown
+codes are redacted; the getter does not classify errors by message substring.
+
+`CoreInvoiceData.recipientType` preserves the decoded native recipient kind
+(`Blind` / `Witness` in the pinned runtime). The optional constructor value
+defaults to null for compatibility. Hosts must reject unknown/null kinds before
+sending and review the witness Bitcoin output amount separately from network
+fees; this metadata does not authorize a send.
+
 ## Symbol Coverage Checklist
+
+- `ImportedRgbContract`
+- `NativeOperationCause`
+- `NativeErrorCodeCause`
 
 The documentation validator requires every root-exported stable symbol to appear in
 this checklist. Advanced/parity symbols are intentionally excluded from this

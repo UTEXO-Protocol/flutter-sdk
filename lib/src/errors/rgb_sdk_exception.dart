@@ -1,3 +1,41 @@
+/// Narrow support diagnostic carried by a native failure cause.
+///
+/// [operation] names an SDK operation, never native exception text or payloads.
+abstract interface class NativeOperationCause {
+  String get operation;
+}
+
+/// Narrow machine-readable error identity from a native failure cause.
+abstract interface class NativeErrorCodeCause {
+  String get nativeCode;
+}
+
+const _supportSafeNativeCodes = <String>{
+  'RlnError',
+  'NotInitialized',
+  'InvalidRequest',
+  'NotFound',
+  'Conflict',
+  'FailedBitcoindConnection',
+  'FailedBdkSync',
+  'FailedBroadcast',
+  'FailedPeerConnection',
+  'InsufficientCapacity',
+  'InsufficientFunds',
+  'NoAvailableUtxos',
+  'InsufficientAllocationSlots',
+  'NoRoute',
+  'ExternalSignerRequired',
+  'ExternalSignerMismatch',
+  'ExternalSignerUnavailable',
+  'ExternalSignerProtocolError',
+  'UnsupportedInExternalSignerMode',
+  'FailedVssInit',
+  'Internal',
+  'LightningUnsupportedOnMainnet',
+  'NativeError',
+};
+
 /// Base exception type thrown by the Dart wallet facade.
 class RgbSdkException implements Exception {
   const RgbSdkException(
@@ -11,6 +49,30 @@ class RgbSdkException implements Exception {
   final String code;
   final int? statusCode;
   final Object? cause;
+
+  /// Support-safe native operation token, when supplied by a structured cause.
+  ///
+  /// Arbitrary native messages, endpoints, request bodies and paths remain
+  /// private. Apps can preserve this diagnostic without importing advanced APIs.
+  String? get operation {
+    final diagnostic = cause;
+    if (diagnostic is! NativeOperationCause) return null;
+    final token = diagnostic.operation;
+    return RegExp(r'^[A-Za-z][A-Za-z0-9_.]{0,79}$').hasMatch(token)
+        ? token
+        : null;
+  }
+
+  /// Exact allowlisted native error code, without native message inspection.
+  ///
+  /// Apps may use this to offer an explicit action such as allocation-UTXO
+  /// setup after `NoAvailableUtxos`. Unknown and payload-like values are null.
+  String? get nativeCode {
+    final diagnostic = cause;
+    if (diagnostic is! NativeErrorCodeCause) return null;
+    final code = diagnostic.nativeCode;
+    return _supportSafeNativeCodes.contains(code) ? code : null;
+  }
 
   Map<String, Object?> toJson() {
     return <String, Object?>{
@@ -94,6 +156,7 @@ class RlnOperationTimeoutException extends WalletException {
     required this.timeout,
   }) : super('Native RLN operation timed out.', cause: operation);
 
+  @override
   final String operation;
   final Duration timeout;
 

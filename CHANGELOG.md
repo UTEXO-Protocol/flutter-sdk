@@ -1,6 +1,28 @@
 # Changelog
 
-## 0.2.0-beta.1 - Unreleased
+## 0.2.0-beta.2 - Unreleased
+
+- Add canonical public RGB contract import with expected asset identity,
+  bounded canonical Base64 input, typed metadata and exact UInt64 supplies.
+- Quarantine failed native cleanup while retaining ownership for explicit
+  `destroy()` retry; block reinitialization and ordinary wallet operations
+  until cleanup completes.
+- Expose redacted native operation/code diagnostics for host recovery UX.
+- Preserve decoded blind/witness recipient type in the stable invoice DTO so
+  hosts can explicitly review required witness Bitcoin outputs.
+- Target Android 17 in the example and request local-network consent before
+  connecting to development services. Hosts own the platform permission UI.
+- Add an existing-stack wallet qualification runner with separate private
+  wallet storage, single-attempt financial requests and closed-fixture backups.
+  iOS BTC/BFA/mint/burn/payout evidence spans an initial run and explicit
+  pre-burn fixture resume. Android completed native flows through burn but
+  stopped on a host payout failure. Separate same-proof payout recovery and
+  read-only funded wallet verification pass without another mint or burn; the
+  original run remains failed.
+- Keep the published beta.1 native AAR and existing iOS archive unchanged.
+  Upstream lifecycle/recovery, adverse-chain and release-readiness gates remain.
+
+## 0.2.0-beta.1 - 2026-10-15
 
 - Upgrade the immutable native baseline to RLN `0.17.0-beta.3` and the React
   Native reference to `1.0.0-beta.39`; core remains `1.0.0-beta.9`. Verify the

@@ -11,6 +11,7 @@ import '../lsp/lsp_wallet.dart';
 import '../lsp/utexo_lsp.dart';
 import '../lsp/utexo_lsp_client.dart';
 import '../models/burn_models.dart';
+import '../models/imported_rgb_contract.dart';
 import '../models/rln_models.dart';
 import '../models/utexo_core_models.dart';
 import '../models/utexo_domain_policy.dart';
@@ -72,6 +73,8 @@ abstract class _UtexoWalletInternals {
   set _nodeCreated(bool value);
   _WalletLifecycleState get _lifecycleState;
   set _lifecycleState(_WalletLifecycleState value);
+  bool get _cleanupRequired;
+  set _cleanupRequired(bool value);
   Future<void>? get _initInFlight;
   set _initInFlight(Future<void>? value);
   Future<void>? get _unlockInFlight;
@@ -202,6 +205,8 @@ class UtexoWallet extends _UtexoWalletInternals
   @override
   _WalletLifecycleState _lifecycleState = _WalletLifecycleState.uninitialized;
   @override
+  bool _cleanupRequired = false;
+  @override
   Future<void>? _initInFlight;
   @override
   Future<void>? _unlockInFlight;
@@ -224,9 +229,10 @@ class UtexoWallet extends _UtexoWalletInternals
 
   @override
   bool get isInitialized =>
-      _lifecycleState == _WalletLifecycleState.initialized ||
-      _lifecycleState == _WalletLifecycleState.unlocking ||
-      _lifecycleState == _WalletLifecycleState.unlocked;
+      !_cleanupRequired &&
+      (_lifecycleState == _WalletLifecycleState.initialized ||
+          _lifecycleState == _WalletLifecycleState.unlocking ||
+          _lifecycleState == _WalletLifecycleState.unlocked);
   @override
   bool get isUnlocked => _lifecycleState == _WalletLifecycleState.unlocked;
   bool get isShutdown => _lifecycleState == _WalletLifecycleState.shutDown;

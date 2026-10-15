@@ -7,11 +7,57 @@ were removed because they overlapped and had drifted from the implementation.
 
 ## Document Control
 
-### October 15 RLN 0.17 and Android Page Size Upgrade (Active)
+### October 15 Existing-Stack Wallet Qualification (Active)
 
-User authorization: upgrade the SDK to the latest RLN, inspect the React Native
-SDK and WDK RLN 17 PR, then move Aster to the new SDK. The existing local stack
-must stay disconnected. No container or stack is started by this work.
+The user now authorizes connecting the app and SDK to the existing shared
+`utexo_local` infrastructure. This supersedes the earlier disconnected-only
+instruction below. No stack or container is created, reset or replaced.
+Consumer configuration and public contract identity are verified before use;
+SDK wallets use separate random owner-only storage and are closed and privately
+backed up before the test runner removes its example application.
+
+The next package candidate is `0.2.0-beta.2`. It retains the beta.1 published
+16 KiB Android AAR and the same official iOS archive; no proposed WDK lifecycle
+overlay or replacement native binary is included.
+
+| ID | Pri | Status | Finding and evidence | Required outcome |
+| --- | --- | --- | --- | --- |
+| OCT-038 | P1 | Verified | The stable facade could not import the shared canonical BFA public contract although released RLN already provides that API. Added `importRgbContract` through both bridges with expected-ID verification, canonical Base64 bounded to 16 MiB characters and exact typed UInt64 supply metadata. Three focused Dart tests and actual canonical zero-balance/idempotent import assertions pass on iOS 27 and Android 17. | Keep this explicit Flutter extension in the divergence register and signature-check it independently of RN parity. Re-audit when RN adds the wrapper. |
+| OCT-039 | P1 | Verified | `destroy()` previously continued releasing native ownership after shutdown failure. The facade now quarantines failed shutdown/cleanup, retains remaining owners and permits only explicit destroy retry. Fresh-init and replacement cleanup faults also retain ownership. Full 504-test Dart suite and cleanup-fault regressions pass. | Preserve retryable ownership; these wrapper guarantees do not prove native workers/listeners/pools have terminated or close OCT-037/P01. |
+| OCT-040 | P1 | Verified | API 37 local-network permission denial appeared as native indexer/unlock failure. The example now targets API 37, presents the real OS consent prompt after its first frame and verifies LAN access before native initialization. Android 17 / 16 KiB guest native unlock and funded transfers succeed after real Allow consent. Added bounded operation/code getters without raw native messages so hosts can classify recoverable failures. | Consuming apps own declaration, consent, denial and revocation handling; the SDK library must not silently prompt or bypass permission. |
+| OCT-041 | P1 | Verified | Existing-stack SDK evidence covers BTC send/receive, canonical BFA mint, blind/witness transfers, native burn, exact EVM payout and funded same-store reopen on both platforms through explicitly composed reports. iOS combines initial A and pre-burn resume B. Android C retains its failed host acknowledgement; the original proof later receives exactly one successful payout after signer readiness, and read-only E independently verifies the same closed wallet identities and 1.58m/0.4m balances through funded reinit. | Preserve original failures, separate recovery evidence and private fixtures. This scoped onchain evidence does not close Lightning/LSP/VSS, destructive recovery, general P04, native lifecycle or clean immutable candidate qualification. |
+| OCT-042 | P1 | Verified | Stable decoded invoices dropped native recipient type, preventing hosts from distinguishing blind receivers from witness receivers requiring a Bitcoin output. `CoreInvoiceData.recipientType` is now optional for constructor compatibility and receives exact native Blind/Witness or unknown future values. A focused regression proves both known values, unknown preservation and omitted-field null. | Hosts must reject null/unknown kinds before broadcast and explicitly review witness Bitcoin output value separately from fees; do not parse invoice strings or silently switch receive modes. |
+
+Local evidence (ignored, contains private fixture backups):
+`build/full-wallet-20261015/sdk-full-ios27-20261015-a/`,
+`build/full-wallet-20261015/sdk-resume-ios27-20261015-b/` and
+`build/full-wallet-20261015/sdk-full-android17-20261015-c/` and
+`build/full-wallet-20261015/sdk-verify-android17-20261015-e/`.
+Android C records `sourceChangedDuringRun: false` and strict 16 KiB execution,
+but its overall result remains failed at host payout. Host recovery verifies
+matching relay/signer block heights before one unlock. The retained-proof
+payout `0xe7b567a9ea198b43d2c5843670dad22a8257c53fcfab9cc2ac81fb90c8ea6f21`
+transfers exactly 20,000 units with one BridgeFundsOut event. No new native
+burn or mint is performed. Read-only E passes original pubkey, exact balances
+and both-wallet funded shutdown/reinit; its closed backup is retained. D
+passed the same native assertions but failed the framework semantics-handle
+check. E fixes the test-owned accessibility lifetime without disabling leak
+checks. No original report is relabeled.
+The earlier iOS run failed because the test omitted the explicit witness
+satoshi value; the corrected resume performs no new fund or mint operation.
+A pending incoming witness transfer on each platform reports the exact future
+balance once in this canonical BFA profile; this single profile is not general
+upstream P04 closure. Host coverage passes all package floors (505 tests,
+package 88.7%, wallet 87.1%, models 88.0%); this is working-tree evidence,
+not clean immutable release qualification. The bridge-vector gate still fails
+for the pre-existing missing VSS platform-success vector; no VSS result is invented.
+
+### October 15 RLN 0.17 and Android Page Size Upgrade (Historical)
+
+Initial authorization: upgrade the SDK to the latest RLN, inspect the React
+Native SDK and WDK RLN 17 PR, then move Aster to the new SDK while keeping the
+existing local stack disconnected. The later authorization above supersedes
+that connection restriction; creating or resetting infrastructure remains prohibited.
 
 Current source baseline: RLN `v0.17.0-beta.3` at
 `ecc69f20308231400561f6f060fea88acfa40cc4`; RN `1.0.0-beta.39` at
@@ -688,9 +734,9 @@ is accepted implicitly. No release eligibility is claimed during remediation.
 
 | Measure | Count |
 | --- | ---: |
-| Total tracked findings | 282 |
+| Total tracked findings | 287 |
 | P0 | 10 |
-| P1 | 193 |
+| P1 | 198 |
 | P2 | 79 |
 | P3 | 0 |
 | Open | 2 |
@@ -698,7 +744,7 @@ is accepted implicitly. No release eligibility is claimed during remediation.
 | Blocked upstream | 3 |
 | Needs decision | 0 |
 | Accepted constraint | 7 |
-| Verified | 247 |
+| Verified | 252 |
 
 This rollup is generated from all finding rows; verified code is not equivalent
 to clean-candidate platform qualification. Seven accepted constraints remain.

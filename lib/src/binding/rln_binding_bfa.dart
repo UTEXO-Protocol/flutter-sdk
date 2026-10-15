@@ -1,6 +1,24 @@
 part of 'rln_binding.dart';
 
 mixin _RlnBindingBfa on _RlnBindingInternals {
+  Future<ImportedRgbContract> rlnImportRgbContract({
+    required String contractBase64,
+    required String expectedAssetId,
+  }) {
+    validateRgbContractImport(contractBase64, expectedAssetId);
+    return _withNodeOperation(
+      'rlnImportRgbContract',
+      (nodeId) async => ImportedRgbContract.fromMap(
+        await _client.importRgbContract(
+          nodeId: nodeId,
+          contractBase64: contractBase64,
+          expectedAssetId: expectedAssetId,
+        ),
+        expectedAssetId: expectedAssetId,
+      ),
+    );
+  }
+
   Future<BfaCapabilities> rlnBfaCapabilities() => _withNodeQueue(
     'rlnBfaCapabilities',
     () async => BfaCapabilities.fromMap(await _client.bfaCapabilities()),

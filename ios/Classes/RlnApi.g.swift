@@ -422,6 +422,7 @@ class RlnApiPigeonCodec: FlutterStandardMessageCodec, @unchecked Sendable {
 
 /// Generated protocol from Pigeon that represents a handler of messages from Flutter.
 protocol RlnHostApi {
+  func rlnImportRgbContract(nodeId: Int64, contractBase64: String, expectedAssetId: String) throws -> RlnWireResponse
   func rlnBfaCapabilities() throws -> RlnWireResponse
   func rlnBurn(nodeId: Int64, assetId: String, amount: String, burnRecipient: String?, feeRate: Int64, minConfirmations: Int64) throws -> RlnWireResponse
   func rlnGetConsignment(nodeId: Int64, assetId: String, txid: String) throws -> String
@@ -502,6 +503,25 @@ class RlnHostApiSetup {
     #else
       let taskQueue: FlutterTaskQueue? = nil
     #endif
+    let rlnImportRgbContractChannel = taskQueue == nil
+      ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnImportRgbContract\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
+      : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnImportRgbContract\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)
+    if let api = api {
+      rlnImportRgbContractChannel.setMessageHandler { message, reply in
+        let args = message as! [Any?]
+        let nodeIdArg = args[0] as! Int64
+        let contractBase64Arg = args[1] as! String
+        let expectedAssetIdArg = args[2] as! String
+        do {
+          let result = try api.rlnImportRgbContract(nodeId: nodeIdArg, contractBase64: contractBase64Arg, expectedAssetId: expectedAssetIdArg)
+          reply(wrapResult(result))
+        } catch {
+          reply(wrapError(error))
+        }
+      }
+    } else {
+      rlnImportRgbContractChannel.setMessageHandler(nil)
+    }
     let rlnBfaCapabilitiesChannel = taskQueue == nil
       ? FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBfaCapabilities\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec)
       : FlutterBasicMessageChannel(name: "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBfaCapabilities\(channelSuffix)", binaryMessenger: binaryMessenger, codec: codec, taskQueue: taskQueue)

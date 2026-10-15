@@ -1407,6 +1407,7 @@ void main() {
         throwsA(isA<WalletException>()),
       );
       await expectLater(wallet.getAddress(), throwsA(isA<WalletException>()));
+
       await expectLater(wallet.listAssets(), throwsA(isA<WalletException>()));
       await expectLater(
         wallet.blindReceive(const RgbInvoiceRequest()),
@@ -1825,7 +1826,7 @@ void main() {
   );
 
   test(
-    'destroy surfaces shutdown faults after completing node cleanup',
+    'destroy retains native ownership after shutdown faults and permits retry',
     () async {
       final hostApi = FakeRlnHostApi()
         ..shutdownError = StateError('shutdown failed');
@@ -1843,15 +1844,82 @@ void main() {
         ),
       );
 
-      expect(wallet.isDisposed(), true);
-      expect(hostApi.destroyNodeCount, 1);
+      expect(wallet.isDisposed(), false);
+      expect(wallet.isUnlocked, false);
+      expect(hostApi.destroyNodeCount, 0);
+      expect(hostApi.destroyedNativeSignerIds, isEmpty);
+      await expectLater(wallet.getAddress(), throwsA(isA<WalletException>()));
+
+      final callsBeforeRetry = List<String>.of(hostApi.lifecycleCalls);
+      await expectLater(
+        wallet.unlock(password: 'password', config: UtexoUnlockConfig()),
+        throwsA(isA<WalletException>()),
+      );
+      await expectLater(
+        wallet.init(password: 'password'),
+        throwsA(isA<WalletException>()),
+      );
+      await expectLater(
+        wallet.reinit(password: 'password', unlockConfig: UtexoUnlockConfig()),
+        throwsA(isA<WalletException>()),
+      );
+      await expectLater(wallet.shutdown(), throwsA(isA<WalletException>()));
+      expect(hostApi.lifecycleCalls, callsBeforeRetry);
 
       hostApi.shutdownError = null;
       await wallet.destroy();
 
       expect(wallet.isDisposed(), true);
-      expect(hostApi.shutdownCount, 0);
+      expect(hostApi.shutdownCount, 1);
       expect(hostApi.destroyNodeCount, 1);
+    },
+  );
+
+  test(
+    'failed initialization cleanup quarantines retained native ownership',
+    () async {
+      for (final replacement in [false, true]) {
+        final host = FakeRlnHostApi();
+        final wallet = walletWith(host);
+        if (replacement) {
+          await unlockWallet(wallet);
+          host.unlockNodeError = StateError('unlock failed');
+        } else {
+          host.initNodeError = StateError('initialization failed');
+        }
+        host.destroyNodeError = StateError('native owner retained');
+        await expectLater(
+          replacement
+              ? wallet.reinit(
+                  password: 'password',
+                  unlockConfig: UtexoUnlockConfig(),
+                )
+              : wallet.init(password: 'password'),
+          throwsA(isA<WalletException>()),
+        );
+        final calls = List<String>.of(host.lifecycleCalls);
+        await expectLater(
+          wallet.init(password: 'password'),
+          throwsA(isA<WalletException>()),
+        );
+        await expectLater(
+          wallet.reinit(
+            password: 'password',
+            unlockConfig: UtexoUnlockConfig(),
+          ),
+          throwsA(isA<WalletException>()),
+        );
+        await expectLater(
+          wallet.unlock(password: 'password', config: UtexoUnlockConfig()),
+          throwsA(isA<WalletException>()),
+        );
+        await expectLater(wallet.shutdown(), throwsA(isA<WalletException>()));
+        expect(host.lifecycleCalls, calls);
+        expect(wallet.isInitialized, false);
+        host.destroyNodeError = null;
+        await wallet.destroy();
+        expect(wallet.isDisposed(), true);
+      }
     },
   );
 
@@ -1955,8 +2023,8 @@ void main() {
 
     expect(hostApi.createNodeCount, 1);
     expect(hostApi.unlockNodeCount, 1);
-    expect(wallet.isUnlocked, true);
-    expect(await wallet.getAddress(), 'bcrt1address');
+    expect(wallet.isUnlocked, false);
+    await expectLater(wallet.getAddress(), throwsA(isA<WalletException>()));
   });
 
   test('reinit leaves shutdown wallet retryable when create fails', () async {
@@ -3028,6 +3096,29 @@ void main() {
     expect(invoice.batchTransferIdx, 1);
     expect(decoded.assignment.type, 'Fungible');
     expect(decoded.assignment.amount, BigInt.from(100));
+    expect(decoded.recipientType, 'Blind');
+  });
+
+  test('decoded RGB recipient kinds survive the stable DTO boundary', () {
+    for (final kind in ['Blind', 'Witness', 'FutureNativeKind']) {
+      final decoded = RlnDecodedRgbInvoice(
+        recipientId: 'recipient',
+        proxyRecipientId: 'proxy',
+        recipientType: kind,
+        assignment: '100',
+        network: 'regtest',
+        transportEndpoints: const [],
+      ).toCore('rgb:invoice');
+      expect(decoded.recipientType, kind);
+      final compatible = CoreInvoiceData(
+        invoice: decoded.invoice,
+        recipientId: decoded.recipientId,
+        network: decoded.network,
+        assignment: decoded.assignment,
+        transportEndpoints: decoded.transportEndpoints,
+      );
+      expect(compatible.recipientType, isNull);
+    }
   });
 
   test('marks PSBT capability carrier absent', () async {

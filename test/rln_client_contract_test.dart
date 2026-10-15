@@ -67,6 +67,16 @@ class _RecordingRlnHostApi extends RlnHostApi {
   }
 
   @override
+  Future<RlnWireResponse> rlnImportRgbContract(
+    int nodeId,
+    String contractBase64,
+    String expectedAssetId,
+  ) async {
+    _record('rlnImportRgbContract', [nodeId, contractBase64, expectedAssetId]);
+    return _wire('rlnImportRgbContract');
+  }
+
+  @override
   Future<RlnWireResponse> rlnBfaCapabilities() async {
     _record('rlnBfaCapabilities', []);
     return _wire('rlnBfaCapabilities');
@@ -937,6 +947,16 @@ void main() {
       '0000000000000000000000000000000000000000000000000000000000000000';
 
   final cases = <_ContractCase>[
+    _ContractCase(
+      name: 'importRgbContract',
+      invoke: (client) => client.importRgbContract(
+        nodeId: nodeId,
+        contractBase64: 'YWJj',
+        expectedAssetId: 'rgb:asset',
+      ),
+      method: 'rlnImportRgbContract',
+      args: const [nodeId, 'YWJj', 'rgb:asset'],
+    ),
     _ContractCase(
       name: 'bfaCapabilities',
       invoke: (client) => client.bfaCapabilities(),

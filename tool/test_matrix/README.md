@@ -28,10 +28,12 @@ source coverage. Every evidence bucket must resolve through
 `evidence_catalog.json` to executable test IDs, report families, claim levels,
 and assertions. The RN parity validator also checks the exact RN baseline,
 NativeRgb method names, low-level parameter names/types/nullability, return
-categories, wallet method inventory, and runtime exports.
+categories, wallet method inventory, and runtime exports. The reviewed Flutter-only
+`rlnImportRgbContract` extension is signature-checked separately (OCT-038);
+other extra native methods still fail parity validation.
 
-The inventory targets RN `1.0.0-beta.34`, core `1.0.0-beta.9`, and RLN
-`0.15.0-beta.3`. BFA burn and consignment methods require funded runtime
+The inventory targets RN `1.0.0-beta.39`, core `1.0.0-beta.9`, and RLN
+`0.17.0-beta.3`. BFA burn and consignment methods require funded runtime
 evidence, not merely passing mocked contracts. The inventory does not prove defaults, request/response fields,
 native implementations, native error categories, lifecycle behavior, platform
 agreement, or real funds behavior. A row can be linked to executable evidence
@@ -46,7 +48,7 @@ RGB_SDK_RN_PATH=<current-rn-checkout> \
   dart run tool/validate_rn_parity.dart
 ```
 
-Both commands are required truth-telling checks. Passing them proves static
+These commands are required truth-telling checks. Passing them proves static
 inventory parity only; release readiness additionally requires native/platform
 evidence from the tracker.
 

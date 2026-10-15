@@ -13,6 +13,15 @@
       "evidenceBucket": "unit_contract"
     },
     {
+      "id": "importRgbContract",
+      "group": "rgb_assets",
+      "support": "supported",
+      "fixture": "public_contract_import",
+      "contract": "covered",
+      "implementation": "lib/src/wallet/utexo_wallet_bfa.dart::UtexoWallet.importRgbContract",
+      "evidenceBucket": "public_contract_import"
+    },
+    {
       "id": "burn",
       "group": "rgb_assets",
       "support": "supported",

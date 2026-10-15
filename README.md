@@ -12,7 +12,7 @@ for RN/native parity diagnostics.
 
 **Not production ready. Do not use this revision with mainnet funds.**
 
-Current package version: `0.2.0-beta.1`.
+Current package version: `0.2.0-beta.2`.
 
 The current baseline is:
 
@@ -153,9 +153,17 @@ pinned AAR size and SHA-256 before compilation; strict native checks cover the
 ABI set and every packaged ELF library. See the recorded inputs in
 [tool/rln_android_16k_build.json](tool/rln_android_16k_build.json) and the
 [build procedure](doc/INTEGRATION_SECURITY_AND_RELEASE.md#android-16-kib-build).
-The exact derived binary requires publication before a fresh remote consumer
-can resolve it. Local review can use the checksum-enforced artifact directory
-specified in that procedure.
+The native artifact remains pinned to the published beta.1 release URL and
+checksum in `tool/release_baseline.json`; beta.2 reuses those exact native bytes.
+Local review can use the checksum-enforced artifact directory in that procedure.
+
+Apps targeting Android 17 (API 37) or later must declare and request
+`android.permission.ACCESS_LOCAL_NETWORK` before connecting to LAN backends,
+including an emulator's `10.0.2.2` development services. The host app owns the
+runtime consent flow and must handle denial or revocation before native unlock;
+the SDK does not display permission prompts. The example's shared-stack test
+uses an explicit Activity request and waits for the system consent result.
+See Android's [local network permission guidance](https://developer.android.com/privacy-and-security/local-network-permission).
 
 ## Quick Start
 
@@ -340,6 +348,22 @@ The full gate runs Dart checks, package governance, clean consumer installs and
 archives, Android bridge tests, iOS XCTest, funded/unfunded iOS and Android
 regtest smokes, and external-signer process restart proofs. Required local
 gates must not be skipped for release evidence.
+
+For the existing shared-stack campaign, read that stack's `AGENTS.md`,
+`docs/CONSUMERS.md` and `artifacts/consumer-config.json` first, then use:
+
+```sh
+python3 tool/regtest/flutter_shared_stack_wallet.py \
+  --device DEVICE_ID --run-id UNIQUE_RUN_ID --stack-dir /path/to/utexo-local-stack
+```
+
+This runner requires the separately operated loopback controller on port
+29671 (and Android `adb reverse tcp:29671 tcp:29671`). It launches no stack or
+container, uses separate random wallet storage and never retries financial
+requests. `--lifecycle-only` runs without funding. Private closed-fixture
+snapshots remain under ignored `build/full-wallet-20261015`; they are local
+test evidence, not portable SDK recovery. Retain failed transaction journals
+for explicit reconciliation before any further mutation.
 
 ## Security and Recovery
 

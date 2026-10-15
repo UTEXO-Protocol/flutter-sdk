@@ -16,6 +16,18 @@
       "evidenceBucket": "unit_contract"
     },
     {
+      "id": "importRgbContract",
+      "hostApi": "rlnImportRgbContract",
+      "group": "rgb_assets",
+      "support": "supported",
+      "fixture": "public_contract_import",
+      "contract": "implemented",
+      "implementation": "lib/src/client/rln_client.dart::RlnClient.importRgbContract",
+      "evidenceBucket": "public_contract_import",
+      "ios": "required",
+      "android": "required"
+    },
+    {
       "id": "burn",
       "hostApi": "rlnBurn",
       "group": "rgb_assets",

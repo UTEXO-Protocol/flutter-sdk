@@ -449,6 +449,7 @@ private open class RlnApiPigeonCodec : StandardMessageCodec() {
 
 /** Generated interface from Pigeon that represents a handler of messages from Flutter. */
 interface RlnHostApi {
+  fun rlnImportRgbContract(nodeId: Long, contractBase64: String, expectedAssetId: String): RlnWireResponse
   fun rlnBfaCapabilities(): RlnWireResponse
   fun rlnBurn(nodeId: Long, assetId: String, amount: String, burnRecipient: String?, feeRate: Long, minConfirmations: Long): RlnWireResponse
   fun rlnGetConsignment(nodeId: Long, assetId: String, txid: String): String
@@ -527,6 +528,25 @@ interface RlnHostApi {
     fun setUp(binaryMessenger: BinaryMessenger, api: RlnHostApi?, messageChannelSuffix: String = "") {
       val separatedMessageChannelSuffix = if (messageChannelSuffix.isNotEmpty()) ".$messageChannelSuffix" else ""
       val taskQueue = binaryMessenger.makeBackgroundTaskQueue()
+      run {
+        val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnImportRgbContract$separatedMessageChannelSuffix", codec, taskQueue)
+        if (api != null) {
+          channel.setMessageHandler { message, reply ->
+            val args = message as List<Any?>
+            val nodeIdArg = args[0] as Long
+            val contractBase64Arg = args[1] as String
+            val expectedAssetIdArg = args[2] as String
+            val wrapped: List<Any?> = try {
+              listOf(api.rlnImportRgbContract(nodeIdArg, contractBase64Arg, expectedAssetIdArg))
+            } catch (exception: Throwable) {
+              RlnApiPigeonUtils.wrapError(exception)
+            }
+            reply.reply(wrapped)
+          }
+        } else {
+          channel.setMessageHandler(null)
+        }
+      }
       run {
         val channel = BasicMessageChannel<Any?>(binaryMessenger, "dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBfaCapabilities$separatedMessageChannelSuffix", codec, taskQueue)
         if (api != null) {

@@ -57,6 +57,7 @@ mixin _UtexoWalletLifecycle on _UtexoWalletInternals {
                 _nodeId = null;
                 _nodeCreated = false;
               } catch (cleanupError) {
+                _cleanupRequired = true;
                 _lifecycleState = _WalletLifecycleState.uninitialized;
                 Error.throwWithStackTrace(
                   WalletException(
@@ -137,7 +138,13 @@ mixin _UtexoWalletLifecycle on _UtexoWalletInternals {
       final hadPreviousNode = previousNodeId != null;
       final wasShutdown = _lifecycleState == _WalletLifecycleState.shutDown;
       if (hadPreviousNode && !wasShutdown) {
-        await _binding.rlnShutdown();
+        try {
+          await _binding.rlnShutdown();
+        } catch (error, stackTrace) {
+          _cleanupRequired = true;
+          _lifecycleState = _WalletLifecycleState.initialized;
+          Error.throwWithStackTrace(error, stackTrace);
+        }
         _lifecycleState = _WalletLifecycleState.shutDown;
       }
       _lifecycleState = _WalletLifecycleState.initializing;
@@ -177,9 +184,9 @@ mixin _UtexoWalletLifecycle on _UtexoWalletInternals {
           try {
             await _binding.rlnDestroyNode();
           } catch (cleanupError) {
-            _nodeId = null;
-            _nodeCreated = false;
-            _lifecycleState = _WalletLifecycleState.uninitialized;
+            // Preserve the replacement owner when destruction is unresolved.
+            _cleanupRequired = true;
+            _lifecycleState = _WalletLifecycleState.initialized;
             Error.throwWithStackTrace(
               WalletException(
                 'Wallet reinit unlock and replacement node cleanup both '
@@ -203,6 +210,8 @@ mixin _UtexoWalletLifecycle on _UtexoWalletInternals {
 
   Future<void> shutdown() {
     return _withLifecycle(() async {
+      if (_lifecycleState == _WalletLifecycleState.disposed) return;
+      _ensureNotDisposed();
       final id = _nodeId;
       if (id == null ||
           _lifecycleState == _WalletLifecycleState.disposed ||
@@ -213,6 +222,7 @@ mixin _UtexoWalletLifecycle on _UtexoWalletInternals {
       try {
         await _binding.rlnShutdown();
       } catch (error, stackTrace) {
+        _cleanupRequired = true;
         _lifecycleState = _WalletLifecycleState.initialized;
         Error.throwWithStackTrace(error, stackTrace);
       }
@@ -230,7 +240,17 @@ mixin _UtexoWalletLifecycle on _UtexoWalletInternals {
         try {
           await _binding.rlnShutdown();
         } catch (error) {
-          errors.add(error);
+          // Native shutdown includes final persistence and worker teardown.
+          // Retain both handles when its outcome is uncertain: dropping the
+          // signer first can strand the writer or let another node reopen a
+          // directory whose native owner is still alive. The same instance can
+          // retry destroy after the underlying shutdown fault is reconciled.
+          _cleanupRequired = true;
+          _lifecycleState = _WalletLifecycleState.initialized;
+          throw WalletException(
+            'Wallet shutdown did not complete; node and signer were retained.',
+            cause: List<Object>.unmodifiable(<Object>[error]),
+          );
         }
       }
       var signerDisposed = true;
@@ -265,10 +285,11 @@ mixin _UtexoWalletLifecycle on _UtexoWalletInternals {
         _lifecycleState = _WalletLifecycleState.disposed;
       }
       if (errors.isNotEmpty) {
+        _cleanupRequired = true;
         if (!nodeDestroyed || !signerDisposed) {
-          _lifecycleState = nodeDestroyed
-              ? _WalletLifecycleState.uninitialized
-              : _WalletLifecycleState.initialized;
+          // Native shutdown succeeded above; preserve that fact for a cleanup
+          // retry, even if signer revocation or handle destruction failed.
+          _lifecycleState = _WalletLifecycleState.shutDown;
         }
         throw WalletException(
           'Wallet destroy did not complete cleanly.',
@@ -278,6 +299,7 @@ mixin _UtexoWalletLifecycle on _UtexoWalletInternals {
       _nodeId = null;
       _nodeCreated = false;
       _lifecycleState = _WalletLifecycleState.disposed;
+      _cleanupRequired = false;
     });
   }
 

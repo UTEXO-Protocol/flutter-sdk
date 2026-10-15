@@ -61,6 +61,13 @@ class RlnRefreshTransfersData {
 @HostApi()
 abstract class RlnHostApi {
   @TaskQueue(type: TaskQueueType.serialBackgroundThread)
+  RlnWireResponse rlnImportRgbContract(
+    int nodeId,
+    String contractBase64,
+    String expectedAssetId,
+  );
+
+  @TaskQueue(type: TaskQueueType.serialBackgroundThread)
   RlnWireResponse rlnBfaCapabilities();
 
   @TaskQueue(type: TaskQueueType.serialBackgroundThread)

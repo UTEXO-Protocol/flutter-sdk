@@ -7,6 +7,7 @@ import '../crypto/constants.dart';
 import '../errors/native_bridge_error_mapper.dart';
 import '../errors/rgb_sdk_exception.dart';
 import '../models/burn_models.dart';
+import '../models/imported_rgb_contract.dart';
 import '../models/rln_models.dart';
 
 part 'rln_binding_types.dart';

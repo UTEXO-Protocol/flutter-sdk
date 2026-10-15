@@ -223,6 +223,57 @@ void main() {
     );
   }
 
+  test(
+    'native operation diagnostic rejects payloads and keeps stable tokens',
+    () {
+      for (final operation in <String>[
+        'https://user:password@host/path',
+        'rlnUnlockNode\nsecret',
+        '/private/wallet/seed',
+        'a' * 81,
+      ]) {
+        final error = mapNativeBridgeException(
+          PlatformException(code: 'Conflict', message: 'private native text'),
+          operation: operation,
+        );
+        expect(error.operation, isNull);
+      }
+      final error = mapNativeBridgeException(
+        PlatformException(code: 'Conflict', message: 'private native text'),
+        operation: 'rlnInitNode',
+      );
+      expect(error.operation, 'rlnInitNode');
+      expect(const WalletException('local validation').operation, isNull);
+      expect(
+        jsonEncode(error.toJson()),
+        isNot(contains('private native text')),
+      );
+    },
+  );
+
+  test(
+    'public native codes preserve exact allocation errors and redact unknown codes',
+    () {
+      for (final code in ['NoAvailableUtxos', 'InsufficientAllocationSlots']) {
+        final error = mapNativeBridgeException(
+          PlatformException(code: code, message: 'private diagnostic'),
+          operation: 'rlnBlindReceive',
+        );
+        expect(error.nativeCode, code);
+      }
+      final error = mapNativeBridgeException(
+        PlatformException(
+          code: 'secret-payload@example.test',
+          message: 'NoAvailableUtxos',
+        ),
+        operation: 'rlnBlindReceive',
+      );
+      expect(error.nativeCode, 'NativeError');
+      expect(const WalletException('local').nativeCode, isNull);
+      expect(jsonEncode(error.toJson()), isNot(contains('secret-payload')));
+    },
+  );
+
   test('native diagnostics omit arbitrary native messages and payloads', () {
     final error = mapNativeBridgeException(
       PlatformException(

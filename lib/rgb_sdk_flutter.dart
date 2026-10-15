@@ -61,6 +61,7 @@ export 'src/lsp/utexo_lsp_client.dart'
     show IUtexoLspClient, LspError, UtexoLspClient;
 export 'src/models/burn_models.dart'
     show BfaCapabilities, BurnParams, BurnResult;
+export 'src/models/imported_rgb_contract.dart' show ImportedRgbContract;
 export 'src/models/utexo_core_models.dart'
     show
         Assignment,

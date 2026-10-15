@@ -387,6 +387,31 @@ class RlnHostApi {
 
   final String pigeonVar_messageChannelSuffix;
 
+  Future<RlnWireResponse> rlnImportRgbContract(
+    int nodeId,
+    String contractBase64,
+    String expectedAssetId,
+  ) async {
+    final pigeonVar_channelName =
+        'dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnImportRgbContract$pigeonVar_messageChannelSuffix';
+    final pigeonVar_channel = BasicMessageChannel<Object?>(
+      pigeonVar_channelName,
+      pigeonChannelCodec,
+      binaryMessenger: pigeonVar_binaryMessenger,
+    );
+    final Future<Object?> pigeonVar_sendFuture = pigeonVar_channel.send(
+      <Object?>[nodeId, contractBase64, expectedAssetId],
+    );
+    final pigeonVar_replyList = await pigeonVar_sendFuture as List<Object?>?;
+
+    final Object? pigeonVar_replyValue = _extractReplyValueOrThrow(
+      pigeonVar_replyList,
+      pigeonVar_channelName,
+      isNullValid: false,
+    );
+    return pigeonVar_replyValue! as RlnWireResponse;
+  }
+
   Future<RlnWireResponse> rlnBfaCapabilities() async {
     final pigeonVar_channelName =
         'dev.flutter.pigeon.rgb_sdk_flutter.RlnHostApi.rlnBfaCapabilities$pigeonVar_messageChannelSuffix';

@@ -15,6 +15,7 @@ const _nativeErrorCodes = <String>{
   'InsufficientCapacity',
   'InsufficientFunds',
   'NoAvailableUtxos',
+  'InsufficientAllocationSlots',
   'NoRoute',
   'ExternalSignerRequired',
   'ExternalSignerMismatch',
@@ -28,7 +29,8 @@ const _nativeErrorCodes = <String>{
 
 /// Structured cause attached to SDK exceptions created from native bridge
 /// failures.
-class NativeBridgeFailure {
+class NativeBridgeFailure
+    implements NativeOperationCause, NativeErrorCodeCause {
   const NativeBridgeFailure({
     required this.operation,
     required this.nativeCode,
@@ -39,7 +41,9 @@ class NativeBridgeFailure {
     required this.structured,
   });
 
+  @override
   final String operation;
+  @override
   final String nativeCode;
   final NativeBridgeFailureCategory category;
   final String message;

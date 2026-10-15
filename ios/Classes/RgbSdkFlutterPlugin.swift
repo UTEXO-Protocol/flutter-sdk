@@ -748,6 +748,25 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     }
   }
 
+  func rlnImportRgbContract(nodeId: Int64, contractBase64: String, expectedAssetId: String) throws -> RlnWireResponse {
+    try runRlnWire("rlnImportRgbContract") {
+      try requireBurnAssetId(expectedAssetId, operation: "rlnImportRgbContract")
+      guard !contractBase64.isEmpty, contractBase64.utf8.count <= 16 * 1024 * 1024,
+        let bytes = Data(base64Encoded: contractBase64), !bytes.isEmpty,
+        bytes.base64EncodedString() == contractBase64 else {
+        throw invalidArgument("rlnImportRgbContract", field: "contractBase64", message: "Expected canonical standard Base64 public contract bytes.")
+      }
+      let result = try nodeStore.get(id: nodeId).importrgbcontract(request:
+        ImportRgbContractRequest(contractBase64: contractBase64, expectedAssetId: expectedAssetId))
+      let meta = result.metadata
+      return ["assetId": result.assetId, "alreadyImported": result.alreadyImported,
+        "metadata": ["assetSchema": meta.assetSchema, "name": meta.name,
+          "ticker": meta.ticker as Any?, "details": meta.details as Any?, "precision": Int64(meta.precision),
+          "initialSupply": String(meta.initialSupply), "maxSupply": String(meta.maxSupply),
+          "knownCirculatingSupply": String(meta.knownCirculatingSupply)] as [String: Any?]]
+    }
+  }
+
   func rlnGetConsignment(nodeId: Int64, assetId: String, txid: String) throws -> String {
     try runRln("rlnGetConsignment") {
       try requireConsignmentLookup(assetId, txid, operation: "rlnGetConsignment")

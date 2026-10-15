@@ -51,6 +51,8 @@ ship.
 
 | Divergence | Owner | Tracker | Current decision | Evidence | Reversal trigger |
 | --- | --- | --- | --- | --- | --- |
+| Canonical public contract import | Flutter maintainer | `OCT-038` | Expose `UtexoWallet.importRgbContract` and `rlnImportRgbContract` using the existing RLN API absent from RN beta.39. Require expected asset identity, canonical Base64 bounded to 16 MiB characters and exact typed metadata. | `test/imported_rgb_contract_test.dart`; existing shared-stack iOS 27 / Android 17 canonical BFA import and idempotence assertions. | RN exposes a reviewed compatible wrapper; re-audit the explicit parity extension instead of silently accepting drift. |
+| Stable decoded RGB recipient type | Flutter maintainer | `OCT-042` | Preserve native recipient type through optional `CoreInvoiceData.recipientType`; hosts can review witness Bitcoin output value and reject null/unknown kinds before send. | `test/utexo_wallet_test.dart::decoded RGB recipient kinds survive the stable DTO boundary`. | RN/core expose a compatible typed kind; stage a documented migration if adopting a closed enum. |
 | `createBackup` / `rlnBackup` | Native artifact owner plus Flutter maintainer | `API-019`, `G-11` | Keep native-blocked and fail before claiming recovery support. | `test/utexo_wallet_test.dart::keeps local backup explicitly native-blocked`; Android/iOS native backup-blocked bridge cases. | Pinned native RLN exposes a working backup/recovery implementation and cross-platform funded recovery tests pass. |
 | `sendRgb(skipSync: true)` | Flutter maintainer | `API-006` | Fail fast instead of accepting and silently discarding the value. | `test/rln_client_contract_test.dart::sendRgb rejects skipSync true before native call`; Android/iOS native skip-sync rejection cases. | Pinned native RLN exposes a real skip-sync request field and RN/core define semantics. |
 | `gossipRgsServerUrl` unlock field | Flutter maintainer | `API-030` | Forward for password-backed unlock. Reject non-empty values only for native external signers, whose ABI has no RGS argument. | Password forwarding and external-signer rejection tests in `test/utexo_wallet_test.dart`. | Pinned native external-signer unlock consumes the field end to end. |
@@ -63,6 +65,21 @@ ship.
 ## Pre-Release Contract Changes
 
 ### October Qualification Follow-Up
+
+`OCT-038/039/040`: beta.2 adds the explicit public contract-import extension
+and support-safe nullable `RgbSdkException.operation` / `nativeCode` getters.
+Callers may use the typed allowlisted codes for recovery decisions; raw native
+messages remain excluded. Cleanup failure retains native ownership and rejects
+all operations except an explicit `destroy()` retry. A successful retry completes
+disposal; creating or unlocking the same wallet is unsafe until then. Android 17
+hosts targeting API 37 must declare and obtain `ACCESS_LOCAL_NETWORK` before
+connecting to LAN services. The example owns its permission UI; the SDK does
+not present an implicit prompt. `OCT-042` adds optional `CoreInvoiceData.recipientType`. Native-decoded invoices
+forward the exact value; source-compatible hand-built DTOs may leave it null.
+Hosts must explicitly accept `Blind` or `Witness` and reject other values before
+broadcast. Witness sends need a separately reviewed Bitcoin output amount.
+No native artifact or existing success-path
+method signature changes in this candidate.
 
 `OCT-035`: the RN beta.39 update adds optional `WebRgbInfo.burnRecipientNamespaces` and
 `encodeTronBurnRecipient` in the opt-in WebRGB entrypoint. Existing provider

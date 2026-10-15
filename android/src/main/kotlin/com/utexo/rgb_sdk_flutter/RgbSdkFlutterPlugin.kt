@@ -734,6 +734,26 @@ class RgbSdkFlutterPlugin :
         mapOf("txid" to result.txid, "batchTransferIdx" to result.batchTransferIdx.toLong())
     }
 
+    override fun rlnImportRgbContract(nodeId: Long, contractBase64: String, expectedAssetId: String): RlnWireResponse =
+        runRlnWire("rlnImportRgbContract") {
+            requireBurnAssetId(expectedAssetId, "rlnImportRgbContract")
+            if (contractBase64.isEmpty() || contractBase64.length > 16 * 1024 * 1024 || contractBase64.length % 4 != 0 ||
+                !Regex("^[A-Za-z0-9+/]*={0,2}$").matches(contractBase64))
+                throw invalidArgument("rlnImportRgbContract", "contractBase64", "Expected standard Base64 public contract bytes.")
+            val bytes = android.util.Base64.decode(contractBase64, android.util.Base64.NO_WRAP)
+            if (bytes.isEmpty() || android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP) != contractBase64)
+                throw invalidArgument("rlnImportRgbContract", "contractBase64", "Expected canonical standard Base64 public contract bytes.")
+            val result = nodeStore.get(nodeId).importrgbcontract(
+                org.utexo.rgblightningnode.ImportRgbContractRequest(contractBase64, expectedAssetId)
+            )
+            val meta = result.metadata
+            mapOf("assetId" to result.assetId, "alreadyImported" to result.alreadyImported,
+                "metadata" to mapOf("assetSchema" to meta.assetSchema, "name" to meta.name,
+                    "ticker" to meta.ticker, "details" to meta.details, "precision" to meta.precision,
+                    "initialSupply" to meta.initialSupply.toString(), "maxSupply" to meta.maxSupply.toString(),
+                    "knownCirculatingSupply" to meta.knownCirculatingSupply.toString()))
+        }
+
     override fun rlnGetConsignment(nodeId: Long, assetId: String, txid: String): String =
         runRln("rlnGetConsignment") {
             requireConsignmentLookup(assetId, txid, "rlnGetConsignment")

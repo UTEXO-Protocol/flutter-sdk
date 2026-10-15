@@ -1,6 +1,23 @@
 part of 'utexo_wallet.dart';
 
 mixin _UtexoWalletBfa on _UtexoWalletInternals {
+  /// Imports a public RGB contract, verifying its exact expected identity.
+  ///
+  /// Import records metadata only; it never credits a spendable balance. Obtain
+  /// bytes from a trusted network-specific asset definition, and independently
+  /// check its published hash and returned schema/name/ticker/precision.
+  Future<ImportedRgbContract> importRgbContract({
+    required String contractBase64,
+    required String expectedAssetId,
+  }) {
+    validateRgbContractImport(contractBase64, expectedAssetId);
+    _requireUnlockedNode();
+    return _binding.rlnImportRgbContract(
+      contractBase64: contractBase64,
+      expectedAssetId: expectedAssetId,
+    );
+  }
+
   /// Native-build support intersected with the configured signer capability.
   Future<BfaCapabilities> getBfaCapabilities() async {
     _ensureActive();

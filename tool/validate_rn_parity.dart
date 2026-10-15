@@ -915,9 +915,48 @@ void _validateLowLevelNativeMethods(
     errors,
   );
   final flutterHostApis = _matrixStringField(matrix, 'hostApi');
+  // OCT-038: RLN already implements contract import, but RN beta.39 has no
+  // wrapper for it. Keep this one reviewed Flutter extension explicit and
+  // signature-checked; other unmatched methods remain parity failures.
+  const flutterExtensions = <String>{'rlnImportRgbContract'};
+  for (final method in flutterExtensions) {
+    if (rnMethods.contains(method)) {
+      errors.add(
+        'RN now exposes $method; review OCT-038 and remove the stale '
+        'Flutter-only extension.',
+      );
+    }
+    if (!flutterHostApis.contains(method) || !pigeonMethods.contains(method)) {
+      errors.add(
+        'Reviewed Flutter extension $method is missing from inventory or Pigeon.',
+      );
+    }
+  }
+  final importSignature = pigeonSignatures['rlnImportRgbContract'];
+  final importNames = <String>['nodeId', 'contractBase64', 'expectedAssetId'];
+  final importTypes = <String>['int', 'String', 'String'];
+  if (importSignature != null &&
+      (importSignature.returnType != _TypeShape.fromDart('RlnWireResponse') ||
+          importSignature.parameters.length != importNames.length ||
+          List<int>.generate(importNames.length, (index) => index).any(
+            (index) =>
+                importSignature.parameters.length <= index ||
+                importSignature.parameters[index].name != importNames[index] ||
+                importSignature.parameters[index].type !=
+                    _TypeShape.fromDart(importTypes[index]),
+          ))) {
+    errors.add(
+      'Reviewed Flutter import extension signature changed; re-audit OCT-038.',
+    );
+  }
 
   final missing = rnMethods.difference(flutterHostApis).toList()..sort();
-  final stale = flutterHostApis.difference(rnMethods).toList()..sort();
+  final stale =
+      flutterHostApis
+          .difference(rnMethods)
+          .difference(flutterExtensions)
+          .toList()
+        ..sort();
   final missingFromPigeon = rnMethods.difference(pigeonMethods).toList()
     ..sort();
   final stalePigeon =
@@ -925,6 +964,7 @@ void _validateLowLevelNativeMethods(
           .where((method) => method.startsWith('rln'))
           .toSet()
           .difference(rnMethods)
+          .difference(flutterExtensions)
           .toList()
         ..sort();
 

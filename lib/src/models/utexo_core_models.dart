@@ -284,6 +284,7 @@ class CoreInvoiceData {
   CoreInvoiceData({
     required this.invoice,
     required this.recipientId,
+    this.recipientType,
     this.assetSchema,
     this.assetId,
     required this.network,
@@ -294,6 +295,13 @@ class CoreInvoiceData {
 
   final String invoice;
   final String recipientId;
+
+  /// Native recipient kind (`Blind` or `Witness` in the pinned runtime).
+  ///
+  /// Optional for constructor compatibility. Decoded invoices preserve unknown
+  /// future kinds; senders must reject unsupported kinds before authorizing a
+  /// transaction. Witness recipients require an explicit Bitcoin output amount.
+  final String? recipientType;
   final String? assetSchema;
   final String? assetId;
   final String network;
@@ -1048,6 +1056,7 @@ extension RlnCoreDecodedRgbInvoiceMapper on RlnDecodedRgbInvoice {
     return CoreInvoiceData(
       invoice: invoice,
       recipientId: recipientId,
+      recipientType: recipientType,
       assetSchema: assetSchema,
       assetId: assetId,
       network: UtexoDomainPolicy.normalizeNetwork(network),

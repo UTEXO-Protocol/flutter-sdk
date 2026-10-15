@@ -2,8 +2,8 @@
   "schemaVersion": 2,
   "description": "AST-normalized public API and bridge snapshot. Update only with a tracker row and migration note.",
   "dartExportedSurface": {
-    "count": 2073,
-    "hash": "fe102bede1229086bb620f59e89788b72632c0be79590d7235e1753091e8015f",
+    "count": 2095,
+    "hash": "f905ee73f80d5f10639eec69f5a7eedaa0a36f649c86331e6a95c90afcb08689",
     "files": [
       "lib/rgb_sdk_flutter.dart",
       "lib/rgb_sdk_flutter_advanced.dart",
@@ -41,6 +41,7 @@
       "lib/src/lsp/utexo_lsp_connection.dart",
       "lib/src/lsp/utexo_lsp_relay.dart",
       "lib/src/models/burn_models.dart",
+      "lib/src/models/imported_rgb_contract.dart",
       "lib/src/models/rln_models.dart",
       "lib/src/models/transfer_amounts.dart",
       "lib/src/models/utexo_core_models.dart",
@@ -63,8 +64,8 @@
     ]
   },
   "stableWalletSurface": {
-    "count": 82,
-    "hash": "e4b9595065c7901886a90e6920d490a2078d0df9fdc2aa7025fd660937ec186e",
+    "count": 83,
+    "hash": "9b4f0fff99d91c0feca3107ecbbec367a07e7a46722be43c0f7864e44e9039ff",
     "files": [
       "lib/src/wallet/utexo_wallet.dart",
       "lib/src/wallet/utexo_wallet_bfa.dart",
@@ -92,6 +93,7 @@
       "Future<HodlInvoice> createHodlInvoice(CreateHodlInvoiceParams params)",
       "Future<HodlInvoiceResult> cancelHodlInvoice(String paymentHash)",
       "Future<HodlInvoiceResult> claimHodlInvoice(String paymentHash, String preimage)",
+      "Future<ImportedRgbContract> importRgbContract({required String contractBase64, required String expectedAssetId})",
       "Future<IndexerCheckResponse> checkIndexerUrl(String url)",
       "Future<InflateAssetIfaResponse> inflate(InflateAssetIfaRequest request)",
       "Future<LightningChannelOpenResult> openChannel({required String peerPubkey, required int capacitySat, int pushMsat = 0, bool isPublic = false, bool withAnchors = true, int? feeBaseMsat, int? feeProportionalMillionths, String? temporaryChannelId, String? assetId, int? assetLocalAmount, int? pushAssetAmount, String? virtualOpenMode})",
@@ -199,15 +201,15 @@
     ]
   },
   "pigeonSchema": {
-    "count": 91,
-    "hash": "e00c851198ea425347648b137c0657287f11d54e066716586a18e4abbb4080e3",
+    "count": 92,
+    "hash": "aa316a264b4941fb2f8fcf268b0b42a3393e531546307399b7c7be92fe7a35ce",
     "files": [
       "pigeons/rln_api.dart"
     ]
   },
   "generatedPigeonSurface": {
-    "count": 1264,
-    "hash": "9dd1f02864df432fa04a6dd07888c59356137452a49b6a04df6995989350f45b",
+    "count": 1279,
+    "hash": "160301353b86ccd3c212f7fab2702351787cd9f07732ea6459155bdfae090a69",
     "files": [
       "lib/src/pigeon/rln_api.g.dart",
       "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnApi.g.kt",
@@ -215,8 +217,8 @@
     ]
   },
   "nativeBridgeSurface": {
-    "count": 386,
-    "hash": "67b0c4299cb68dee4aae8f9cd8c39a9e5397e656d1403cb1c6ce4f1604999351",
+    "count": 394,
+    "hash": "af2aa51c5a0d207c6c8403f48d15a40420f758c30f88e3f85df95239445ced5d",
     "files": [
       "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPlugin.kt",
       "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnAssetMapper.kt",

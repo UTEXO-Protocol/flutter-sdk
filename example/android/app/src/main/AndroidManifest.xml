@@ -1,5 +1,8 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <uses-permission android:name="android.permission.INTERNET"/>
+    <!-- The example targets API 37 and connects to local regtest services.
+         Host apps must request this runtime consent before using LAN nodes. -->
+    <uses-permission android:name="android.permission.ACCESS_LOCAL_NETWORK"/>
 
     <application
         android:label="rgb_sdk_flutter_example"

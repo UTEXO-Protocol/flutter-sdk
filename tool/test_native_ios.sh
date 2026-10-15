@@ -27,6 +27,7 @@ else
 fi
 
 mkdir -p "${REPORT_DIR}"
+REPORT_DIR="$(cd "${REPORT_DIR}" && pwd)"
 
 STARTED_AT="$(date -u +%Y-%m-%dT%H:%M:%SZ)"
 FULL_COMMIT="$(git -C "${REPO_DIR}" rev-parse HEAD 2>/dev/null || echo unknown)"
@@ -62,10 +63,40 @@ set +e
 (
   set -euo pipefail
   cd "${REPO_DIR}/example"
+  # Flutter's config-only build can itself invoke CocoaPods. Constrain that
+  # subprocess as well as the explicit install below, before any build work.
+  [[ -f ios/Podfile.lock ]] || die "a committed example iOS Podfile.lock is required"
+  REAL_POD_BIN="$(command -v "${POD_BIN}")" || die "CocoaPods executable is unavailable"
+  REAL_POD_BIN="$(cd "$(dirname "${REAL_POD_BIN}")" && pwd)/$(basename "${REAL_POD_BIN}")"
+  POD_GUARD_DIR="$(mktemp -d "${REPORT_DIR}/.locked-pods.XXXXXX")"
+  trap 'rm -rf "${POD_GUARD_DIR}"' EXIT
+  cp ios/Podfile.lock "${POD_GUARD_DIR}/Podfile.lock"
+  export RGB_SDK_LOCKED_POD_BIN="${REAL_POD_BIN}"
+  cat >"${POD_GUARD_DIR}/pod" <<'SH'
+#!/usr/bin/env bash
+set -euo pipefail
+if [[ "${1:-}" == install ]]; then
+  shift
+  for argument in "$@"; do
+    case "${argument}" in
+      --repo-update|--repo-update=*|--no-deployment|--deployment=*)
+        echo "Mutable CocoaPods dependency resolution is forbidden during qualification." >&2
+        exit 1
+        ;;
+    esac
+  done
+  exec "${RGB_SDK_LOCKED_POD_BIN}" install --deployment --no-repo-update "$@"
+fi
+exec "${RGB_SDK_LOCKED_POD_BIN}" "$@"
+SH
+  chmod 700 "${POD_GUARD_DIR}/pod"
+  export PATH="${POD_GUARD_DIR}:${PATH}"
   "${FLUTTER_BIN}" build ios --simulator --config-only
+  cmp -s ios/Podfile.lock "${POD_GUARD_DIR}/Podfile.lock" || die "Flutter configuration changed the locked iOS dependencies"
 
   cd ios
-  "${POD_BIN}" install
+  "${REAL_POD_BIN}" install --deployment --no-repo-update
+  cmp -s Podfile.lock "${POD_GUARD_DIR}/Podfile.lock" || die "CocoaPods changed the locked iOS dependencies"
   xcodebuild test \
     -workspace Runner.xcworkspace \
     -scheme Runner \

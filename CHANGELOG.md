@@ -16,7 +16,8 @@
 - Reject known native RGB reorg, bound-Witness accounting, BFA event-order and
   selected TLS dependency blockers in production independently of Pub auditing.
 - Run branch quality checks and native JVM/XCTest CI with immutable dependency
-  locks. Retain current native archives; this does not close upstream defects,
+  locks. Guard Flutter implicit/explicit pod installs against lock drift,
+  resolve exact headless simulator identity, and fail CI for ineligible reports. Retain current native archives; this does not close upstream defects,
   lost-device recovery, physical-device or signed-distribution qualification.
 
 ## 0.2.0-beta.2 - Unreleased

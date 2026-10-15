@@ -41,22 +41,110 @@ Future<String?> _probe(String command, List<String> args) async {
   }
 }
 
+/// Resolves one exact available simulator UUID from read-only simctl records.
+/// Device names are deliberately not used for matching: XCTest may run managed
+/// clones while the requested destination remains shut down.
+Map<String, Object?>? simulatorDeviceIdentity(
+  String id, {
+  required Object? devices,
+  required Object? runtimes,
+  required Object? deviceTypes,
+}) {
+  if (!RegExp(
+        r'^[a-fA-F0-9]{8}(?:-[a-fA-F0-9]{4}){3}-[a-fA-F0-9]{12}$',
+      ).hasMatch(id) ||
+      devices is! Map<String, Object?> ||
+      runtimes is! List<Object?> ||
+      deviceTypes is! List<Object?>) {
+    return null;
+  }
+  final matches = <Map<String, Object?>>[];
+  for (final group in devices.entries) {
+    if (group.value is! List<Object?>) continue;
+    for (final device
+        in (group.value! as List<Object?>).whereType<Map<String, Object?>>()) {
+      if ('${device['udid']}'.toUpperCase() != id.toUpperCase() ||
+          device['isAvailable'] != true) {
+        continue;
+      }
+      final runtimeMatches = runtimes.whereType<Map<String, Object?>>().where(
+        (runtime) =>
+            runtime['identifier'] == group.key &&
+            group.key.startsWith('com.apple.CoreSimulator.SimRuntime.iOS-') &&
+            runtime['isAvailable'] == true &&
+            runtime['version'] is String &&
+            (runtime['version']! as String).isNotEmpty &&
+            runtime['buildversion'] is String &&
+            (runtime['buildversion']! as String).isNotEmpty,
+      );
+      final modelMatches = deviceTypes.whereType<Map<String, Object?>>().where(
+        (model) =>
+            model['identifier'] == device['deviceTypeIdentifier'] &&
+            model['name'] is String &&
+            (model['name']! as String).isNotEmpty,
+      );
+      if (runtimeMatches.length != 1 || modelMatches.length != 1) return null;
+      final runtime = runtimeMatches.single;
+      matches.add({
+        'id': id,
+        'name': device['name'],
+        'targetPlatform': 'ios',
+        'sdk': 'iOS ${runtime['version']} (${runtime['buildversion']})',
+        'emulator': true,
+        'identitySource': 'simctl-exact-available-uuid',
+        'runtimeIdentifier': runtime['identifier'],
+        'runtimeVersion': runtime['version'],
+        'runtimeBuild': runtime['buildversion'],
+        'modelIdentifier': device['deviceTypeIdentifier'],
+        'model': modelMatches.single['name'],
+        'state': device['state'],
+      });
+    }
+  }
+  return matches.length == 1 ? matches.single : null;
+}
+
+Object? _jsonOrNull(String? text) {
+  if (text == null) return null;
+  try {
+    return jsonDecode(text);
+  } on FormatException {
+    return null;
+  }
+}
+
 Future<Map<String, Object?>?> _device(String id) async {
   final text = await _probe(Platform.environment['FLUTTER_BIN'] ?? 'flutter', [
     'devices',
     '--machine',
   ]);
-  if (text == null) return null;
-  final devices = jsonDecode(text) as List<Object?>;
-  for (final device in devices.whereType<Map<String, Object?>>()) {
-    if (device['id'] == id) {
-      return {
-        for (final key in ['id', 'name', 'targetPlatform', 'sdk', 'emulator'])
-          key: device[key],
-      };
+  final flutterDevices = _jsonOrNull(text);
+  if (flutterDevices is List<Object?>) {
+    for (final device in flutterDevices.whereType<Map<String, Object?>>()) {
+      if (device['id'] == id) {
+        return {
+          for (final key in ['id', 'name', 'targetPlatform', 'sdk', 'emulator'])
+            key: device[key],
+        };
+      }
     }
   }
-  return null;
+  // Read-only discovery works for shutdown destinations and managed XCTest
+  // clones too. Never boot, select a same-name device, or manufacture an OS.
+  final inventories = await Future.wait([
+    _probe('xcrun', ['simctl', 'list', 'devices', 'available', '--json']),
+    _probe('xcrun', ['simctl', 'list', 'runtimes', '--json']),
+    _probe('xcrun', ['simctl', 'list', 'devicetypes', '--json']),
+  ]);
+  final devices = _jsonOrNull(inventories[0]);
+  final runtimes = _jsonOrNull(inventories[1]);
+  final types = _jsonOrNull(inventories[2]);
+  return simulatorDeviceIdentity(
+    id,
+    devices: devices is Map<String, Object?> ? devices['devices'] : null,
+    runtimes: runtimes is Map<String, Object?> ? runtimes['runtimes'] : null,
+    deviceTypes: types is Map<String, Object?> ? types['devicetypes'] : null,
+  );
 }
 
 Future<List<Map<String, Object?>>> _stackImages() async {
@@ -202,5 +290,10 @@ Future<void> main(List<String> args) async {
     }
   }
   _write(args[2], _labelLocalPaths(report) as Map<String, Object?>);
-  if (report['status'] == 'failed') exitCode = 1;
+  if (report['status'] == 'failed' ||
+      (Platform.environment['REQUIRE_RELEASE_ELIGIBLE'] == '1' &&
+          report['releaseEligible'] != true)) {
+    stderr.writeln('Evidence is not a passing release-eligible qualification.');
+    exitCode = 1;
+  }
 }

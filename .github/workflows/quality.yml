@@ -68,6 +68,8 @@ jobs:
         run: flutter test test
 
   native-android:
+    env:
+      REQUIRE_RELEASE_ELIGIBLE: "1"
     name: Android bridge tests
     runs-on: ubuntu-24.04
     timeout-minutes: 45
@@ -98,6 +100,8 @@ jobs:
           retention-days: 14
 
   native-ios:
+    env:
+      REQUIRE_RELEASE_ELIGIBLE: "1"
     name: iOS bridge tests
     runs-on: macos-26
     timeout-minutes: 60

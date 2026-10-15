@@ -5,6 +5,8 @@ import 'package:crypto/crypto.dart';
 
 import 'android_source_build_record.dart';
 import 'native_artifact_paths.dart';
+import 'native_provenance_verifier.dart';
+import 'native_security_policy.dart';
 import 'verify_android_elf.dart' show inspectAndroidArchive;
 
 const _osvQueryBatchUrl = 'https://api.osv.dev/v1/querybatch';
@@ -67,6 +69,22 @@ Future<void> main(List<String> args) async {
     android: android,
     failures: failures,
   );
+  final nativeBlockers = nativeProductionBlockers(rln['commit'].toString());
+  report['nativeSecurityReview'] = <String, Object?>{
+    'scope': 'pinned-native-source-onchain-and-selected-TLS-path',
+    'sourceCommit': rln['commit'],
+    'productionReady': nativeBlockers.isEmpty,
+    'blockers': nativeBlockers,
+    'isCompleteNativeSbomAudit': false,
+  };
+  for (final blocker in nativeBlockers) {
+    _addProvenanceBlocker(
+      production: production,
+      failures: failures,
+      warnings: warnings,
+      message: blocker,
+    );
+  }
   report['baseline'] = <String, Object?>{
     'reactNativeCommit': _at<Map<String, Object?>>(
       baseline,
@@ -100,7 +118,7 @@ Future<void> main(List<String> args) async {
   );
 
   final nativeReport = <String, Object?>{};
-  nativeReport['ios'] = _validateIosSymbols(ios, failures, warnings);
+  nativeReport['ios'] = await _validateIosSymbols(ios, failures, warnings);
   nativeReport['android'] = await _validateAndroidArtifact(
     android,
     failures,
@@ -110,7 +128,7 @@ Future<void> main(List<String> args) async {
   );
   report['nativeArtifacts'] = nativeReport;
 
-  report['provenance'] = _validateProvenanceManifest(
+  report['provenance'] = await _validateProvenanceManifest(
     baseline: baseline,
     rln: rln,
     ios: ios,
@@ -143,7 +161,7 @@ Future<void> main(List<String> args) async {
   }
 }
 
-Map<String, Object?> _validateProvenanceManifest({
+Future<Map<String, Object?>> _validateProvenanceManifest({
   required Map<String, Object?> baseline,
   required Map<String, Object?> rln,
   required Map<String, Object?> ios,
@@ -152,7 +170,7 @@ Map<String, Object?> _validateProvenanceManifest({
   required List<String> failures,
   required List<String> warnings,
   required AndroidSourceBuildRecord? sourceBuildRecord,
-}) {
+}) async {
   final file = File(_provenanceManifestPath);
   if (!file.existsSync()) {
     failures.add('native artifact provenance manifest is missing.');
@@ -288,88 +306,115 @@ Map<String, Object?> _validateProvenanceManifest({
       'provenance ${entry.key}.signature',
       failures,
     );
-    final signatureStatus = signature?['status']?.toString() ?? 'missing';
-    if (signatureStatus == 'verified') {
-      failures.add(
-        '${entry.key}: signature status is a claim, not trusted-key verification. No production signature verifier is configured (PKG-006).',
-      );
-    } else if (signatureStatus == 'absent') {
-      absentSignatures += 1;
-      _addProvenanceBlocker(
-        production: production,
-        failures: failures,
-        warnings: warnings,
-        message: '${entry.key} has no upstream detached signature.',
-      );
-    } else if (signatureStatus == 'present-unverified') {
-      unverifiedSignatures += 1;
-      _validateSignatureMetadata(entry.key, signature!, failures);
-      _addProvenanceBlocker(
-        production: production,
-        failures: failures,
-        warnings: warnings,
-        message:
-            '${entry.key} has a detached signature, but this candidate has '
-            'not verified it against a pinned trusted signing key.',
-      );
-    } else {
-      failures.add(
-        'provenance ${entry.key}.signature.status must be absent, '
-        'present-unverified, or verified.',
-      );
-    }
-
     final attestation = _requiredObject(
       artifact,
       'attestation',
       'provenance ${entry.key}.attestation',
       failures,
     );
-    final attestationStatus = attestation?['status']?.toString() ?? 'missing';
-    if (attestationStatus == 'verified') {
-      failures.add(
-        '${entry.key}: attestation status is a claim, not cryptographic source/builder verification (PKG-006).',
-      );
-    } else if (attestationStatus == 'absent') {
-      _addProvenanceBlocker(
-        production: production,
-        failures: failures,
-        warnings: warnings,
-        message:
-            '${entry.key} has no upstream provenance/SLSA attestation for '
-            'source, builder identity, and build inputs.',
-      );
-    } else {
-      failures.add(
-        'provenance ${entry.key}.attestation.status must be absent or verified.',
-      );
-    }
-
     final reproducible = _requiredObject(
       artifact,
       'reproducibleBuild',
       'provenance ${entry.key}.reproducibleBuild',
       failures,
     );
+    final signatureStatus = signature?['status']?.toString() ?? 'missing';
+    final attestationStatus = attestation?['status']?.toString() ?? 'missing';
     final reproducibleStatus = reproducible?['status']?.toString() ?? 'missing';
-    if (reproducibleStatus == 'verified') {
-      failures.add(
-        '${entry.key}: reproducible-build status is a claim, not an independently reproduced artifact (PKG-006).',
-      );
-    } else if (reproducibleStatus == 'absent') {
-      _addProvenanceBlocker(
-        production: production,
-        failures: failures,
-        warnings: warnings,
-        message:
-            '${entry.key} has no reproducible-build evidence tying the '
-            'published bytes back to the pinned RLN source.',
-      );
+    Map<String, Object?>? verification;
+    final submittedForVerification = [
+      signatureStatus,
+      attestationStatus,
+      reproducibleStatus,
+    ].every((status) => status == 'verified');
+    if (submittedForVerification) {
+      try {
+        final policy =
+            jsonDecode(
+                  File('tool/native_provenance_trust.json').readAsStringSync(),
+                )
+                as Map<String, Object?>;
+        File archive;
+        if (entry.key == 'rln-ios-swift') {
+          archive = File(
+            Platform.environment['RGB_SDK_IOS_ARCHIVE_PATH'] ??
+                'ios/rgb-lightning-node-swift.zip',
+          );
+        } else {
+          final explicit = Platform.environment['RGB_SDK_ANDROID_AAR_PATH'];
+          final candidates = explicit != null && explicit.isNotEmpty
+              ? [File(explicit)]
+              : _findAndroidAars(
+                  MavenArtifactCoordinate.parse(
+                    android['mavenCoordinate'].toString(),
+                  ),
+                );
+          if (candidates.isEmpty) throw StateError('Archive missing.');
+          archive = candidates.first;
+        }
+        verification =
+            await NativeProvenanceVerifier(
+              root: Directory.current,
+              policy: policy,
+            ).verify(
+              artifactId: entry.key,
+              artifact: archive,
+              expectedDigest: expected['artifactSha256']! as String,
+              expectedSize: expected['artifactSizeBytes']! as int,
+              sourceRepository: rln['repository']! as String,
+              sourceCommit: rln['commit']! as String,
+              declaration: artifact,
+              failures: failures,
+            );
+        if (verification['signatureVerified'] == true) verifiedSignatures += 1;
+        if (verification['attestationVerified'] == true) {
+          verifiedAttestations += 1;
+        }
+        if (verification['reproductionVerified'] == true) {
+          verifiedReproducibleBuilds += 1;
+        }
+      } on Object {
+        failures.add(
+          '${entry.key}: reviewed trust policy or archive is unavailable.',
+        );
+      }
     } else {
-      failures.add(
-        'provenance ${entry.key}.reproducibleBuild.status must be absent or '
-        'verified.',
-      );
+      if (signatureStatus == 'absent') {
+        absentSignatures += 1;
+      } else if (signatureStatus == 'present-unverified') {
+        unverifiedSignatures += 1;
+        _validateSignatureMetadata(entry.key, signature!, failures);
+      } else if (signatureStatus != 'verified') {
+        failures.add('${entry.key}: unsupported signature status.');
+      }
+      for (final evidence in <String, String>{
+        'detached signature': signatureStatus,
+        'source/builder attestation': attestationStatus,
+        'independent reproduction': reproducibleStatus,
+      }.entries) {
+        if (!{
+          'absent',
+          'present-unverified',
+          'verified',
+        }.contains(evidence.value)) {
+          failures.add('${entry.key}: unsupported ${evidence.key} status.');
+        }
+        _addProvenanceBlocker(
+          production: production,
+          failures: failures,
+          warnings: warnings,
+          message: '${entry.key} lacks verified ${evidence.key} evidence.',
+        );
+      }
+      if ([
+        signatureStatus,
+        attestationStatus,
+        reproducibleStatus,
+      ].contains('verified')) {
+        failures.add(
+          '${entry.key}: partial status claims cannot replace complete cryptographic verification.',
+        );
+      }
     }
 
     reports.add(<String, Object?>{
@@ -381,6 +426,7 @@ Map<String, Object?> _validateProvenanceManifest({
       'signatureStatus': signatureStatus,
       'attestationStatus': attestationStatus,
       'reproducibleBuildStatus': reproducibleStatus,
+      'verification': ?verification,
     });
   }
 
@@ -884,13 +930,21 @@ Future<Map<String, Object?>> _postJson(
   }
 }
 
-Map<String, Object?> _validateIosSymbols(
+Future<Map<String, Object?>> _validateIosSymbols(
   Map<String, Object?> ios,
   List<String> failures,
   List<String> warnings,
-) {
+) async {
   final installedFiles =
       (ios['installedFiles']! as Map<String, Object?>).keys.toList()..sort();
+  for (final path in installedFiles) {
+    final file = File(path);
+    if (!file.existsSync() ||
+        (await sha256.bind(file.openRead()).first).toString() !=
+            (ios['installedFiles']! as Map<String, Object?>)[path]) {
+      failures.add('Installed iOS artifact differs from its baseline: $path');
+    }
+  }
   final libraries = installedFiles
       .where((path) => path.endsWith('/librgb_lightning_node.a'))
       .toList(growable: false);

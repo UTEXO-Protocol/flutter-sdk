@@ -8,6 +8,7 @@ internal class RlnNodeStore {
     private val states = mutableMapOf<Long, NodeLifecycleState>()
     private val preUnlockStates = mutableMapOf<Long, NodeLifecycleState>()
     private val storageDirByNodeId = mutableMapOf<Long, String>()
+    private val networkByNodeId = mutableMapOf<Long, String>()
     private var nextId = 1L
     private val signers = mutableMapOf<Long, NativeExternalSigner>()
     private var nextSignerId = 1L
@@ -31,7 +32,7 @@ internal class RlnNodeStore {
     }
 
     @Synchronized
-    fun create(node: SdkNode, storageDirPath: String): Long {
+    fun create(node: SdkNode, storageDirPath: String, network: String): Long {
         val normalizedPath = storageDirPath.trim()
         if (normalizedPath.isNotEmpty()) {
             val existingId = storageDirByNodeId.entries.firstOrNull { it.value == normalizedPath }?.key
@@ -48,6 +49,7 @@ internal class RlnNodeStore {
         nodes[id] = node
         states[id] = NodeLifecycleState.CREATED
         storageDirByNodeId[id] = normalizedPath
+        networkByNodeId[id] = network
         return id
     }
 
@@ -55,6 +57,9 @@ internal class RlnNodeStore {
     fun get(id: Long): SdkNode {
         return nodes[id] ?: throw NodeNotFound()
     }
+
+    @Synchronized
+    fun getNetwork(id: Long): String = networkByNodeId[id] ?: throw NodeNotFound()
 
     @Synchronized
     fun getState(id: Long): NodeLifecycleState {
@@ -119,6 +124,7 @@ internal class RlnNodeStore {
         val state = states.remove(id)
         preUnlockStates.remove(id)
         storageDirByNodeId.remove(id)
+        networkByNodeId.remove(id)
         if (node != null) closeNode(node, state)
     }
 
@@ -157,6 +163,7 @@ internal class RlnNodeStore {
         states.clear()
         preUnlockStates.clear()
         storageDirByNodeId.clear()
+        networkByNodeId.clear()
         signers.clear()
         var firstFailure: Exception? = null
         nodesToClose.forEach { (node, state) ->

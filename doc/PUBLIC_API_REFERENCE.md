@@ -441,3 +441,15 @@ root checklist and are snapshotted by `tool/api_snapshot.json`.
 - `validateBase64`, `validateBip39Mnemonic`, `validateHex`, `validateMnemonic`
 - `validateNetwork`, `validatePsbt`, `validateString`, `verifyMessage`
 - `verifySchnorr`, `wipeSecretBytes`, `xOnlyPointFromPoint`
+
+## Mainnet Signer Support Boundary
+
+For the initial onchain-only mainnet scope, `UtexoWallet.init`/`reinit` accept
+only the built-in `PasswordRlnSigner` or an implicit password signer. External
+and custom signers, including password-signer subclasses, throw
+`UnsupportedWalletFeatureException(feature: 'mainnet.externalSigner')` before
+native allocation. This applies with and without VSS. Existing non-mainnet
+external-signer compatibility is unchanged and is not a production safety
+claim. The Swift/Kotlin bridge enforces the same external-mode exclusion for raw
+clients using each node's stored network; unknown network aliases fail closed.
+The advanced raw client remains outside the supported production wallet facade.

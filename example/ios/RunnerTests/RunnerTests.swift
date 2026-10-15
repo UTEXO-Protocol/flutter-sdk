@@ -5,6 +5,66 @@ import XCTest
 final class RunnerTests: XCTestCase {
   private let plugin = RgbSdkFlutterPlugin()
 
+  func testMainnetExternalSignerCreationRejectsBeforeStorageOrNativeDispatch() {
+    for network in ["mainnet", " MAINNET ", "bitcoin", "unknown-network"] {
+      let path = uniquePath("mainnet-signer-rejected")
+      XCTAssertThrowsError(try plugin.rlnCreateNativeExternalSigner(
+        seedHex: String(repeating: "11", count: 32), network: network,
+        permissivePolicy: true, storageDirPath: path)) { error in
+        assertMainnetSignerUnsupported(error, operation: "rlnCreateNativeExternalSigner")
+      }
+      XCTAssertFalse(FileManager.default.fileExists(atPath: path))
+      XCTAssertEqual(plugin.nodeStore.snapshot().signerCount, 0)
+    }
+  }
+
+  func testMainnetExternalSignerEntryPointsPreserveNodeStateWithoutNativeDispatch() throws {
+    for network in ["mainnet", " MAINNET ", "bitcoin", "unknown-network"] {
+      let node = CloseTrackingSdkNode()
+      let nodeId = try plugin.nodeStore.create(node: node,
+        storageDirPath: uniquePath("mainnet-node"), network: network)
+      defer { plugin.nodeStore.remove(id: nodeId) }
+      let calls: [(String, () throws -> Void)] = [
+        ("rlnInitNodeWithNativeExternalSigner", {
+          try self.plugin.rlnInitNodeWithNativeExternalSigner(nodeId: nodeId, signerId: 9999)
+        }),
+        ("rlnAttachNativeExternalSigner", {
+          try self.plugin.rlnAttachNativeExternalSigner(nodeId: nodeId, signerId: 9999)
+        }),
+        ("rlnUnlockNodeWithNativeExternalSigner", {
+          try self.plugin.rlnUnlockNodeWithNativeExternalSigner(nodeId: nodeId, signerId: 9999,
+            bitcoindRpcUsername: nil, bitcoindRpcPassword: nil, bitcoindRpcHost: nil,
+            bitcoindRpcPort: nil, indexerUrl: nil, proxyEndpoint: nil,
+            announceAddresses: [], announceAlias: nil, gossipRgsServerUrl: nil, ethRpcUrl: nil)
+        }),
+        ("rlnInitNodeWithExternalSigner", {
+          try self.plugin.rlnInitNodeWithExternalSigner(nodeId: nodeId, nodePublicKeyHex: "test",
+            accountXpubVanilla: "test", accountXpubColored: "test", masterFingerprint: "test",
+            protocolVersion: "test", apiLevel: 1)
+        }),
+      ]
+      for (operation, call) in calls {
+        XCTAssertThrowsError(try call()) { error in
+          assertMainnetSignerUnsupported(error, operation: operation)
+        }
+        XCTAssertEqual(try plugin.nodeStore.getState(id: nodeId), .created)
+        XCTAssertEqual(try plugin.nodeStore.getNetwork(id: nodeId), network)
+        XCTAssertEqual(node.shutdownCount, 0)
+        XCTAssertEqual(plugin.nodeStore.snapshot().signerCount, 0)
+      }
+    }
+  }
+
+  private func assertMainnetSignerUnsupported(_ error: Error, operation: String) {
+    let pigeon = expectPigeonError(error)
+    XCTAssertEqual(pigeon.code, "UnsupportedOperationException")
+    let details = expectDetails(pigeon)
+    XCTAssertEqual(details["operation"] as? String, operation)
+    XCTAssertEqual(details["category"] as? String, "unsupported")
+    XCTAssertEqual(details["retryable"] as? Bool, false)
+    XCTAssertEqual(details["feature"] as? String, "mainnet.externalSigner")
+  }
+
   func testUnspentSerializationPreservesPendingBlindedReservations() throws {
     for count in [UInt32(0), 1, 5, UInt32.max] {
       let map = plugin.unspentMap(Unspent(
@@ -572,13 +632,13 @@ final class RunnerTests: XCTestCase {
       }
     }
 
-    let firstId = try plugin.nodeStore.create(node: firstNode, storageDirPath: path)
+    let firstId = try plugin.nodeStore.create(node: firstNode, storageDirPath: path, network: "regtest")
     nodeId = firstId
     XCTAssertIdentical(firstNode, try plugin.nodeStore.get(id: firstId))
     XCTAssertEqual(try plugin.nodeStore.getState(id: firstId), .created)
 
     XCTAssertThrowsError(
-      try plugin.nodeStore.create(node: duplicateNode, storageDirPath: path)
+      try plugin.nodeStore.create(node: duplicateNode, storageDirPath: path, network: "regtest")
     ) { error in
       guard case RlnStoreError.nodeAlreadyExists = error else {
         XCTFail("Expected nodeAlreadyExists, got \(type(of: error)): \(error)")
@@ -588,7 +648,7 @@ final class RunnerTests: XCTestCase {
     XCTAssertEqual(duplicateNode.shutdownCount, 0)
 
     try plugin.rlnShutdown(nodeId: firstId)
-    let reusedId = try plugin.nodeStore.create(node: replacementNode, storageDirPath: path)
+    let reusedId = try plugin.nodeStore.create(node: replacementNode, storageDirPath: path, network: "regtest")
     XCTAssertNotEqual(reusedId, firstId)
     nodeId = reusedId
     plugin.nodeStore.remove(id: firstId)
@@ -605,7 +665,8 @@ final class RunnerTests: XCTestCase {
     let node = CloseTrackingSdkNode()
     let nodeId = try plugin.nodeStore.create(
       node: node,
-      storageDirPath: uniquePath("native-store-lifecycle")
+      storageDirPath: uniquePath("native-store-lifecycle"),
+      network: "regtest"
     )
 
     XCTAssertEqual(try plugin.nodeStore.beginUnlock(id: nodeId), .unlocking)
@@ -635,7 +696,8 @@ final class RunnerTests: XCTestCase {
     let signer = NativeExternalSigner(noPointer: NativeExternalSigner.NoPointer())
     let nodeId = try plugin.nodeStore.create(
       node: node,
-      storageDirPath: uniquePath("native-store-clear")
+      storageDirPath: uniquePath("native-store-clear"),
+      network: "regtest"
     )
     let signerId = plugin.nodeStore.createSigner(signer)
 
@@ -651,8 +713,8 @@ final class RunnerTests: XCTestCase {
 
   func testEngineCleanupDoesNotTouchAnotherEngine() throws {
     let other = RgbSdkFlutterPlugin()
-    let mine = try plugin.nodeStore.create(node: CloseTrackingSdkNode(), storageDirPath: uniquePath("engine-a"))
-    let theirs = try other.nodeStore.create(node: CloseTrackingSdkNode(), storageDirPath: uniquePath("engine-b"))
+    let mine = try plugin.nodeStore.create(node: CloseTrackingSdkNode(), storageDirPath: uniquePath("engine-a"), network: "regtest")
+    let theirs = try other.nodeStore.create(node: CloseTrackingSdkNode(), storageDirPath: uniquePath("engine-b"), network: "regtest")
     defer { other.nodeStore.remove(id: theirs) }
     let closed = expectation(description: "engine resources released")
     plugin.closeEngine { closed.fulfill() }
@@ -665,7 +727,7 @@ final class RunnerTests: XCTestCase {
   func testEngineCleanupWaitsForInFlightUnlock() throws {
     let node = BlockingUnlockSdkNode()
     let owner = plugin
-    let id = try owner.nodeStore.create(node: node, storageDirPath: uniquePath("unlock-drain"))
+    let id = try owner.nodeStore.create(node: node, storageDirPath: uniquePath("unlock-drain"), network: "regtest")
     let unlocked = expectation(description: "in-flight unlock finishes")
     let closed = expectation(description: "engine drains then clears")
     defer { node.release.signal() }

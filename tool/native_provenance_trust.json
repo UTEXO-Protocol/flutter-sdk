@@ -1,0 +1,5 @@
+{
+  "schemaVersion": 1,
+  "keys": [],
+  "policy": "No production trust roots are approved. Release owners must independently approve publisher, builder and reproducer keys and source/recipe/lockfile/toolchain input pins. Never derive trust from the downloaded artifact or its receipt."
+}

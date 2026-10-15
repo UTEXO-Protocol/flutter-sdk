@@ -100,6 +100,22 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     )
   }
 
+  private func requireExternalSignerNetwork(_ network: String, operation: String) throws {
+    // Deny unknown aliases as well as mainnet. This bridge boundary also covers
+    // the advanced raw Dart client and must run before signer/storage access.
+    let allowed = ["regtest", "testnet", "testnet4", "signet", "utexo", "signetcustom"]
+    guard allowed.contains(network.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()) else {
+      throw PigeonError(code: "UnsupportedOperationException",
+        message: "Mainnet supports only the built-in password signer.",
+        details: bridgeErrorDetails(operation, category: "unsupported", retryable: false,
+          extra: ["feature": "mainnet.externalSigner"]))
+    }
+  }
+
+  private func requireExternalSignerNode(_ nodeId: Int64, operation: String) throws {
+    try requireExternalSignerNetwork(nodeStore.getNetwork(id: nodeId), operation: operation)
+  }
+
   private func prepareStorageDirectory(_ path: String, operation: String) throws {
     do {
       try RlnStorageDirectoryPolicy.prepare(path)
@@ -473,7 +489,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
       try nodeStore.ensureStorageAvailable(storageDirPath)
       try prepareStorageDirectory(storageDirPath, operation: "rlnCreateNode")
       let node = try SdkNode.create(request: initRequest)
-      return try nodeStore.create(node: node, storageDirPath: storageDirPath)
+      return try nodeStore.create(node: node, storageDirPath: storageDirPath, network: network)
     }
   }
 
@@ -497,6 +513,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     storageDirPath: String?
   ) throws -> Int64 {
     try runRln("rlnCreateNativeExternalSigner") {
+      try requireExternalSignerNetwork(network, operation: "rlnCreateNativeExternalSigner")
       let signer: NativeExternalSigner
       if let storageDirPath {
         try prepareStorageDirectory(
@@ -522,6 +539,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnInitNodeWithNativeExternalSigner(nodeId: Int64, signerId: Int64) throws {
     try runRln("rlnInitNodeWithNativeExternalSigner") {
+      try requireExternalSignerNode(nodeId, operation: "rlnInitNodeWithNativeExternalSigner")
       let node = try nodeStore.get(id: nodeId)
       let state = try nodeStore.getState(id: nodeId)
       if state != .created {
@@ -536,6 +554,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnAttachNativeExternalSigner(nodeId: Int64, signerId: Int64) throws {
     try runRln("rlnAttachNativeExternalSigner") {
+      try requireExternalSignerNode(nodeId, operation: "rlnAttachNativeExternalSigner")
       let node = try nodeStore.get(id: nodeId)
       let signer = try nodeStore.getSigner(id: signerId)
       try node.attachNativeExternalSigner(signer: signer)
@@ -564,6 +583,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
             category: "unsupported", retryable: false,
             extra: ["feature": "externalSigner.gossipRgsServerUrl"]))
       }
+      try requireExternalSignerNode(nodeId, operation: "rlnUnlockNodeWithNativeExternalSigner")
       do {
         let node = try nodeStore.get(id: nodeId)
         let signer = try nodeStore.getSigner(id: signerId)
@@ -613,6 +633,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
 
   func rlnInitNodeWithExternalSigner(nodeId: Int64, nodePublicKeyHex: String, accountXpubVanilla: String, accountXpubColored: String, masterFingerprint: String, protocolVersion: String, apiLevel: Int64) throws {
     try runRln("rlnInitNodeWithExternalSigner") {
+      try requireExternalSignerNode(nodeId, operation: "rlnInitNodeWithExternalSigner")
       let node = try nodeStore.get(id: nodeId)
       let state = try nodeStore.getState(id: nodeId)
       if state != .created {

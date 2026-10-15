@@ -1,7 +1,7 @@
 import 'dart:convert';
 import 'dart:io';
 
-const _expectedVersion = '0.2.0-beta.2';
+const _expectedVersion = '0.2.0-beta.3';
 const _expectedFlutterVersion = '3.47.7';
 const _expectedRegtestProxyPort = 3013;
 const _publicTestMnemonic =
@@ -78,6 +78,16 @@ void main() {
   check(
     File('ios/Resources/PrivacyInfo.xcprivacy').existsSync(),
     'iOS privacy manifest file must exist.',
+  );
+
+  final privacyValidation = Process.runSync('python3', [
+    'tool/validate_ios_privacy.py',
+    'ios/Resources/PrivacyInfo.xcprivacy',
+  ]);
+  check(
+    privacyValidation.exitCode == 0,
+    'iOS SDK privacy manifest contents are invalid: '
+    '${privacyValidation.stdout}${privacyValidation.stderr}',
   );
 
   final androidBuild = _read('android/build.gradle.kts');

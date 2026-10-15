@@ -1,5 +1,24 @@
 # Changelog
 
+## 0.2.0-beta.3 - Unreleased
+
+- Enforce the initial mainnet password-only signing boundary in Dart and both
+  native bridges, including advanced clients. Regtest external signing remains
+  available for isolated qualification; mainnet Lightning remains unsupported.
+- Default production qualification to the mainnet-onchain profile. Require
+  exact-candidate iOS/Android evidence from existing isolated infrastructure;
+  never start containers or run successful Lightning cases in that profile.
+- Declare source-justified iOS file-timestamp privacy usage and validate its
+  contents. Native disk-space justification and final app aggregation stay open.
+- Verify signed native archives, source/build statements and independent
+  reproduction receipts with separately approved trust roots. Reject alternate
+  PEM encodings of the same key as independent reproduction.
+- Reject known native RGB reorg, bound-Witness accounting, BFA event-order and
+  selected TLS dependency blockers in production independently of Pub auditing.
+- Run branch quality checks and native JVM/XCTest CI with immutable dependency
+  locks. Retain current native archives; this does not close upstream defects,
+  lost-device recovery, physical-device or signed-distribution qualification.
+
 ## 0.2.0-beta.2 - Unreleased
 
 - Add canonical public RGB contract import with expected asset identity,

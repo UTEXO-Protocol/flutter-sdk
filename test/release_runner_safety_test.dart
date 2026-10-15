@@ -36,6 +36,78 @@ main
     expect(result.stdout, isNot(contains('UNEXPECTED_BUILD_WORK')));
   });
 
+  test(
+    'mainnet production profile never dispatches legacy stack/LN runners',
+    () async {
+      final temp = Directory.systemTemp.createTempSync('rgb-profile-runner-');
+      addTearDown(() => temp.deleteSync(recursive: true));
+      final result = await Process.run(
+        'bash',
+        [
+          '-c',
+          r'''
+source "$1"
+WORKTREE_DIRTY=false
+run_step() {
+  printf 'DISPATCH:%s\n' "$*"
+  STEP_NAMES+=("$1")
+  STEP_CODES+=(0)
+}
+main
+''',
+          'profile-safety',
+          File('tool/test_release_candidate.sh').absolute.path,
+        ],
+        environment: {
+          'REPORT_DIR': temp.path,
+          'RELEASE_PROFILE': 'mainnet-onchain',
+          'RUN_PLATFORM': '1',
+          'IOS_DEVICE': 'owned-ios',
+          'ANDROID_DEVICE': 'owned-android',
+        },
+      );
+      // The deliberately dirty development checkout may invalidate the immutable
+      // candidate. This spy verifies dispatches without executing them.
+      final output = '${result.stdout}';
+      expect(output, contains('validate_supply_chain.dart --production'));
+      expect(output, contains('validate_child_evidence.dart'));
+      expect(output, contains('mainnet-onchain'));
+      for (final forbidden in [
+        'test_platform_unfunded.sh',
+        'test_platform_funded.sh',
+        'test_external_signer_restart.sh',
+        'regtest.sh',
+        'prepare iOS simulator',
+        'prepare Android device',
+      ]) {
+        expect(output, isNot(contains(forbidden)), reason: forbidden);
+      }
+    },
+  );
+
+  test('unknown release scope stops before build or native work', () async {
+    final temp = Directory.systemTemp.createTempSync('rgb-unknown-profile-');
+    addTearDown(() => temp.deleteSync(recursive: true));
+    final result = await Process.run(
+      'bash',
+      [
+        '-c',
+        r'''
+source "$1"
+WORKTREE_DIRTY=false
+run_step() { printf 'UNEXPECTED_WORK'; exit 73; }
+main
+''',
+        'profile-safety',
+        File('tool/test_release_candidate.sh').absolute.path,
+      ],
+      environment: {'REPORT_DIR': temp.path, 'RELEASE_PROFILE': 'typo'},
+    );
+    expect(result.exitCode, 1);
+    expect(result.stdout, isNot(contains('UNEXPECTED_WORK')));
+    expect(result.stderr, contains('Unknown release profile'));
+  });
+
   for (final runner in [
     'test_clean_consumer_matrix.sh',
     'test_release_candidate.sh',

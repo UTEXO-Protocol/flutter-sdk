@@ -109,6 +109,21 @@ class RgbSdkFlutterPlugin :
         )
     }
 
+    private fun requireExternalSignerNetwork(network: String, operation: String) {
+        // Unknown aliases also fail closed. This boundary covers raw clients.
+        val allowed = setOf("regtest", "testnet", "testnet4", "signet", "utexo", "signetcustom")
+        if (network.trim().lowercase(java.util.Locale.ROOT) !in allowed) {
+            throw FlutterError("UnsupportedOperationException",
+                "Mainnet supports only the built-in password signer.",
+                bridgeErrorDetails(operation, "unsupported", false,
+                    mapOf("feature" to "mainnet.externalSigner")))
+        }
+    }
+
+    private fun requireExternalSignerNode(nodeId: Long, operation: String) {
+        requireExternalSignerNetwork(nodeStore.getNetwork(nodeId), operation)
+    }
+
     private fun prepareStorageDirectory(path: String, operation: String) {
         try {
             storageDirectoryPolicy.prepare(path)
@@ -494,7 +509,7 @@ class RgbSdkFlutterPlugin :
             nodeStore.ensureStorageAvailable(storageDirPath)
             prepareStorageDirectory(storageDirPath, "rlnCreateNode")
             val node = SdkNode.create(initRequest)
-            nodeStore.create(node, storageDirPath)
+            nodeStore.create(node, storageDirPath, network)
         }
     }
 
@@ -518,6 +533,7 @@ class RgbSdkFlutterPlugin :
         storageDirPath: String?
     ): Long {
         return runRln("rlnCreateNativeExternalSigner") {
+            requireExternalSignerNetwork(network, "rlnCreateNativeExternalSigner")
             val signer = if (storageDirPath == null) {
                 NativeExternalSigner(seedHex, network, permissivePolicy)
             } else {
@@ -535,6 +551,7 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnInitNodeWithNativeExternalSigner(nodeId: Long, signerId: Long) {
         runRln("rlnInitNodeWithNativeExternalSigner") {
+            requireExternalSignerNode(nodeId, "rlnInitNodeWithNativeExternalSigner")
             val node = nodeStore.get(nodeId)
             val state = nodeStore.getState(nodeId)
             if (state != RlnNodeStore.NodeLifecycleState.CREATED) {
@@ -549,6 +566,7 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnAttachNativeExternalSigner(nodeId: Long, signerId: Long) {
         runRln("rlnAttachNativeExternalSigner") {
+            requireExternalSignerNode(nodeId, "rlnAttachNativeExternalSigner")
             val node = nodeStore.get(nodeId)
             val signer = nodeStore.getSigner(signerId)
             node.attachNativeExternalSigner(signer)
@@ -576,6 +594,7 @@ class RgbSdkFlutterPlugin :
                     bridgeErrorDetails("rlnUnlockNodeWithNativeExternalSigner",
                         "unsupported", false, mapOf("feature" to "externalSigner.gossipRgsServerUrl")))
             }
+            requireExternalSignerNode(nodeId, "rlnUnlockNodeWithNativeExternalSigner")
             try {
                 val node = nodeStore.get(nodeId)
                 val signer = nodeStore.getSigner(signerId)
@@ -621,6 +640,7 @@ class RgbSdkFlutterPlugin :
 
     override fun rlnInitNodeWithExternalSigner(nodeId: Long, nodePublicKeyHex: String, accountXpubVanilla: String, accountXpubColored: String, masterFingerprint: String, protocolVersion: String, apiLevel: Long) {
         runRln("rlnInitNodeWithExternalSigner") {
+            requireExternalSignerNode(nodeId, "rlnInitNodeWithExternalSigner")
             val node = nodeStore.get(nodeId)
             val state = nodeStore.getState(nodeId)
             if (state != RlnNodeStore.NodeLifecycleState.CREATED) {

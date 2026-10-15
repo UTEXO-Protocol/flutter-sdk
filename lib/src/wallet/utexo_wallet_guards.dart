@@ -89,6 +89,20 @@ mixin _UtexoWalletGuards on _UtexoWalletInternals {
   @override
   void _validateConfig() {
     WalletInputPolicy.validateConfig(_config);
+    // External/custom signer reservation, teardown and VSS-key qualification
+    // remains upstream-blocked. Enforce the initial mainnet support boundary
+    // before allocating native nodes or loading any persisted wallet state.
+    // Exact type matters: a subclass can override password signer dispatch.
+    final signer = _signer;
+    if (normalizeNativeRlnNetwork(_config.network) == 'mainnet' &&
+        signer != null &&
+        signer.runtimeType != PasswordRlnSigner) {
+      throw const UnsupportedWalletFeatureException(
+        'Mainnet supports only the built-in PasswordRlnSigner. External and '
+        'custom signers are not qualified for this release.',
+        feature: 'mainnet.externalSigner',
+      );
+    }
   }
 
   @override

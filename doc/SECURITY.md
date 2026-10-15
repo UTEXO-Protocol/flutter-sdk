@@ -55,3 +55,21 @@ Native local backup/recovery is blocked in the current artifacts. Do not treat
 VSS configuration, a declared backup method, or a successful unit test as
 proof of recoverability. Recovery requires an independently tested upstream
 implementation before this package can be approved for funds-bearing use.
+
+## Initial mainnet signer boundary
+
+The mainnet onchain release supports only the SDK's built-in
+`PasswordRlnSigner`. `UtexoWallet.init` and `reinit` reject external/custom
+signers (including overriding password-signer subclasses) before native node or
+signer allocation, irrespective of VSS configuration. The Swift/Kotlin plugin also records each created node's network and rejects
+external bootstrap/init/attach/unlock plus external signer creation on mainnet
+and unknown network aliases, before native signer or wallet operations. This
+protects the advanced raw Dart bridge too. Advanced/node-host interfaces remain
+research/integration primitives outside the supported production wallet facade.
+
+External mode's orphan BTC reservations, persistent native teardown and
+public-bootstrap-material-derived VSS keys remain upstream qualification and
+security blockers. Regtest support is retained solely so they can be fixed and
+verified. Password mode uses the native mnemonic-derived backup identity; this
+scope boundary is not proof of fresh-device recovery. Missing portable/local
+backup and VSS restore evidence remain release blockers.

@@ -33,6 +33,9 @@ class UtexoWalletConfig {
 
   /// SDK-facing network name: `mainnet`, `testnet`, `testnet4`, `signet`,
   /// `utexo`, or `regtest`. Native Bitcoin naming is not an input alias.
+  /// Mainnet is onchain-only and supports the built-in password signer only.
+  /// External/custom signers fail before node creation on mainnet until their
+  /// native crash recovery, teardown and VSS key derivation are qualified.
   final String network;
 
   /// Lightning daemon listening port.

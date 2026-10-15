@@ -2,31 +2,39 @@ name: Quality
 
 on:
   pull_request:
+  workflow_dispatch:
   push:
     branches:
-      - main
-      - dev
+      - "**"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: quality-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
   dart:
     name: Analyze and test
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Flutter
-        uses: subosito/flutter-action@v2
+        uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
         with:
           flutter-version-file: .fvmrc
           cache: true
 
       - name: Install package dependencies
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Install example dependencies
         working-directory: example
-        run: flutter pub get
+        run: flutter pub get --enforce-lockfile
 
       - name: Check formatting
         run: dart format --set-exit-if-changed .
@@ -58,3 +66,84 @@ jobs:
       - name: Test example widget tests
         working-directory: example
         run: flutter test test
+
+  native-android:
+    name: Android bridge tests
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          distribution: temurin
+          java-version: "21"
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version-file: .fvmrc
+          cache: true
+      - name: Resolve package and example lockfiles
+        run: |
+          flutter pub get --enforce-lockfile
+          cd example
+          flutter pub get --enforce-lockfile
+      - name: Native JVM tests with exact-candidate evidence
+        run: ./tool/test_native_android.sh
+      - name: Preserve native evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sdk-android-native-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/test-reports/native/
+          if-no-files-found: error
+          retention-days: 14
+
+  native-ios:
+    name: iOS bridge tests
+    runs-on: macos-26
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1 reviewed 2026-08-19
+        with:
+          ruby-version: "3.4.10"
+      - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2.23.0
+        with:
+          flutter-version-file: .fvmrc
+          cache: true
+      - name: Install reviewed CocoaPods
+        run: gem install cocoapods --version 1.16.2 --no-document
+      - name: Resolve package and example lockfiles
+        run: |
+          flutter pub get --enforce-lockfile
+          cd example
+          flutter pub get --enforce-lockfile
+      - name: Select existing supported iOS simulator
+        run: |
+          xcrun simctl list devices available --json > "$RUNNER_TEMP/simulators.json"
+          python3 - <<'PY'
+          import json, os, re
+          from pathlib import Path
+          data = json.loads((Path(os.environ['RUNNER_TEMP']) / 'simulators.json').read_text())
+          eligible = []
+          for runtime, devices in data['devices'].items():
+              match = re.search(r'iOS-(\d+)-(\d+)', runtime)
+              if not match or tuple(map(int, match.groups())) < (18, 5):
+                  continue
+              for device in devices:
+                  if device.get('isAvailable') and device['name'].startswith('iPhone'):
+                      eligible.append((tuple(map(int, match.groups())), device['udid']))
+          if not eligible:
+              raise SystemExit('No existing supported iOS simulator is available')
+          with open(os.environ['GITHUB_ENV'], 'a') as output:
+              output.write('IOS_DEVICE=' + max(eligible)[1] + '\n')
+          PY
+      - name: Native XCTest with exact-candidate evidence
+        run: ./tool/test_native_ios.sh
+      - name: Preserve native evidence
+        if: always()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: sdk-ios-native-${{ github.run_id }}-${{ github.run_attempt }}
+          path: build/test-reports/native/
+          if-no-files-found: error
+          retention-days: 14

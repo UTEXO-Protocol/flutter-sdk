@@ -158,7 +158,8 @@ Future<void> main(List<String> args) async {
   });
   final device = report['device'];
   if (device is String) report['deviceIdentity'] = await _device(device);
-  if (report['regtest'] is Map<String, Object?>) {
+  if (report['suite'] != 'platform-onchain-regtest' &&
+      report['regtest'] is Map<String, Object?>) {
     report['stackIdentity'] = {
       'project': 'rgb-sdk-flutter-regtest',
       'composeSha256': fileDigest(File('tool/regtest/compose.yaml')),

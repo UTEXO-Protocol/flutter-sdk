@@ -12,11 +12,13 @@ artifact-provenance manifest, dependency lock, and clean-worktree status. It
 hashes logs after their writers have exited, records Flutter/Dart/host and
 available native build-tool identities, and labels repository paths.
 
-The combined runner requires nine current-run child reports: consumer matrix,
-Android JVM, iOS XCTest, and funded, unfunded and external-signer restart reports
-for both explicit devices. Each child must match the parent candidate and its
+The default mainnet-onchain production runner requires five current-run child
+reports: consumer matrix, Android JVM, iOS XCTest and onchain qualification for
+both explicit devices. The explicit historical internal-beta profile requires
+nine: consumer matrix, Android JVM, iOS XCTest, and funded, unfunded and
+external-signer restart reports for both explicit devices. Each child must match the parent candidate and its
 completed log checksum. Platform reports additionally require the exact device
-OS identity and SDK-owned regtest container/image IDs. A checked children
+OS identity and their profile-specific stack/container image IDs. A checked children
 manifest is attached to the final combined report.
 
 This is not a claim that qualification has run. TEST-040/TEST-041 stay open until
@@ -132,3 +134,61 @@ only when stable or advanced public symbols document:
 
 Documentation review is release evidence only when the reviewer records the
 API snapshot hash, tracker IDs reviewed, and exact docs command output.
+
+## Mainnet onchain production profile
+
+`RELEASE_PROFILE=mainnet-onchain` is the default. It invokes the supply-chain
+validator with `--production` and consumes `platform-onchain-regtest` evidence;
+it does not execute the legacy SDK-owned stack or Lightning financial runners.
+`RUN_PLATFORM` cannot opt this profile into those scripts. `internal-beta` is
+explicitly separate, with no production-readiness claim.
+
+The production aggregate requires exactly five validated reports for the same
+clean candidate/run ID and completed log hashes: `clean-consumer-matrix`,
+`native-android-jvm`, `native-ios-xctest/<ios-device>` and
+`platform-onchain-regtest/<ios-device|android-device>`. The two platform reports
+must identify iOS and Android, match the explicit device IDs and include:
+
+| Field | Required value |
+| --- | --- |
+| `releaseProfile` | `mainnet-onchain` |
+| `releaseNetwork` / `testNetwork` | `mainnet` / `regtest` |
+| `walletSigner` | `password` |
+| `stackIdentity.project` / `.host` | `wdk-rln-017-qualification` / `localhost` |
+| `stackIdentity.ports` | `rlnApi:29301`, `esplora:29302`, `rgbProxy:29300` |
+| `stackIdentity.containerLifecycle` | `preserved` |
+| `stackIdentity.services` | Existing `rln`, `esplora`, `rgb-proxy` role entries, 64-character container IDs and immutable `sha256:` image IDs |
+| `bfaChainIdentity` | Existing project `wdk-rln-017-bfa-anvil-20261014`, RPC `http://localhost:29545`, chain `31337`, existing `containerId`/`imageId`, `containerLifecycle:preserved`, `contractsPreserved:true` |
+| `cases` | Each required ID below exactly once, `status:passed` and non-empty `assertions` describing actual observed outcomes |
+
+A separately operated qualification controller must collect these cases with
+independent wallet storage on the **already running** isolated stack. Reorgs,
+interruption and adversarial BFA cases belong there; never reset containers or
+chain data. Reuse of a development-stack happy-path report or a changed
+candidate is rejected. The SDK aggregate does not generate case claims on
+behalf of that controller.
+
+Required case IDs (enforced by `tool/release_profiles.dart`):
+
+- `wallet-create-unlock`
+- `btc-send-receive`
+- `bfa-mint-backing`
+- `bfa-burn-payout`
+- `rgb-blind-send-receive`
+- `rgb-witness-bound-send-receive`
+- `rgb-witness-unbound-send-receive`
+- `onchain-history-accounting`
+- `password-interrupted-send-reconciliation`
+- `rgb-reorg-reconfirm`
+- `bfa-wrong-lock-valid-lock`
+- `fresh-device-vss-restore`
+- `mainnet-lightning-rejected`
+- `mainnet-external-signer-rejected`
+
+The mainnet rejection cases must observe zero native side effects. Financial
+cases run only on regtest. Fresh-device VSS restore means a new app storage and
+credential boundary that does not retain the original wallet files or
+Keychain/Keystore values, followed by exact BTC/RGB reconciliation. Assertions
+must cover allocation state and spendable/future/settled balances through
+confirmation/restart, never merely a passing test name. Local reports remain
+checksummed test evidence, not cryptographic artifact attestations.

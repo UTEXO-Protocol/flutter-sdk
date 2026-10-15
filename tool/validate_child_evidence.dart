@@ -2,14 +2,21 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'evidence_report.dart';
+import 'release_profiles.dart';
 
 void main(List<String> args) {
-  if (args.length != 2) {
-    throw ArgumentError('Expected report directory and run ID.');
+  if (args.length < 2 || args.length > 3) {
+    throw ArgumentError(
+      'Expected report directory, run ID and optional release profile.',
+    );
   }
   final root = Directory.current;
   final directory = Directory(args[0]);
   final runId = args[1];
+  final profile = args.length == 3 ? args[2] : internalBetaProfile;
+  if (!releaseProfiles.contains(profile)) {
+    throw ArgumentError('Unknown release profile: $profile');
+  }
   final candidate = candidateIdentity();
   final errors = <String>[];
   final ios = Platform.environment['IOS_DEVICE'];
@@ -20,16 +27,11 @@ void main(List<String> args) {
     );
     exit(1);
   }
-  final expected = <String>{
-    'clean-consumer-matrix/',
-    'native-android-jvm/',
-    'native-ios-xctest/$ios',
-    for (final device in [ios, android]) ...[
-      'platform-unfunded-regtest/$device',
-      'platform-funded-regtest/$device',
-      'external-signer-process-restart/$device',
-    ],
-  };
+  final expected = expectedChildEvidence(
+    profile: profile,
+    ios: ios,
+    android: android,
+  );
   final seen = <String>{};
   final children = <Map<String, String>>[];
   for (final file in directory.listSync().whereType<File>()) {

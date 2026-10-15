@@ -20,7 +20,7 @@ Pod::Spec.new do |s|
   end
 
   s.name             = 'rgb_sdk_flutter'
-  s.version          = '0.2.0-beta.2'
+  s.version          = '0.2.0-beta.3'
   s.summary          = 'Flutter SDK bridge for Bitcoin RGB Protocol and RGB Lightning Node.'
   s.description      = <<-DESC
 Flutter SDK bridge for Bitcoin RGB Protocol and RGB Lightning Node. This

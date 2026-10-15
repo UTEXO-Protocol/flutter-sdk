@@ -86,15 +86,8 @@ void main() {
     }
   }
 
-  const checklistHeader = '## Symbol Coverage Checklist';
-  final checklistStart = doc.indexOf(checklistHeader);
-  if (checklistStart >= 0) {
-    final checklist = doc.substring(checklistStart + checklistHeader.length);
-    final documented = RegExp(r'`([^`]+)`')
-        .allMatches(checklist)
-        .map((match) => match.group(1)!)
-        .where((value) => RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(value))
-        .toSet();
+  if (doc.contains('## Symbol Coverage Checklist')) {
+    final documented = checklistSymbols(doc);
     final stale = documented.difference(exportedSymbols).toList()..sort();
     if (stale.isNotEmpty) {
       errors.add(
@@ -117,6 +110,27 @@ void main() {
   stdout.writeln(
     'Public API documentation valid: ${exportedSymbols.length} symbols.',
   );
+}
+
+/// Only list entries in the checklist section name exported top-level symbols.
+/// Following prose may discuss public members (such as `reinit`), which must
+/// not be mistaken for stale top-level exports by this documentation gate.
+Set<String> checklistSymbols(String document) {
+  const header = '## Symbol Coverage Checklist';
+  final start = document.indexOf(header);
+  if (start < 0) return {};
+  final tail = document.substring(start + header.length);
+  final nextSection = RegExp(r'^#{1,2}\s', multiLine: true).firstMatch(tail);
+  final section = nextSection == null
+      ? tail
+      : tail.substring(0, nextSection.start);
+  return {
+    for (final line in section.split('\n'))
+      if (line.trimLeft().startsWith('- '))
+        for (final match in RegExp(r'`([^`]+)`').allMatches(line))
+          if (RegExp(r'^[A-Za-z_][A-Za-z0-9_]*$').hasMatch(match.group(1)!))
+            match.group(1)!,
+  };
 }
 
 void _validateStableWalletBoundary(List<String> errors) {

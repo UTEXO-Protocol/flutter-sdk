@@ -7,7 +7,8 @@ source "${SCRIPT_DIR}/regtest/config.sh"
 REPORT_DIR="${REPORT_DIR:-${REPO_DIR}/build/test-reports/release}"
 FLUTTER_BIN="${FLUTTER_BIN:-flutter}"
 DART_BIN="${DART_BIN:-dart}"
-export DART_BIN FLUTTER_BIN
+RELEASE_PROFILE="${RELEASE_PROFILE:-mainnet-onchain}"
+export DART_BIN FLUTTER_BIN RELEASE_PROFILE
 source "${SCRIPT_DIR}/evidence_shell.sh"
 
 mkdir -p "${REPORT_DIR}"
@@ -238,6 +239,7 @@ write_report() {
     echo "{"
     echo "  \"schemaVersion\": 1,"
     echo "  \"suite\": \"release-candidate\","
+    echo "  \"releaseProfile\": \"$(json_escape "${RELEASE_PROFILE}")\","
     echo "  \"status\": \"${status}\","
     echo "  \"releaseEligible\": ${release_eligible},"
     echo "  \"evidenceId\": \"$(json_escape "rgb-sdk-flutter/release-candidate/${RUN_ID}/${FULL_COMMIT}/local")\","
@@ -272,6 +274,10 @@ write_report() {
 
 main() {
   cd "${REPO_DIR}"
+  case "${RELEASE_PROFILE}" in
+    mainnet-onchain|internal-beta) ;;
+    *) echo "Unknown release profile: ${RELEASE_PROFILE}" >&2; FAILED=1; return 1 ;;
+  esac
   if [[ "${WORKTREE_DIRTY}" == true ]]; then
     echo "Release qualification requires an immutable clean commit." >&2
     FAILED=1
@@ -299,7 +305,11 @@ main() {
   run_step "RN dev source parity validation" "${DART_BIN}" run tool/validate_rn_parity.dart
   run_step "release package validation" "${DART_BIN}" run tool/validate_release_package.dart
   run_step "native artifact integrity and Android 16 KiB verification" ./tool/verify_native_artifacts.sh --require-android-16k
-  run_step "supply-chain provenance, SBOM, license, and ABI gate" "${DART_BIN}" run tool/validate_supply_chain.dart
+  if [[ "${RELEASE_PROFILE}" == mainnet-onchain ]]; then
+    run_step "production supply-chain provenance, SBOM, license, and ABI gate" "${DART_BIN}" run tool/validate_supply_chain.dart --production
+  else
+    run_step "internal-beta supply-chain gate" "${DART_BIN}" run tool/validate_supply_chain.dart
+  fi
   if [[ "${RUN_CONSUMER_MATRIX:-1}" == "1" ]]; then
     run_step "clean consumer install and archive matrix" bash -lc "REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_clean_consumer_matrix.sh'"
   else
@@ -319,7 +329,14 @@ main() {
     mark_required_skip "native iOS XCTest bridge tests" "IOS_DEVICE is unset"
   fi
 
-  if [[ "${RUN_PLATFORM:-0}" == "1" ]]; then
+  if [[ "${RELEASE_PROFILE}" == mainnet-onchain ]]; then
+    # No financial tests, docker commands, implicit stack management, emulator
+    # booting or successful Lightning/external-signer flows are dispatched here.
+    # A separately operated controller must collect the strict onchain cases on
+    # the existing isolated stack and write exact-candidate child evidence.
+    # The child validator below fails closed if either platform proof is absent.
+    echo "Mainnet-onchain profile: validating supplied isolated-stack onchain evidence."
+  elif [[ "${RUN_PLATFORM:-0}" == "1" ]]; then
     if [[ -n "${IOS_DEVICE:-}" ]]; then
       run_step "prepare iOS simulator for Flutter platform smokes" ensure_ios_simulator_visible "${IOS_DEVICE}"
       run_step "iOS unfunded regtest smoke" bash -lc "DEVICE='${IOS_DEVICE}' REPORT_DIR='${REPORT_DIR}' '${REPO_DIR}/tool/test_platform_unfunded.sh'"
@@ -355,7 +372,7 @@ main() {
     WORKTREE_DIRTY=true
     FAILED=1
   fi
-  run_step "child evidence validation" "${DART_BIN}" run tool/validate_child_evidence.dart "${REPORT_DIR}" "${RUN_ID}"
+  run_step "child evidence validation" "${DART_BIN}" run tool/validate_child_evidence.dart "${REPORT_DIR}" "${RUN_ID}" "${RELEASE_PROFILE}"
   if [[ "${FAILED}" -ne 0 ]]; then
     return 1
   fi

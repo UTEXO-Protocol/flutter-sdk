@@ -82,6 +82,10 @@ Map<Object?, Object?> _nativeApayResponse(String hostNodeId) {
   };
 }
 
+class CustomPasswordSigner extends PasswordRlnSigner {
+  CustomPasswordSigner() : super(password: 'password');
+}
+
 class FakeRlnHostApi extends RlnHostApi {
   int? createdNodeId;
   int createNodeCount = 0;
@@ -1492,6 +1496,78 @@ void main() {
 
     expect(hostApi.initializedPassword, 'password');
     expect(hostApi.unlockedHost, '127.0.0.1');
+  });
+
+  for (final network in ['mainnet', ' MAINNET ']) {
+    for (final vssUrl in <String?>[null, 'https://backup.example.test']) {
+      test('mainnet rejects external signer before any native dispatch '
+          '($network, VSS=${vssUrl != null})', () async {
+        final hostApi = FakeRlnHostApi();
+        final wallet = createAdvancedUtexoWallet(
+          config: UtexoWalletConfig(
+            storageDirPath: '/tmp/rgb-wallet-test',
+            network: network,
+            vssUrl: vssUrl,
+          ),
+          client: RlnClient(hostApi: hostApi),
+          signer: NativeExternalRlnSigner(
+            keys: RlnKeyMaterial.seedHex('11' * 32),
+            network: 'mainnet',
+          ),
+        );
+        final rejection = isA<UnsupportedWalletFeatureException>().having(
+          (error) => error.feature,
+          'feature',
+          'mainnet.externalSigner',
+        );
+        await expectLater(wallet.init(), throwsA(rejection));
+        await expectLater(wallet.reinit(), throwsA(rejection));
+        expect(hostApi.createNodeCount, 0);
+        expect(hostApi.createSignerCount, 0);
+        expect(hostApi.lifecycleCalls, isEmpty);
+        expect(wallet.isInitialized, isFalse);
+      });
+    }
+  }
+
+  test(
+    'mainnet rejects custom password signer overrides before dispatch',
+    () async {
+      final hostApi = FakeRlnHostApi();
+      final wallet = createAdvancedUtexoWallet(
+        config: UtexoWalletConfig(
+          storageDirPath: '/tmp/rgb-wallet-test',
+          network: 'mainnet',
+        ),
+        client: RlnClient(hostApi: hostApi),
+        signer: CustomPasswordSigner(),
+      );
+      await expectLater(
+        wallet.init(),
+        throwsA(isA<UnsupportedWalletFeatureException>()),
+      );
+      expect(hostApi.createNodeCount, 0);
+      expect(hostApi.lifecycleCalls, isEmpty);
+    },
+  );
+
+  test('mainnet accepts built-in password signer initialization', () async {
+    for (final explicitSigner in [false, true]) {
+      final hostApi = FakeRlnHostApi();
+      final wallet = createAdvancedUtexoWallet(
+        config: UtexoWalletConfig(
+          storageDirPath: '/tmp/rgb-wallet-test',
+          network: 'mainnet',
+        ),
+        client: RlnClient(hostApi: hostApi),
+        signer: explicitSigner ? PasswordRlnSigner(password: 'password') : null,
+      );
+      await wallet.init(password: explicitSigner ? null : 'password');
+      expect(hostApi.createNodeCount, 1);
+      expect(hostApi.createSignerCount, 0);
+      expect(hostApi.initializedPassword, 'password');
+      await wallet.destroy();
+    }
   });
 
   test('supports RN-style native external signer lifecycle', () async {

@@ -12,7 +12,7 @@ for RN/native parity diagnostics.
 
 **Not production ready. Do not use this revision with mainnet funds.**
 
-Current package version: `0.2.0-beta.2`.
+Current package version: `0.2.0-beta.3`.
 
 The current baseline is:
 
@@ -255,7 +255,12 @@ final unlockOnlySigner = PasswordRlnSigner(password: passwordFromUser);
 ```
 
 `NativeExternalRlnSigner` uses the native external-signer path and accepts
-mnemonic, seed bytes, or seed hex key material.
+mnemonic, seed bytes, or seed hex key material. It and custom signer strategies
+are unsupported on mainnet: `init`/`reinit` fail before native node allocation.
+The initial mainnet scope permits only the built-in `PasswordRlnSigner` (also
+the default when supplying a password). The same guard applies with or without
+VSS. External-signer regtest support remains available for upstream research;
+its crash recovery, teardown and VSS-key security are not production-qualified.
 
 ```dart
 final signer = NativeExternalRlnSigner(
@@ -319,6 +324,12 @@ The current internal-beta line intentionally keeps these constraints explicit:
   constraint under `PKG-006`; production supply-chain mode must still fail
   until upstream signatures and reproducible-build/source attestations exist.
 
+The [native provenance verifier](doc/NATIVE_PROVENANCE_VERIFICATION.md) checks
+real signed archive/source/build/reproduction evidence against separately
+reviewed trust roots. Current artifacts still lack that evidence. Production
+also independently rejects the known P03/P04/P06 on-chain defects and unresolved
+selected native TLS advisories; a green Pub audit does not cover Rust code.
+
 ## Local Validation
 
 Use the pinned Flutter toolchain from `.fvmrc`.
@@ -341,13 +352,27 @@ RGB_SDK_RN_PATH=/path/to/rgb-sdk-rn dart run tool/validate_rn_parity.dart
 The full local candidate gate is:
 
 ```sh
-RUN_CONSUMER_ARCHIVES=1 RUN_PLATFORM=1 ./tool/test_release_candidate.sh
+RELEASE_PROFILE=mainnet-onchain \
+  IOS_DEVICE=EXPLICIT_IOS_ID ANDROID_DEVICE=EXPLICIT_ANDROID_ID \
+  RELEASE_RUN_ID=UNIQUE_RUN_ID RUN_CONSUMER_ARCHIVES=1 \
+  ./tool/test_release_candidate.sh
 ```
 
-The full gate runs Dart checks, package governance, clean consumer installs and
-archives, Android bridge tests, iOS XCTest, funded/unfunded iOS and Android
-regtest smokes, and external-signer process restart proofs. Required local
-gates must not be skipped for release evidence.
+The default `mainnet-onchain` profile runs production supply-chain verification,
+Dart/package checks, clean consumer archives and native bridge tests. It then
+requires exact-candidate iOS/Android onchain qualification reports from the
+**existing isolated** `wdk-rln-017-qualification` stack. It never starts/resets
+containers or dispatches the legacy funded Lightning/external-signer runners.
+No successful Lightning flow is required; mainnet Lightning rejection is.
+Read [the evidence contract](doc/RELEASE_EVIDENCE_SCHEMA.md#mainnet-onchain-production-profile)
+for the strict required cases and existing stack identities. Missing proofs,
+including reorg rollback and fresh-device recovery, fail the aggregate gate;
+adding a profile does not establish that those scenarios passed.
+
+The historical SDK-owned stack and Lightning regression suite is available only
+with explicit `RELEASE_PROFILE=internal-beta RUN_PLATFORM=1`. That profile can
+manage its historical SDK-owned stack; it is **not** appropriate when preserving
+existing infrastructure and cannot qualify this mainnet release.
 
 For the existing shared-stack campaign, read that stack's `AGENTS.md`,
 `docs/CONSUMERS.md` and `artifacts/consumer-config.json` first, then use:

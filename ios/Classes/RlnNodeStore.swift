@@ -13,6 +13,7 @@ final class RlnNodeStore {
   private var states: [Int64: NodeLifecycleState] = [:]
   private var preUnlockStates: [Int64: NodeLifecycleState] = [:]
   private var storageDirByNodeId: [Int64: String] = [:]
+  private var networkByNodeId: [Int64: String] = [:]
   private var nextId: Int64 = 1
   private var signers: [Int64: NativeExternalSigner] = [:]
   private var nextSignerId: Int64 = 1
@@ -30,7 +31,7 @@ final class RlnNodeStore {
     }
   }
 
-  func create(node: SdkNode, storageDirPath: String) throws -> Int64 {
+  func create(node: SdkNode, storageDirPath: String, network: String) throws -> Int64 {
     try queue.sync {
       let normalizedPath = storageDirPath.trimmingCharacters(in: .whitespacesAndNewlines)
       if !normalizedPath.isEmpty,
@@ -40,6 +41,7 @@ final class RlnNodeStore {
           states.removeValue(forKey: existingId)
           preUnlockStates.removeValue(forKey: existingId)
           storageDirByNodeId.removeValue(forKey: existingId)
+          networkByNodeId.removeValue(forKey: existingId)
         } else {
           throw RlnStoreError.nodeAlreadyExists(storageDirPath: normalizedPath)
         }
@@ -50,6 +52,7 @@ final class RlnNodeStore {
       nodes[id] = node
       states[id] = .created
       storageDirByNodeId[id] = normalizedPath
+      networkByNodeId[id] = network
       return id
     }
   }
@@ -60,6 +63,15 @@ final class RlnNodeStore {
         throw RlnStoreError.nodeNotFound(id: id)
       }
       return node
+    }
+  }
+
+  func getNetwork(id: Int64) throws -> String {
+    try queue.sync {
+      guard let network = networkByNodeId[id] else {
+        throw RlnStoreError.nodeNotFound(id: id)
+      }
+      return network
     }
   }
 
@@ -142,6 +154,7 @@ final class RlnNodeStore {
       states.removeValue(forKey: id)
       preUnlockStates.removeValue(forKey: id)
       storageDirByNodeId.removeValue(forKey: id)
+      networkByNodeId.removeValue(forKey: id)
       if let node, state != .shutdown {
         node.shutdown()
       }
@@ -181,6 +194,7 @@ final class RlnNodeStore {
       states.removeAll()
       preUnlockStates.removeAll()
       storageDirByNodeId.removeAll()
+      networkByNodeId.removeAll()
       signers.removeAll()
       nodesToShutdown.forEach { $0.shutdown() }
     }

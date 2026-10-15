@@ -3,6 +3,8 @@ import 'dart:io';
 
 import 'package:crypto/crypto.dart';
 
+import 'release_profiles.dart';
+
 String fileDigest(File file) =>
     sha256.convert(file.readAsBytesSync()).toString();
 
@@ -13,6 +15,7 @@ const evidenceSuites = <String>{
   'native-ios-xctest',
   'platform-unfunded-regtest',
   'platform-funded-regtest',
+  'platform-onchain-regtest',
   'external-signer-process-restart',
 };
 
@@ -153,7 +156,10 @@ List<String> evidenceReportErrors(
       errors.add('Missing exact platform-device identity.');
     }
   }
-  if (suite.contains('regtest') || suite == 'external-signer-process-restart') {
+  if (suite == 'platform-onchain-regtest') {
+    errors.addAll(onchainQualificationErrors(report));
+  } else if (suite.contains('regtest') ||
+      suite == 'external-signer-process-restart') {
     final stack = report['stackIdentity'];
     final services = stack is Map<String, Object?> ? stack['services'] : null;
     if (stack is! Map<String, Object?> ||
@@ -224,6 +230,13 @@ List<String> _childManifestErrors(
     final keys = <String>{};
     final devices = <String, Set<String>>{};
     final fundedPlatforms = <String>{};
+    final profile = '${report['releaseProfile'] ?? internalBetaProfile}';
+    if (!releaseProfiles.contains(profile)) {
+      errors.add('Unknown release profile.');
+    }
+    final platformSuite = profile == mainnetOnchainProfile
+        ? 'platform-onchain-regtest'
+        : 'platform-funded-regtest';
     for (final child in children) {
       final source = child is Map<String, Object?>
           ? _ownedFile(child['path'], root)
@@ -251,8 +264,7 @@ List<String> _childManifestErrors(
       final suite = '${data['suite']}';
       final device = '${data['device'] ?? ''}';
       final identity = data['deviceIdentity'];
-      if (suite == 'platform-funded-regtest' &&
-          identity is Map<String, Object?>) {
+      if (suite == platformSuite && identity is Map<String, Object?>) {
         fundedPlatforms.add('${identity['targetPlatform']}');
       }
       if (!keys.add('$suite/$device')) errors.add('Duplicate child report.');
@@ -267,24 +279,40 @@ List<String> _childManifestErrors(
         errors.add('Missing $suite child report.');
       }
     }
-    final platformDevices = devices['platform-funded-regtest'] ?? <String>{};
-    if (children.length != 9 ||
+    final platformDevices = devices[platformSuite] ?? <String>{};
+    final expectedCount = profile == mainnetOnchainProfile ? 5 : 9;
+    if (children.length != expectedCount ||
         platformDevices.length != 2 ||
         platformDevices.contains('') ||
         !fundedPlatforms.contains('ios') ||
         !fundedPlatforms.any((platform) => platform.startsWith('android')) ||
         !platformDevices.containsAll(devices['native-ios-xctest'] ?? {''})) {
       errors.add(
-        'Both platform candidates and all nine children are required.',
+        'Both platform candidates and all $expectedCount children are required.',
       );
     }
-    for (final suite in [
-      'platform-unfunded-regtest',
-      'external-signer-process-restart',
-    ]) {
-      final other = devices[suite] ?? <String>{};
-      if (other.length != 2 || !other.containsAll(platformDevices)) {
-        errors.add('Missing matching devices for $suite.');
+    if (profile == mainnetOnchainProfile) {
+      if (devices.keys.any(
+        (suite) => !{
+          'clean-consumer-matrix',
+          'native-android-jvm',
+          'native-ios-xctest',
+          'platform-onchain-regtest',
+        }.contains(suite),
+      )) {
+        errors.add(
+          'Mainnet-onchain profile contains out-of-scope child evidence.',
+        );
+      }
+    } else {
+      for (final suite in [
+        'platform-unfunded-regtest',
+        'external-signer-process-restart',
+      ]) {
+        final other = devices[suite] ?? <String>{};
+        if (other.length != 2 || !other.containsAll(platformDevices)) {
+          errors.add('Missing matching devices for $suite.');
+        }
       }
     }
   } on FormatException {

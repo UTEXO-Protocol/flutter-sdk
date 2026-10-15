@@ -288,3 +288,17 @@ Native work has a single bridge owner: generated Pigeon `RlnHostApi` wrapped by
 diagnostic is `RgbSdkFlutter.nativeArtifactInfo()`, which reads metadata through
 the same generated Pigeon host API rather than a second substitutable platform
 abstraction.
+
+## Initial mainnet external signer exclusion (2026-10-16)
+
+Intentional release-scoped divergence, linked to `SEC-013` and the current
+native P01/P02/external-VSS qualification gates: mainnet permits only the
+built-in `PasswordRlnSigner`; external/custom signers (including overriding
+password subclasses) fail before facade node creation. Swift/Kotlin plugins
+retain immutable create-request network metadata per node and reject external
+signer creation, bootstrap, init, attach and unlock on mainnet or unknown
+network aliases before native side effects. Regtest behavior remains available
+for fixing the upstream implementation. No public method is removed; mainnet
+external-mode callers must defer until the native safety gates are resolved,
+rather than switch to the advanced raw client. The API/bridge snapshot update
+records internal store network accessors/create parameters for this guard.

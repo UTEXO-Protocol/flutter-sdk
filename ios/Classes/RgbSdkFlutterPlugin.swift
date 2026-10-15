@@ -343,7 +343,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
     ]
   }
 
-  private func unspentMap(_ unspent: Unspent) -> [String: Any?] {
+  func unspentMap(_ unspent: Unspent) -> [String: Any?] {
     [
       "utxo": [
         "outpoint": unspent.utxo.outpoint,
@@ -352,6 +352,7 @@ public class RgbSdkFlutterPlugin: NSObject, FlutterPlugin, RlnHostApi {
         "exists": unspent.utxo.exists,
       ],
       "rgbAllocations": unspent.rgbAllocations.map(rgbAllocationMap),
+      "pendingBlinded": Int64(unspent.pendingBlinded),
     ]
   }
 

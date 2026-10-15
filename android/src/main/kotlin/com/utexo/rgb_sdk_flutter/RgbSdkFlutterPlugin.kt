@@ -364,7 +364,7 @@ class RgbSdkFlutterPlugin :
         )
     }
 
-    private fun unspentMap(unspent: org.utexo.rgblightningnode.Unspent): Map<Any?, Any?> {
+    internal fun unspentMap(unspent: org.utexo.rgblightningnode.Unspent): Map<Any?, Any?> {
         return mapOf(
             "utxo" to mapOf(
                 "outpoint" to unspent.utxo.outpoint,
@@ -372,7 +372,8 @@ class RgbSdkFlutterPlugin :
                 "colorable" to unspent.utxo.colorable,
                 "exists" to unspent.utxo.exists
             ),
-            "rgbAllocations" to unspent.rgbAllocations.map(::rgbAllocationMap)
+            "rgbAllocations" to unspent.rgbAllocations.map(::rgbAllocationMap),
+            "pendingBlinded" to unspent.pendingBlinded.toLong()
         )
     }
 

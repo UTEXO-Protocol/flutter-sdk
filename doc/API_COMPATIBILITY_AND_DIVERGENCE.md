@@ -66,6 +66,14 @@ ship.
 
 ### October Qualification Follow-Up
 
+`OCT-043`: native unspent maps must include `pendingBlinded` in the UInt32
+range. Both bridges now forward the released RLN field; missing or malformed
+wire values fail closed instead of making reserved outputs appear free.
+Advanced bridge mocks must supply zero explicitly when no reservation exists.
+Hand-constructed `RlnUnspent`/`CoreUnspent` DTOs retain their constructor
+default for source compatibility. Existing SDK/native package pairs must be
+rebuilt together; hot reloading new Dart code over an old bridge is unsupported.
+
 `OCT-038/039/040`: beta.2 adds the explicit public contract-import extension
 and support-safe nullable `RgbSdkException.operation` / `nativeCode` getters.
 Callers may use the typed allowlisted codes for recovery decisions; raw native

@@ -217,8 +217,8 @@
     ]
   },
   "nativeBridgeSurface": {
-    "count": 394,
-    "hash": "af2aa51c5a0d207c6c8403f48d15a40420f758c30f88e3f85df95239445ced5d",
+    "count": 395,
+    "hash": "fb6451020d25c104628a323c8db08718532c47f34e082444f84d083bc301c6fa",
     "files": [
       "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPlugin.kt",
       "android/src/main/kotlin/com/utexo/rgb_sdk_flutter/RlnAssetMapper.kt",

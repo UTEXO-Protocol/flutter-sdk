@@ -1315,13 +1315,20 @@ class RlnUnspent {
   }) : rgbAllocations = List<RlnRgbAllocation>.unmodifiable(rgbAllocations);
 
   factory RlnUnspent.fromMap(RlnMap map) {
+    final pendingBlinded = _requiredInt(map, 'pendingBlinded', 'RlnUnspent');
+    if (pendingBlinded < 0 || pendingBlinded > 0xffffffff) {
+      throw const NativeProtocolException(
+        'Pending blinded reservations must be a UInt32 count.',
+        field: 'RlnUnspent.pendingBlinded',
+      );
+    }
     return RlnUnspent(
       utxo: RlnUtxo.fromMap(_requiredMap(map, 'utxo', 'RlnUnspent')),
       rgbAllocations: _mapList(
         map['rgbAllocations'],
         'RlnUnspent.rgbAllocations',
       ).map(RlnRgbAllocation.fromMap).toList(growable: false),
-      pendingBlinded: _intOrNull(map['pendingBlinded']) ?? 0,
+      pendingBlinded: pendingBlinded,
     );
   }
 

@@ -750,6 +750,7 @@ class FakeRlnHostApi extends RlnHostApi {
             'settled': true,
           },
         ],
+        'pendingBlinded': 0,
       },
     ]);
   }
@@ -2892,6 +2893,37 @@ void main() {
         'numPeers': 0,
         'channelAssetMaxAmount': '18446744073709551616',
       }),
+      throwsA(isA<NativeProtocolException>()),
+    );
+  });
+
+  test('unspent reservation counts are required and bounded on the wire', () {
+    final data = <Object?, Object?>{
+      'utxo': <Object?, Object?>{
+        'outpoint': '${'ab' * 32}:3',
+        'btcAmount': 20000,
+        'colorable': true,
+        'exists': true,
+      },
+      'rgbAllocations': <Object?>[],
+    };
+    for (final value in [0, 1, 5, 0xffffffff]) {
+      expect(
+        RlnUnspent.fromMap({
+          ...data,
+          'pendingBlinded': value,
+        }).toCore().pendingBlinded,
+        value,
+      );
+    }
+    for (final value in <Object?>[null, -1, 0x100000000, 1.5, true, 'bad']) {
+      expect(
+        () => RlnUnspent.fromMap({...data, 'pendingBlinded': value}),
+        throwsA(isA<NativeProtocolException>()),
+      );
+    }
+    expect(
+      () => RlnUnspent.fromMap(data),
       throwsA(isA<NativeProtocolException>()),
     );
   });

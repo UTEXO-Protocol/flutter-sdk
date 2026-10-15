@@ -27,6 +27,7 @@ overlay or replacement native binary is included.
 | OCT-040 | P1 | Verified | API 37 local-network permission denial appeared as native indexer/unlock failure. The example now targets API 37, presents the real OS consent prompt after its first frame and verifies LAN access before native initialization. Android 17 / 16 KiB guest native unlock and funded transfers succeed after real Allow consent. Added bounded operation/code getters without raw native messages so hosts can classify recoverable failures. | Consuming apps own declaration, consent, denial and revocation handling; the SDK library must not silently prompt or bypass permission. |
 | OCT-041 | P1 | Verified | Existing-stack SDK evidence covers BTC send/receive, canonical BFA mint, blind/witness transfers, native burn, exact EVM payout and funded same-store reopen on both platforms through explicitly composed reports. iOS combines initial A and pre-burn resume B. Android C retains its failed host acknowledgement; the original proof later receives exactly one successful payout after signer readiness, and read-only E independently verifies the same closed wallet identities and 1.58m/0.4m balances through funded reinit. | Preserve original failures, separate recovery evidence and private fixtures. This scoped onchain evidence does not close Lightning/LSP/VSS, destructive recovery, general P04, native lifecycle or clean immutable candidate qualification. |
 | OCT-042 | P1 | Verified | Stable decoded invoices dropped native recipient type, preventing hosts from distinguishing blind receivers from witness receivers requiring a Bitcoin output. `CoreInvoiceData.recipientType` is now optional for constructor compatibility and receives exact native Blind/Witness or unknown future values. A focused regression proves both known values, unknown preservation and omitted-field null. | Hosts must reject null/unknown kinds before broadcast and explicitly review witness Bitcoin output value separately from fees; do not parse invoice strings or silently switch receive modes. |
+| OCT-043 | P1 | Verified | Both platform unspent serializers omitted released RLN `pendingBlinded`, while Dart fabricated a missing value as zero. Reserved outputs could therefore appear available. Swift/Kotlin now preserve the UInt32 count; native-map decoding requires its presence and range. Dart boundary/client-wire tests, 31 JVM tests and the production Swift wire-codec host probe pass; the new XCTest vector is registered but not yet run on iOS. | Keep reservation counts distinct from allocation readiness and retain native authorization. Advanced wire mocks must supply an explicit count; do not hot reload new Dart code over an old native bridge. Final iOS compilation/device execution remains part of app qualification. |
 
 Local evidence (ignored, contains private fixture backups):
 `build/full-wallet-20261015/sdk-full-ios27-20261015-a/`,
@@ -47,8 +48,8 @@ The earlier iOS run failed because the test omitted the explicit witness
 satoshi value; the corrected resume performs no new fund or mint operation.
 A pending incoming witness transfer on each platform reports the exact future
 balance once in this canonical BFA profile; this single profile is not general
-upstream P04 closure. Host coverage passes all package floors (505 tests,
-package 88.7%, wallet 87.1%, models 88.0%); this is working-tree evidence,
+upstream P04 closure. Host coverage passes all package floors (507 tests,
+package 88.7%, wallet 87.1%, models 88.1%); this is working-tree evidence,
 not clean immutable release qualification. The bridge-vector gate still fails
 for the pre-existing missing VSS platform-success vector; no VSS result is invented.
 
@@ -734,9 +735,9 @@ is accepted implicitly. No release eligibility is claimed during remediation.
 
 | Measure | Count |
 | --- | ---: |
-| Total tracked findings | 287 |
+| Total tracked findings | 288 |
 | P0 | 10 |
-| P1 | 198 |
+| P1 | 199 |
 | P2 | 79 |
 | P3 | 0 |
 | Open | 2 |
@@ -744,7 +745,7 @@ is accepted implicitly. No release eligibility is claimed during remediation.
 | Blocked upstream | 3 |
 | Needs decision | 0 |
 | Accepted constraint | 7 |
-| Verified | 252 |
+| Verified | 253 |
 
 This rollup is generated from all finding rows; verified code is not equivalent
 to clean-candidate platform qualification. Seven accepted constraints remain.

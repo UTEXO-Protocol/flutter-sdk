@@ -372,6 +372,20 @@
         "test/imported_rgb_contract_test.dart::import requires unlock and canonical bytes before native dispatch",
         "example/integration_test/shared_stack_wallet_test.dart::existing shared stack: lifecycle, BTC, canonical BFA and payout"
       ]
+    },
+    "listUnspents": {
+      "tracker": "OCT-043",
+      "requiredVectors": [
+        "native-pending-blinded-preserved",
+        "uint32-zero-one-maximum",
+        "missing-malformed-reservation-fail-closed"
+      ],
+      "testIds": [
+        "test/utexo_wallet_test.dart::unspent reservation counts are required and bounded on the wire",
+        "test/rln_client_contract_test.dart::listUnspents preserves native blinded reservations through JSON",
+        "android/src/test/kotlin/com/utexo/rgb_sdk_flutter/RgbSdkFlutterPluginTest.kt::unspentSerializationPreservesPendingBlindedReservations",
+        "example/ios/RunnerTests/RunnerTests.swift::testUnspentSerializationPreservesPendingBlindedReservations"
+      ]
     }
   }
 }

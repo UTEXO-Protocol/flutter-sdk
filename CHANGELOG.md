@@ -8,6 +8,9 @@
   `destroy()` retry; block reinitialization and ordinary wallet operations
   until cleanup completes.
 - Expose redacted native operation/code diagnostics for host recovery UX.
+- Preserve native pending blinded-reservation counts in both platform bridges.
+  Native unspent maps must supply a UInt32 count; missing or malformed counts
+  fail closed instead of being fabricated as zero.
 - Preserve decoded blind/witness recipient type in the stable invoice DTO so
   hosts can explicitly review required witness Bitcoin outputs.
 - Target Android 17 in the example and request local-network consent before

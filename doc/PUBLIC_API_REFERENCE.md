@@ -365,6 +365,12 @@ defaults to null for compatibility. Hosts must reject unknown/null kinds before
 sending and review the witness Bitcoin output amount separately from network
 fees; this metadata does not authorize a send.
 
+`CoreUnspent.pendingBlinded` preserves the native blinded-reservation count.
+Native responses require a UInt32 value; omission or malformed values fail
+closed. A zero count alone does not prove a free allocation slot: hosts must
+also check the output and allocation state, and native reservation remains
+authoritative.
+
 ## Symbol Coverage Checklist
 
 - `ImportedRgbContract`

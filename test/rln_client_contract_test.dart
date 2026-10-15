@@ -62,7 +62,20 @@ class _RecordingRlnHostApi extends RlnHostApi {
 
   List<RlnWireResponse> _list(String method) {
     return <RlnWireResponse>[
-      _wireMap(<Object?, Object?>{'method': method, 'ok': true}),
+      _wireMap(<Object?, Object?>{
+        'method': method,
+        'ok': true,
+        if (method == 'rlnListUnspents') ...{
+          'utxo': {
+            'outpoint': '${'ab' * 32}:3',
+            'btcAmount': 20000,
+            'colorable': true,
+            'exists': true,
+          },
+          'rgbAllocations': <Object?>[],
+          'pendingBlinded': 3,
+        },
+      }),
     ];
   }
 
@@ -1752,6 +1765,21 @@ void main() {
   ];
 
   group('RlnClient bridge contract', () {
+    test(
+      'listUnspents preserves native blinded reservations through JSON',
+      () async {
+        final host = _RecordingRlnHostApi();
+        final result = await RlnClient(
+          hostApi: host,
+        ).listUnspents(nodeId: nodeId, skipSync: false);
+        final unspent = RlnUnspent.fromMap(result.single).toCore();
+        expect(unspent.pendingBlinded, 3);
+        expect(unspent.utxo.outpoint.txid, 'ab' * 32);
+        expect(unspent.utxo.outpoint.vout, 3);
+        expect(unspent.utxo.btcAmount, 20000);
+      },
+    );
+
     test('matrix covers every low-level bridge method', () {
       final host =
           parseString(

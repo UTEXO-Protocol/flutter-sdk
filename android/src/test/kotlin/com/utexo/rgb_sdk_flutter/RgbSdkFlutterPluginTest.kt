@@ -16,6 +16,20 @@ internal class RgbSdkFlutterPluginTest {
     private val plugin = RgbSdkFlutterPlugin()
 
     @Test
+    fun unspentSerializationPreservesPendingBlindedReservations() {
+        for (count in listOf(0u, 1u, 5u, UInt.MAX_VALUE)) {
+            val map = plugin.unspentMap(org.utexo.rgblightningnode.Unspent(
+                utxo = org.utexo.rgblightningnode.Utxo(
+                    outpoint = "ab".repeat(32) + ":3", btcAmount = 20000uL,
+                    colorable = true, exists = true
+                ), rgbAllocations = emptyList(), pendingBlinded = count
+            ))
+            assertEquals(count.toLong(), map["pendingBlinded"])
+            assertEquals("ab".repeat(32) + ":3", (map["utxo"] as Map<*, *>)["outpoint"])
+        }
+    }
+
+    @Test
     fun bfaAssetSerializationPreservesUnsignedSupplyAndRejectList() {
         val maximum = ULong.MAX_VALUE
         val asset = org.utexo.rgblightningnode.AssetBfa(

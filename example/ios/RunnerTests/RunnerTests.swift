@@ -5,6 +5,20 @@ import XCTest
 final class RunnerTests: XCTestCase {
   private let plugin = RgbSdkFlutterPlugin()
 
+  func testUnspentSerializationPreservesPendingBlindedReservations() throws {
+    for count in [UInt32(0), 1, 5, UInt32.max] {
+      let map = plugin.unspentMap(Unspent(
+        utxo: Utxo(outpoint: String(repeating: "ab", count: 32) + ":3",
+          btcAmount: 20_000, colorable: true, exists: true),
+        rgbAllocations: [], pendingBlinded: count))
+      let response = try RlnWireCodec.encode(map)
+      XCTAssertTrue(response.json.contains("\"pendingBlinded\":\(count)"))
+      let decoded = try XCTUnwrap(JSONSerialization.jsonObject(
+        with: Data(response.json.utf8)) as? [String: Any])
+      XCTAssertEqual(decoded["pendingBlinded"] as? Int64, Int64(count))
+    }
+  }
+
   func testBfaAssetSerializationPreservesUnsignedSupplyAndRejectList() throws {
     let asset = AssetBfa(assetId: "rgb:asset", ticker: "USDT", name: "Bridged asset",
       details: nil, precision: 6, initialSupply: UInt64.max, timestamp: 1, addedAt: 2,
